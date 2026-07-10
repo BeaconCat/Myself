@@ -12,14 +12,19 @@ export const router = createRouter({
   scrollBehavior: () => ({ top: 0, behavior: 'smooth' }),
 });
 
-/** 路由 Loading：进场动画演完（含数据/组件加载）再退场，最短展示 900ms */
+/**
+ * 路由 Loading：先播覆盖动画，纯色层完整盖住全屏后才放行导航
+ * （组件加载/渲染全部发生在覆盖层背后），退场前最短展示 900ms。
+ */
+const COVER_MS = 700;
 const MIN_SHOW_MS = 900;
 let shownAt = 0;
 
-router.beforeEach((_to, from) => {
+router.beforeEach(async (_to, from) => {
   if (!from.name) return; // 首屏由 AppLoading 负责
   shownAt = performance.now();
   useLoadingStore().startRoute();
+  await new Promise((resolve) => window.setTimeout(resolve, COVER_MS));
 });
 
 router.afterEach((_to, from) => {

@@ -34,19 +34,6 @@ const chars = computed(() =>
   [...(item.value?.title ?? '')].map((ch) => ({ ch, delay: Math.random() * 0.35 })),
 );
 
-/** 每条 item 的随机 3D 飞入角度 */
-const flyAngles = ref({ rx: 8, ry: -40, rz: 6 });
-
-function rollFlyAngles(): void {
-  const rand = (min: number, max: number) => min + Math.random() * (max - min);
-  const sign = () => (Math.random() < 0.5 ? -1 : 1);
-  flyAngles.value = {
-    rx: rand(10, 28) * sign(),
-    ry: rand(30, 55) * sign(),
-    rz: rand(4, 14) * sign(),
-  };
-}
-
 /** 当前 item 内进度（含正在展示的这张） */
 const progress = computed(() => {
   const total = Math.max(covers.value.length, 1);
@@ -58,7 +45,6 @@ function swapItem(next: () => void): void {
   window.setTimeout(() => {
     next();
     photoIndex.value = 0;
-    rollFlyAngles();
     phase.value = 'in';
   }, OUT_MS);
 }
@@ -88,7 +74,6 @@ function slotOf(i: number): number {
 let timer = 0;
 
 onMounted(() => {
-  rollFlyAngles();
   timer = window.setInterval(tick, props.photoMs);
 });
 
@@ -112,22 +97,15 @@ onBeforeUnmount(() => window.clearInterval(timer));
       <button class="hero-btn">{{ t('hero.readMore') }}</button>
     </div>
 
-    <!-- 右：3D 立体相册（常驻左倾 15°） -->
+    <!-- 右：3D 立体相册（常驻左倾 15°），卡片上下飞入/离场 -->
     <div class="hero-stage">
-      <div
-        :key="`${groupIndex}-${itemIndex}`"
-        class="album"
-        :style="{
-          '--fly-rx': flyAngles.rx + 'deg',
-          '--fly-ry': flyAngles.ry + 'deg',
-          '--fly-rz': flyAngles.rz + 'deg',
-        }"
-      >
+      <div :key="`${groupIndex}-${itemIndex}`" class="album">
         <div
           v-for="(cover, i) in covers"
           :key="cover"
           class="album-card"
-          :class="`slot-${slotOf(i)}`"
+          :class="[`slot-${slotOf(i)}`, i % 2 ? 'from-top' : 'from-bottom']"
+          :style="{ '--stagger': i * 0.1 + 's' }"
         >
           <img :src="cover" :alt="item?.title" draggable="false" />
           <div class="card-glow" />
@@ -268,39 +246,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
   transform: rotateY(-15deg);
 }
 
-.hero.in .album {
-  animation: album-in 0.85s var(--ease-spring) both;
-}
-
-@keyframes album-in {
-  from {
-    opacity: 0;
-    transform:
-      translate3d(140px, -30px, -220px)
-      rotateX(var(--fly-rx)) rotateY(var(--fly-ry)) rotateZ(var(--fly-rz))
-      scale(0.8);
-  }
-  to {
-    opacity: 1;
-    transform: rotateY(-15deg);
-  }
-}
-
-.hero.out .album {
-  animation: album-out 0.45s var(--ease-out) both;
-}
-
-@keyframes album-out {
-  to {
-    opacity: 0;
-    transform:
-      translate3d(-120px, 40px, -180px)
-      rotateX(calc(var(--fly-rx) * -1)) rotateY(calc(var(--fly-ry) * -1)) rotateZ(calc(var(--fly-rz) * -1))
-      scale(0.8);
-  }
-}
-
-/* 相册单卡：slot-0 前排，slot-1/2 依次退后堆叠 */
+/* 相册单卡：参考错位堆叠——前排居中，后排右上/左下探出 */
 .album-card {
   position: absolute;
   inset: 0;
@@ -310,6 +256,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
   background: var(--surface);
   box-shadow: var(--shadow), 0 30px 70px -20px rgba(var(--primary-rgb), 0.35);
   transform-style: preserve-3d;
+  /* 切换：水平换位（transform）+ 层级跳变（z-index 不可动画，瞬切） */
   transition:
     transform 0.8s var(--ease-spring),
     opacity 0.8s var(--ease-out),
@@ -323,18 +270,58 @@ onBeforeUnmount(() => window.clearInterval(timer));
   }
 }
 
-.slot-0 { transform: translateZ(0); opacity: 1; z-index: 3; filter: none; }
+.slot-0 {
+  transform: translate3d(0, 0, 0) scale(0.86);
+  opacity: 1;
+  z-index: 3;
+  filter: none;
+}
 .slot-1 {
-  transform: translate3d(34px, 18px, -70px) rotateZ(3deg);
-  opacity: 0.75;
+  transform: translate3d(76px, -46px, -90px) scale(0.8);
+  opacity: 0.85;
   z-index: 2;
-  filter: brightness(0.85) blur(0.5px);
+  filter: brightness(0.8);
 }
 .slot-2 {
-  transform: translate3d(68px, 36px, -140px) rotateZ(6deg);
-  opacity: 0.5;
+  transform: translate3d(-72px, 48px, -90px) scale(0.8);
+  opacity: 0.85;
   z-index: 1;
-  filter: brightness(0.7) blur(1px);
+  filter: brightness(0.72);
+}
+
+/* 入场：奇数卡自上坠入、偶数卡自下升入，级联延迟；终点回到各自 slot 位 */
+.hero.in .album-card.from-top {
+  animation: drop-in 0.8s var(--ease-spring) both;
+  animation-delay: var(--stagger);
+}
+.hero.in .album-card.from-bottom {
+  animation: rise-in 0.8s var(--ease-spring) both;
+  animation-delay: var(--stagger);
+}
+
+/* 单侧 keyframe：to 省略 → 落到 slot 自身 transform */
+@keyframes drop-in {
+  from { opacity: 0; transform: translate3d(40px, -130%, -60px) scale(0.8); }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translate3d(-40px, 130%, -60px) scale(0.8); }
+}
+
+/* 出场：各回上下方向飞离 */
+.hero.out .album-card.from-top {
+  animation: fly-up 0.45s var(--ease-out) both;
+  animation-delay: calc(var(--stagger) * 0.5);
+}
+.hero.out .album-card.from-bottom {
+  animation: fly-down 0.45s var(--ease-out) both;
+  animation-delay: calc(var(--stagger) * 0.5);
+}
+
+@keyframes fly-up {
+  to { opacity: 0; transform: translate3d(30px, -140%, -60px) scale(0.8); }
+}
+@keyframes fly-down {
+  to { opacity: 0; transform: translate3d(-30px, 140%, -60px) scale(0.8); }
 }
 
 .card-glow {
