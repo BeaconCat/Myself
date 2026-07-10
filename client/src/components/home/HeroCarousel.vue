@@ -250,7 +250,6 @@ function openLightbox(i: number): void {
   expandedIndex.value = i;
   lightboxOn.value = true;
   lbClosing.value = false;
-  document.documentElement.style.overflow = 'hidden';
   void launch(i);
 }
 
@@ -276,7 +275,6 @@ function closeLightbox(): void {
   window.setTimeout(() => {
     lightboxOn.value = false;
     lbClosing.value = false;
-    document.documentElement.style.overflow = '';
     expandedIndex.value = null;
     hovering.value = sectionEl.value?.matches(':hover') ?? false;
   }, FLY_MS);
@@ -390,8 +388,17 @@ function onBackdropTap(e: MouseEvent): void {
   lastTap = now;
 }
 
+/**
+ * Lightbox 期间不动 overflow（滚动条消失会引发布局横移，干扰飞行定位），
+ * 改为事件级锁滚动：滚轮已 preventDefault，这里拦截滚动类按键。
+ */
+const SCROLL_KEYS = new Set([
+  ' ', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown',
+]);
+
 function onKey(e: KeyboardEvent): void {
   if (!lightboxOn.value) return;
+  if (SCROLL_KEYS.has(e.key)) e.preventDefault();
   if (e.key === 'Escape') closeLightbox();
   if (e.key === 'ArrowLeft') lbGo(-1);
   if (e.key === 'ArrowRight') lbGo(1);
@@ -415,7 +422,6 @@ onBeforeUnmount(() => {
   window.clearTimeout(enterTimer);
   window.removeEventListener('keydown', onKey);
   window.removeEventListener('wheel', onWheel);
-  document.documentElement.style.overflow = '';
 });
 </script>
 
@@ -664,6 +670,14 @@ onBeforeUnmount(() => {
   position: relative;
   width: min(100%, 430px);
   perspective: 1300px;
+
+  /* 透明外扩热区：覆盖两侧按钮位置，靠近按钮时 hover 不丢失 */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -24px -80px;
+    z-index: 0;
+  }
 }
 
 .album {
@@ -802,7 +816,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 5;
+  z-index: 10;
   width: 40px;
   height: 40px;
   border-radius: 50%;
