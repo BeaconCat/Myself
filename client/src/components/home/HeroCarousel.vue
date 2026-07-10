@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import ImageViewer, { type OriginRect } from '../media/ImageViewer.vue';
+import HeroLightbox, { type OriginRect } from './HeroLightbox.vue';
 
 export interface HeroItem {
   title: string;
@@ -25,10 +25,9 @@ const phase = ref<'enter' | 'idle' | 'out'>('enter');
 
 const hovering = ref(false);
 const viewerOpen = ref(false);
-const viewerRect = ref<OriginRect | undefined>();
 
-const OUT_MS = 450;
-const ENTER_MS = 700;
+const OUT_MS = 330;
+const ENTER_MS = 550;
 
 const item = computed(() => props.items[itemIndex.value] ?? props.items[0]);
 const covers = computed(() => (item.value?.covers ?? []).slice(0, 3));
@@ -85,19 +84,23 @@ function slotOf(i: number): number {
   return (i - photoIndex.value + len) % len;
 }
 
-/** 点击前排卡 → 卡片本体放大成 Lightbox（原卡隐藏，FLIP 层顶替飞出） */
+/** Lightbox：卡片本体飞出放大；按图片索引查当前卡片矩形 */
 const sectionEl = ref<HTMLElement | null>(null);
 
-function openViewer(e: MouseEvent): void {
-  const img = (e.currentTarget as HTMLElement).querySelector('img');
-  if (!img) return;
-  const r = img.getBoundingClientRect();
-  viewerRect.value = { left: r.left, top: r.top, width: r.width, height: r.height };
-  viewerOpen.value = true;
+function cardRectOf(i: number): OriginRect | null {
+  const src = covers.value[i];
+  if (!src || !sectionEl.value) return null;
+  const el = sectionEl.value.querySelector<HTMLElement>(
+    `.album-card[data-src="${CSS.escape(src)}"]`,
+  );
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return { left: r.left, top: r.top, width: r.width, height: r.height };
 }
 
-function onViewerClose(): void {
+function onViewerClose(finalIndex: number): void {
   viewerOpen.value = false;
+  photoIndex.value = finalIndex;
   // 鼠标可能已不在轮播区（mouseleave 被遮罩吃掉），按真实悬停态重算
   hovering.value = sectionEl.value?.matches(':hover') ?? false;
 }
@@ -145,9 +148,10 @@ onBeforeUnmount(() => {
           v-for="(cover, i) in covers"
           :key="cover"
           class="album-card"
-          :class="[`slot-${slotOf(i)}`, { lifted: viewerOpen && slotOf(i) === 0 }]"
+          :class="`slot-${slotOf(i)}`"
+          :data-src="cover"
           :style="{ '--stagger': slotOf(i) * 0.1 + 's' }"
-          @click="slotOf(i) === 0 ? openViewer($event) : (photoIndex = i)"
+          @click="slotOf(i) === 0 ? (viewerOpen = true) : (photoIndex = i)"
         >
           <img :src="cover" :alt="item?.title" draggable="false" />
           <div class="card-glow" />
@@ -189,11 +193,12 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <ImageViewer
+    <HeroLightbox
       v-if="viewerOpen"
       :images="covers"
       :start-index="photoIndex"
-      :origin-rect="viewerRect"
+      :get-rect="cardRectOf"
+      @change="photoIndex = $event"
       @close="onViewerClose"
     />
   </section>
@@ -357,11 +362,6 @@ onBeforeUnmount(() => {
   cursor: zoom-in;
 }
 
-/* Lightbox 打开时原卡隐身：FLIP 层顶替，视觉上是卡片本体飞出放大 */
-.album-card.lifted {
-  opacity: 0;
-  transition: none;
-}
 .slot-1 {
   transform: translate3d(76px, -46px, -90px) scale(0.8);
   opacity: 0.85;
@@ -370,7 +370,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 .slot-2 {
-  transform: translate3d(-104px, 72px, -90px) scale(0.8);
+  transform: translate3d(-104px, 72px, -90px) scale(0.74);
   opacity: 0.85;
   z-index: 1;
   filter: brightness(0.72);
@@ -379,7 +379,7 @@ onBeforeUnmount(() => {
 
 /* 入场（仅 enter 阶段播放一次；无弹性）：前卡自上，右后卡自右，左后卡自左 */
 .hero.enter .album-card {
-  animation-duration: 0.7s;
+  animation-duration: 0.5s;
   animation-timing-function: var(--ease-out);
   animation-fill-mode: both;
   animation-delay: var(--stagger);
@@ -388,23 +388,23 @@ onBeforeUnmount(() => {
 .hero.enter .slot-1 { animation-name: enter-right; }
 .hero.enter .slot-2 { animation-name: enter-left; }
 
-/* 不透明度前 25% 就拉满：凭空出现感，位移继续走完 */
+/* 不透明度前 25% 就拉满：凭空出现感；位移距离随时长同步收短 */
 @keyframes enter-top {
-  from { opacity: 0; transform: translate3d(0, -130%, 40px) scale(0.8); }
+  from { opacity: 0; transform: translate3d(0, -70%, 40px) scale(0.8); }
   25% { opacity: 1; }
 }
 @keyframes enter-right {
-  from { opacity: 0; transform: translate3d(150%, -46px, -120px) scale(0.72); }
+  from { opacity: 0; transform: translate3d(85%, -46px, -120px) scale(0.72); }
   25% { opacity: 0.85; }
 }
 @keyframes enter-left {
-  from { opacity: 0; transform: translate3d(-150%, 72px, -120px) scale(0.72); }
+  from { opacity: 0; transform: translate3d(-85%, 72px, -120px) scale(0.7); }
   25% { opacity: 0.85; }
 }
 
 /* 出场：前卡向下，后卡向上，透明度前半段归零 */
 .hero.out .album-card {
-  animation-duration: 0.4s;
+  animation-duration: 0.3s;
   animation-timing-function: var(--ease-out);
   animation-fill-mode: both;
   animation-delay: calc(var(--stagger) * 0.4);
@@ -413,14 +413,14 @@ onBeforeUnmount(() => {
 .hero.out .slot-1,
 .hero.out .slot-2 { animation-name: leave-up; }
 
-/* 出场 30% 时间就完全透明：瞬隐 */
+/* 出场 30% 时间就完全透明：瞬隐；位移收短 */
 @keyframes leave-down {
   30% { opacity: 0; }
-  to { opacity: 0; transform: translate3d(0, 120%, 0) scale(0.82); }
+  to { opacity: 0; transform: translate3d(0, 65%, 0) scale(0.82); }
 }
 @keyframes leave-up {
   30% { opacity: 0; }
-  to { opacity: 0; transform: translate3d(0, -120%, -90px) scale(0.74); }
+  to { opacity: 0; transform: translate3d(0, -65%, -90px) scale(0.7); }
 }
 
 .card-glow {
@@ -473,6 +473,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  /* 让开左下后排卡的探出范围 */
+  margin-top: 46px;
 }
 
 .pill {
