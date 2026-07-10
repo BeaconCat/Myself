@@ -1,0 +1,27 @@
+/* 全局设计 tokens。色盘变量由 stores/theme.ts 运行时注入。 */
+:root {
+  /* 品牌常量：三荧光强调色，所有主题贯穿 */
+  --accent-red: #ff0032;
+  --accent-yellow: #ffb300;
+  --accent-blue: #0078ff;
+
+  /* 字体 */
+  --font-sans: 'Source Han Sans SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-serif: 'Source Han Serif SC', 'Noto Serif SC', 'SimSun', serif;
+
+  /* motion tokens */
+  --dur-fast: 0.2s;
+  --dur: 0.35s;
+  --dur-slow: 0.6s;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.3, 1);
+  --ease-spring: cubic-bezier(0.2, 0.8, 0.3, 1.2);
+
+  /* 圆角/阴影 */
+  --radius: 14px;
+  --radius-lg: 18px;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-mode='dark'] {
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}

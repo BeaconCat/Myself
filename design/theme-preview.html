@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Myself · 主题样式卡审阅</title>
+<style>
+/* ============ 字体：思源黑体/宋体，本地未装则回退系统字体 ============ */
+:root {
+  --font-sans: "Source Han Sans SC", "Noto Sans SC", "思源黑体", "Microsoft YaHei", sans-serif;
+  --font-serif: "Source Han Serif SC", "Noto Serif SC", "思源宋体", "SimSun", serif;
+
+  /* 品牌常量：三荧光强调色（所有主题贯穿） */
+  --accent-red: #ff0032;
+  --accent-yellow: #ffb300;
+  --accent-blue: #0078ff;
+}
+
+/* ============ 主题定义：主题 = 色盘，强调三色不变 ============ */
+
+/* 01 · 晨白 Dawn（默认浅色） */
+[data-theme="dawn"] {
+  --bg: #f7f8fa; --surface: #ffffff; --surface-2: #eef0f4;
+  --text: #17181c; --text-2: #5c6270; --border: #e2e5ec;
+  --primary: #0078ff; --primary-deep: #005fd6; --primary-rgb: 0,120,255;
+  --primary-soft: rgba(0,120,255,.1);
+  --glass: rgba(255,255,255,.55);
+  --shadow: 0 4px 24px rgba(23,24,28,.08);
+}
+/* 02 · 夜岩 Obsidian（默认深色） */
+[data-theme="obsidian"] {
+  --bg: #0e0f13; --surface: #17181e; --surface-2: #1f2129;
+  --text: #eceef2; --text-2: #8a90a0; --border: #262933;
+  --primary: #0078ff; --primary-deep: #005fd6; --primary-rgb: 0,120,255;
+  --primary-soft: rgba(0,120,255,.15);
+  --glass: rgba(23,24,30,.5);
+  --shadow: 0 4px 24px rgba(0,0,0,.4);
+}
+/* 03 · 绯樱 Sakura（春 · 浅） */
+[data-theme="sakura"] {
+  --bg: #fdf6f7; --surface: #ffffff; --surface-2: #f9eaee;
+  --text: #221418; --text-2: #7a5a63; --border: #f0dbe1;
+  --primary: #ff0032; --primary-deep: #d40029; --primary-rgb: 255,0,50;
+  --primary-soft: rgba(255,0,50,.08);
+  --glass: rgba(255,255,255,.55);
+  --shadow: 0 4px 24px rgba(255,0,50,.07);
+}
+/* 04 · 曜红 Ember（激情 · 深） */
+[data-theme="ember"] {
+  --bg: #120b0d; --surface: #1c1215; --surface-2: #26181c;
+  --text: #f4e9ec; --text-2: #a08088; --border: #33222a;
+  --primary: #ff0032; --primary-deep: #c70027; --primary-rgb: 255,0,50;
+  --primary-soft: rgba(255,0,50,.16);
+  --glass: rgba(28,18,21,.5);
+  --shadow: 0 4px 24px rgba(0,0,0,.45);
+}
+/* 05 · 暖阳 Honey（秋 · 浅）— 浅底黄加深保证对比 */
+[data-theme="honey"] {
+  --bg: #fdf9f0; --surface: #ffffff; --surface-2: #f8f0dd;
+  --text: #201a0e; --text-2: #7c6f52; --border: #eee3c8;
+  --primary: #c78800; --primary-deep: #a06d00; --primary-rgb: 199,136,0;
+  --primary-soft: rgba(255,179,0,.12);
+  --glass: rgba(255,255,255,.55);
+  --shadow: 0 4px 24px rgba(255,179,0,.1);
+}
+/* 06 · 琥珀夜 Amber Night（冬 · 深）— 深底黄按钮用深字保证对比 */
+[data-theme="amber"] {
+  --bg: #131009; --surface: #1d1810; --surface-2: #282013;
+  --text: #f3eddd; --text-2: #a89a78; --border: #362c19;
+  --primary: #ffb300; --primary-deep: #e09600; --primary-rgb: 255,179,0;
+  --primary-soft: rgba(255,179,0,.16);
+  --glass: rgba(29,24,16,.5);
+  --shadow: 0 4px 24px rgba(0,0,0,.45);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: var(--font-sans);
+  background:
+    radial-gradient(900px 500px at 15% -5%, rgba(0,120,255,.12), transparent 60%),
+    radial-gradient(800px 500px at 85% 0%, rgba(255,0,50,.10), transparent 60%),
+    radial-gradient(700px 600px at 50% 110%, rgba(255,179,0,.08), transparent 60%),
+    #0a0a0c;
+  color: #eceef2;
+  padding: 40px 24px 80px;
+  min-height: 100vh;
+}
+h1 { font-family: var(--font-serif); font-size: 30px; margin-bottom: 6px; }
+.sub { color:#8a90a0; margin-bottom: 36px; font-size: 14px; }
+.sub b { color:#eceef2; }
+.brand-dots span {
+  display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; vertical-align:-1px;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.grid {
+  display:grid; gap:32px;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  max-width: 1280px; margin: 0 auto;
+  perspective: 1400px;
+}
+
+/* ============ 样式卡：3D 倾斜 + 顶部三色流光 + 主色辉光 ============ */
+.card {
+  background: var(--bg); color: var(--text);
+  border-radius: 18px; overflow:hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform .18s ease-out, box-shadow .3s ease;
+  will-change: transform;
+}
+.card:hover {
+  box-shadow: var(--shadow), 0 24px 60px -12px rgba(var(--primary-rgb), .35);
+}
+/* 顶部三色流光条 */
+.card::before {
+  content:""; position:absolute; top:0; left:0; right:0; height:3px; z-index:2;
+  background: linear-gradient(90deg, var(--accent-red), var(--accent-yellow), var(--accent-blue), var(--accent-red));
+  background-size: 300% 100%;
+  animation: flow 6s linear infinite;
+}
+@keyframes flow { to { background-position: 300% 0; } }
+/* 跟随鼠标的高光层 */
+.card .sheen {
+  content:""; position:absolute; inset:0; z-index:1; pointer-events:none;
+  background: radial-gradient(420px circle at var(--mx,50%) var(--my,50%), rgba(var(--primary-rgb),.10), transparent 55%);
+  opacity: 0; transition: opacity .3s;
+}
+.card:hover .sheen { opacity: 1; }
+
+.card-head {
+  padding: 15px 18px; display:flex; justify-content:space-between; align-items:center;
+  border-bottom: 1px solid var(--border);
+  transform: translateZ(20px);
+}
+.card-head .name { font-weight: 700; font-size: 15px; }
+.card-head .tag {
+  font-size: 11px; padding: 3px 10px; border-radius: 999px;
+  background: var(--primary-soft); color: var(--primary); font-weight:600;
+  border: 1px solid rgba(var(--primary-rgb), .25);
+}
+
+/* ============ 胶囊顶栏：毛玻璃 ============ */
+.capsule {
+  margin: 18px auto 0; width: fit-content;
+  display:flex; gap: 2px; padding: 5px;
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(1.5);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  border: 1px solid rgba(var(--primary-rgb), .18);
+  border-radius: 999px;
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.12);
+  transform: translateZ(35px);
+  position: relative; z-index: 2;
+}
+.capsule a {
+  font-size: 13px; font-weight: 600; padding: 7px 15px; border-radius: 999px;
+  color: var(--text-2); text-decoration:none; transition: all .2s;
+}
+.capsule a.active {
+  background: linear-gradient(180deg, var(--primary), var(--primary-deep));
+  color:#fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.35);
+  box-shadow: 0 2px 10px rgba(var(--primary-rgb), .5);
+}
+[data-theme="amber"] .capsule a.active { color:#1a1204; text-shadow:none; }
+.capsule a:not(.active):hover { background: var(--surface-2); color: var(--text); }
+
+.body { padding: 20px 18px 24px; transform: translateZ(15px); }
+
+.post {
+  background: var(--surface); border:1px solid var(--border);
+  border-radius: 14px; padding: 16px; margin-bottom: 14px;
+  position: relative; overflow: hidden;
+}
+/* 帖卡左缘主色细条 */
+.post::before {
+  content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
+  background: linear-gradient(180deg, var(--primary), transparent);
+}
+.post h3 { font-family: var(--font-serif); font-size: 17px; margin-bottom: 6px; }
+.post p { font-size: 13px; color: var(--text-2); line-height: 1.7; }
+.post .meta { margin-top: 10px; display:flex; gap:8px; align-items:center; }
+.chip {
+  font-size: 11px; padding: 2px 9px; border-radius: 999px; font-weight: 700;
+}
+.chip.r { background: rgba(255,0,50,.12); color: var(--accent-red); }
+.chip.y { background: rgba(255,179,0,.15); color: #b37b00; }
+.chip.b { background: rgba(0,120,255,.12); color: var(--accent-blue); }
+[data-theme="obsidian"] .chip.y, [data-theme="ember"] .chip.y, [data-theme="amber"] .chip.y { color: var(--accent-yellow); }
+
+/* ============ 按钮：加大字号、渐变主色、强对比 ============ */
+.btn-row { display:flex; gap:12px; margin-top: 6px; }
+.btn {
+  flex:1; text-align:center; font-size: 15px; font-weight:700;
+  letter-spacing: .04em;
+  padding: 12px 0; border-radius: 12px; cursor:pointer; border:1px solid transparent;
+  transition: all .2s;
+}
+.btn.primary {
+  background: linear-gradient(180deg, var(--primary), var(--primary-deep));
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0,0,0,.4);
+  box-shadow: 0 4px 14px rgba(var(--primary-rgb), .45), inset 0 1px 0 rgba(255,255,255,.25);
+}
+/* 琥珀夜：黄底上白字对比不足 → 深字 */
+[data-theme="amber"] .btn.primary { color:#1a1204; text-shadow:none; }
+.btn.primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(var(--primary-rgb), .55), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text); }
+.btn.ghost:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-2px); }
+
+.swatches { display:flex; gap:8px; margin-top:18px; }
+.swatches div {
+  flex:1; height: 32px; border-radius: 8px; border:1px solid var(--border);
+  position:relative;
+}
+.swatches div::after {
+  content: attr(data-label); position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size: 10px; font-weight:700; color: var(--text-2);
+}
+.swatches div.p::after { color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.5); }
+[data-theme="amber"] .swatches div.p::after { color:#1a1204; text-shadow:none; }
+</style>
+</head>
+<body>
+
+<h1>Myself · 全局主题样式卡</h1>
+<p class="sub">
+  品牌常量（所有主题贯穿）：
+  <span class="brand-dots">
+    <span style="background:#ff0032; color:#ff0032"></span><b>#ff0032</b>&nbsp;&nbsp;
+    <span style="background:#ffb300; color:#ffb300"></span><b>#ffb300</b>&nbsp;&nbsp;
+    <span style="background:#0078ff; color:#0078ff"></span><b>#0078ff</b>
+  </span>
+  ｜ 主题 = 色盘，6 套：3 浅 3 深 ｜ 卡片可 3D 悬停，胶囊栏毛玻璃
+</p>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const themes = [
+  { id:"dawn",     name:"晨白 Dawn",        tag:"浅色 · 默认", desc:"干净中性灰白，蓝为主色。日常阅读基准主题。" },
+  { id:"obsidian", name:"夜岩 Obsidian",    tag:"深色 · 默认", desc:"冷黑蓝调，夜间阅读基准。荧光三色在深底上最亮眼。" },
+  { id:"sakura",   name:"绯樱 Sakura",      tag:"浅色 · 春",   desc:"粉白暖调，红为主色。春季/温柔心情。" },
+  { id:"ember",    name:"曜红 Ember",       tag:"深色 · 燃",   desc:"暗酒红底，荧光红主色。高对比、有冲击力。" },
+  { id:"honey",    name:"暖阳 Honey",       tag:"浅色 · 秋",   desc:"米黄暖纸感，琥珀黄主色（浅底加深保证可读）。" },
+  { id:"amber",    name:"琥珀夜 Amber Night", tag:"深色 · 冬", desc:"暖黑底配荧光黄，冬夜炉火感，黄底按钮用深字。" },
+];
+document.getElementById("grid").innerHTML = themes.map(t => `
+<div class="card" data-theme="${t.id}">
+  <div class="sheen"></div>
+  <div class="card-head">
+    <span class="name">${t.name}</span>
+    <span class="tag">${t.tag}</span>
+  </div>
+  <nav class="capsule">
+    <a class="active" href="javascript:;">首页</a><a href="javascript:;">文章</a><a href="javascript:;">归档</a><a href="javascript:;">关于</a>
+  </nav>
+  <div class="body">
+    <div class="post">
+      <h3>示例文章标题：宋体标题排版</h3>
+      <p>正文使用思源黑体。${t.desc}</p>
+      <div class="meta">
+        <span class="chip b">技术</span><span class="chip r">随笔</span><span class="chip y">摄影</span>
+      </div>
+    </div>
+    <div class="btn-row">
+      <div class="btn primary">阅读全文</div>
+      <div class="btn ghost">订阅</div>
+    </div>
+    <div class="swatches">
+      <div style="background:var(--bg)" data-label="bg"></div>
+      <div style="background:var(--surface)" data-label="surface"></div>
+      <div style="background:var(--surface-2)" data-label="surface-2"></div>
+      <div class="p" style="background:var(--primary)" data-label="primary"></div>
+    </div>
+  </div>
+</div>`).join("");
+
+/* 3D 倾斜：跟随鼠标，离开回弹 */
+document.querySelectorAll(".card").forEach(card => {
+  card.addEventListener("mousemove", e => {
+    const r = card.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width;
+    const y = (e.clientY - r.top) / r.height;
+    card.style.transform =
+      `rotateY(${(x - .5) * 10}deg) rotateX(${(.5 - y) * 8}deg) translateY(-4px)`;
+    card.style.setProperty("--mx", (x*100)+"%");
+    card.style.setProperty("--my", (y*100)+"%");
+  });
+  card.addEventListener("mouseleave", () => {
+    card.style.transition = "transform .5s cubic-bezier(.2,.8,.3,1.2), box-shadow .3s";
+    card.style.transform = "";
+    setTimeout(() => card.style.transition = "", 500);
+  });
+});
+</script>
+</body>
+</html>
