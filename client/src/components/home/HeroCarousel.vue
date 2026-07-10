@@ -104,8 +104,8 @@ onBeforeUnmount(() => window.clearInterval(timer));
           v-for="(cover, i) in covers"
           :key="cover"
           class="album-card"
-          :class="[`slot-${slotOf(i)}`, i % 2 ? 'from-top' : 'from-bottom']"
-          :style="{ '--stagger': i * 0.1 + 's' }"
+          :class="`slot-${slotOf(i)}`"
+          :style="{ '--stagger': slotOf(i) * 0.1 + 's' }"
         >
           <img :src="cover" :alt="item?.title" draggable="false" />
           <div class="card-glow" />
@@ -289,39 +289,46 @@ onBeforeUnmount(() => window.clearInterval(timer));
   filter: brightness(0.72);
 }
 
-/* 入场：奇数卡自上坠入、偶数卡自下升入，级联延迟；终点回到各自 slot 位 */
-.hero.in .album-card.from-top {
-  animation: drop-in 0.8s var(--ease-spring) both;
+/* 入场：前卡自上坠入，右后卡自右滑入，左后卡自左滑入；级联延迟。
+   单侧 keyframe：to 省略 → 落到各自 slot 的 transform */
+.hero.in .album-card {
+  animation-duration: 0.8s;
+  animation-timing-function: var(--ease-spring);
+  animation-fill-mode: both;
   animation-delay: var(--stagger);
 }
-.hero.in .album-card.from-bottom {
-  animation: rise-in 0.8s var(--ease-spring) both;
-  animation-delay: var(--stagger);
+.hero.in .slot-0 { animation-name: enter-top; }
+.hero.in .slot-1 { animation-name: enter-right; }
+.hero.in .slot-2 { animation-name: enter-left; }
+
+@keyframes enter-top {
+  from { opacity: 0; transform: translate3d(0, -130%, 40px) scale(0.8); }
+}
+@keyframes enter-right {
+  from { opacity: 0; transform: translate3d(150%, -46px, -120px) scale(0.72); }
+}
+@keyframes enter-left {
+  from { opacity: 0; transform: translate3d(-150%, 48px, -120px) scale(0.72); }
 }
 
-/* 单侧 keyframe：to 省略 → 落到 slot 自身 transform */
-@keyframes drop-in {
-  from { opacity: 0; transform: translate3d(40px, -130%, -60px) scale(0.8); }
+/* 出场：前卡向下坠离，两张后卡向上飞离；透明度前半段即降为 0 */
+.hero.out .album-card {
+  animation-duration: 0.4s;
+  animation-timing-function: var(--ease-out);
+  animation-fill-mode: both;
+  animation-delay: calc(var(--stagger) * 0.4);
 }
-@keyframes rise-in {
-  from { opacity: 0; transform: translate3d(-40px, 130%, -60px) scale(0.8); }
-}
+.hero.out .slot-0 { animation-name: leave-down; }
+.hero.out .slot-1,
+.hero.out .slot-2 { animation-name: leave-up; }
 
-/* 出场：各回上下方向飞离 */
-.hero.out .album-card.from-top {
-  animation: fly-up 0.45s var(--ease-out) both;
-  animation-delay: calc(var(--stagger) * 0.5);
+@keyframes leave-down {
+  55% { opacity: 0; }
+  to { opacity: 0; transform: translate3d(0, 120%, 0) scale(0.82); }
 }
-.hero.out .album-card.from-bottom {
-  animation: fly-down 0.45s var(--ease-out) both;
-  animation-delay: calc(var(--stagger) * 0.5);
-}
-
-@keyframes fly-up {
-  to { opacity: 0; transform: translate3d(30px, -140%, -60px) scale(0.8); }
-}
-@keyframes fly-down {
-  to { opacity: 0; transform: translate3d(-30px, 140%, -60px) scale(0.8); }
+@keyframes leave-up {
+  55% { opacity: 0; }
+  to { opacity: 0; transform: translate3d(0, -120%, -90px) scale(0.74); }
 }
 
 .card-glow {
