@@ -29,9 +29,9 @@ const group = computed(() => props.groups[groupIndex.value] ?? []);
 const item = computed(() => group.value[itemIndex.value] ?? group.value[0]);
 const covers = computed(() => (item.value?.covers ?? []).slice(0, MAX_COVERS));
 
-/** 标题拆字符，随机延迟模糊切入 */
+/** 标题拆字符，按顺序依次模糊切入 */
 const chars = computed(() =>
-  [...(item.value?.title ?? '')].map((ch) => ({ ch, delay: Math.random() * 0.35 })),
+  [...(item.value?.title ?? '')].map((ch, i) => ({ ch, delay: i * 0.035 })),
 );
 
 /** 当前 item 内进度（含正在展示的这张） */
@@ -203,9 +203,24 @@ onBeforeUnmount(() => window.clearInterval(timer));
   animation-delay: 0.25s;
 }
 
+/* 按钮压轴：跟随文字一起模糊入场 */
+.hero.in .hero-btn {
+  animation: blur-up var(--dur-slow) var(--ease-out) both;
+  animation-delay: 0.4s;
+}
+
+.hero.out .hero-btn {
+  animation: text-out 0.45s var(--ease-out) both;
+}
+
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: none; }
+}
+
+@keyframes blur-up {
+  from { opacity: 0; filter: blur(10px); transform: translateY(16px); }
+  to { opacity: 1; filter: blur(0); transform: none; }
 }
 
 .hero-btn {
