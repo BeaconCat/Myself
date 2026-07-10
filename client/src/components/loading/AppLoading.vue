@@ -19,6 +19,8 @@ watch(
       window.setTimeout(() => { removed.value = true; }, 1400);
     }, 250);
   },
+  // 若加载在组件挂载前已完成（缓存命中极快），立即触发退场
+  { immediate: true },
 );
 </script>
 

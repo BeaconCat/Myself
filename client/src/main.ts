@@ -21,12 +21,30 @@ useThemeStore().init();
 
 app.mount('#app');
 
-/* 首屏加载进度：mount → router 就绪 → 资源加载完成 */
+/* 首屏进度 = 真实加载事件完成占比：DOM 解析 / 路由(首屏组件)就绪 / 字体就绪 / 全部资源 load */
 const loading = useLoadingStore();
-loading.setBootProgress(25);
-router.isReady().then(() => loading.setBootProgress(65));
-if (document.readyState === 'complete') {
-  loading.finishBoot();
-} else {
-  window.addEventListener('load', () => loading.finishBoot(), { once: true });
+
+const domReady = new Promise<void>((resolve) => {
+  if (document.readyState !== 'loading') resolve();
+  else document.addEventListener('DOMContentLoaded', () => resolve(), { once: true });
+});
+const windowLoaded = new Promise<void>((resolve) => {
+  if (document.readyState === 'complete') resolve();
+  else window.addEventListener('load', () => resolve(), { once: true });
+});
+
+const bootTasks: Promise<unknown>[] = [
+  domReady,
+  router.isReady(),
+  document.fonts.ready,
+  windowLoaded,
+];
+
+let completed = 0;
+for (const task of bootTasks) {
+  task.then(() => {
+    completed += 1;
+    loading.setBootProgress((completed / bootTasks.length) * 100);
+  });
 }
+Promise.all(bootTasks).then(() => loading.finishBoot());

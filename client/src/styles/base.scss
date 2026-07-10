@@ -36,6 +36,17 @@ button {
   background: rgba(var(--primary-rgb), 0.25);
 }
 
+/* 圆形剪贴蒙版主题切换（View Transition） */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* contract：旧画面在上被裁切收缩，新画面垫底 */
+.vt-contract::view-transition-old(root) { z-index: 2; }
+.vt-contract::view-transition-new(root) { z-index: 1; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
