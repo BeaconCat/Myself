@@ -151,7 +151,9 @@ onMounted(async () => {
   gap: 10px;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 2px;
+  /* 留出发光空间，避免 box-shadow 被滚动容器裁切 */
+  padding: 8px 6px;
+  margin: -8px -6px;
 
   &::-webkit-scrollbar { display: none; }
 }
@@ -174,7 +176,7 @@ onMounted(async () => {
     opacity: 0.7;
   }
 
-  &:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-2px); }
+  &:hover { border-color: var(--primary); color: var(--primary); transform: scale(1.06); }
 
   &.on {
     background: linear-gradient(180deg, var(--primary), var(--primary-deep));

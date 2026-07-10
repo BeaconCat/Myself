@@ -238,7 +238,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
 
   &:hover {
     filter: brightness(1.08);
-    transform: translateY(-2px);
+    transform: scale(1.05);
     box-shadow: 0 8px 24px rgba(var(--primary-rgb), 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   }
 }

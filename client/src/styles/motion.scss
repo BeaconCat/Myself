@@ -18,12 +18,12 @@
   }
 }
 
-/* 悬停上浮 + 主色辉光 */
+/* 悬停中心放大 + 主色辉光 */
 .hover-lift {
   transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur) ease;
 
   &:hover {
-    transform: translateY(-3px);
+    transform: scale(1.03);
     box-shadow: var(--shadow), 0 12px 32px -8px rgba(var(--primary-rgb), 0.35);
   }
 }

@@ -22,16 +22,20 @@
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
-/* 标题强调渐变：上→下；浅色模式允许比主题色更深，保证浅底可读 */
+/* 标题强调渐变（上→下）：浅色 = 深主题色→更深；深色 = 亮主题色→更亮 */
 :root {
   --grad-title: linear-gradient(
     180deg,
-    var(--primary),
-    color-mix(in srgb, var(--primary-deep) 72%, #000)
+    var(--primary-deep),
+    color-mix(in srgb, var(--primary-deep) 55%, #000)
   );
 }
 
 :root[data-mode='dark'] {
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --grad-title: linear-gradient(180deg, var(--primary), var(--primary-deep));
+  --grad-title: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--primary) 60%, #fff),
+    color-mix(in srgb, var(--primary) 85%, #fff)
+  );
 }

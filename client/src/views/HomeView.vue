@@ -4,6 +4,8 @@ import HeroCarousel, { type HeroItem } from '../components/home/HeroCarousel.vue
 import { placeholderCover } from '../utils/placeholder';
 import { api, type Post } from '../api';
 import PostZigzagList from '../components/post/PostZigzagList.vue';
+import GithubStatusCard from '../components/home/GithubStatusCard.vue';
+import AboutMeCard from '../components/home/AboutMeCard.vue';
 
 const latest = ref<Post[]>([]);
 
@@ -74,13 +76,11 @@ const groups: HeroItem[][] = [
       <PostZigzagList :posts="latest" />
     </section>
 
-    <!-- 预留扩展板块：后续接 GitHub Status（热力图 / 最新动态 / commit），数据源走后端配置 -->
-    <section v-reveal class="widgets">
-      <div class="widget-placeholder">
-        <span class="w-label">GitHub Status</span>
-        <span class="w-hint">板块预留 · 后端配置接入热力图与最新动态</span>
-      </div>
-    </section>
+    <!-- 扩展板块：GitHub Status + 关于我（数据后续走后端配置） -->
+    <div class="widgets">
+      <GithubStatusCard />
+      <AboutMeCard />
+    </div>
   </main>
 </template>
 
@@ -101,28 +101,12 @@ const groups: HeroItem[][] = [
   margin-bottom: 8px;
 }
 
-/* ===== 预留扩展板块 ===== */
+/* ===== 扩展板块 ===== */
 .widgets {
   margin-top: 56px;
-}
-
-.widget-placeholder {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 44px 24px;
-  border: 1px dashed var(--border);
-  color: var(--text-2);
-
-  .w-label {
-    font-family: var(--font-serif);
-    font-size: 17px;
-    font-weight: 700;
-    color: var(--text);
-  }
-
-  .w-hint { font-size: 13px; }
+  gap: 28px;
 }
 
 @media (max-width: 768px) {

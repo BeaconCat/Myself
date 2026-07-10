@@ -34,7 +34,8 @@ function coverOf(post: Post, index: number): string {
     >
       <div class="zig-text">
         <span class="z-date">{{ post.createdAt.slice(0, 10) }}</span>
-        <h3>{{ post.title }}</h3>
+        <!-- data-title 供 ::after 渐变层复写同一文本，颜色淡入不重排 -->
+        <h3 :data-title="post.title">{{ post.title }}</h3>
         <p>{{ post.excerpt }}</p>
         <div class="z-tags">
           <span v-for="tag in post.tags" :key="tag">{{ tag }}</span>
@@ -95,13 +96,9 @@ function coverOf(post: Post, index: number): string {
     &::before, &::after { opacity: 1; transform: none; }
     .zig-media img { transform: scale(1.04); }
 
-    /* 标题强调：上下渐变文字（--grad-title 浅色模式下沉更深） */
-    h3 {
-      background: var(--grad-title);
-      background-clip: text;
-      -webkit-background-clip: text;
-      color: transparent;
-    }
+    /* 基色同步转透明，消除渐变层叠加出的白边 */
+    h3 { color: transparent; }
+    h3::after { opacity: 1; }
   }
 }
 
@@ -114,10 +111,26 @@ function coverOf(post: Post, index: number): string {
     font-variant-numeric: tabular-nums;
   }
 
+  /* 标题：渐变层用 ::after 同文本覆盖淡入，仅颜色过渡、文本不动不闪 */
   h3 {
-    font-size: clamp(20px, 2.4vw, 26px);
+    position: relative;
+    font-size: clamp(24px, 2.8vw, 32px);
     margin: 10px 0 12px;
-    transition: color var(--dur-fast);
+    color: var(--text);
+    transition: color var(--dur) ease;
+
+    &::after {
+      content: attr(data-title);
+      position: absolute;
+      inset: 0;
+      background: var(--grad-title);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      opacity: 0;
+      transition: opacity var(--dur) ease;
+      pointer-events: none;
+    }
   }
 
   p {
@@ -150,7 +163,7 @@ function coverOf(post: Post, index: number): string {
   gap: 28px;
   padding: 20px 24px;
 
-  .zig-text h3 { font-size: clamp(18px, 2vw, 22px); margin: 8px 0 8px; }
+  .zig-text h3 { font-size: clamp(21px, 2.3vw, 26px); margin: 8px 0 8px; }
   .zig-text p { -webkit-line-clamp: 1; }
   .zig-media { aspect-ratio: 21 / 9; }
 }

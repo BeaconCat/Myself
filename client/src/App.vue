@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import NavBar from './components/layout/NavBar.vue';
 import AppLoading from './components/loading/AppLoading.vue';
 import RouteLoading from './components/loading/RouteLoading.vue';
@@ -8,10 +8,16 @@ import { useLoadingStore } from './stores/loading';
 const loading = useLoadingStore();
 /** 路由加载时页面整体缩小 10%（模糊变暗由 RouteLoading 的遮罩层承担） */
 const shrunk = computed(() => loading.routeLoading);
+
+/* 缩放原点锁定当前视口中心（元素比视口高时 50% 会落到视口外，表现为向下缩） */
+const originY = ref('50vh');
+watch(shrunk, (on) => {
+  if (on) originY.value = `${window.scrollY + window.innerHeight / 2}px`;
+});
 </script>
 
 <template>
-  <div class="app-shell" :class="{ shrunk }">
+  <div class="app-shell" :class="{ shrunk }" :style="{ transformOrigin: `50% ${originY}` }">
     <NavBar />
     <router-view v-slot="{ Component }">
       <transition name="page" mode="out-in">
@@ -27,7 +33,6 @@ const shrunk = computed(() => loading.routeLoading);
 .app-shell {
   min-height: 100vh;
   transition: transform 0.55s var(--ease-out);
-  transform-origin: 50% 40%;
 
   &.shrunk {
     transform: scale(0.9);
