@@ -429,7 +429,11 @@ onBeforeUnmount(() => {
             <div
               class="album-card"
               :class="flights[i]
-                ? ['fly', { settled: flights[i].mode === 'center', dragging }]
+                ? ['fly', {
+                  settled: flights[i].mode === 'center',
+                  homing: flights[i].mode === 'toHome',
+                  dragging,
+                }]
                 : [`slot-${slotOf(i)}`, { 'no-trans': noTrans[i] }]"
               :data-src="cover"
               :style="flights[i]
@@ -759,7 +763,12 @@ onBeforeUnmount(() => {
   background:
     linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.14) 48%, transparent 62%),
     linear-gradient(180deg, transparent 60%, rgba(var(--primary-rgb), 0.18));
+  transition: opacity 0.55s ease;
 }
+
+/* 飞向中央/中央态：光照渐隐；归途：渐显回来 */
+.album-card.fly .card-glow { opacity: 0; }
+.album-card.fly.homing .card-glow { opacity: 1; }
 
 /* 左右切换按钮（在 album-zone 上，无 3D 变形） */
 .step {
