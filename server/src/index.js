@@ -7,6 +7,8 @@ import { settingsRouter } from './routes/settings.js';
 import { apiKeysRouter } from './routes/apikeys.js';
 import { externalRouter } from './routes/external.js';
 import { mediaRouter, UPLOAD_DIR } from './routes/media.js';
+import { dataRouter, startAutoBackup } from './routes/datacenter.js';
+import { qualityRouter } from './routes/quality.js';
 
 seedIfEmpty();
 initAuth();
@@ -17,6 +19,9 @@ app.use(express.json({ limit: '2mb' }));
 app.use('/uploads', express.static(UPLOAD_DIR, { dotfiles: 'ignore', maxAge: '1d' }));
 app.use('/api/v1', postsRouter);
 app.use('/api/v1', mediaRouter);
+app.use('/api/v1', dataRouter);
+app.use('/api/v1', qualityRouter);
+startAutoBackup();
 app.use('/api/v1', settingsRouter);
 app.use('/api/v1', apiKeysRouter);
 app.use('/api/v1', externalRouter);

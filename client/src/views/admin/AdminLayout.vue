@@ -13,6 +13,8 @@ const menu = [
   { to: '/admin/notes', key: 'admin.menuNotes' },
   { to: '/admin/media', key: 'admin.menuMedia' },
   { to: '/admin/apikeys', key: 'admin.menuApi' },
+  { to: '/admin/data', key: 'admin.menuData' },
+  { to: '/admin/quality', key: 'admin.menuQuality' },
   { to: '/admin/settings', key: 'admin.menuSettings' },
 ];
 

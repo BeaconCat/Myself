@@ -27,6 +27,8 @@ export const router = createRouter({
         { path: 'notes', component: () => import('../views/admin/AdminNotesView.vue') },
         { path: 'media', component: () => import('../views/admin/AdminMediaView.vue') },
         { path: 'apikeys', component: () => import('../views/admin/AdminApiKeysView.vue') },
+        { path: 'data', component: () => import('../views/admin/AdminDataView.vue') },
+        { path: 'quality', component: () => import('../views/admin/AdminQualityView.vue') },
         { path: 'settings', component: () => import('../views/admin/AdminSettingsView.vue') },
       ],
     },

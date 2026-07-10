@@ -162,6 +162,23 @@ export const adminApi = {
     }),
   deleteMedia: (name: string) =>
     authed<{ ok: boolean }>(`/admin/media/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  backups: () => authed<BackupInfo[]>('/admin/backups'),
+  createBackup: () => authed<{ name: string }>('/admin/backups', { method: 'POST' }),
+  deleteBackup: (name: string) =>
+    authed<{ ok: boolean }>(`/admin/backups/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  downloadBackup: async (name: string): Promise<Blob> => {
+    const res = await fetch(`${BASE}/admin/backups/${encodeURIComponent(name)}`, {
+      headers: { Authorization: `Bearer ${readToken()}` },
+    });
+    if (!res.ok) throw new Error(`api_error_${res.status}`);
+    return res.blob();
+  },
+  qualityScan: () => authed<QualityItem[]>('/admin/quality/scan'),
+  qualityCompress: (names: string[], quality: number) =>
+    authed<CompressResult[]>('/admin/quality/compress', {
+      method: 'POST',
+      body: JSON.stringify({ names, quality }),
+    }),
   settings: () => authed<Record<string, unknown>>('/admin/settings'),
   saveSettings: (patch: Record<string, unknown>) =>
     authed<Record<string, unknown>>('/admin/settings', {
@@ -177,6 +194,31 @@ export interface MediaItem {
   hasOriginal: boolean;
   crop: { left: number; top: number; width: number; height: number } | null;
   createdAt: string;
+}
+
+export interface BackupInfo {
+  name: string;
+  size: number;
+  createdAt: string;
+}
+
+export interface QualityItem {
+  name: string;
+  url: string;
+  size: number;
+  format: string;
+  width: number;
+  height: number;
+  hasAlpha: boolean;
+  compressible: boolean;
+}
+
+export interface CompressResult {
+  name: string;
+  newName?: string;
+  before?: number;
+  after?: number;
+  error?: string;
 }
 
 export interface ApiKeyInfo {
