@@ -11,6 +11,7 @@ const auth = useAuthStore();
 const menu = [
   { to: '/admin/posts', key: 'admin.menuPosts' },
   { to: '/admin/notes', key: 'admin.menuNotes' },
+  { to: '/admin/media', key: 'admin.menuMedia' },
   { to: '/admin/apikeys', key: 'admin.menuApi' },
   { to: '/admin/settings', key: 'admin.menuSettings' },
 ];

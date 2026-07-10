@@ -143,6 +143,25 @@ export const adminApi = {
     }),
   deleteApiKey: (id: number) =>
     authed<{ ok: boolean }>(`/admin/apikeys/${id}`, { method: 'DELETE' }),
+  media: () => authed<MediaItem[]>('/admin/media'),
+  uploadMedia: async (files: File[]): Promise<MediaItem[]> => {
+    const form = new FormData();
+    for (const f of files) form.append('files', f);
+    const res = await fetch(`${BASE}/admin/media`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${readToken()}` },
+      body: form,
+    });
+    if (!res.ok) throw new Error(`api_error_${res.status}`);
+    return res.json() as Promise<MediaItem[]>;
+  },
+  cropMedia: (name: string, rect: { left: number; top: number; width: number; height: number }) =>
+    authed<MediaItem>(`/admin/media/${encodeURIComponent(name)}/crop`, {
+      method: 'POST',
+      body: JSON.stringify(rect),
+    }),
+  deleteMedia: (name: string) =>
+    authed<{ ok: boolean }>(`/admin/media/${encodeURIComponent(name)}`, { method: 'DELETE' }),
   settings: () => authed<Record<string, unknown>>('/admin/settings'),
   saveSettings: (patch: Record<string, unknown>) =>
     authed<Record<string, unknown>>('/admin/settings', {
@@ -150,6 +169,15 @@ export const adminApi = {
       body: JSON.stringify(patch),
     }),
 };
+
+export interface MediaItem {
+  name: string;
+  url: string;
+  size: number;
+  hasOriginal: boolean;
+  crop: { left: number; top: number; width: number; height: number } | null;
+  createdAt: string;
+}
 
 export interface ApiKeyInfo {
   id: number;
