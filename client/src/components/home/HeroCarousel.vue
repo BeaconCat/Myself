@@ -671,12 +671,12 @@ onBeforeUnmount(() => {
   width: min(100%, 430px);
   perspective: 1300px;
 
-  /* 透明外扩热区：覆盖两侧按钮位置，靠近按钮时 hover 不丢失 */
+  /* 透明外扩热区：垫底接收 hover，不挡卡片点击 */
   &::after {
     content: '';
     position: absolute;
     inset: -24px -80px;
-    z-index: 0;
+    z-index: -1;
   }
 }
 
