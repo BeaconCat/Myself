@@ -41,6 +41,8 @@ const sectionEl = ref<HTMLElement | null>(null);
 
 /* ===== Lightbox（原卡节点 teleport 飞行） ===== */
 const flights = reactive<Record<number, Flight>>({});
+/** 刚归位的卡：一帧内禁 transition，防槽位变换回弹 */
+const noTrans = reactive<Record<number, boolean>>({});
 const expandedIndex = ref<number | null>(null);
 const lightboxOn = ref(false);
 const lbClosing = ref(false);
@@ -113,6 +115,13 @@ function slotOf(i: number): number {
 }
 
 /* ===== Lightbox 飞行 ===== */
+
+/** 相册的 3D 姿态：飞行起降时保持同角度，避免瞬间拍平 */
+function deckPose(): string {
+  const angle = window.matchMedia('(max-width: 900px)').matches ? -10 : -15;
+  return `perspective(1300px) rotateY(${angle}deg)`;
+}
+
 function rectStyle(r: Rect): Record<string, string> {
   return {
     left: `${r.left}px`,
@@ -170,14 +179,19 @@ async function launch(i: number): Promise<void> {
   flights[i] = {
     mode: 'toCenter',
     homeRect: home,
-    style: { ...rectStyle(home), transition: 'none' },
+    // 起飞帧保持相册 3D 姿态，飞行中转正
+    style: { ...rectStyle(home), transform: deckPose(), transition: 'none' },
   };
   const target = await centerStyle(covers.value[i]);
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const flight = flights[i];
       if (!flight || flight.mode !== 'toCenter') return;
-      flight.style = { ...target, transition: `all ${FLY_MS}ms ${FLY_EASE}` };
+      flight.style = {
+        ...target,
+        transform: 'perspective(1300px) rotateY(0deg)',
+        transition: `all ${FLY_MS}ms ${FLY_EASE}`,
+      };
       window.setTimeout(() => {
         const f = flights[i];
         if (f && f.mode === 'toCenter') f.mode = 'center';
@@ -193,10 +207,15 @@ function sendHome(i: number): void {
   flight.mode = 'toHome';
   flight.style = {
     ...rectStyle(flight.homeRect),
+    // 归途中转回相册姿态，落地无缝
+    transform: deckPose(),
     transition: `all ${FLY_MS}ms ${FLY_EASE}`,
   };
   window.setTimeout(() => {
     delete flights[i];
+    // 归位首帧禁过渡：否则节点回相册后从无变换滑向槽位变换，会肉眼卡一下
+    noTrans[i] = true;
+    window.setTimeout(() => { delete noTrans[i]; }, 80);
   }, FLY_MS + 20);
 }
 
@@ -411,7 +430,7 @@ onBeforeUnmount(() => {
               class="album-card"
               :class="flights[i]
                 ? ['fly', { settled: flights[i].mode === 'center', dragging }]
-                : [`slot-${slotOf(i)}`]"
+                : [`slot-${slotOf(i)}`, { 'no-trans': noTrans[i] }]"
               :data-src="cover"
               :style="flights[i]
                 ? [flights[i].style, flights[i].mode === 'center' ? zoomStyle : {}]
@@ -423,7 +442,8 @@ onBeforeUnmount(() => {
               @pointercancel="onPointerUp"
             >
               <img :src="cover" :alt="item?.title" draggable="false" />
-              <div v-if="!flights[i]" class="card-glow" />
+              <!-- 光照层跟卡走：飞行/中央态同样保留 -->
+              <div class="card-glow" />
             </div>
           </Teleport>
         </div>
@@ -651,7 +671,6 @@ onBeforeUnmount(() => {
   inset: auto;
   z-index: 9600;
   border: none;
-  transform: none;
   filter: none;
   opacity: 1;
   box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.55);
@@ -660,6 +679,11 @@ onBeforeUnmount(() => {
 
   &.settled { cursor: grab; }
   &.dragging { cursor: grabbing; }
+}
+
+/* 归位首帧禁过渡 */
+.album-card.no-trans {
+  transition: none;
 }
 
 .slot-0 {
