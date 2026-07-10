@@ -106,6 +106,34 @@ const links = [
         </a>
       </div>
     </section>
+
+    <!-- Powered by -->
+    <a
+      v-reveal
+      class="powered"
+      href="https://github.com/BeaconCat/Myself"
+      target="_blank"
+      rel="noopener"
+    >
+      <!-- 氛围光 -->
+      <span class="pw-glow g-red" aria-hidden="true" />
+      <span class="pw-glow g-yellow" aria-hidden="true" />
+      <span class="pw-glow g-blue" aria-hidden="true" />
+      <!-- 流光扫过 -->
+      <span class="pw-sheen" aria-hidden="true" />
+
+      <img class="pw-logo" src="/favicon-256.png" alt="" draggable="false" />
+      <span class="pw-text">
+        <span class="pw-label">Powered by</span>
+        <span class="pw-name">Myself</span>
+        <span class="pw-sub">GitHub {{ '@BeaconCat' }} · MIT License</span>
+      </span>
+      <span class="pw-arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 17L17 7M9 7h8v8" />
+        </svg>
+      </span>
+    </a>
   </main>
 </template>
 
@@ -357,10 +385,124 @@ const links = [
   }
 }
 
+/* ===== Powered by ===== */
+.powered {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-top: 72px;
+  padding: 34px 38px;
+  overflow: hidden;
+  /* 主题自适应：表面底色 + 主色氛围 */
+  background:
+    radial-gradient(600px 220px at 18% 0%, rgba(var(--primary-rgb), 0.1), transparent 60%),
+    var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur), border-color var(--dur);
+
+  &:hover {
+    transform: scale(1.015);
+    border-color: rgba(var(--primary-rgb), 0.5);
+    box-shadow: 0 24px 70px -20px rgba(var(--primary-rgb), 0.4);
+
+    .pw-glow { opacity: 0.4; }
+    .pw-sheen { animation: sheen-sweep 1.1s var(--ease-out); }
+    .pw-arrow { transform: translate(4px, -4px); color: var(--primary); }
+    .pw-logo { transform: rotate(-5deg) scale(1.08); }
+  }
+}
+
+/* 主色系氛围光斑（深浅两侧渐次） */
+.pw-glow {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.18;
+  transition: opacity var(--dur-slow) ease;
+  pointer-events: none;
+
+  &.g-red { background: var(--primary); left: -60px; top: -110px; }
+  &.g-yellow { background: var(--primary-deep); left: 40%; bottom: -160px; }
+  &.g-blue { background: var(--primary); right: -60px; top: -100px; }
+}
+
+/* 悬停流光扫过 */
+.pw-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(var(--primary-rgb), 0.1) 48%, transparent 62%);
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+
+@keyframes sheen-sweep {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(120%); }
+}
+
+.pw-logo {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  transition: transform var(--dur) var(--ease-spring);
+  filter: drop-shadow(0 6px 18px rgba(var(--primary-rgb), 0.4));
+}
+
+.pw-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pw-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-2);
+}
+
+.pw-name {
+  font-family: var(--font-serif);
+  font-size: 30px;
+  font-weight: 700;
+  /* 底部留白防 y 降部裁切；负上边距贴近 Powered by */
+  line-height: 1.25;
+  padding-bottom: 0.12em;
+  margin-top: -3px;
+  background: var(--grad-title);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.pw-sub {
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+
+.pw-arrow {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  color: var(--text-2);
+  transition: transform var(--dur-fast) var(--ease-out), color var(--dur-fast);
+
+  svg { width: 100%; height: 100%; }
+}
+
 @media (max-width: 768px) {
   .page { padding-top: 96px; }
 
   .skills { grid-template-columns: 1fr; }
   .stack { grid-template-columns: repeat(2, 1fr); }
+
+  .powered { padding: 26px 22px; gap: 16px; }
+  .pw-name { font-size: 24px; }
 }
 </style>

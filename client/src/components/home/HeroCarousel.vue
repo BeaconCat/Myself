@@ -1,94 +1,126 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ImageViewer, { type OriginRect } from '../media/ImageViewer.vue';
 
 export interface HeroItem {
   title: string;
   excerpt: string;
-  /** 头图 1–3 张：立体相册每 photoMs 轮转一张，全部展示完才切下一条文本 */
+  /** 头图 1–3 张：立体相册逐张轮转，放完切下一条 */
   covers: string[];
   tag: string;
 }
 
 const props = withDefaults(
-  defineProps<{ groups: HeroItem[][]; photoMs?: number }>(),
+  defineProps<{ items: HeroItem[]; photoMs?: number }>(),
   { photoMs: 3000 },
 );
 
 const { t } = useI18n();
 
-const groupIndex = ref(0);
 const itemIndex = ref(0);
 const photoIndex = ref(0);
-const phase = ref<'in' | 'out'>('in');
+/** enter：卡片入场动画播放中；idle：静止（slot 换位过渡生效）；out：退场 */
+const phase = ref<'enter' | 'idle' | 'out'>('enter');
+
+const hovering = ref(false);
+const viewerOpen = ref(false);
+const viewerRect = ref<OriginRect | undefined>();
 
 const OUT_MS = 450;
-const MAX_COVERS = 3;
+const ENTER_MS = 700;
 
-const group = computed(() => props.groups[groupIndex.value] ?? []);
-const item = computed(() => group.value[itemIndex.value] ?? group.value[0]);
-const covers = computed(() => (item.value?.covers ?? []).slice(0, MAX_COVERS));
+const item = computed(() => props.items[itemIndex.value] ?? props.items[0]);
+const covers = computed(() => (item.value?.covers ?? []).slice(0, 3));
+const paused = computed(() => hovering.value || viewerOpen.value);
 
-/** 标题拆字符，按顺序依次模糊切入 */
+/** 标题拆字符，顺序模糊切入 */
 const chars = computed(() =>
   [...(item.value?.title ?? '')].map((ch, i) => ({ ch, delay: i * 0.035 })),
 );
 
-/** 当前 item 内进度（含正在展示的这张） */
-const progress = computed(() => {
-  const total = Math.max(covers.value.length, 1);
-  return ((photoIndex.value + 1) / total) * 100;
-});
+/** 当前条展示总时长（进度胶囊填充用） */
+const itemDurationMs = computed(() => Math.max(covers.value.length, 1) * props.photoMs);
 
-function swapItem(next: () => void): void {
+let enterTimer = 0;
+
+function settle(): void {
+  window.clearTimeout(enterTimer);
+  enterTimer = window.setTimeout(() => {
+    if (phase.value === 'enter') phase.value = 'idle';
+  }, ENTER_MS);
+}
+
+function swapToItem(next: number): void {
+  if (next === itemIndex.value || phase.value === 'out') return;
   phase.value = 'out';
   window.setTimeout(() => {
-    next();
+    itemIndex.value = (next + props.items.length) % props.items.length;
     photoIndex.value = 0;
-    phase.value = 'in';
+    phase.value = 'enter';
+    settle();
   }, OUT_MS);
 }
 
-/** 相册每 tick 前进一张；照片放完 → 下一条文本；组内放完 → 下一组 */
+/** 自动步进：先轮照片，照片放完切下一条 */
 function tick(): void {
+  if (paused.value || phase.value === 'out') return;
   if (photoIndex.value < covers.value.length - 1) {
     photoIndex.value += 1;
-    return;
+  } else {
+    swapToItem(itemIndex.value + 1);
   }
-  swapItem(() => {
-    if (itemIndex.value < group.value.length - 1) {
-      itemIndex.value += 1;
-    } else {
-      itemIndex.value = 0;
-      groupIndex.value = (groupIndex.value + 1) % props.groups.length;
-    }
-  });
 }
 
-/** 相册卡位置：0 = 前排，1/2 = 后排堆叠 */
+/** 手动切照片（悬停箭头） */
+function stepPhoto(delta: number): void {
+  const len = covers.value.length;
+  if (len < 2) return;
+  photoIndex.value = (photoIndex.value + delta + len) % len;
+}
+
+/** 相册卡位置：0 前排，1 右上后排，2 左下后排 */
 function slotOf(i: number): number {
   const len = covers.value.length;
   return (i - photoIndex.value + len) % len;
 }
 
+/** 点击前排卡 → Lightbox 从卡片位置飞入 */
+function openViewer(e: MouseEvent): void {
+  const img = (e.currentTarget as HTMLElement).querySelector('img');
+  if (!img) return;
+  const r = img.getBoundingClientRect();
+  viewerRect.value = { left: r.left, top: r.top, width: r.width, height: r.height };
+  viewerOpen.value = true;
+}
+
 let timer = 0;
 
 onMounted(() => {
+  settle();
   timer = window.setInterval(tick, props.photoMs);
 });
 
-onBeforeUnmount(() => window.clearInterval(timer));
+onBeforeUnmount(() => {
+  window.clearInterval(timer);
+  window.clearTimeout(enterTimer);
+});
 </script>
 
 <template>
-  <section class="hero" :class="phase">
+  <section
+    class="hero"
+    :class="[phase, { paused }]"
+    @mouseenter="hovering = true"
+    @mouseleave="hovering = false"
+  >
     <!-- 左：大标题 + 简介 -->
     <div class="hero-text">
       <span class="hero-tag">{{ item?.tag }}</span>
       <h1 class="hero-title" aria-live="polite">
         <span
           v-for="(c, i) in chars"
-          :key="`${groupIndex}-${itemIndex}-${i}`"
+          :key="`${itemIndex}-${i}`"
           class="char"
           :style="{ '--d': c.delay + 's' }"
         >{{ c.ch }}</span>
@@ -97,36 +129,62 @@ onBeforeUnmount(() => window.clearInterval(timer));
       <button class="hero-btn">{{ t('hero.readMore') }}</button>
     </div>
 
-    <!-- 右：3D 立体相册（常驻左倾 15°），卡片上下飞入/离场 -->
+    <!-- 右：3D 立体相册 -->
     <div class="hero-stage">
-      <div :key="`${groupIndex}-${itemIndex}`" class="album">
+      <div :key="itemIndex" class="album">
         <div
           v-for="(cover, i) in covers"
           :key="cover"
           class="album-card"
           :class="`slot-${slotOf(i)}`"
           :style="{ '--stagger': slotOf(i) * 0.1 + 's' }"
+          @click="slotOf(i) === 0 ? openViewer($event) : (photoIndex = i)"
         >
           <img :src="cover" :alt="item?.title" draggable="false" />
           <div class="card-glow" />
         </div>
+
+        <!-- 悬停左右切换 -->
+        <template v-if="covers.length > 1">
+          <button class="step prev" aria-label="上一张" @click.stop="stepPhoto(-1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+          </button>
+          <button class="step next" aria-label="下一张" @click.stop="stepPhoto(1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+          </button>
+        </template>
       </div>
 
-      <!-- 进度：分段点 + 连续进度条 -->
-      <div class="progress">
-        <div class="progress-track">
-          <!-- key 随 item 重建，避免换条时进度条倒退回滚 -->
-          <div
-            :key="`${groupIndex}-${itemIndex}`"
-            class="progress-fill"
-            :style="{ width: phase === 'out' ? '100%' : progress + '%' }"
+      <!-- 进度：胶囊条填满 → 跳下一点；点击切换 -->
+      <div class="pills">
+        <button
+          v-for="(_, i) in items"
+          :key="i"
+          class="pill"
+          :class="{ on: i === itemIndex }"
+          :aria-label="`第 ${i + 1} 条`"
+          @click="swapToItem(i)"
+        >
+          <span
+            v-if="i === itemIndex"
+            :key="`fill-${itemIndex}`"
+            class="pill-fill"
+            :style="{
+              animationDuration: itemDurationMs + 'ms',
+              animationPlayState: paused ? 'paused' : 'running',
+            }"
           />
-        </div>
-        <div class="progress-dots">
-          <span v-for="(_, i) in group" :key="i" :class="{ on: i === itemIndex }" />
-        </div>
+        </button>
       </div>
     </div>
+
+    <ImageViewer
+      v-if="viewerOpen"
+      :images="covers"
+      :start-index="photoIndex"
+      :origin-rect="viewerRect"
+      @close="viewerOpen = false"
+    />
   </section>
 </template>
 
@@ -170,7 +228,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
   white-space: pre;
 }
 
-.hero.in .char {
+.hero.enter .char {
   animation: char-in var(--dur-slow) var(--ease-out) both;
   animation-delay: var(--d);
 }
@@ -182,7 +240,8 @@ onBeforeUnmount(() => window.clearInterval(timer));
 
 .hero.out .hero-title,
 .hero.out .hero-excerpt,
-.hero.out .hero-tag {
+.hero.out .hero-tag,
+.hero.out .hero-btn {
   animation: text-out 0.45s var(--ease-out) both;
 }
 
@@ -197,20 +256,15 @@ onBeforeUnmount(() => window.clearInterval(timer));
   max-width: 46ch;
 }
 
-.hero.in .hero-excerpt,
-.hero.in .hero-tag {
+.hero.enter .hero-excerpt,
+.hero.enter .hero-tag {
   animation: fade-up var(--dur-slow) var(--ease-out) both;
   animation-delay: 0.25s;
 }
 
-/* 按钮压轴：跟随文字一起模糊入场 */
-.hero.in .hero-btn {
+.hero.enter .hero-btn {
   animation: blur-up var(--dur-slow) var(--ease-out) both;
   animation-delay: 0.4s;
-}
-
-.hero.out .hero-btn {
-  animation: text-out 0.45s var(--ease-out) both;
 }
 
 @keyframes fade-up {
@@ -252,7 +306,6 @@ onBeforeUnmount(() => window.clearInterval(timer));
   perspective: 1300px;
 }
 
-/* 相册整体常驻左倾 15° */
 .album {
   position: relative;
   width: min(100%, 430px);
@@ -261,7 +314,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
   transform: rotateY(-15deg);
 }
 
-/* 相册单卡：参考错位堆叠——前排居中，后排右上/左下探出 */
+/* 前排居中，后排右上/左下错位 */
 .album-card {
   position: absolute;
   inset: 0;
@@ -271,11 +324,11 @@ onBeforeUnmount(() => window.clearInterval(timer));
   background: var(--surface);
   box-shadow: var(--shadow), 0 30px 70px -20px rgba(var(--primary-rgb), 0.35);
   transform-style: preserve-3d;
-  /* 切换：水平换位（transform）+ 层级跳变（z-index 不可动画，瞬切） */
+  /* 换位过渡（无弹性） */
   transition:
-    transform 0.8s var(--ease-spring),
-    opacity 0.8s var(--ease-out),
-    filter 0.8s ease;
+    transform 0.7s var(--ease-out),
+    opacity 0.7s var(--ease-out),
+    filter 0.7s ease;
 
   img {
     width: 100%;
@@ -290,31 +343,33 @@ onBeforeUnmount(() => window.clearInterval(timer));
   opacity: 1;
   z-index: 3;
   filter: none;
+  cursor: zoom-in;
 }
 .slot-1 {
   transform: translate3d(76px, -46px, -90px) scale(0.8);
   opacity: 0.85;
   z-index: 2;
   filter: brightness(0.8);
+  cursor: pointer;
 }
 .slot-2 {
   transform: translate3d(-72px, 48px, -90px) scale(0.8);
   opacity: 0.85;
   z-index: 1;
   filter: brightness(0.72);
+  cursor: pointer;
 }
 
-/* 入场：前卡自上坠入，右后卡自右滑入，左后卡自左滑入；级联延迟。
-   单侧 keyframe：to 省略 → 落到各自 slot 的 transform */
-.hero.in .album-card {
-  animation-duration: 0.8s;
-  animation-timing-function: var(--ease-spring);
+/* 入场（仅 enter 阶段播放一次；无弹性）：前卡自上，右后卡自右，左后卡自左 */
+.hero.enter .album-card {
+  animation-duration: 0.7s;
+  animation-timing-function: var(--ease-out);
   animation-fill-mode: both;
   animation-delay: var(--stagger);
 }
-.hero.in .slot-0 { animation-name: enter-top; }
-.hero.in .slot-1 { animation-name: enter-right; }
-.hero.in .slot-2 { animation-name: enter-left; }
+.hero.enter .slot-0 { animation-name: enter-top; }
+.hero.enter .slot-1 { animation-name: enter-right; }
+.hero.enter .slot-2 { animation-name: enter-left; }
 
 @keyframes enter-top {
   from { opacity: 0; transform: translate3d(0, -130%, 40px) scale(0.8); }
@@ -326,7 +381,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
   from { opacity: 0; transform: translate3d(-150%, 48px, -120px) scale(0.72); }
 }
 
-/* 出场：前卡向下坠离，两张后卡向上飞离；透明度前半段即降为 0 */
+/* 出场：前卡向下，后卡向上，透明度前半段归零 */
 .hero.out .album-card {
   animation-duration: 0.4s;
   animation-timing-function: var(--ease-out);
@@ -355,51 +410,84 @@ onBeforeUnmount(() => window.clearInterval(timer));
     linear-gradient(180deg, transparent 60%, rgba(var(--primary-rgb), 0.18));
 }
 
-/* ===== 进度 ===== */
-.progress {
-  width: min(100%, 430px);
+/* 悬停左右切换按钮 */
+.step {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--primary-rgb), 0.3);
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out), background var(--dur-fast);
+
+  svg { width: 18px; height: 18px; }
+
+  &.prev { left: -14px; }
+  &.next { right: -14px; }
+
+  &:hover {
+    background: rgba(var(--primary-rgb), 0.25);
+    transform: translateY(-50%) scale(1.1);
+  }
+}
+
+.album:hover .step {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ===== 进度胶囊 ===== */
+.pills {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 10px;
 }
 
-.progress-track {
-  width: 100%;
-  height: 4px;
+.pill {
+  position: relative;
+  width: 9px;
+  height: 9px;
   border-radius: 999px;
-  background: var(--surface-2);
+  border: none;
+  padding: 0;
+  background: var(--border);
   overflow: hidden;
+  transition: width var(--dur) var(--ease-out), background var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+
+  &:hover { transform: scale(1.25); }
+
+  /* 激活：拉长成小圆柱条 */
+  &.on {
+    width: 52px;
+    background: var(--surface-2);
+
+    &:hover { transform: none; }
+  }
 }
 
-.progress-fill {
-  height: 100%;
+.pill-fill {
+  position: absolute;
+  inset: 0;
+  width: 0;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--primary), var(--primary-deep));
-  box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.6);
-  /* 每 3s 前进一格，线性推进读秒感 */
-  transition: width 2.9s linear;
+  box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.5);
+  animation: pill-progress linear both;
 }
 
-.hero.out .progress-fill { transition: width 0.4s var(--ease-out); }
-
-.progress-dots {
-  display: flex;
-  gap: 8px;
-
-  span {
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    background: var(--border);
-    transition: all var(--dur) var(--ease-out);
-
-    &.on {
-      width: 26px;
-      background: linear-gradient(90deg, var(--primary), var(--primary-deep));
-      box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.5);
-    }
-  }
+@keyframes pill-progress {
+  from { width: 0; }
+  to { width: 100%; }
 }
 
 @media (max-width: 900px) {
@@ -413,5 +501,8 @@ onBeforeUnmount(() => window.clearInterval(timer));
   .hero-text { align-items: center; text-align: center; }
   .hero-excerpt { font-size: 14px; }
   .album { transform: rotateY(-10deg); }
+
+  /* 移动端常显切换按钮 */
+  .step { opacity: 1; pointer-events: auto; }
 }
 </style>

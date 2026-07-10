@@ -7,7 +7,19 @@ import { useI18n } from 'vue-i18n';
  * 缩放：PC 滚轮 / 移动端双指；拖动：长按图片后拖拽；
  * 退出：双击空白 / 右上角关闭键；左下角操作指南逐条滑入滑出。
  */
-const props = defineProps<{ images: string[]; startIndex: number }>();
+export interface OriginRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+const props = defineProps<{
+  images: string[];
+  startIndex: number;
+  /** 提供时：开启 FLIP——图片从该矩形飞入中央，关闭时飞回 */
+  originRect?: OriginRect;
+}>();
 const emit = defineEmits<{ close: [] }>();
 
 const { t } = useI18n();
@@ -18,6 +30,49 @@ const tx = ref(0);
 const ty = ref(0);
 const closing = ref(false);
 const dragging = ref(false);
+/** FLIP 飞行中：用慢过渡接管 transform */
+const flying = ref(false);
+const imgReady = ref(!props.originRect);
+const imgEl = ref<HTMLImageElement | null>(null);
+
+/** 由 originRect 计算相对屏幕中央展示位的位移/缩放 */
+function flyTransformFromOrigin(): { tx: number; ty: number; s: number } | null {
+  const rect = props.originRect;
+  const el = imgEl.value;
+  if (!rect || !el) return null;
+  const display = el.getBoundingClientRect();
+  const baseW = display.width / scale.value;
+  const baseH = display.height / scale.value;
+  return {
+    tx: rect.left + rect.width / 2 - window.innerWidth / 2,
+    ty: rect.top + rect.height / 2 - window.innerHeight / 2,
+    s: Math.max(rect.width / baseW, rect.height / baseH),
+  };
+}
+
+function onImgLoad(): void {
+  if (!props.originRect || imgReady.value) {
+    imgReady.value = true;
+    return;
+  }
+  // 起点摆到卡片矩形上（无过渡），下一帧飞向中央
+  const from = flyTransformFromOrigin();
+  if (from) {
+    tx.value = from.tx;
+    ty.value = from.ty;
+    scale.value = from.s;
+  }
+  imgReady.value = true;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      flying.value = true;
+      tx.value = 0;
+      ty.value = 0;
+      scale.value = 1;
+      window.setTimeout(() => { flying.value = false; }, 520);
+    });
+  });
+}
 
 const isTouch = 'ontouchstart' in window;
 
@@ -41,11 +96,20 @@ function clampScale(v: number): number {
   return Math.min(8, Math.max(0.5, v));
 }
 
-/* ===== 关闭（退场动画后卸载） ===== */
+/* ===== 关闭（退场动画后卸载；有 originRect 时飞回卡片） ===== */
 function requestClose(): void {
   if (closing.value) return;
   closing.value = true;
-  window.setTimeout(() => emit('close'), 420);
+  if (props.originRect && index.value === props.startIndex) {
+    const to = flyTransformFromOrigin();
+    if (to) {
+      flying.value = true;
+      tx.value = to.tx;
+      ty.value = to.ty;
+      scale.value = to.s;
+    }
+  }
+  window.setTimeout(() => emit('close'), 460);
 }
 
 /* 双击/双触空白退出 */
@@ -173,12 +237,14 @@ onBeforeUnmount(() => {
       <div class="stage">
         <img
           :key="index"
+          ref="imgEl"
           class="stage-img"
-          :class="{ dragging }"
+          :class="{ dragging, flying, flip: !!originRect, ready: imgReady }"
           :src="images[index]"
           alt=""
           draggable="false"
           :style="imgStyle"
+          @load="onImgLoad"
           @pointerdown.prevent="onPointerDown"
           @pointermove="onPointerMove"
           @pointerup="onPointerUp"
@@ -256,16 +322,21 @@ onBeforeUnmount(() => {
   cursor: grab;
   will-change: transform;
   transition: transform 0.08s linear;
-  animation: img-in 0.45s var(--ease-spring) both;
+  animation: img-in 0.45s var(--ease-out) both;
 
   &.dragging { cursor: grabbing; transition: none; }
+
+  /* FLIP 模式：不用缩放入场动画，加载前隐藏，飞行时慢过渡 */
+  &.flip { animation: none; opacity: 0; }
+  &.flip.ready { opacity: 1; }
+  &.flying { transition: transform 0.5s var(--ease-out); }
 }
 
 @keyframes img-in {
   from { opacity: 0; scale: 0.9; }
 }
 
-.viewer.closing .stage-img {
+.viewer.closing .stage-img:not(.flip) {
   animation: img-out 0.35s var(--ease-out) both;
 }
 
