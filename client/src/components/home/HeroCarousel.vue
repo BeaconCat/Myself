@@ -553,6 +553,8 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 48px;
   perspective: 1300px;
+  /* 展示区禁选中：双击（退出 lightbox 等）不再拉出文字选区 */
+  user-select: none;
 }
 
 /* ===== 左侧文字 ===== */
@@ -916,6 +918,7 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 9500;
+  user-select: none;
   background: rgba(8, 8, 12, 0.82);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
