@@ -24,6 +24,11 @@ interface Flight {
   homeRect: Rect;
   /** 家位的 3D 姿态（相册角 + 槽位偏移缩放），起降两端 1:1 */
   homeTransform: string;
+  /**
+   * 已离地：teleport 移动节点会重置该帧的 CSS 过渡（样式瞬变），
+   * 光效等类驱动的缓动要等下一帧此标记置位后才触发
+   */
+  lifted: boolean;
 }
 
 const props = withDefaults(
@@ -65,8 +70,6 @@ const chars = computed(() =>
   [...(item.value?.title ?? '')].map((ch, i) => ({ ch, delay: i * 0.035 })),
 );
 
-const itemDurationMs = computed(() => Math.max(covers.value.length, 1) * props.photoMs);
-
 const guide = computed(() => [
   isTouch ? t('viewer.pinch') : t('viewer.wheel'),
   t('viewer.drag'),
@@ -75,7 +78,6 @@ const guide = computed(() => [
 
 /* ===== 轮播状态机 ===== */
 let enterTimer = 0;
-let timer = 0;
 
 function settle(): void {
   window.clearTimeout(enterTimer);
@@ -95,8 +97,9 @@ function swapToItem(next: number): void {
   }, OUT_MS);
 }
 
-function tick(): void {
-  if (paused.value || phase.value === 'out') return;
+/** 自动步进由进度条驱动：当前段填满（animationend）才前进，与视觉天然同步 */
+function onFillEnd(): void {
+  if (phase.value === 'out' || lightboxOn.value) return;
   if (photoIndex.value < covers.value.length - 1) {
     photoIndex.value += 1;
   } else {
@@ -201,6 +204,7 @@ async function launch(i: number): Promise<void> {
     mode: 'toCenter',
     homeRect: home.rect,
     homeTransform: home.transform,
+    lifted: false,
     // 起飞帧保持家位 3D 姿态，飞行中转正
     style: { ...rectStyle(home.rect), transform: home.transform, transition: 'none' },
   };
@@ -209,6 +213,7 @@ async function launch(i: number): Promise<void> {
     requestAnimationFrame(() => {
       const flight = flights[i];
       if (!flight || flight.mode !== 'toCenter') return;
+      flight.lifted = true;
       flight.style = {
         ...target,
         transform: 'perspective(1300px) rotateY(0deg)',
@@ -409,46 +414,50 @@ function activateCard(i: number): void {
 }
 
 /**
- * 卡片点击不走原生 click：pointerdown→up 间卡片有 3D 变换/轮转位移时
- * 浏览器会因起落目标不一致吞掉 click（表现为要点两次）。
- * 改为 pointer capture + 位移阈值自行判定单击。
+ * 强化点击穿透：相册态卡片全部 pointer-events: none，
+ * 手势统一落在未变换的 album-zone 上，再按槽位前后顺序用
+ * 投影矩形手动解析命中目标——彻底绕开 3D 命中测试的不稳定。
  */
-let tap: { i: number; x: number; y: number; t: number } | null = null;
+let tap: { x: number; y: number; t: number } | null = null;
 
-function onCardDown(e: PointerEvent, i: number): void {
-  if (flights[i]?.mode === 'center') {
-    onPointerDown(e);
-    return;
+function resolveCardAt(x: number, y: number): number | null {
+  const len = covers.value.length;
+  for (let slot = 0; slot < len; slot++) {
+    const i = (photoIndex.value + slot) % len;
+    const src = covers.value[i];
+    const el = sectionEl.value?.querySelector<HTMLElement>(
+      `.album-card[data-src="${CSS.escape(src)}"]`,
+    );
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return i;
   }
-  if (flights[i]) return;
-  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  tap = { i, x: e.clientX, y: e.clientY, t: performance.now() };
+  return null;
 }
 
-function onCardUp(e: PointerEvent, i: number): void {
-  if (flights[i]) {
-    onPointerUp(e);
-    return;
-  }
+function onZoneDown(e: PointerEvent): void {
+  tap = { x: e.clientX, y: e.clientY, t: performance.now() };
+}
+
+function onZoneUp(e: PointerEvent): void {
   if (
-    tap && tap.i === i
+    tap
     && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 8
     && performance.now() - tap.t < 600
   ) {
-    activateCard(i);
+    const i = resolveCardAt(e.clientX, e.clientY);
+    if (i !== null) activateCard(i);
   }
   tap = null;
 }
 
 onMounted(() => {
   settle();
-  timer = window.setInterval(tick, props.photoMs);
   window.addEventListener('keydown', onKey);
   window.addEventListener('wheel', onWheel, { passive: false });
 });
 
 onBeforeUnmount(() => {
-  window.clearInterval(timer);
   window.clearTimeout(enterTimer);
   window.removeEventListener('keydown', onKey);
   window.removeEventListener('wheel', onWheel);
@@ -480,7 +489,7 @@ onBeforeUnmount(() => {
 
     <!-- 右：3D 立体相册（按钮在旋转容器外，不受透视挤压） -->
     <div class="hero-stage">
-      <div class="album-zone">
+      <div class="album-zone" @pointerdown="onZoneDown" @pointerup="onZoneUp">
         <div :key="itemIndex" class="album">
           <!-- teleport 开启时原节点整体搬到 body 飞行 -->
           <Teleport
@@ -493,6 +502,7 @@ onBeforeUnmount(() => {
               class="album-card"
               :class="flights[i]
                 ? ['fly', {
+                  airborne: flights[i].lifted,
                   settled: flights[i].mode === 'center',
                   homing: flights[i].mode === 'toHome',
                   dragging,
@@ -502,9 +512,9 @@ onBeforeUnmount(() => {
               :style="flights[i]
                 ? [flights[i].style, flights[i].mode === 'center' ? zoomStyle : {}]
                 : { '--stagger': slotOf(i) * 0.1 + 's' }"
-              @pointerdown="onCardDown($event, i)"
+              @pointerdown="flights[i]?.mode === 'center' && onPointerDown($event)"
               @pointermove="onPointerMove"
-              @pointerup="onCardUp($event, i)"
+              @pointerup="onPointerUp"
               @pointercancel="onPointerUp"
             >
               <img :src="cover" :alt="item?.title" draggable="false" />
@@ -535,15 +545,18 @@ onBeforeUnmount(() => {
           :aria-label="`第 ${i + 1} 条`"
           @click="swapToItem(i)"
         >
+          <!-- 每段 = 一张照片：从 n/总数 填到 (n+1)/总数，填满触发步进 -->
           <span
             v-if="i === itemIndex"
             :key="`fill-${itemIndex}-${photoIndex}`"
             class="pill-fill"
             :style="{
-              animationDuration: itemDurationMs + 'ms',
-              animationDelay: -(photoIndex * props.photoMs) + 'ms',
+              '--from': (photoIndex / covers.length) * 100 + '%',
+              '--to': ((photoIndex + 1) / covers.length) * 100 + '%',
+              animationDuration: props.photoMs + 'ms',
               animationPlayState: paused ? 'paused' : 'running',
             }"
+            @animationend="onFillEnd"
           />
         </button>
       </div>
@@ -730,6 +743,8 @@ onBeforeUnmount(() => {
   background: var(--surface);
   box-shadow: var(--shadow), 0 30px 70px -20px rgba(var(--primary-rgb), 0.35);
   transform-style: preserve-3d;
+  /* 相册态不接事件：手势统一由 album-zone 解析（3D 命中不稳定） */
+  pointer-events: none;
   transition:
     transform 0.7s var(--ease-out),
     opacity 0.7s var(--ease-out),
@@ -749,6 +764,7 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: auto;
   z-index: 9600;
+  pointer-events: auto;
   /* 边框/阴影沿用相册卡并由 inline style 过渡，飞行两端 1:1 对齐 */
   filter: none;
   opacity: 1;
@@ -840,8 +856,8 @@ onBeforeUnmount(() => {
   transition: opacity 0.55s ease;
 }
 
-/* 飞向中央/中央态：光照渐隐；归途：渐显回来 */
-.album-card.fly .card-glow { opacity: 0; }
+/* 升空后光照渐隐（起飞帧不减——teleport 移动节点那帧过渡会被重置成瞬变）；归途渐显 */
+.album-card.fly.airborne .card-glow { opacity: 0; }
 .album-card.fly.homing .card-glow { opacity: 1; }
 
 /* 左右切换按钮（在 album-zone 上，无 3D 变形） */
@@ -921,8 +937,8 @@ onBeforeUnmount(() => {
 }
 
 @keyframes pill-progress {
-  from { width: 0; }
-  to { width: 100%; }
+  from { width: var(--from, 0%); }
+  to { width: var(--to, 100%); }
 }
 
 @media (max-width: 900px) {
