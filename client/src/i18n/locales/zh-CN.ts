@@ -23,6 +23,7 @@ export default {
   articles: {
     all: '全部',
     empty: '暂无文章',
+    searchPlaceholder: '搜索标题、摘要或正文',
   },
   article: {
     back: '返回文章列表',

@@ -38,11 +38,12 @@ async function get<T>(path: string): Promise<T> {
 }
 
 export const api = {
-  posts: (params: { page?: number; pageSize?: number; tag?: string } = {}) => {
+  posts: (params: { page?: number; pageSize?: number; tag?: string; q?: string } = {}) => {
     const query = new URLSearchParams();
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
     if (params.tag) query.set('tag', params.tag);
+    if (params.q) query.set('q', params.q);
     const qs = query.toString();
     return get<PostList>(`/posts${qs ? `?${qs}` : ''}`);
   },

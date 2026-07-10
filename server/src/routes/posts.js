@@ -3,11 +3,12 @@ import { db, toPost } from '../db.js';
 
 export const postsRouter = Router();
 
-/** GET /api/v1/posts?page=&pageSize=&tag= 文章列表（分页 + 标签过滤） */
+/** GET /api/v1/posts?page=&pageSize=&tag=&q= 文章列表（分页 + 标签过滤 + 关键词搜索） */
 postsRouter.get('/posts', (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(50, Math.max(1, Number(req.query.pageSize) || 10));
   const tag = typeof req.query.tag === 'string' ? req.query.tag : '';
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
 
   const where = ["status = 'published'"];
   const params = {};
@@ -15,6 +16,10 @@ postsRouter.get('/posts', (req, res) => {
     // tags 为 JSON 数组文本，用引号包裹精确匹配单个标签
     where.push(`tags LIKE @tagPattern`);
     params.tagPattern = `%"${tag.replaceAll('"', '')}"%`;
+  }
+  if (q) {
+    where.push(`(title LIKE @q OR excerpt LIKE @q OR content_md LIKE @q)`);
+    params.q = `%${q}%`;
   }
   const whereSql = where.join(' AND ');
 
