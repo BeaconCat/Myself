@@ -402,10 +402,42 @@ function onKey(e: KeyboardEvent): void {
   if (e.key === 'ArrowRight') lbGo(1);
 }
 
-function onCardClick(i: number): void {
+function activateCard(i: number): void {
   if (flights[i]) return;
   if (slotOf(i) === 0) openLightbox(i);
   else photoIndex.value = i;
+}
+
+/**
+ * 卡片点击不走原生 click：pointerdown→up 间卡片有 3D 变换/轮转位移时
+ * 浏览器会因起落目标不一致吞掉 click（表现为要点两次）。
+ * 改为 pointer capture + 位移阈值自行判定单击。
+ */
+let tap: { i: number; x: number; y: number; t: number } | null = null;
+
+function onCardDown(e: PointerEvent, i: number): void {
+  if (flights[i]?.mode === 'center') {
+    onPointerDown(e);
+    return;
+  }
+  if (flights[i]) return;
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  tap = { i, x: e.clientX, y: e.clientY, t: performance.now() };
+}
+
+function onCardUp(e: PointerEvent, i: number): void {
+  if (flights[i]) {
+    onPointerUp(e);
+    return;
+  }
+  if (
+    tap && tap.i === i
+    && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 8
+    && performance.now() - tap.t < 600
+  ) {
+    activateCard(i);
+  }
+  tap = null;
 }
 
 onMounted(() => {
@@ -470,10 +502,9 @@ onBeforeUnmount(() => {
               :style="flights[i]
                 ? [flights[i].style, flights[i].mode === 'center' ? zoomStyle : {}]
                 : { '--stagger': slotOf(i) * 0.1 + 's' }"
-              @click="onCardClick(i)"
-              @pointerdown="flights[i]?.mode === 'center' && onPointerDown($event)"
+              @pointerdown="onCardDown($event, i)"
               @pointermove="onPointerMove"
-              @pointerup="onPointerUp"
+              @pointerup="onCardUp($event, i)"
               @pointercancel="onPointerUp"
             >
               <img :src="cover" :alt="item?.title" draggable="false" />
