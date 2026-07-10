@@ -135,4 +135,26 @@ export const adminApi = {
     authed<{ id: number }>('/admin/notes', { method: 'POST', body: JSON.stringify(note) }),
   deleteNote: (id: number) =>
     authed<{ ok: boolean }>(`/admin/notes/${id}`, { method: 'DELETE' }),
+  apiKeys: () => authed<ApiKeyInfo[]>('/admin/apikeys'),
+  createApiKey: (name: string) =>
+    authed<ApiKeyInfo & { key: string }>('/admin/apikeys', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+  deleteApiKey: (id: number) =>
+    authed<{ ok: boolean }>(`/admin/apikeys/${id}`, { method: 'DELETE' }),
+  settings: () => authed<Record<string, unknown>>('/admin/settings'),
+  saveSettings: (patch: Record<string, unknown>) =>
+    authed<Record<string, unknown>>('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify(patch),
+    }),
 };
+
+export interface ApiKeyInfo {
+  id: number;
+  name: string;
+  prefix: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
