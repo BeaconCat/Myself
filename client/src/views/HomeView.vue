@@ -6,8 +6,22 @@ import { api, type Post } from '../api';
 
 const latest = ref<Post[]>([]);
 
+/** 无封面时按标签色生成占位图 */
+const fallbackPalette = [
+  ['#ff0032', '#7a0020'],
+  ['#ffb300', '#7a5200'],
+  ['#0078ff', '#00295c'],
+  ['#2b6cb0', '#0d1f33'],
+];
+
+function coverOf(post: Post, index: number): string {
+  if (post.covers.length) return post.covers[0];
+  const [from, to] = fallbackPalette[index % fallbackPalette.length];
+  return placeholderCover(from, to, post.tags[0] ?? 'Post');
+}
+
 onMounted(async () => {
-  latest.value = (await api.posts({ pageSize: 3 })).items;
+  latest.value = (await api.posts({ pageSize: 4 })).items;
 });
 
 /* P1 接后端前的演示数据：两组；covers 1–3 张演示立体相册 */
@@ -67,17 +81,37 @@ const groups: HeroItem[][] = [
   <main class="page">
     <HeroCarousel :groups="groups" />
 
-    <section v-reveal class="teaser">
-      <h2>最新文章</h2>
+    <!-- 最新四条：交错图文，无边框平铺，悬停直角框 -->
+    <section class="latest">
+      <h2 v-reveal class="section-title">最新文章</h2>
       <router-link
-        v-for="post in latest"
+        v-for="(post, i) in latest"
         :key="post.slug"
+        v-reveal
         :to="`/articles/${post.slug}`"
-        class="teaser-item"
+        class="zig"
+        :class="{ flip: i % 2 === 1 }"
       >
-        <span class="t-title">{{ post.title }}</span>
-        <span class="t-date">{{ post.createdAt.slice(0, 10) }}</span>
+        <div class="zig-text">
+          <span class="z-date">{{ post.createdAt.slice(0, 10) }}</span>
+          <h3>{{ post.title }}</h3>
+          <p>{{ post.excerpt }}</p>
+          <div class="z-tags">
+            <span v-for="tag in post.tags" :key="tag">{{ tag }}</span>
+          </div>
+        </div>
+        <div class="zig-media">
+          <img :src="coverOf(post, i)" :alt="post.title" loading="lazy" draggable="false" />
+        </div>
       </router-link>
+    </section>
+
+    <!-- 预留扩展板块：后续接 GitHub Status（热力图 / 最新动态 / commit），数据源走后端配置 -->
+    <section v-reveal class="widgets">
+      <div class="widget-placeholder">
+        <span class="w-label">GitHub Status</span>
+        <span class="w-hint">板块预留 · 后端配置接入热力图与最新动态</span>
+      </div>
     </section>
   </main>
 </template>
@@ -89,49 +123,156 @@ const groups: HeroItem[][] = [
   padding: 110px 24px 80px;
 }
 
-.teaser {
-  margin-top: 64px;
-  padding: 32px;
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  border: 1px solid var(--border);
-
-  h2 { margin-bottom: 16px; }
+/* ===== 最新文章：交错图文平铺 ===== */
+.latest {
+  margin-top: 80px;
 }
 
-.teaser-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 13px 14px;
-  border-radius: var(--radius);
-  transition: background var(--dur-fast), transform var(--dur-fast);
+.section-title {
+  font-size: clamp(24px, 3vw, 32px);
+  margin-bottom: 8px;
+}
 
-  .t-title {
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    transition: color var(--dur-fast);
+.zig {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 40px;
+  align-items: center;
+  padding: 34px 28px;
+  position: relative;
+  transition: background var(--dur-fast);
+
+  /* 偶数条翻转：图左文右 */
+  &.flip .zig-text { order: 2; }
+  &.flip .zig-media { order: 1; }
+
+  /* 悬停直角边框：四角括号式描边 */
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    opacity: 0;
+    transition: opacity var(--dur-fast) ease, transform var(--dur) var(--ease-out);
+    pointer-events: none;
   }
 
-  .t-date {
-    font-size: 13px;
-    color: var(--text-2);
-    flex-shrink: 0;
-    font-variant-numeric: tabular-nums;
+  &::before {
+    top: 10px;
+    left: 10px;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+    transform: translate(8px, 8px);
+  }
+
+  &::after {
+    bottom: 10px;
+    right: 10px;
+    border-bottom: 2px solid var(--primary);
+    border-right: 2px solid var(--primary);
+    transform: translate(-8px, -8px);
   }
 
   &:hover {
-    background: var(--surface-2);
-    transform: translateX(4px);
+    background: rgba(var(--primary-rgb), 0.04);
 
-    .t-title { color: var(--primary); }
+    &::before, &::after { opacity: 1; transform: none; }
+    .zig-media img { transform: scale(1.04); }
+    h3 { color: var(--primary); }
   }
+}
+
+.zig-text {
+  min-width: 0;
+
+  .z-date {
+    font-size: 13px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  h3 {
+    font-size: clamp(20px, 2.4vw, 26px);
+    margin: 10px 0 12px;
+    transition: color var(--dur-fast);
+  }
+
+  p {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-2);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+.z-tags {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+
+  span {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 10px;
+    background: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary);
+  }
+}
+
+.zig-media {
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform var(--dur-slow) var(--ease-out);
+  }
+}
+
+/* ===== 预留扩展板块 ===== */
+.widgets {
+  margin-top: 56px;
+}
+
+.widget-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 44px 24px;
+  border: 1px dashed var(--border);
+  color: var(--text-2);
+
+  .w-label {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .w-hint { font-size: 13px; }
 }
 
 @media (max-width: 768px) {
   .page { padding-top: 88px; }
+
+  .zig {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 22px 14px;
+
+    /* 移动端统一图上文下 */
+    &.flip .zig-text { order: 2; }
+    &.flip .zig-media { order: 1; }
+    .zig-text { order: 2; }
+    .zig-media { order: 1; }
+  }
 }
 </style>
