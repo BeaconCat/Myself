@@ -46,7 +46,7 @@ export default {
     daysAgo: '{n} 天前',
   },
   admin: {
-    loginTitle: '后台登录',
+    loginTitle: '控制中心',
     username: '用户名',
     password: '密码',
     login: '登录',
