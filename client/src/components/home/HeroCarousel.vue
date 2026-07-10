@@ -152,16 +152,14 @@ function slotTransform(slot: number): string {
  * 那个比例被透视压过，落地时裁切比例对不上）。姿态由 homeTransform 补。
  */
 function captureHome(i: number): { rect: Rect; transform: string } | null {
-  const zone = sectionEl.value?.querySelector<HTMLElement>('.album-zone .album');
+  // album-zone 自身无变换：其布局盒 = album 的真实布局盒。
+  // 不能用 album 的 getBoundingClientRect——rotateY 透视投影会把中心推向右侧，
+  // 起飞/落地按偏移中心定位就会向右错位并在归位交接帧闪跳。
+  const zone = sectionEl.value?.querySelector<HTMLElement>('.album-zone');
   if (!zone) return null;
   const r = zone.getBoundingClientRect();
-  // getBoundingClientRect 受 rotateY 投影影响，宽度取未变换布局宽
-  const w = zone.offsetWidth;
-  const h = zone.offsetHeight;
-  const cx = r.left + r.width / 2;
-  const cy = r.top + r.height / 2;
   return {
-    rect: { left: cx - w / 2, top: cy - h / 2, width: w, height: h },
+    rect: { left: r.left, top: r.top, width: r.width, height: r.width * 0.75 },
     transform: slotTransform(slotOf(i)),
   };
 }
@@ -736,7 +734,7 @@ onBeforeUnmount(() => {
   opacity: 1;
   z-index: 3;
   filter: none;
-  cursor: zoom-in;
+  cursor: pointer;
 }
 .slot-1 {
   transform: translate3d(76px, -46px, -90px) scale(0.8);
