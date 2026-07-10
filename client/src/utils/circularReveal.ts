@@ -10,7 +10,10 @@ export function circularReveal(
   direction: 'expand' | 'contract' = 'expand',
 ): void {
   const doc = document as Document & {
-    startViewTransition?: (cb: () => void) => { ready: Promise<void> };
+    startViewTransition?: (cb: () => void) => {
+      ready: Promise<void>;
+      finished: Promise<void>;
+    };
   };
 
   if (!doc.startViewTransition) {
@@ -33,7 +36,7 @@ export function circularReveal(
   const transition = doc.startViewTransition(apply);
   transition.ready.then(() => {
     const grow = [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`];
-    root.animate(
+    const anim = root.animate(
       { clipPath: direction === 'expand' ? grow : [...grow].reverse() },
       {
         duration: 650,
@@ -45,5 +48,13 @@ export function circularReveal(
             : '::view-transition-old(root)',
       },
     );
+    // forwards 动画会残留在 root 上，污染下一次过渡的同名伪元素（表现为闪屏）。
+    // 必须等整个过渡结束（伪元素已销毁）再 cancel，过早清理会在收尾帧回闪。
+    transition.finished
+      .catch(() => undefined)
+      .then(() => {
+        anim.cancel();
+        root.classList.remove('vt-contract');
+      });
   });
 }
