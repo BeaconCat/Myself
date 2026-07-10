@@ -77,9 +77,10 @@ function onMode(e: MouseEvent): void {
   &:hover { transform: scale(1.2); }
 
   &.active {
-    border-color: var(--text);
+    /* 表面色环形镂空 + 主色外圈，深浅模式都干净 */
+    border-color: var(--surface);
     transform: scale(1.25);
-    box-shadow: 0 0 10px rgba(var(--primary-rgb), 0.6);
+    box-shadow: 0 0 0 1.5px rgba(var(--primary-rgb), 0.7), 0 0 10px rgba(var(--primary-rgb), 0.5);
   }
 }
 
