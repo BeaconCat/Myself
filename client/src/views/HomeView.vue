@@ -1,6 +1,14 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue';
 import HeroCarousel, { type HeroItem } from '../components/home/HeroCarousel.vue';
 import { placeholderCover } from '../utils/placeholder';
+import { api, type Post } from '../api';
+
+const latest = ref<Post[]>([]);
+
+onMounted(async () => {
+  latest.value = (await api.posts({ pageSize: 3 })).items;
+});
 
 /* P1 接后端前的演示数据：两组；covers 1–3 张演示立体相册 */
 const groups: HeroItem[][] = [
@@ -61,7 +69,15 @@ const groups: HeroItem[][] = [
 
     <section v-reveal class="teaser">
       <h2>最新文章</h2>
-      <p>P1 阶段接入文章列表。</p>
+      <router-link
+        v-for="post in latest"
+        :key="post.slug"
+        :to="`/articles/${post.slug}`"
+        class="teaser-item"
+      >
+        <span class="t-title">{{ post.title }}</span>
+        <span class="t-date">{{ post.createdAt.slice(0, 10) }}</span>
+      </router-link>
     </section>
   </main>
 </template>
@@ -80,8 +96,39 @@ const groups: HeroItem[][] = [
   background: var(--surface);
   border: 1px solid var(--border);
 
-  h2 { margin-bottom: 8px; }
-  p { color: var(--text-2); }
+  h2 { margin-bottom: 16px; }
+}
+
+.teaser-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 14px;
+  border-radius: var(--radius);
+  transition: background var(--dur-fast), transform var(--dur-fast);
+
+  .t-title {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color var(--dur-fast);
+  }
+
+  .t-date {
+    font-size: 13px;
+    color: var(--text-2);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &:hover {
+    background: var(--surface-2);
+    transform: translateX(4px);
+
+    .t-title { color: var(--primary); }
+  }
 }
 
 @media (max-width: 768px) {
