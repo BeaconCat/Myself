@@ -38,6 +38,13 @@ button {
   background: rgba(var(--primary-rgb), 0.25);
 }
 
+/* 幕布机制：loading 覆盖期间暂停页面内全部 CSS 动画，揭幕后从头继续播 */
+.app-shell.covered *,
+.app-shell.covered *::before,
+.app-shell.covered *::after {
+  animation-play-state: paused !important;
+}
+
 /* 圆形剪贴蒙版主题切换（View Transition） */
 ::view-transition-old(root),
 ::view-transition-new(root) {

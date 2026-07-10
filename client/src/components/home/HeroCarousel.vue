@@ -668,6 +668,8 @@ onBeforeUnmount(() => {
   position: relative;
   width: min(100%, 430px);
   perspective: 1300px;
+  /* 光标定在容器级：3D 命中测试在层叠卡片间跳动时指针形态不变 */
+  cursor: pointer;
 
   /* 透明外扩热区：垫底接收 hover，不挡卡片点击 */
   &::after {

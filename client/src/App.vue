@@ -8,6 +8,8 @@ import { useLoadingStore } from './stores/loading';
 const loading = useLoadingStore();
 /** 路由加载时页面整体缩小 10%（模糊变暗由 RouteLoading 的遮罩层承担） */
 const shrunk = computed(() => loading.routeLoading);
+/** 幕布落下（首屏/路由 loading 覆盖中）：页面动画整体暂停，揭幕才播 */
+const covered = computed(() => !loading.bootDone || loading.routeLoading);
 
 /* 缩放原点锁定当前视口中心（元素比视口高时 50% 会落到视口外，表现为向下缩） */
 const originY = ref('50vh');
@@ -17,7 +19,7 @@ watch(shrunk, (on) => {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ shrunk }" :style="{ transformOrigin: `50% ${originY}` }">
+  <div class="app-shell" :class="{ shrunk, covered }" :style="{ transformOrigin: `50% ${originY}` }">
     <NavBar />
     <router-view v-slot="{ Component }">
       <transition name="page" mode="out-in">
