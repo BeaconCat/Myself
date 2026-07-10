@@ -9,7 +9,7 @@ const drawerOpen = ref(false);
 const links = [
   { to: '/', key: 'nav.home' },
   { to: '/articles', key: 'nav.articles' },
-  { to: '/archive', key: 'nav.archive' },
+  { to: '/thoughts', key: 'nav.thoughts' },
   { to: '/about', key: 'nav.about' },
 ];
 </script>

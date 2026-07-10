@@ -1,3 +1,32 @@
+/** 演示随想（短内容信息流） */
+export const seedNotes = [
+  {
+    contentMd: '主题系统的圆形蒙版切换终于顺滑了。`View Transition API` 真香，但 `fill: forwards` 的残留动画坑了我两次。',
+    mood: '技术',
+    createdAt: '2026-07-10 21:40:00',
+  },
+  {
+    contentMd: '夏天的傍晚，窗外的云被烧成 `#ff0032`。切到炽红主题，网站和天空同色。',
+    mood: '生活',
+    createdAt: '2026-07-09 19:22:00',
+  },
+  {
+    contentMd: '想清楚了：博客的一切内容都走 Markdown。**文章**是长文，**随想**是短流，同一套渲染管线。',
+    mood: '思考',
+    createdAt: '2026-07-07 23:05:00',
+  },
+  {
+    contentMd: '给首页做了个立体相册轮播，卡片从三个方向飞进来的瞬间，值了。',
+    mood: '技术',
+    createdAt: '2026-07-05 15:48:00',
+  },
+  {
+    contentMd: '雨。适合把收藏夹里的长文清一清，顺便给灯塔图标画了六版草稿。',
+    mood: '生活',
+    createdAt: '2026-07-03 11:30:00',
+  },
+];
+
 /** 演示种子文章（Markdown 正文） */
 export const seedPosts = [
   {

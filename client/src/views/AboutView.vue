@@ -1,99 +1,366 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n';
+/**
+ * 关于页：身份 Hero + 技能 + 历程 + 本站技术栈 + 联系方式。
+ * 文案后续可迁后端配置。
+ */
+const skillGroups = [
+  { title: '前端', items: ['Vue', 'TypeScript', 'Vite', 'SCSS', '动效设计'] },
+  { title: '后端', items: ['Node.js', 'Express', 'SQLite', 'RESTful'] },
+  { title: '兴趣', items: ['摄影', 'UI 设计', '写作'] },
+];
 
-const { t } = useI18n();
+const milestones = [
+  { year: '2026', text: '启动 Myself 博客计划，代号定名，灯塔点亮' },
+  { year: '2025', text: '开始系统性沉淀技术笔记与四季随想' },
+  { year: '2024', text: '第一次把玩具项目部署上线，从此掉进前端动效的坑' },
+];
 
-/** 品牌三色即站点身份 */
-const accents = [
-  { color: '#ff0032', key: 'about.red' },
-  { color: '#ffb300', key: 'about.yellow' },
-  { color: '#0078ff', key: 'about.blue' },
+const stack = [
+  { name: 'Vue 3', role: '前端框架' },
+  { name: 'Vite 7', role: '构建工具' },
+  { name: 'Express', role: 'API 服务' },
+  { name: 'SQLite', role: '数据存储' },
+  { name: 'Markdown', role: '内容规范' },
+];
+
+const links = [
+  { name: 'GitHub', url: 'https://github.com/BeaconCat', icon: 'github' },
+  { name: 'Email', url: 'mailto:hi@example.com', icon: 'mail' },
+  { name: 'RSS', url: '/feed', icon: 'rss' },
 ];
 </script>
 
 <template>
   <main class="page">
-    <h1 v-reveal class="page-title">{{ t('nav.about') }}</h1>
-
-    <section v-reveal class="card intro">
-      <p>{{ t('about.intro') }}</p>
+    <!-- 身份 Hero -->
+    <section v-reveal class="hero">
+      <div class="hero-avatar">
+        <img src="/favicon-256.png" alt="BeaconCat" draggable="false" />
+        <span class="ring" aria-hidden="true" />
+      </div>
+      <h1 class="hero-name">BeaconCat</h1>
+      <p class="hero-line">写代码的灯塔看守人</p>
+      <p class="hero-bio">
+        白天造界面，晚上写随想。相信简约的惊艳、克制的动效，
+        和 Markdown 能装下的一切。红黄蓝三束荧光是这里的信标——
+        无论季节色盘怎么换，它们始终亮着。
+      </p>
+      <div class="hero-dots" aria-hidden="true">
+        <span style="--c: #ff0032" /><span style="--c: #ffb300" /><span style="--c: #0078ff" />
+      </div>
     </section>
 
-    <div class="accent-grid">
-      <div
-        v-for="a in accents"
-        :key="a.color"
-        v-reveal
-        class="card accent hover-lift"
-        :style="{ '--a': a.color }"
-      >
-        <span class="swatch" />
-        <code>{{ a.color }}</code>
-        <p>{{ t(a.key) }}</p>
+    <!-- 技能 -->
+    <section v-reveal class="block">
+      <h2 class="block-title">技能</h2>
+      <div class="skills">
+        <div v-for="group in skillGroups" :key="group.title" class="skill-group">
+          <h3>{{ group.title }}</h3>
+          <div class="chips">
+            <span v-for="item in group.items" :key="item">{{ item }}</span>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <!-- 历程 -->
+    <section v-reveal class="block">
+      <h2 class="block-title">历程</h2>
+      <div class="milestones">
+        <div v-for="m in milestones" :key="m.year" class="milestone">
+          <span class="year">{{ m.year }}</span>
+          <span class="dot" aria-hidden="true" />
+          <p>{{ m.text }}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 本站 -->
+    <section v-reveal class="block">
+      <h2 class="block-title">本站</h2>
+      <div class="stack">
+        <div v-for="s in stack" :key="s.name" class="stack-item">
+          <strong>{{ s.name }}</strong>
+          <span>{{ s.role }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 联系 -->
+    <section v-reveal class="block">
+      <h2 class="block-title">找到我</h2>
+      <div class="links">
+        <a v-for="l in links" :key="l.name" :href="l.url" class="link" target="_blank" rel="noopener">
+          <svg v-if="l.icon === 'github'" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+          </svg>
+          <svg v-else-if="l.icon === 'mail'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="m3 7 9 6 9-6" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" />
+            <circle cx="5" cy="19" r="1.6" fill="currentColor" stroke="none" />
+          </svg>
+          <span>{{ l.name }}</span>
+        </a>
+      </div>
+    </section>
   </main>
 </template>
 
 <style scoped lang="scss">
 .page {
-  max-width: 760px;
+  max-width: 820px;
   margin: 0 auto;
-  padding: 110px 24px 80px;
+  padding: 120px 24px 90px;
 }
 
-.page-title {
-  font-size: clamp(30px, 4vw, 42px);
-  margin-bottom: 34px;
+/* ===== 身份 Hero ===== */
+.hero {
+  text-align: center;
+  margin-bottom: 72px;
 }
 
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 26px;
+.hero-avatar {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  margin: 0 auto 22px;
+
+  img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--surface-2);
+  }
+
+  /* 呼吸光环 */
+  .ring {
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 2px solid rgba(var(--primary-rgb), 0.4);
+    animation: ring-pulse 2.6s ease-in-out infinite;
+  }
 }
 
-.intro p {
-  line-height: 1.9;
+@keyframes ring-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.4; }
+}
+
+.hero-name {
+  font-size: clamp(36px, 5vw, 52px);
+  background: var(--grad-title);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.hero-line {
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary);
+  letter-spacing: 0.12em;
+}
+
+.hero-bio {
+  max-width: 52ch;
+  margin: 18px auto 0;
+  font-size: 15px;
+  line-height: 2;
   color: var(--text-2);
 }
 
-.accent-grid {
+.hero-dots {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 26px;
+
+  span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow: 0 0 12px var(--c);
+    animation: dot-breathe 2.2s ease-in-out infinite;
+
+    &:nth-child(2) { animation-delay: 0.35s; }
+    &:nth-child(3) { animation-delay: 0.7s; }
+  }
+}
+
+@keyframes dot-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.35); }
+}
+
+/* ===== 区块 ===== */
+.block {
+  margin-bottom: 56px;
+}
+
+.block-title {
+  font-size: 24px;
+  margin-bottom: 22px;
+  padding-left: 14px;
+  border-left: 4px solid var(--primary);
+}
+
+/* 技能 */
+.skills {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
-  margin-top: 16px;
 }
 
-.accent {
-  text-align: center;
+.skill-group {
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
 
-  .swatch {
-    display: block;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: var(--a);
-    margin: 0 auto 14px;
-    box-shadow: 0 0 18px color-mix(in srgb, var(--a) 55%, transparent);
+  h3 {
+    font-size: 15px;
+    margin-bottom: 12px;
+    color: var(--primary);
+  }
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  span {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    background: var(--surface-2);
+    transition: all var(--dur-fast) var(--ease-spring);
+
+    &:hover {
+      transform: scale(1.08);
+      background: rgba(var(--primary-rgb), 0.12);
+      color: var(--primary);
+    }
+  }
+}
+
+/* 历程 */
+.milestones {
+  display: flex;
+  flex-direction: column;
+}
+
+.milestone {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  padding: 16px 4px;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--dur-fast);
+
+  &:hover {
+    background: rgba(var(--primary-rgb), 0.04);
+
+    .dot { transform: scale(1.4); box-shadow: 0 0 10px rgba(var(--primary-rgb), 0.6); }
   }
 
-  code {
-    font-family: Consolas, monospace;
-    font-size: 13px;
-    color: var(--text);
+  .year {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary);
+    flex-shrink: 0;
+    width: 64px;
+  }
+
+  .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--primary);
+    flex-shrink: 0;
+    align-self: center;
+    transition: all var(--dur-fast) var(--ease-spring);
   }
 
   p {
-    margin-top: 8px;
-    font-size: 13px;
+    font-size: 14.5px;
+    line-height: 1.8;
     color: var(--text-2);
   }
 }
 
+/* 本站技术栈 */
+.stack {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.stack-item {
+  text-align: center;
+  padding: 18px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast);
+
+  strong {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 16px;
+  }
+
+  span {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+
+  &:hover {
+    transform: scale(1.05);
+    border-color: var(--primary);
+  }
+}
+
+/* 联系 */
+.links {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 600;
+  transition: all var(--dur-fast) var(--ease-out);
+
+  svg { width: 18px; height: 18px; }
+
+  &:hover {
+    transform: scale(1.05);
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 6px 20px -6px rgba(var(--primary-rgb), 0.4);
+  }
+}
+
 @media (max-width: 768px) {
-  .page { padding-top: 88px; }
-  .accent-grid { grid-template-columns: 1fr; }
+  .page { padding-top: 96px; }
+
+  .skills { grid-template-columns: 1fr; }
+  .stack { grid-template-columns: repeat(2, 1fr); }
 }
 </style>

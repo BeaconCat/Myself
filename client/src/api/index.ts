@@ -29,6 +29,20 @@ export interface ArchiveGroup {
   items: Post[];
 }
 
+export interface Note {
+  id: number;
+  contentMd: string;
+  mood: string;
+  createdAt: string;
+}
+
+export interface NoteList {
+  items: Note[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
 const BASE = '/api/v1';
 
 async function get<T>(path: string): Promise<T> {
@@ -50,4 +64,11 @@ export const api = {
   post: (slug: string) => get<Post>(`/posts/${encodeURIComponent(slug)}`),
   tags: () => get<Tag[]>('/tags'),
   archive: () => get<ArchiveGroup[]>('/archive'),
+  notes: (params: { page?: number; pageSize?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    const qs = query.toString();
+    return get<NoteList>(`/notes${qs ? `?${qs}` : ''}`);
+  },
 };

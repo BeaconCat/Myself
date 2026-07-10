@@ -2,7 +2,7 @@ export default {
   nav: {
     home: '首页',
     articles: '文章',
-    archive: '归档',
+    thoughts: '随想',
     about: '关于',
   },
   theme: {
@@ -31,6 +31,12 @@ export default {
   },
   archive: {
     month: '{year} 年 {month} 月',
+  },
+  thoughts: {
+    subtitle: '碎片化的想法、心情与瞬间，短到装不下一篇文章。',
+    justNow: '刚刚',
+    hoursAgo: '{n} 小时前',
+    daysAgo: '{n} 天前',
   },
   about: {
     intro: 'Myself —— 个人博客，内容皆 Markdown，主题随四季流转。红黄蓝三束荧光是这里的信标：无论换什么季节色盘，它们始终亮着。',

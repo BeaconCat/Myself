@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { seedPosts } from './seed.js';
+import { seedNotes, seedPosts } from './seed.js';
 
 const dataDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
 fs.mkdirSync(dataDir, { recursive: true });
@@ -23,10 +23,18 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content_md TEXT NOT NULL,
+    mood TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
-/** 空库时注入演示文章 */
+/** 空表分别注入演示数据 */
 export function seedIfEmpty() {
+  seedNotesIfEmpty();
   const { n } = db.prepare('SELECT COUNT(*) AS n FROM posts').get();
   if (n > 0) return;
   const insert = db.prepare(`
@@ -43,6 +51,19 @@ export function seedIfEmpty() {
     }
   });
   tx(seedPosts);
+}
+
+function seedNotesIfEmpty() {
+  const { n } = db.prepare('SELECT COUNT(*) AS n FROM notes').get();
+  if (n > 0) return;
+  const insertNote = db.prepare(`
+    INSERT INTO notes (content_md, mood, created_at)
+    VALUES (@contentMd, @mood, @createdAt)
+  `);
+  const txNotes = db.transaction((notes) => {
+    for (const note of notes) insertNote.run(note);
+  });
+  txNotes(seedNotes);
 }
 
 /** 行 → API 对象 */

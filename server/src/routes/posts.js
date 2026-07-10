@@ -67,6 +67,27 @@ postsRouter.get('/tags', (_req, res) => {
   res.json([...counts.entries()].map(([name, count]) => ({ name, count })));
 });
 
+/** GET /api/v1/notes?page=&pageSize= 随想信息流（时间倒序） */
+postsRouter.get('/notes', (req, res) => {
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const pageSize = Math.min(50, Math.max(1, Number(req.query.pageSize) || 20));
+  const { total } = db.prepare('SELECT COUNT(*) AS total FROM notes').get();
+  const rows = db
+    .prepare('SELECT * FROM notes ORDER BY created_at DESC LIMIT @limit OFFSET @offset')
+    .all({ limit: pageSize, offset: (page - 1) * pageSize });
+  res.json({
+    items: rows.map((r) => ({
+      id: r.id,
+      contentMd: r.content_md,
+      mood: r.mood,
+      createdAt: r.created_at,
+    })),
+    page,
+    pageSize,
+    total,
+  });
+});
+
 /** GET /api/v1/archive 按年-月归档 */
 postsRouter.get('/archive', (_req, res) => {
   const rows = db
