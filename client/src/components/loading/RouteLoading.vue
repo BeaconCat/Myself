@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { useLoadingStore } from '../../stores/loading';
+import { useConfigStore } from '../../stores/config';
 
 /**
  * 路由切换全屏 Loading：
@@ -9,8 +9,8 @@ import { useLoadingStore } from '../../stores/loading';
  *       中央文本 + 旋转指示器。
  * 退场：整个 Loading（含模糊层）被容器 clip-path 裁切，随纯色层向下丝滑消失。
  */
-const { t } = useI18n();
 const loading = useLoadingStore();
+const config = useConfigStore();
 
 type Stage = 'idle' | 'enter' | 'leave';
 const stage = ref<Stage>('idle');
@@ -43,7 +43,7 @@ const visible = computed(() => stage.value !== 'idle');
       <!-- 中央指示器 -->
       <div class="indicator">
         <span class="spinner" />
-        <span class="label">{{ t('loading.route') }}</span>
+        <span class="label">{{ config.cfg.loading.routeText }}</span>
       </div>
     </div>
   </Teleport>

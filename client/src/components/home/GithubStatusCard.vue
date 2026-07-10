@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useConfigStore } from '../../stores/config';
 
-/**
- * GitHub Status 展示卡（设计稿阶段用演示数据渲染）。
- * TODO(P3+)：数据改由后端配置接口下发（/api/v1/widgets/github）。
- */
+/** GitHub Status 展示卡：账号与统计走站点配置；动态列表暂为演示数据 */
+const config = useConfigStore();
+
+const stats = computed(() => {
+  const s = config.cfg.github.stats;
+  return [
+    { label: '仓库', value: s.repos },
+    { label: 'Stars', value: s.stars },
+    { label: '关注者', value: s.followers },
+    { label: '年度提交', value: s.commits },
+  ];
+});
+
 const mock = {
-  username: 'BeaconCat',
-  stats: [
-    { label: '仓库', value: 32 },
-    { label: 'Stars', value: 218 },
-    { label: '关注者', value: 47 },
-    { label: '年度提交', value: 1286 },
-  ],
   activities: [
     { type: 'commit', repo: 'Myself', text: 'feat: hero 3D album carousel with progress bar', time: '2 小时前' },
     { type: 'commit', repo: 'Myself', text: 'fix: circular theme transition flash', time: '5 小时前' },
@@ -45,12 +48,17 @@ const heatmap = computed(() => {
         </svg>
         <h2>GitHub Status</h2>
       </div>
-      <a class="gh-user" href="javascript:;">{{ '@' + mock.username }}</a>
+      <a
+        class="gh-user"
+        :href="`https://github.com/${config.cfg.github.username}`"
+        target="_blank"
+        rel="noopener"
+      >{{ '@' + config.cfg.github.username }}</a>
     </header>
 
     <!-- 统计行 -->
     <div class="gh-stats">
-      <div v-for="s in mock.stats" :key="s.label" class="stat">
+      <div v-for="s in stats" :key="s.label" class="stat">
         <strong>{{ s.value }}</strong>
         <span>{{ s.label }}</span>
       </div>

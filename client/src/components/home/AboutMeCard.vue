@@ -1,9 +1,8 @@
 <script setup lang="ts">
-/**
- * 关于我卡片（设计稿阶段静态内容）。
- * TODO(P3+)：文案与技能标签由后端配置下发。
- */
-const skills = ['Vue', 'TypeScript', 'Node.js', '摄影', 'UI 设计'];
+import { useConfigStore } from '../../stores/config';
+
+/** 关于我卡片：文案与技能标签走站点配置 */
+const config = useConfigStore();
 </script>
 
 <template>
@@ -20,12 +19,9 @@ const skills = ['Vue', 'TypeScript', 'Node.js', '摄影', 'UI 设计'];
 
       <div class="me-info">
         <h2>关于我</h2>
-        <p>
-          BeaconCat，写代码也写生活。这里是我的信标：技术沉淀、设计实验与四季随笔，
-          全部以 Markdown 存档。
-        </p>
+        <p>{{ config.cfg.about.bio }}</p>
         <div class="me-skills">
-          <span v-for="s in skills" :key="s">{{ s }}</span>
+          <span v-for="s in config.cfg.about.skills" :key="s">{{ s }}</span>
         </div>
       </div>
 

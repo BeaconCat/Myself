@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { useLoadingStore } from '../../stores/loading';
+import { useConfigStore } from '../../stores/config';
 
 /** 首屏加载：文本 + 进度条，完成后 clip-path 圆形收缩退场（Nebula Inspector 同款） */
-const { t } = useI18n();
 const loading = useLoadingStore();
+const config = useConfigStore();
 
 const fadeOut = ref(false);
 const removed = ref(false);
@@ -27,7 +27,7 @@ watch(
 <template>
   <div v-if="!removed" class="boot" :class="{ 'fade-out': fadeOut }" aria-live="polite">
     <div class="boot-content">
-      <div class="boot-text">{{ t('loading.boot') }}</div>
+      <div class="boot-text">{{ config.cfg.loading.bootText }}</div>
       <div class="boot-bar">
         <div class="boot-bar-fill" :style="{ width: loading.bootProgress + '%' }" />
       </div>

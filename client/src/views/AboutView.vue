@@ -1,8 +1,9 @@
 <script setup lang="ts">
-/**
- * 关于页：身份 Hero + 技能 + 历程 + 本站技术栈 + 联系方式。
- * 文案后续可迁后端配置。
- */
+import { useConfigStore } from '../stores/config';
+
+/** 关于页：身份 Hero + 技能 + 历程 + 本站技术栈 + 联系方式（身份文案走站点配置） */
+const config = useConfigStore();
+
 const skillGroups = [
   { title: '前端', items: ['Vue', 'TypeScript', 'Vite', 'SCSS', '动效设计'] },
   { title: '后端', items: ['Node.js', 'Express', 'SQLite', 'RESTful'] },
@@ -38,13 +39,9 @@ const links = [
         <img src="/favicon-256.png" alt="BeaconCat" draggable="false" />
         <span class="ring" aria-hidden="true" />
       </div>
-      <h1 class="hero-name">BeaconCat</h1>
-      <p class="hero-line">写代码的灯塔看守人</p>
-      <p class="hero-bio">
-        白天造界面，晚上写随想。相信简约的惊艳、克制的动效，
-        和 Markdown 能装下的一切。红黄蓝三束荧光是这里的信标——
-        无论季节色盘怎么换，它们始终亮着。
-      </p>
+      <h1 class="hero-name">{{ config.cfg.about.name }}</h1>
+      <p class="hero-line">{{ config.cfg.about.tagline }}</p>
+      <p class="hero-bio">{{ config.cfg.about.bio }}</p>
       <div class="hero-dots" aria-hidden="true">
         <span style="--c: #ff0032" /><span style="--c: #ffb300" /><span style="--c: #0078ff" />
       </div>

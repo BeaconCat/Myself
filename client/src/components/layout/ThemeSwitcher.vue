@@ -26,16 +26,19 @@ function onMode(e: MouseEvent): void {
 
 <template>
   <div class="switcher">
-    <button
-      v-for="p in theme.allPalettes"
-      :key="p.id"
-      class="dot"
-      :class="{ active: theme.paletteId === p.id }"
-      :style="{ background: p[theme.mode].primary }"
-      :title="t(p.nameKey)"
-      @click="onPalette($event, p.id)"
-    />
-    <span class="divider" />
+    <!-- 站点配置可关闭访客换肤：只留深浅切换 -->
+    <template v-if="theme.allowUserPalette">
+      <button
+        v-for="p in theme.allPalettes"
+        :key="p.id"
+        class="dot"
+        :class="{ active: theme.paletteId === p.id }"
+        :style="{ background: p[theme.mode].primary }"
+        :title="p.nameKey"
+        @click="onPalette($event, p.id)"
+      />
+      <span class="divider" />
+    </template>
     <button
       class="mode-btn"
       :title="theme.mode === 'light' ? t('theme.dark') : t('theme.light')"
