@@ -10,6 +10,24 @@ export const router = createRouter({
     { path: '/thoughts', name: 'thoughts', component: () => import('../views/ThoughtsView.vue') },
     { path: '/archive', redirect: '/thoughts' },
     { path: '/about', name: 'about', component: () => import('../views/AboutView.vue') },
+    {
+      path: '/admin/login',
+      name: 'admin-login',
+      component: () => import('../views/admin/AdminLoginView.vue'),
+      meta: { bare: true },
+    },
+    {
+      path: '/admin',
+      component: () => import('../views/admin/AdminLayout.vue'),
+      meta: { admin: true, bare: true },
+      children: [
+        { path: '', redirect: '/admin/posts' },
+        { path: 'posts', component: () => import('../views/admin/AdminPostsView.vue') },
+        { path: 'posts/:id', component: () => import('../views/admin/AdminPostEditView.vue') },
+        { path: 'notes', component: () => import('../views/admin/AdminNotesView.vue') },
+        { path: 'settings', component: () => import('../views/admin/AdminSettingsView.vue') },
+      ],
+    },
   ],
   scrollBehavior: () => ({ top: 0, behavior: 'smooth' }),
 });
@@ -22,7 +40,11 @@ const COVER_MS = 700;
 const MIN_SHOW_MS = 900;
 let shownAt = 0;
 
-router.beforeEach(async (_to, from) => {
+router.beforeEach(async (to, from) => {
+  // 后台鉴权
+  if (to.meta.admin && !localStorage.getItem('myself.token')) {
+    return { path: '/admin/login' };
+  }
   if (!from.name) return; // 首屏由 AppLoading 负责
   shownAt = performance.now();
   useLoadingStore().startRoute();

@@ -13,7 +13,8 @@
   "packageManager": "pnpm@10.6.4",
   "dependencies": {
     "better-sqlite3": "^12.11.1",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3"
   },
   "type": "module",
   "pnpm": {
