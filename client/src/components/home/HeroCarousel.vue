@@ -22,6 +22,8 @@ interface Flight {
   mode: 'toCenter' | 'center' | 'toHome';
   style: Record<string, string>;
   homeRect: Rect;
+  /** 家位的 3D 姿态（相册角 + 槽位偏移缩放），起降两端 1:1 */
+  homeTransform: string;
 }
 
 const props = withDefaults(
@@ -137,15 +139,31 @@ function rectStyle(r: Rect): Record<string, string> {
   };
 }
 
-function captureRect(i: number): Rect | null {
-  const src = covers.value[i];
-  if (!src || !sectionEl.value) return null;
-  const el = sectionEl.value.querySelector<HTMLElement>(
-    `.album-card[data-src="${CSS.escape(src)}"]`,
-  );
-  if (!el) return null;
-  const r = el.getBoundingClientRect();
-  return { left: r.left, top: r.top, width: r.width, height: r.height };
+/** 槽位复合变换：等价于卡在相册中的 3D 姿态 */
+function slotTransform(slot: number): string {
+  const pose = deckPose();
+  if (slot === 1) return `${pose} translate3d(76px, -46px, -90px) scale(0.8)`;
+  if (slot === 2) return `${pose} translate3d(-104px, 72px, -90px) scale(0.74)`;
+  return `${pose} scale(0.86)`;
+}
+
+/**
+ * 家位 = 未旋转的 album-zone 布局盒（真实 4:3，不用投影包围盒——
+ * 那个比例被透视压过，落地时裁切比例对不上）。姿态由 homeTransform 补。
+ */
+function captureHome(i: number): { rect: Rect; transform: string } | null {
+  const zone = sectionEl.value?.querySelector<HTMLElement>('.album-zone .album');
+  if (!zone) return null;
+  const r = zone.getBoundingClientRect();
+  // getBoundingClientRect 受 rotateY 投影影响，宽度取未变换布局宽
+  const w = zone.offsetWidth;
+  const h = zone.offsetHeight;
+  const cx = r.left + r.width / 2;
+  const cy = r.top + r.height / 2;
+  return {
+    rect: { left: cx - w / 2, top: cy - h / 2, width: w, height: h },
+    transform: slotTransform(slotOf(i)),
+  };
 }
 
 /** 按图片自然比例计算中央目标框 */
@@ -179,13 +197,14 @@ function centerStyle(src: string): Promise<Record<string, string>> {
 
 /** 原卡起飞：记录家位 → teleport（inline 定格原位）→ 下一帧飞向中央 */
 async function launch(i: number): Promise<void> {
-  const home = captureRect(i);
+  const home = captureHome(i);
   if (!home || flights[i]) return;
   flights[i] = {
     mode: 'toCenter',
-    homeRect: home,
-    // 起飞帧保持相册 3D 姿态，飞行中转正
-    style: { ...rectStyle(home), transform: deckPose(), transition: 'none' },
+    homeRect: home.rect,
+    homeTransform: home.transform,
+    // 起飞帧保持家位 3D 姿态，飞行中转正
+    style: { ...rectStyle(home.rect), transform: home.transform, transition: 'none' },
   };
   const target = await centerStyle(covers.value[i]);
   requestAnimationFrame(() => {
@@ -213,8 +232,8 @@ function sendHome(i: number): void {
   flight.mode = 'toHome';
   flight.style = {
     ...rectStyle(flight.homeRect),
-    // 归途中转回相册姿态，落地无缝
-    transform: deckPose(),
+    // 归途中转回家位姿态（含槽位偏移缩放），裁切比例与角度同步复原
+    transform: flight.homeTransform,
     transition: `all ${FLY_MS}ms ${FLY_EASE}`,
   };
   window.setTimeout(() => {
@@ -258,11 +277,13 @@ function closeLightbox(): void {
     lightboxOn.value = false;
     lbClosing.value = false;
     document.documentElement.style.overflow = '';
-    // 看到哪张，落地后转到前排
-    if (photoIndex.value !== i) photoIndex.value = i;
     expandedIndex.value = null;
     hovering.value = sectionEl.value?.matches(':hover') ?? false;
   }, FLY_MS);
+  // 牌组轮转等卡完全落地归位后再做，避免落地途中被瞬移
+  window.setTimeout(() => {
+    if (photoIndex.value !== i) photoIndex.value = i;
+  }, FLY_MS + 140);
 }
 
 /* ===== 中央态缩放/拖动 ===== */
@@ -408,7 +429,7 @@ onBeforeUnmount(() => {
   >
     <!-- 左：大标题 + 简介 -->
     <div class="hero-text">
-      <span class="hero-tag">{{ item?.tag }}</span>
+      <span :key="`tag-${itemIndex}`" class="hero-tag">{{ item?.tag }}</span>
       <h1 class="hero-title" aria-live="polite">
         <span
           v-for="(c, i) in chars"
@@ -417,8 +438,8 @@ onBeforeUnmount(() => {
           :style="{ '--d': c.delay + 's' }"
         >{{ c.ch }}</span>
       </h1>
-      <p class="hero-excerpt">{{ item?.excerpt }}</p>
-      <button class="hero-btn">{{ t('hero.readMore') }}</button>
+      <p :key="`ex-${itemIndex}`" class="hero-excerpt">{{ item?.excerpt }}</p>
+      <button :key="`btn-${itemIndex}`" class="hero-btn">{{ t('hero.readMore') }}</button>
     </div>
 
     <!-- 右：3D 立体相册（按钮在旋转容器外，不受透视挤压） -->
@@ -560,7 +581,8 @@ onBeforeUnmount(() => {
   white-space: pre;
 }
 
-.hero.enter .char {
+/* 文字入场绑元素挂载（key 随条目重建），不受状态机提前切 idle 影响，动画完整播完 */
+.char {
   animation: char-in var(--dur-slow) var(--ease-out) both;
   animation-delay: var(--d);
 }
@@ -588,13 +610,13 @@ onBeforeUnmount(() => {
   max-width: 46ch;
 }
 
-.hero.enter .hero-excerpt,
-.hero.enter .hero-tag {
+.hero-excerpt,
+.hero-tag {
   animation: fade-up var(--dur-slow) var(--ease-out) both;
   animation-delay: 0.25s;
 }
 
-.hero.enter .hero-btn {
+.hero-btn {
   animation: blur-up var(--dur-slow) var(--ease-out) both;
   animation-delay: 0.4s;
 }
