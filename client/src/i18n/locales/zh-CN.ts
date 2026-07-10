@@ -6,8 +6,8 @@ export default {
     about: '关于',
   },
   theme: {
-    spring: '春 · 绯樱',
-    summer: '夏 · 沧蓝',
+    spring: '春 · 新绿',
+    summer: '夏 · 炽红',
     autumn: '秋 · 暖阳',
     winter: '冬 · 霜蓝',
     light: '浅色',
