@@ -85,13 +85,21 @@ function slotOf(i: number): number {
   return (i - photoIndex.value + len) % len;
 }
 
-/** 点击前排卡 → Lightbox 从卡片位置飞入 */
+/** 点击前排卡 → 卡片本体放大成 Lightbox（原卡隐藏，FLIP 层顶替飞出） */
+const sectionEl = ref<HTMLElement | null>(null);
+
 function openViewer(e: MouseEvent): void {
   const img = (e.currentTarget as HTMLElement).querySelector('img');
   if (!img) return;
   const r = img.getBoundingClientRect();
   viewerRect.value = { left: r.left, top: r.top, width: r.width, height: r.height };
   viewerOpen.value = true;
+}
+
+function onViewerClose(): void {
+  viewerOpen.value = false;
+  // 鼠标可能已不在轮播区（mouseleave 被遮罩吃掉），按真实悬停态重算
+  hovering.value = sectionEl.value?.matches(':hover') ?? false;
 }
 
 let timer = 0;
@@ -109,6 +117,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section
+    ref="sectionEl"
     class="hero"
     :class="[phase, { paused }]"
     @mouseenter="hovering = true"
@@ -136,7 +145,7 @@ onBeforeUnmount(() => {
           v-for="(cover, i) in covers"
           :key="cover"
           class="album-card"
-          :class="`slot-${slotOf(i)}`"
+          :class="[`slot-${slotOf(i)}`, { lifted: viewerOpen && slotOf(i) === 0 }]"
           :style="{ '--stagger': slotOf(i) * 0.1 + 's' }"
           @click="slotOf(i) === 0 ? openViewer($event) : (photoIndex = i)"
         >
@@ -165,12 +174,14 @@ onBeforeUnmount(() => {
           :aria-label="`第 ${i + 1} 条`"
           @click="swapToItem(i)"
         >
+          <!-- key 含 photoIndex：切到第 n 张即从 n/总数 处起算（负延迟跳进度） -->
           <span
             v-if="i === itemIndex"
-            :key="`fill-${itemIndex}`"
+            :key="`fill-${itemIndex}-${photoIndex}`"
             class="pill-fill"
             :style="{
               animationDuration: itemDurationMs + 'ms',
+              animationDelay: -(photoIndex * props.photoMs) + 'ms',
               animationPlayState: paused ? 'paused' : 'running',
             }"
           />
@@ -183,7 +194,7 @@ onBeforeUnmount(() => {
       :images="covers"
       :start-index="photoIndex"
       :origin-rect="viewerRect"
-      @close="viewerOpen = false"
+      @close="onViewerClose"
     />
   </section>
 </template>
@@ -345,6 +356,12 @@ onBeforeUnmount(() => {
   filter: none;
   cursor: zoom-in;
 }
+
+/* Lightbox 打开时原卡隐身：FLIP 层顶替，视觉上是卡片本体飞出放大 */
+.album-card.lifted {
+  opacity: 0;
+  transition: none;
+}
 .slot-1 {
   transform: translate3d(76px, -46px, -90px) scale(0.8);
   opacity: 0.85;
@@ -353,7 +370,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 .slot-2 {
-  transform: translate3d(-72px, 48px, -90px) scale(0.8);
+  transform: translate3d(-104px, 72px, -90px) scale(0.8);
   opacity: 0.85;
   z-index: 1;
   filter: brightness(0.72);
@@ -371,14 +388,18 @@ onBeforeUnmount(() => {
 .hero.enter .slot-1 { animation-name: enter-right; }
 .hero.enter .slot-2 { animation-name: enter-left; }
 
+/* 不透明度前 25% 就拉满：凭空出现感，位移继续走完 */
 @keyframes enter-top {
   from { opacity: 0; transform: translate3d(0, -130%, 40px) scale(0.8); }
+  25% { opacity: 1; }
 }
 @keyframes enter-right {
   from { opacity: 0; transform: translate3d(150%, -46px, -120px) scale(0.72); }
+  25% { opacity: 0.85; }
 }
 @keyframes enter-left {
-  from { opacity: 0; transform: translate3d(-150%, 48px, -120px) scale(0.72); }
+  from { opacity: 0; transform: translate3d(-150%, 72px, -120px) scale(0.72); }
+  25% { opacity: 0.85; }
 }
 
 /* 出场：前卡向下，后卡向上，透明度前半段归零 */
@@ -392,12 +413,13 @@ onBeforeUnmount(() => {
 .hero.out .slot-1,
 .hero.out .slot-2 { animation-name: leave-up; }
 
+/* 出场 30% 时间就完全透明：瞬隐 */
 @keyframes leave-down {
-  55% { opacity: 0; }
+  30% { opacity: 0; }
   to { opacity: 0; transform: translate3d(0, 120%, 0) scale(0.82); }
 }
 @keyframes leave-up {
-  55% { opacity: 0; }
+  30% { opacity: 0; }
   to { opacity: 0; transform: translate3d(0, -120%, -90px) scale(0.74); }
 }
 
@@ -432,8 +454,8 @@ onBeforeUnmount(() => {
 
   svg { width: 18px; height: 18px; }
 
-  &.prev { left: -14px; }
-  &.next { right: -14px; }
+  &.prev { left: -58px; }
+  &.next { right: -58px; }
 
   &:hover {
     background: rgba(var(--primary-rgb), 0.25);
