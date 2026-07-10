@@ -256,17 +256,64 @@ function openLightbox(i: number): void {
   void launch(i);
 }
 
-/** 切换：当前卡飞回原位，目标卡从其槽位飞入中央（双卡交叉飞行） */
-function lbGo(delta: number): void {
+/**
+ * 切换：中央原地标准淡切（旧卡淡出静默归位，新卡在中央淡入），
+ * 背景牌组同步轮转占位——展开卡的家位始终是前排，关闭时落回中心位。
+ */
+const SWAP_MS = 240;
+
+async function lbGo(delta: number): Promise<void> {
   const from = expandedIndex.value;
   if (from === null || flights[from]?.mode !== 'center') return;
   const len = covers.value.length;
   const to = (from + delta + len) % len;
   if (to === from || flights[to]) return;
   resetZoom();
-  sendHome(from);
+
+  // 旧卡：中央淡出，随后静默归位（无飞行）
+  const fromFlight = flights[from];
+  fromFlight.mode = 'toHome';
+  fromFlight.style = {
+    ...fromFlight.style,
+    opacity: '0',
+    transition: `opacity ${SWAP_MS}ms ease`,
+  };
+  window.setTimeout(() => {
+    delete flights[from];
+    noTrans[from] = true;
+    window.setTimeout(() => { delete noTrans[from]; }, 80);
+  }, SWAP_MS + 10);
+
+  // 背景牌组同步轮转：新卡的家位变为前排
+  photoIndex.value = to;
   expandedIndex.value = to;
-  void launch(to);
+
+  // 新卡：直接在中央淡入（不从槽位飞入）
+  const home = captureHome(to);
+  if (!home) return;
+  const target = await centerStyle(covers.value[to]);
+  flights[to] = {
+    mode: 'toCenter',
+    homeRect: home.rect,
+    homeTransform: home.transform,
+    lifted: true,
+    style: { ...target, boxShadow: CENTER_SHADOW, opacity: '0', transition: 'none' },
+  };
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const flight = flights[to];
+      if (!flight || flight.mode !== 'toCenter') return;
+      flight.style = {
+        ...flight.style,
+        opacity: '1',
+        transition: `opacity ${SWAP_MS}ms ease`,
+      };
+      window.setTimeout(() => {
+        const f = flights[to];
+        if (f && f.mode === 'toCenter') f.mode = 'center';
+      }, SWAP_MS);
+    });
+  });
 }
 
 function closeLightbox(): void {
