@@ -43,6 +43,11 @@ button {
   mix-blend-mode: normal;
 }
 
+/* expand：新画面首帧先裁切为 0，等 JS 动画接管（防整屏闪现） */
+html:not(.vt-contract)::view-transition-new(root) {
+  clip-path: circle(0px at var(--vt-x, 50%) var(--vt-y, 50%));
+}
+
 /* contract：旧画面在上被裁切收缩，新画面垫底 */
 .vt-contract::view-transition-old(root) { z-index: 2; }
 .vt-contract::view-transition-new(root) { z-index: 1; }

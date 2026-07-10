@@ -26,6 +26,9 @@ export function circularReveal(
 
   const root = document.documentElement;
   root.classList.toggle('vt-contract', direction === 'contract');
+  // 供 CSS 预设新画面首帧 clip 初值，堵住动画挂载前的整屏闪现
+  root.style.setProperty('--vt-x', `${x}px`);
+  root.style.setProperty('--vt-y', `${y}px`);
 
   const transition = doc.startViewTransition(apply);
   transition.ready.then(() => {
@@ -35,6 +38,7 @@ export function circularReveal(
       {
         duration: 650,
         easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
+        fill: 'forwards',
         pseudoElement:
           direction === 'expand'
             ? '::view-transition-new(root)'
