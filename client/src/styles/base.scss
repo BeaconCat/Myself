@@ -8,6 +8,8 @@
 
 html {
   scroll-behavior: smooth;
+  /* 常驻滚动条槽位：overflow 锁定（lightbox/loading）时页面不横移 */
+  scrollbar-gutter: stable;
 }
 
 body {

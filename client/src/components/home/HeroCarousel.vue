@@ -122,6 +122,10 @@ function deckPose(): string {
   return `perspective(1300px) rotateY(${angle}deg)`;
 }
 
+/** 相册态阴影：起飞帧与落地帧使用，和槽位卡完全一致 */
+const DECK_SHADOW = 'var(--shadow), 0 30px 70px -20px rgba(var(--primary-rgb), 0.35)';
+const CENTER_SHADOW = '0 30px 80px -20px rgba(0, 0, 0, 0.55)';
+
 function rectStyle(r: Rect): Record<string, string> {
   return {
     left: `${r.left}px`,
@@ -129,6 +133,7 @@ function rectStyle(r: Rect): Record<string, string> {
     width: `${r.width}px`,
     height: `${r.height}px`,
     borderRadius: 'var(--radius-lg)',
+    boxShadow: DECK_SHADOW,
   };
 }
 
@@ -190,6 +195,7 @@ async function launch(i: number): Promise<void> {
       flight.style = {
         ...target,
         transform: 'perspective(1300px) rotateY(0deg)',
+        boxShadow: CENTER_SHADOW,
         transition: `all ${FLY_MS}ms ${FLY_EASE}`,
       };
       window.setTimeout(() => {
@@ -674,10 +680,9 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: auto;
   z-index: 9600;
-  border: none;
+  /* 边框/阴影沿用相册卡并由 inline style 过渡，飞行两端 1:1 对齐 */
   filter: none;
   opacity: 1;
-  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.55);
   will-change: left, top, width, height, transform;
   touch-action: none;
 
