@@ -31,14 +31,14 @@ export const DEFAULT_CONFIG = {
   },
   timezone: 'Asia/Shanghai',
   github: {
-    username: 'BeaconCat',
+    username: 'your-github',
     stats: { repos: 0, stars: 0, followers: 0, commits: 0 },
   },
   about: {
-    name: 'BeaconCat',
-    tagline: '写代码的灯塔看守人',
-    bio: '白天造界面，晚上写随想。相信简约的惊艳、克制的动效，和 Markdown 能装下的一切。',
-    skills: ['Vue', 'TypeScript', 'Node.js'],
+    name: 'Myself',
+    tagline: '开源个人博客引擎',
+    bio: '这里是 Myself 的默认介绍。前往后台「设置 → 关于信息」写下你自己的故事：你是谁、在做什么、热爱什么。',
+    skills: ['写作', '摄影', '编程'],
   },
   backup: {
     /** 自动备份间隔小时数，0 = 关闭 */

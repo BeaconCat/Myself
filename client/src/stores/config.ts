@@ -43,12 +43,12 @@ export const FALLBACK_CONFIG: SiteConfig = {
     ],
   },
   timezone: 'Asia/Shanghai',
-  github: { username: 'BeaconCat', stats: { repos: 0, stars: 0, followers: 0, commits: 0 } },
+  github: { username: 'your-github', stats: { repos: 0, stars: 0, followers: 0, commits: 0 } },
   about: {
-    name: 'BeaconCat',
-    tagline: '写代码的灯塔看守人',
-    bio: '白天造界面，晚上写随想。',
-    skills: ['Vue', 'TypeScript', 'Node.js'],
+    name: 'Myself',
+    tagline: '开源个人博客引擎',
+    bio: '这里是 Myself 的默认介绍，可在后台「设置 → 关于信息」修改。',
+    skills: ['写作', '摄影', '编程'],
   },
 };
 

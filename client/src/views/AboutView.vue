@@ -4,31 +4,34 @@ import { useConfigStore } from '../stores/config';
 /** 关于页：身份 Hero + 技能 + 历程 + 本站技术栈 + 联系方式（身份文案走站点配置） */
 const config = useConfigStore();
 
-const skillGroups = [
-  { title: '前端', items: ['Vue', 'TypeScript', 'Vite', 'SCSS', '动效设计'] },
-  { title: '后端', items: ['Node.js', 'Express', 'SQLite', 'RESTful'] },
-  { title: '兴趣', items: ['摄影', 'UI 设计', '写作'] },
-];
+import { computed } from 'vue';
+
+/* 以下板块为平台默认示例内容，后续可迁入站点配置 */
+const skillGroups = computed(() => [
+  { title: '标签', items: config.cfg.about.skills },
+  { title: '内容', items: ['文章', '随想', '拼图相册'] },
+  { title: '能力', items: ['主题系统', 'API 中心', '数据备份'] },
+]);
 
 const milestones = [
-  { year: '2026', text: '启动 Myself 博客计划，代号定名，灯塔点亮' },
-  { year: '2025', text: '开始系统性沉淀技术笔记与四季随想' },
-  { year: '2024', text: '第一次把玩具项目部署上线，从此掉进前端动效的坑' },
+  { year: '01', text: '在后台「设置」里换上你的名字、简介与主题色' },
+  { year: '02', text: '发布第一篇文章，或用随想记录此刻' },
+  { year: '03', text: '创建 APIKey，把日常发文托管给你的 AI 助手' },
 ];
 
 const stack = [
   { name: 'Vue 3', role: '前端框架' },
-  { name: 'Vite 7', role: '构建工具' },
+  { name: 'Vite', role: '构建工具' },
   { name: 'Express', role: 'API 服务' },
   { name: 'SQLite', role: '数据存储' },
   { name: 'Markdown', role: '内容规范' },
 ];
 
-const links = [
-  { name: 'GitHub', url: 'https://github.com/BeaconCat', icon: 'github' },
+const links = computed(() => [
+  { name: 'GitHub', url: `https://github.com/${config.cfg.github.username}`, icon: 'github' },
   { name: 'Email', url: 'mailto:hi@example.com', icon: 'mail' },
   { name: 'RSS', url: '/feed', icon: 'rss' },
-];
+]);
 </script>
 
 <template>
