@@ -72,7 +72,9 @@ function logout(): void {
   display: flex;
   flex-direction: column;
   padding: 22px 16px;
-  background: var(--surface);
+  background:
+    radial-gradient(400px 200px at 0% 0%, rgba(var(--primary-rgb), 0.07), transparent 70%),
+    var(--surface);
   border-right: 1px solid var(--border);
 }
 
@@ -100,18 +102,35 @@ function logout(): void {
 }
 
 .menu-item {
-  padding: 11px 14px;
+  position: relative;
+  padding: 11px 14px 11px 18px;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-2);
   transition: all var(--dur-fast);
 
-  &:hover { background: var(--surface-2); color: var(--text); }
+  /* 左缘主色指示条 */
+  &::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%) scaleY(0);
+    width: 3px;
+    height: 18px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, var(--primary), var(--primary-deep));
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  &:hover { background: var(--surface-2); color: var(--text); transform: translateX(2px); }
 
   &.on {
-    background: rgba(var(--primary-rgb), 0.12);
+    background: rgba(var(--primary-rgb), 0.1);
     color: var(--primary);
+
+    &::before { transform: translateY(-50%) scaleY(1); }
   }
 }
 

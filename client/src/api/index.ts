@@ -133,6 +133,8 @@ export const adminApi = {
     authed<{ ok: boolean }>(`/admin/posts/${id}`, { method: 'DELETE' }),
   createNote: (note: { contentMd: string; mood: string; images: string[] }) =>
     authed<{ id: number }>('/admin/notes', { method: 'POST', body: JSON.stringify(note) }),
+  updateNote: (id: number, note: { contentMd: string; mood: string; images: string[] }) =>
+    authed<{ ok: boolean }>(`/admin/notes/${id}`, { method: 'PUT', body: JSON.stringify(note) }),
   deleteNote: (id: number) =>
     authed<{ ok: boolean }>(`/admin/notes/${id}`, { method: 'DELETE' }),
   apiKeys: () => authed<ApiKeyInfo[]>('/admin/apikeys'),

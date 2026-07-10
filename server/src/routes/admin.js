@@ -144,6 +144,29 @@ adminRouter.post('/admin/notes', (req, res) => {
   res.status(201).json({ id: info.lastInsertRowid });
 });
 
+/** PUT /api/v1/admin/notes/:id 编辑随想 */
+adminRouter.put('/admin/notes/:id', (req, res) => {
+  const b = req.body;
+  if (!b || typeof b.contentMd !== 'string' || !b.contentMd.trim()) {
+    res.status(400).json({ error: 'invalid_note' });
+    return;
+  }
+  const info = db.prepare(`
+    UPDATE notes SET content_md = @contentMd, mood = @mood, images = @images
+    WHERE id = @id
+  `).run({
+    id: req.params.id,
+    contentMd: b.contentMd.trim(),
+    mood: String(b.mood ?? ''),
+    images: JSON.stringify(Array.isArray(b.images) ? b.images.slice(0, 9) : []),
+  });
+  if (!info.changes) {
+    res.status(404).json({ error: 'not_found' });
+    return;
+  }
+  res.json({ ok: true });
+});
+
 /** DELETE /api/v1/admin/notes/:id */
 adminRouter.delete('/admin/notes/:id', (req, res) => {
   const info = db.prepare('DELETE FROM notes WHERE id = ?').run(req.params.id);

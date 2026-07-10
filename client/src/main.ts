@@ -9,6 +9,7 @@ import { useLoadingStore } from './stores/loading';
 import { useConfigStore } from './stores/config';
 import './styles/base.scss';
 import './styles/motion.scss';
+import './styles/admin.scss';
 
 const app = createApp(App);
 const pinia = createPinia();

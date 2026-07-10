@@ -6,6 +6,7 @@ import { adminApi, api, type Note } from '../../api';
 const { t } = useI18n();
 
 const notes = ref<Note[]>([]);
+const editingId = ref<number | null>(null);
 const contentMd = ref('');
 const mood = ref('');
 const imagesText = ref('');
@@ -15,18 +16,33 @@ async function load(): Promise<void> {
   notes.value = (await api.notes({ pageSize: 50 })).items;
 }
 
-async function publish(): Promise<void> {
+function startEdit(note: Note): void {
+  editingId.value = note.id;
+  contentMd.value = note.contentMd;
+  mood.value = note.mood;
+  imagesText.value = note.images.join('\n');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetComposer(): void {
+  editingId.value = null;
+  contentMd.value = '';
+  mood.value = '';
+  imagesText.value = '';
+}
+
+async function submit(): Promise<void> {
   if (busy.value || !contentMd.value.trim()) return;
   busy.value = true;
   try {
-    await adminApi.createNote({
+    const body = {
       contentMd: contentMd.value,
       mood: mood.value,
       images: imagesText.value.split(/\n+/).map((s) => s.trim()).filter(Boolean),
-    });
-    contentMd.value = '';
-    mood.value = '';
-    imagesText.value = '';
+    };
+    if (editingId.value === null) await adminApi.createNote(body);
+    else await adminApi.updateNote(editingId.value, body);
+    resetComposer();
     await load();
   } finally {
     busy.value = false;
@@ -36,6 +52,7 @@ async function publish(): Promise<void> {
 async function remove(note: Note): Promise<void> {
   if (!window.confirm(t('admin.confirmDeleteNote'))) return;
   await adminApi.deleteNote(note.id);
+  if (editingId.value === note.id) resetComposer();
   await load();
 }
 
@@ -44,78 +61,81 @@ onMounted(load);
 
 <template>
   <div>
-    <h1 class="page-h">{{ t('admin.menuNotes') }}</h1>
+    <header class="a-head">
+      <div>
+        <h1>{{ t('admin.menuNotes') }}</h1>
+        <p>{{ t('admin.notesHint') }}</p>
+      </div>
+    </header>
 
-    <!-- 发布框 -->
-    <div class="composer">
+    <!-- 发布 / 编辑 -->
+    <div class="composer a-card" :class="{ editing: editingId !== null }">
+      <div v-if="editingId !== null" class="edit-flag">
+        {{ t('admin.editingNote', { id: editingId }) }}
+        <button class="op" @click="resetComposer">{{ t('admin.cancel') }}</button>
+      </div>
       <textarea
         v-model="contentMd"
         rows="4"
+        class="a-input"
         :placeholder="t('admin.notePlaceholder')"
       />
       <textarea
         v-model="imagesText"
         rows="2"
+        class="a-input"
         :placeholder="t('admin.noteImagesPlaceholder')"
       />
       <div class="composer-bar">
-        <input v-model="mood" type="text" :placeholder="t('admin.moodPlaceholder')" />
-        <button class="btn primary" :disabled="busy || !contentMd.trim()" @click="publish">
-          {{ t('admin.publishNote') }}
+        <input v-model="mood" class="a-input" type="text" :placeholder="t('admin.moodPlaceholder')" />
+        <button class="a-btn primary" :disabled="busy || !contentMd.trim()" @click="submit">
+          {{ editingId === null ? t('admin.publishNote') : t('admin.saveNote') }}
         </button>
       </div>
     </div>
 
-    <!-- 列表 -->
-    <ul class="note-list">
-      <li v-for="note in notes" :key="note.id">
-        <div class="note-main">
-          <p class="note-text">{{ note.contentMd }}</p>
-          <div class="note-meta">
-            <span v-if="note.mood" class="mood">{{ note.mood }}</span>
-            <span v-if="note.images.length" class="imgs">{{ t('admin.imageCount', { n: note.images.length }) }}</span>
-            <time>{{ note.createdAt }}</time>
-          </div>
+    <!-- 卡片流 -->
+    <div class="note-grid">
+      <article
+        v-for="note in notes"
+        :key="note.id"
+        class="note-card a-card"
+        :class="{ on: editingId === note.id }"
+      >
+        <p class="note-text">{{ note.contentMd }}</p>
+        <div v-if="note.images.length" class="thumbs">
+          <img v-for="src in note.images.slice(0, 4)" :key="src" :src="src" loading="lazy" alt="" />
+          <span v-if="note.images.length > 4" class="more">+{{ note.images.length - 4 }}</span>
         </div>
-        <button class="op danger" @click="remove(note)">{{ t('admin.delete') }}</button>
-      </li>
-    </ul>
+        <footer class="note-foot">
+          <span v-if="note.mood" class="mood">{{ note.mood }}</span>
+          <time>{{ note.createdAt.slice(0, 16) }}</time>
+          <span class="spacer" />
+          <button class="op" @click="startEdit(note)">{{ t('admin.edit') }}</button>
+          <button class="op danger" @click="remove(note)">{{ t('admin.delete') }}</button>
+        </footer>
+      </article>
+    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
-.page-h {
-  font-size: 26px;
-  margin-bottom: 22px;
-}
-
 .composer {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-bottom: 26px;
+  margin-bottom: 24px;
+
+  &.editing { border-color: rgba(var(--primary-rgb), 0.5); }
 }
 
-textarea, input {
-  padding: 11px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 14px;
-  font-family: inherit;
-  outline: none;
-  resize: vertical;
-  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
-
-  &:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.12);
-  }
+.edit-flag {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
 }
 
 .composer-bar {
@@ -125,52 +145,64 @@ textarea, input {
   input { flex: 1; }
 }
 
-.btn.primary {
-  padding: 10px 26px;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  background: linear-gradient(180deg, var(--primary), var(--primary-deep));
-  box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.4);
-  transition: transform var(--dur-fast) var(--ease-out), filter var(--dur-fast);
-
-  &:hover:not(:disabled) { filter: brightness(1.08); transform: scale(1.04); }
-  &:disabled { opacity: 0.55; }
+.note-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
 }
 
-.note-list {
-  list-style: none;
+.note-card {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast), box-shadow var(--dur);
 
-  li {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    padding: 16px 6px;
-    border-bottom: 1px solid var(--border);
+  &:hover {
+    transform: scale(1.015);
+    box-shadow: 0 10px 30px -12px rgba(var(--primary-rgb), 0.25);
   }
-}
 
-.note-main { flex: 1; min-width: 0; }
+  &.on { border-color: rgba(var(--primary-rgb), 0.5); }
+}
 
 .note-text {
   font-size: 14px;
   line-height: 1.8;
   white-space: pre-wrap;
   word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.note-meta {
+.thumbs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+
+  img {
+    width: 52px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: var(--surface-2);
+  }
+
+  .more {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-2);
+  }
+}
+
+.note-foot {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 8px;
   font-size: 12px;
   color: var(--text-2);
+  margin-top: auto;
 
   .mood {
     padding: 2px 10px;
@@ -179,6 +211,8 @@ textarea, input {
     color: var(--primary);
     font-weight: 600;
   }
+
+  .spacer { flex: 1; }
 }
 
 .op {
@@ -186,7 +220,7 @@ textarea, input {
   background: none;
   font-size: 13px;
   font-weight: 600;
-  flex-shrink: 0;
+  color: var(--primary);
 
   &.danger { color: var(--accent-red); }
   &:hover { opacity: 0.75; }
