@@ -16,6 +16,10 @@ export default {
   hero: {
     readMore: '阅读全文',
   },
+  loading: {
+    boot: 'Myself',
+    route: '加载中',
+  },
   common: {
     siteName: 'Myself',
   },

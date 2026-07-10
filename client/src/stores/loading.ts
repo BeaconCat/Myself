@@ -1,0 +1,29 @@
+import { defineStore } from 'pinia';
+
+/**
+ * 全局加载状态。
+ * boot：首屏加载（AppLoading，进度条 + clip 收缩退场）
+ * route：路由切换（RouteLoading，纯色下切覆盖 → 下滑裁切退场）
+ */
+export const useLoadingStore = defineStore('loading', {
+  state: () => ({
+    bootProgress: 0,
+    bootDone: false,
+    routeLoading: false,
+  }),
+  actions: {
+    setBootProgress(p: number) {
+      this.bootProgress = Math.min(100, Math.max(0, p));
+    },
+    finishBoot() {
+      this.bootProgress = 100;
+      this.bootDone = true;
+    },
+    startRoute() {
+      this.routeLoading = true;
+    },
+    finishRoute() {
+      this.routeLoading = false;
+    },
+  },
+});
