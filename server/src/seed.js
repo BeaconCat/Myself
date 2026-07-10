@@ -1,13 +1,20 @@
-/** 演示随想（短内容信息流） */
+/** 演示随想（短内容信息流，images 为配图 URL 数组，演示走本地占位图接口） */
+const img = (from, to, label) => `/api/v1/img/${from}/${to}/${label}`;
+
 export const seedNotes = [
   {
     contentMd: '主题系统的圆形蒙版切换终于顺滑了。`View Transition API` 真香，但 `fill: forwards` 的残留动画坑了我两次。',
     mood: '技术',
+    images: [img('0078ff', '00295c', 'ViewTransition')],
     createdAt: '2026-07-10 21:40:00',
   },
   {
     contentMd: '夏天的傍晚，窗外的云被烧成 `#ff0032`。切到炽红主题，网站和天空同色。',
     mood: '生活',
+    images: [
+      img('ff0032', '7a0020', 'Sunset-1'),
+      img('ff5c7a', 'a3002a', 'Sunset-2'),
+    ],
     createdAt: '2026-07-09 19:22:00',
   },
   {
@@ -16,14 +23,37 @@ export const seedNotes = [
     createdAt: '2026-07-07 23:05:00',
   },
   {
-    contentMd: '给首页做了个立体相册轮播，卡片从三个方向飞进来的瞬间，值了。',
+    contentMd: '给首页做了个立体相册轮播，卡片从三个方向飞进来的瞬间，值了。三张设计稿：',
     mood: '技术',
+    images: [
+      img('ffb300', '7a5200', 'Draft-1'),
+      img('e09600', '3a2800', 'Draft-2'),
+      img('ffd166', '7a5200', 'Draft-3'),
+    ],
     createdAt: '2026-07-05 15:48:00',
   },
   {
     contentMd: '雨。适合把收藏夹里的长文清一清，顺便给灯塔图标画了六版草稿。',
     mood: '生活',
+    images: [
+      img('ff0032', '7a0020', 'Icon-1'),
+      img('ffb300', '7a5200', 'Icon-2'),
+      img('0078ff', '00295c', 'Icon-3'),
+      img('00c853', '00512a', 'Icon-4'),
+      img('ff5c7a', 'a3002a', 'Icon-5'),
+      img('4d9fff', '003d80', 'Icon-6'),
+    ],
     createdAt: '2026-07-03 11:30:00',
+  },
+  {
+    contentMd: '整理了一版九图测试，宫格拼图压力测试专用。',
+    mood: '测试',
+    images: [
+      img('ff0032', '7a0020', 'G-1'), img('ffb300', '7a5200', 'G-2'), img('0078ff', '00295c', 'G-3'),
+      img('00c853', '00512a', 'G-4'), img('ff5c7a', 'a3002a', 'G-5'), img('4d9fff', '003d80', 'G-6'),
+      img('e09600', '3a2800', 'G-7'), img('d40029', '40000d', 'G-8'), img('005fd6', '001b3d', 'G-9'),
+    ],
+    createdAt: '2026-07-01 09:12:00',
   },
 ];
 

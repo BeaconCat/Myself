@@ -80,12 +80,33 @@ postsRouter.get('/notes', (req, res) => {
       id: r.id,
       contentMd: r.content_md,
       mood: r.mood,
+      images: JSON.parse(r.images ?? '[]'),
       createdAt: r.created_at,
     })),
     page,
     pageSize,
     total,
   });
+});
+
+/** GET /api/v1/img/:from/:to/:label 本地渐变占位图（演示配图，无外部资源） */
+postsRouter.get('/img/:from/:to/:label', (req, res) => {
+  const hex = /^[0-9a-fA-F]{6}$/;
+  const { from, to } = req.params;
+  if (!hex.test(from) || !hex.test(to)) {
+    res.status(400).json({ error: 'bad_color' });
+    return;
+  }
+  const label = String(req.params.label).slice(0, 24).replace(/[<>&"']/g, '');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#${from}"/><stop offset="1" stop-color="#${to}"/>
+  </linearGradient></defs>
+  <rect width="900" height="900" fill="url(#g)"/>
+  <text x="50%" y="52%" text-anchor="middle" font-family="sans-serif" font-size="52"
+    fill="rgba(255,255,255,.85)" font-weight="700">${label}</text>
+</svg>`;
+  res.type('image/svg+xml').setHeader('Cache-Control', 'public, max-age=86400').send(svg);
 });
 
 /** GET /api/v1/archive 按年-月归档 */

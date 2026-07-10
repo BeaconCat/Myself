@@ -28,9 +28,15 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     content_md TEXT NOT NULL,
     mood TEXT NOT NULL DEFAULT '',
+    images TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+/* 旧库缺列时补齐（幂等迁移） */
+try {
+  db.exec(`ALTER TABLE notes ADD COLUMN images TEXT NOT NULL DEFAULT '[]'`);
+} catch { /* 列已存在 */ }
 
 /** 空表分别注入演示数据 */
 export function seedIfEmpty() {
@@ -57,11 +63,13 @@ function seedNotesIfEmpty() {
   const { n } = db.prepare('SELECT COUNT(*) AS n FROM notes').get();
   if (n > 0) return;
   const insertNote = db.prepare(`
-    INSERT INTO notes (content_md, mood, created_at)
-    VALUES (@contentMd, @mood, @createdAt)
+    INSERT INTO notes (content_md, mood, images, created_at)
+    VALUES (@contentMd, @mood, @images, @createdAt)
   `);
   const txNotes = db.transaction((notes) => {
-    for (const note of notes) insertNote.run(note);
+    for (const note of notes) {
+      insertNote.run({ ...note, images: JSON.stringify(note.images ?? []) });
+    }
   });
   txNotes(seedNotes);
 }

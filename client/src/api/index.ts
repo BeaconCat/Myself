@@ -33,6 +33,7 @@ export interface Note {
   id: number;
   contentMd: string;
   mood: string;
+  images: string[];
   createdAt: string;
 }
 

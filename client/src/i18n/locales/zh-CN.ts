@@ -32,6 +32,13 @@ export default {
   archive: {
     month: '{year} 年 {month} 月',
   },
+  viewer: {
+    wheel: '滚轮缩放',
+    pinch: '双指缩放',
+    drag: '长按图片拖动',
+    exit: '双击空白退出',
+    close: '关闭',
+  },
   thoughts: {
     subtitle: '碎片化的想法、心情与瞬间，短到装不下一篇文章。',
     justNow: '刚刚',
