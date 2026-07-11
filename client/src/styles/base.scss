@@ -17,6 +17,8 @@ html {
 :root[data-mode='dark'] { color-scheme: dark; }
 
 body {
+  /* 3D 卡片入场横向飞出视口部分直接裁掉，不产生横向滚动条 */
+  overflow-x: clip;
   font-family: var(--font-sans);
   background: var(--bg);
   color: var(--text);

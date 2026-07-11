@@ -50,14 +50,15 @@ router.beforeEach(async (to, from) => {
   if (to.meta.admin && !localStorage.getItem('myself.token')) {
     return { path: '/admin/login' };
   }
-  if (!from.name) return; // 首屏由 AppLoading 负责
+  // 首屏由 AppLoading 负责；后台子路由无 name，用 matched 判断是否已在站内
+  if (!from.matched.length) return;
   shownAt = performance.now();
   useLoadingStore().startRoute();
   await new Promise((resolve) => window.setTimeout(resolve, COVER_MS));
 });
 
 router.afterEach((_to, from) => {
-  if (!from.name) return;
+  if (!from.matched.length) return;
   const loading = useLoadingStore();
   const remain = Math.max(0, MIN_SHOW_MS - (performance.now() - shownAt));
   window.setTimeout(() => loading.finishRoute(), remain);

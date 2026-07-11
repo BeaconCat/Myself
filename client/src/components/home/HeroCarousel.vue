@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import { watch } from 'vue';
+import { useLoadingStore } from '../../stores/loading';
 
 export interface HeroItem {
   title: string;
@@ -59,8 +61,9 @@ const lightboxOn = ref(false);
 const lbClosing = ref(false);
 const dragging = ref(false);
 
-const OUT_MS = 520;
 const ENTER_MS = 800;
+/** 出场启动后多久切入下一条（重叠期：出场透明度已归零但位移未播完） */
+const ITEM_SWAP_MS = 300;
 const FLY_MS = 550;
 const FLY_EASE = 'cubic-bezier(0.2, 0.8, 0.3, 1)';
 
@@ -70,9 +73,37 @@ const item = computed(() => props.items[itemIndex.value] ?? props.items[0]);
 const covers = computed(() => (item.value?.covers ?? []).slice(0, 3));
 const paused = computed(() => hovering.value || lightboxOn.value);
 
-const chars = computed(() =>
-  [...(item.value?.title ?? '')].map((ch, i) => ({ ch, delay: i * 0.035 })),
-);
+/**
+ * 标题分词：只在空格/标点/`|` 标记处允许换行，词段内绝不从中间断开。
+ * `|` 为编辑期换行标记（仅作可断点，不渲染）：一行放得下就完整一行。
+ */
+interface TitleWord {
+  chars: { ch: string; delay: number }[];
+  gap: boolean;
+}
+
+const titleWords = computed<TitleWord[]>(() => {
+  const raw = (item.value?.title ?? '').split('|').join('​');
+  const tokens = raw.match(/[^\s​，。：；！？、,.:;!?]+[，。：；！？、,.:;!?]?|\s+|​/g) ?? [];
+  const words: TitleWord[] = [];
+  let index = 0;
+  for (const token of tokens) {
+    if (token === '​') {
+      words.push({ chars: [], gap: true });
+      continue;
+    }
+    if (/^\s+$/.test(token)) {
+      words.push({ chars: [{ ch: ' ', delay: index * 0.035 }], gap: true });
+      index += 1;
+      continue;
+    }
+    words.push({
+      chars: [...token].map((ch) => ({ ch, delay: (index += 1) * 0.035 })),
+      gap: false,
+    });
+  }
+  return words;
+});
 
 const guide = computed(() => [
   isTouch ? t('viewer.pinch') : t('viewer.wheel'),
@@ -83,8 +114,30 @@ const guide = computed(() => [
 /* ===== 轮播状态机 ===== */
 let enterTimer = 0;
 
+/**
+ * enter → idle 的计时要等「幕布」揭开才起跑：
+ * loading 覆盖期间 CSS 动画被全局暂停，但 JS 定时器照走，
+ * 若不等待，揭幕时入场动画类已被摘掉，卡片动效直接跳终态。
+ */
+const loadingStore = useLoadingStore();
+
+function curtainDown(): boolean {
+  return loadingStore.bootOverlayVisible || loadingStore.routeLoading;
+}
+
 function settle(): void {
   window.clearTimeout(enterTimer);
+  if (curtainDown()) {
+    const stop = watch(
+      () => curtainDown(),
+      (down) => {
+        if (down) return;
+        stop();
+        settle();
+      },
+    );
+    return;
+  }
   enterTimer = window.setTimeout(() => {
     if (phase.value === 'enter') phase.value = 'idle';
   }, ENTER_MS);
@@ -93,12 +146,13 @@ function settle(): void {
 function swapToItem(next: number): void {
   if (next === itemIndex.value || phase.value === 'out' || lightboxOn.value) return;
   phase.value = 'out';
+  // 出/入场重叠：出场透明度前 30% 已归零，中途即切数据开始入场，衔接更流畅
   window.setTimeout(() => {
     itemIndex.value = (next + props.items.length) % props.items.length;
     photoIndex.value = 0;
     phase.value = 'enter';
     settle();
-  }, OUT_MS);
+  }, ITEM_SWAP_MS);
 }
 
 /** 自动步进由进度条驱动：当前段填满（animationend）才前进，与视觉天然同步 */
@@ -528,11 +582,16 @@ onBeforeUnmount(() => {
       <span :key="`tag-${itemIndex}`" class="hero-tag">{{ item?.tag }}</span>
       <h1 class="hero-title" aria-live="polite">
         <span
-          v-for="(c, i) in chars"
-          :key="`${itemIndex}-${i}`"
+          v-for="(word, wi) in titleWords"
+          :key="`${itemIndex}-${wi}`"
+          class="word"
+          :class="{ gap: word.gap }"
+        ><span
+          v-for="(c, ci) in word.chars"
+          :key="ci"
           class="char"
           :style="{ '--d': c.delay + 's' }"
-        >{{ c.ch }}</span>
+        >{{ c.ch }}</span></span>
       </h1>
       <p :key="`ex-${itemIndex}`" class="hero-excerpt">{{ item?.excerpt }}</p>
       <button
@@ -692,6 +751,14 @@ onBeforeUnmount(() => {
   min-height: 2.4em;
 }
 
+/* 词段整体不拆行；gap（空格/换行标记）处才允许换行 */
+.word {
+  display: inline-block;
+  white-space: nowrap;
+
+  &.gap { display: inline; white-space: normal; }
+}
+
 .char {
   display: inline-block;
   white-space: pre;
@@ -715,7 +782,9 @@ onBeforeUnmount(() => {
   animation: text-out 0.45s var(--ease-out) both;
 }
 
+/* 55% 时间即完全透明：与卡片同步瞬隐，支撑出/入场重叠切换 */
 @keyframes text-out {
+  55% { opacity: 0; filter: blur(10px); }
   to { opacity: 0; filter: blur(10px); transform: translateX(-48px); }
 }
 
@@ -883,13 +952,13 @@ onBeforeUnmount(() => {
   from { opacity: 0; transform: translate3d(0, -70%, 40px) rotateX(48deg) scale(0.8); }
   25% { opacity: 1; }
 }
-/* 后排卡绕 Y 轴翻正：左卡从左向右翻、右卡从右向左翻 */
+/* 后排卡绕 Y 轴翻正 */
 @keyframes enter-right {
-  from { opacity: 0; transform: translate3d(85%, -46px, -120px) rotateY(62deg) scale(0.72); }
+  from { opacity: 0; transform: translate3d(85%, -46px, -120px) rotateY(-62deg) scale(0.72); }
   25% { opacity: 0.85; }
 }
 @keyframes enter-left {
-  from { opacity: 0; transform: translate3d(-85%, 72px, -120px) rotateY(-62deg) scale(0.7); }
+  from { opacity: 0; transform: translate3d(-85%, 72px, -120px) rotateY(62deg) scale(0.7); }
   25% { opacity: 0.85; }
 }
 
