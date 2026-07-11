@@ -905,11 +905,11 @@ onBeforeUnmount(() => {
 
 @keyframes leave-down {
   30% { opacity: 0; }
-  to { opacity: 0; transform: translate3d(0, 65%, 0) scale(0.82); }
+  to { opacity: 0; transform: translate3d(0, 65%, 0) rotateX(-42deg) scale(0.82); }
 }
 @keyframes leave-up {
   30% { opacity: 0; }
-  to { opacity: 0; transform: translate3d(0, -65%, -90px) scale(0.7); }
+  to { opacity: 0; transform: translate3d(0, -65%, -90px) rotateX(38deg) scale(0.7); }
 }
 
 .card-glow {
