@@ -51,7 +51,10 @@ onMounted(async () => {
 
 <template>
   <main class="page">
-    <HeroCarousel v-if="heroItems.length" :items="heroItems" :photo-ms="heroInterval" />
+    <!-- 常驻背景壳：数据未就绪也有占位，杜绝揭幕后底色闪现 -->
+    <div class="hero-shell">
+      <HeroCarousel v-if="heroItems.length" :items="heroItems" :photo-ms="heroInterval" />
+    </div>
 
     <!-- 最新四条：交错图文，无边框平铺，悬停直角框 -->
     <section class="latest">
@@ -72,6 +75,28 @@ onMounted(async () => {
   max-width: 1180px;
   margin: 0 auto;
   padding: 110px 24px 80px;
+}
+
+/* ===== 轮播背景壳（常驻占位） ===== */
+.hero-shell {
+  --hero-w: min(1400px, 100vw - 48px);
+  width: var(--hero-w);
+  margin-inline: calc((var(--hero-w) - 100%) / -2);
+  min-height: 62vh;
+  padding: 36px 56px;
+  border-radius: 24px;
+  background:
+    radial-gradient(560px 300px at 82% 24%, rgba(var(--primary-rgb), 0.08), transparent 65%),
+    radial-gradient(480px 260px at 12% 80%, rgba(var(--primary-rgb), 0.05), transparent 65%),
+    linear-gradient(180deg, rgba(var(--primary-rgb), 0.045), rgba(var(--primary-rgb), 0.015));
+  border: 1px solid rgba(var(--primary-rgb), 0.08);
+}
+
+@media (max-width: 900px) {
+  .hero-shell {
+    min-height: auto;
+    padding: 20px 16px;
+  }
 }
 
 /* ===== 最新文章：交错图文平铺 ===== */

@@ -714,17 +714,7 @@ onBeforeUnmount(() => {
   perspective: 1300px;
   /* 展示区禁选中：双击（退出 lightbox 等）不再拉出文字选区 */
   user-select: none;
-  /* 淡主题色底：轮播区与正文轻分区；宽度突破正文容器 */
-  --hero-w: min(1400px, 100vw - 48px);
-  width: var(--hero-w);
-  margin-inline: calc((var(--hero-w) - 100%) / -2);
-  padding: 36px 56px;
-  border-radius: 24px;
-  background:
-    radial-gradient(560px 300px at 82% 24%, rgba(var(--primary-rgb), 0.08), transparent 65%),
-    radial-gradient(480px 260px at 12% 80%, rgba(var(--primary-rgb), 0.05), transparent 65%),
-    linear-gradient(180deg, rgba(var(--primary-rgb), 0.045), rgba(var(--primary-rgb), 0.015));
-  border: 1px solid rgba(var(--primary-rgb), 0.08);
+  /* 背景占位壳由 HomeView .hero-shell 常驻提供 */
 }
 
 /* ===== 左侧文字 ===== */
@@ -1083,7 +1073,6 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
     gap: 28px;
     min-height: auto;
-    padding: 20px 16px;
   }
 
   .hero-text { align-items: center; text-align: center; }
