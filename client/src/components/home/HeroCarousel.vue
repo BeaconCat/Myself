@@ -1096,7 +1096,7 @@ onBeforeUnmount(() => {
 
   /* 后排卡明显错位（探出量 ≤ 预留空间） */
   .slot-1 { transform: translate3d(44px, -26px, -60px) scale(0.8); }
-  .slot-2 { transform: translate3d(-56px, 42px, -60px) scale(0.74); }
+  .slot-2 { transform: translate3d(-68px, 54px, -60px) scale(0.74); }
 
   .step {
     opacity: 1;
