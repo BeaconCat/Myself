@@ -298,6 +298,17 @@ onMounted(async () => {
         <span>{{ t('admin.ghToken') }}</span>
         <input v-model="cfg.github.token" type="password" autocomplete="off" placeholder="ghp_…（可留空走匿名公开接口）" />
       </label>
+      <div v-if="cfg.github.mode === 'api'" class="row2" style="margin-top: 14px">
+        <label>
+          <span>{{ t('admin.ghProxy') }}</span>
+          <input v-model="cfg.github.proxy" type="text" placeholder="http://127.0.0.1:7890（留空读 HTTPS_PROXY）" />
+        </label>
+        <label class="switch" style="align-self: end">
+          <input v-model="cfg.github.insecureTls" type="checkbox" />
+          <i class="track" aria-hidden="true" />
+          <span>{{ t('admin.ghInsecure') }}</span>
+        </label>
+      </div>
       <div v-if="cfg.github.mode === 'manual'" class="row3" style="margin-top: 14px">
         <label><span>{{ t('admin.ghRepos') }}</span><input v-model.number="cfg.github.stats.repos" type="number" /></label>
         <label><span>Stars</span><input v-model.number="cfg.github.stats.stars" type="number" /></label>

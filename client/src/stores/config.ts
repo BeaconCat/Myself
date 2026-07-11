@@ -38,6 +38,8 @@ export interface SiteConfig {
     mode: 'manual' | 'api';
     token?: string;
     refreshMinutes: number;
+    proxy: string;
+    insecureTls: boolean;
     stats: { repos: number; stars: number; followers: number; commits: number };
   };
   about: {
@@ -75,6 +77,8 @@ export const FALLBACK_CONFIG: SiteConfig = {
     username: 'your-github',
     mode: 'manual',
     refreshMinutes: 30,
+    proxy: '',
+    insecureTls: false,
     stats: { repos: 0, stars: 0, followers: 0, commits: 0 },
   },
   about: {

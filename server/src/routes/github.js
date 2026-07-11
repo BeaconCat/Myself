@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Agent, ProxyAgent, fetch as undiciFetch } from 'undici';
 import { requireAuth } from '../auth.js';
 import { getConfig } from '../config.js';
 
@@ -17,13 +18,29 @@ function logSync(ok, message) {
   if (syncLog.length > 20) syncLog.pop();
 }
 
+/**
+ * 出站策略：可配代理（github.proxy）与跳过 TLS 校验（github.insecureTls）。
+ * insecureTls 仅作用于本只读拉取通道——用于本机存在 TLS 注入
+ * （安全软件/TUN 代理自签证书）导致 Node 证书验证失败的环境。
+ */
+function dispatcher() {
+  const cfg = getConfig().github;
+  const connect = cfg.insecureTls ? { rejectUnauthorized: false } : undefined;
+  const proxy = String(cfg.proxy ?? '').trim() || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+  if (proxy) return new ProxyAgent({ uri: proxy, connect });
+  return connect ? new Agent({ connect }) : undefined;
+}
+
 async function gh(path, token) {
   const headers = {
     Accept: 'application/vnd.github+json',
     'User-Agent': 'myself-blog',
   };
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`https://api.github.com${path}`, { headers });
+  const res = await undiciFetch(`https://api.github.com${path}`, {
+    headers,
+    dispatcher: dispatcher(),
+  });
   if (!res.ok) throw new Error(`github_${res.status}`);
   return res.json();
 }

@@ -49,6 +49,10 @@ export const DEFAULT_CONFIG = {
     token: '',
     /** api 模式缓存刷新间隔（分钟） */
     refreshMinutes: 30,
+    /** 出站代理，如 http://127.0.0.1:7890；留空自动读 HTTPS_PROXY 环境变量 */
+    proxy: '',
+    /** 跳过 TLS 校验（仅 GitHub 只读拉取）：本机代理/安全软件注入证书时的兜底 */
+    insecureTls: false,
     stats: { repos: 0, stars: 0, followers: 0, commits: 0 },
   },
   about: {

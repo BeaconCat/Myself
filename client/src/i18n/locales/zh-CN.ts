@@ -225,6 +225,8 @@ export default {
     contactText: '正文',
     aboutMoved: '关于页内容已模块化，前往独立的「关于管理」页配置头像、格言、技能分组、历程与社交链接。',
     goAbout: '前往关于管理',
+    ghProxy: '出站代理（可选）',
+    ghInsecure: '跳过 TLS 校验（本机代理注入证书时的兜底，仅影响 GitHub 拉取）',
     ghSyncNow: '立即同步',
     ghSyncing: '同步中…',
     ghSyncOk: '同步成功',
