@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import MarkdownIt from 'markdown-it';
+// @ts-expect-error 无类型声明的离线插件
+import taskLists from 'markdown-it-task-lists';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -11,7 +13,7 @@ const route = useRoute();
 const post = ref<Post | null>(null);
 const notFound = ref(false);
 
-const md = new MarkdownIt({ linkify: true });
+const md = new MarkdownIt({ linkify: true }).use(taskLists);
 
 const html = computed(() =>
   post.value?.contentMd ? md.render(post.value.contentMd) : '',
@@ -158,6 +160,29 @@ watch(
     max-width: 100%;
     border-radius: var(--radius);
   }
+
+  /* 拼图：同段落多张图并排成宫格 */
+  :deep(p:has(img + img)) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 6px;
+
+    img {
+      width: 100%;
+      height: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+    }
+  }
+
+  /* 待办清单 */
+  :deep(.task-list-item) {
+    list-style: none;
+
+    input { accent-color: var(--primary); margin-right: 8px; }
+  }
+
+  :deep(ul:has(.task-list-item)) { padding-left: 8px; }
 }
 
 .back {

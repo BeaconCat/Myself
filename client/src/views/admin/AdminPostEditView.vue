@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import MarkdownIt from 'markdown-it';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi, type PostDraft } from '../../api';
+import RichEditor from '../../components/admin/RichEditor.vue';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -29,8 +29,8 @@ const coversText = ref('');
 const message = ref('');
 const busy = ref(false);
 
-const md = new MarkdownIt({ linkify: true });
-const preview = computed(() => md.render(draft.value.contentMd || ''));
+/** 富文本为主，可切 Markdown 源码微调 */
+const sourceMode = ref(false);
 
 function collect(): PostDraft {
   return {
@@ -116,15 +116,35 @@ onMounted(async () => {
       </label>
     </div>
 
-    <!-- Markdown 分屏：左编辑右预览 -->
-    <div class="split">
+    <!-- 正文：所见即所得（底层仍以 Markdown 存储） -->
+    <div class="editor-wrap">
+      <div class="mode-bar">
+        <button
+          type="button"
+          class="mode-btn"
+          :class="{ on: !sourceMode }"
+          @click="sourceMode = false"
+        >{{ t('admin.wysiwyg') }}</button>
+        <button
+          type="button"
+          class="mode-btn"
+          :class="{ on: sourceMode }"
+          @click="sourceMode = true"
+        >Markdown</button>
+      </div>
+
+      <RichEditor
+        v-if="!sourceMode"
+        v-model="draft.contentMd"
+        :placeholder="t('admin.mdPlaceholder')"
+      />
       <textarea
+        v-else
         v-model="draft.contentMd"
         class="md-input"
         :placeholder="t('admin.mdPlaceholder')"
         spellcheck="false"
       />
-      <article class="md-preview markdown" v-html="preview" />
     </div>
   </div>
 </template>
@@ -217,11 +237,32 @@ input, textarea {
   }
 }
 
-.split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  min-height: 60vh;
+.editor-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mode-bar {
+  display: flex;
+  gap: 6px;
+}
+
+.mode-btn {
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: all var(--dur-fast);
+
+  &.on {
+    background: rgba(var(--primary-rgb), 0.12);
+    border-color: rgba(var(--primary-rgb), 0.4);
+    color: var(--primary);
+  }
 }
 
 .md-input {
@@ -230,6 +271,7 @@ input, textarea {
   line-height: 1.8;
   padding: 18px;
   resize: none;
+  min-height: 56vh;
 }
 
 .md-preview {
