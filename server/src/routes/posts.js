@@ -84,14 +84,28 @@ postsRouter.get('/tags', (_req, res) => {
   res.json([...counts.entries()].map(([name, count]) => ({ name, count })));
 });
 
-/** GET /api/v1/notes?page=&pageSize= 随想信息流（时间倒序） */
+/** GET /api/v1/notes?page=&pageSize=&q=&media=1 随想信息流（搜索 + 仅媒体过滤） */
 postsRouter.get('/notes', (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(50, Math.max(1, Number(req.query.pageSize) || 20));
-  const { total } = db.prepare('SELECT COUNT(*) AS total FROM notes').get();
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  const mediaOnly = req.query.media === '1';
+
+  const where = ['1=1'];
+  const filter = {};
+  if (q) {
+    where.push(`(content_md LIKE @q OR mood LIKE @q)`);
+    filter.q = `%${q}%`;
+  }
+  if (mediaOnly) where.push(`images != '[]'`);
+  const whereSql = where.join(' AND ');
+
+  const { total } = db
+    .prepare(`SELECT COUNT(*) AS total FROM notes WHERE ${whereSql}`)
+    .get(filter);
   const rows = db
-    .prepare('SELECT * FROM notes ORDER BY created_at DESC LIMIT @limit OFFSET @offset')
-    .all({ limit: pageSize, offset: (page - 1) * pageSize });
+    .prepare(`SELECT * FROM notes WHERE ${whereSql} ORDER BY created_at DESC LIMIT @limit OFFSET @offset`)
+    .all({ ...filter, limit: pageSize, offset: (page - 1) * pageSize });
   res.json({
     items: rows.map((r) => ({
       id: r.id,

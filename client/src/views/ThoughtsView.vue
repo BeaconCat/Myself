@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import MarkdownIt from 'markdown-it';
-import { onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api, type Note } from '../api';
 import ImageViewer from '../components/media/ImageViewer.vue';
@@ -9,6 +9,49 @@ import { useConfigStore } from '../stores/config';
 const { t } = useI18n();
 const config = useConfigStore();
 const notes = ref<Note[]>([]);
+
+/* 帖文 / 媒体 双视图 + 搜索 */
+const tab = ref<'posts' | 'media'>('posts');
+const keyword = ref('');
+const loading = ref(false);
+
+async function reload(): Promise<void> {
+  loading.value = true;
+  try {
+    notes.value = (await api.notes({
+      pageSize: 50,
+      q: keyword.value || undefined,
+      media: tab.value === 'media' || undefined,
+    })).items;
+  } finally {
+    loading.value = false;
+  }
+}
+
+function switchTab(next: 'posts' | 'media'): void {
+  if (tab.value === next) return;
+  tab.value = next;
+  void reload();
+}
+
+let debounce = 0;
+function onSearch(): void {
+  window.clearTimeout(debounce);
+  debounce = window.setTimeout(() => void reload(), 300);
+}
+
+/** 媒体视图：铺平所有配图（X 风媒体墙） */
+interface MediaCell {
+  src: string;
+  note: Note;
+  index: number;
+}
+
+const mediaCells = computed<MediaCell[]>(() =>
+  notes.value.flatMap((note) =>
+    note.images.map((src, index) => ({ src, note, index })),
+  ),
+);
 
 /* Lightbox 状态 */
 const viewerImages = ref<string[]>([]);
@@ -48,9 +91,8 @@ function timeOf(s: string): string {
   return s.slice(0, 10);
 }
 
-onMounted(async () => {
-  notes.value = (await api.notes()).items;
-});
+onMounted(reload);
+onBeforeUnmount(() => window.clearTimeout(debounce));
 </script>
 
 <template>
@@ -58,8 +100,45 @@ onMounted(async () => {
     <h1 v-reveal class="page-title">{{ t('nav.thoughts') }}</h1>
     <p v-reveal class="page-sub">{{ config.cfg.thoughts.subtitle }}</p>
 
+    <!-- 工具栏：帖文/媒体胶囊 + 搜索 -->
+    <div v-reveal class="toolbar">
+      <div class="tabs">
+        <button class="tab" :class="{ on: tab === 'posts' }" @click="switchTab('posts')">
+          {{ t('thoughts.tabPosts') }}
+        </button>
+        <button class="tab" :class="{ on: tab === 'media' }" @click="switchTab('media')">
+          {{ t('thoughts.tabMedia') }}
+        </button>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.8-3.8" />
+        </svg>
+        <input
+          v-model="keyword"
+          type="search"
+          :placeholder="t('thoughts.searchPlaceholder')"
+          @input="onSearch"
+        />
+      </div>
+    </div>
+
+    <!-- 媒体墙（X 风） -->
+    <div v-if="tab === 'media'" class="media-wall" :class="{ loading }">
+      <button
+        v-for="cell in mediaCells"
+        :key="`${cell.note.id}-${cell.index}`"
+        class="media-cell"
+        @click="openViewer(cell.note.images, cell.index)"
+      >
+        <img :src="cell.src" loading="lazy" alt="" />
+      </button>
+      <p v-if="!loading && !mediaCells.length" class="empty">{{ t('thoughts.mediaEmpty') }}</p>
+    </div>
+
     <!-- X 风信息流 -->
-    <div class="feed">
+    <div v-else class="feed" :class="{ loading }">
       <article v-for="note in notes" :key="note.id" v-reveal class="tweet">
         <img class="avatar" src="/favicon-64.png" alt="" draggable="false" />
         <div class="tweet-main">
@@ -118,8 +197,116 @@ onMounted(async () => {
   margin: 8px 0 30px;
 }
 
+/* 工具栏 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.tab {
+  padding: 7px 20px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 700;
+  transition: all var(--dur-fast) var(--ease-out);
+
+  &.on {
+    background: linear-gradient(180deg, var(--primary), var(--primary-deep));
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 2px 10px rgba(var(--primary-rgb), 0.45);
+  }
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+
+  svg { width: 16px; height: 16px; color: var(--text-2); flex-shrink: 0; }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: none;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+
+    &::placeholder { color: var(--text-2); }
+  }
+
+  &:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
+  }
+}
+
+/* 媒体墙 */
+.media-wall {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: opacity var(--dur-fast);
+
+  &.loading { opacity: 0.55; }
+}
+
+.media-cell {
+  border: none;
+  padding: 0;
+  background: var(--surface-2);
+  aspect-ratio: 1;
+  overflow: hidden;
+  cursor: zoom-in;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform var(--dur) var(--ease-out), filter var(--dur-fast);
+  }
+
+  &:hover img { transform: scale(1.06); filter: brightness(1.06); }
+}
+
+.empty {
+  grid-column: 1 / -1;
+  color: var(--text-2);
+  text-align: center;
+  padding: 48px 0;
+}
+
 .feed {
   border-top: 1px solid var(--border);
+  transition: opacity var(--dur-fast);
+
+  &.loading { opacity: 0.55; }
 }
 
 .tweet {

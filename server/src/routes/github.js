@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requireAuth } from '../auth.js';
 import { getConfig } from '../config.js';
 
 /**
@@ -7,6 +8,14 @@ import { getConfig } from '../config.js';
  * token 可选（只读 PAT，提升配额并可查私有统计）；refreshMinutes 控制缓存。
  */
 let cache = { at: 0, key: '', data: null };
+
+/** 同步日志（进程内，最近 20 条） */
+const syncLog = [];
+
+function logSync(ok, message) {
+  syncLog.unshift({ at: new Date().toISOString(), ok, message });
+  if (syncLog.length > 20) syncLog.pop();
+}
 
 async function gh(path, token) {
   const headers = {
@@ -88,8 +97,10 @@ githubRouter.get('/github-status', async (_req, res) => {
   try {
     const data = await fetchStatus(cfg.username, cfg.token || undefined);
     cache = { at: Date.now(), key, data };
+    logSync(true, `拉取成功：${data.stats.repos} 仓库 / ${data.stats.stars} stars`);
     res.json({ mode: 'api', cached: false, ...data });
   } catch (err) {
+    logSync(false, String(err?.message ?? err));
     // 拉取失败回退：旧缓存 → 手填数字
     if (cache.data && cache.key === key) {
       res.json({ mode: 'api', cached: true, stale: true, ...cache.data });
@@ -103,4 +114,27 @@ githubRouter.get('/github-status', async (_req, res) => {
       activities: [],
     });
   }
+});
+
+/** POST /api/v1/admin/github/sync 立即同步（强刷缓存），返回最新数据 */
+githubRouter.post('/admin/github/sync', requireAuth, async (_req, res) => {
+  const cfg = getConfig().github;
+  try {
+    const data = await fetchStatus(cfg.username, cfg.token || undefined);
+    cache = { at: Date.now(), key: `${cfg.username}:${cfg.token ? 'tok' : 'anon'}`, data };
+    logSync(true, `手动同步成功：${data.stats.repos} 仓库 / ${data.stats.stars} stars`);
+    res.json({ ok: true, data });
+  } catch (err) {
+    logSync(false, `手动同步失败：${String(err?.message ?? err)}`);
+    res.status(502).json({ ok: false, error: String(err?.message ?? err) });
+  }
+});
+
+/** GET /api/v1/admin/github/log 同步日志 + 当前缓存预览 */
+githubRouter.get('/admin/github/log', requireAuth, (_req, res) => {
+  res.json({
+    log: syncLog,
+    preview: cache.data,
+    cachedAt: cache.at ? new Date(cache.at).toISOString() : null,
+  });
 });

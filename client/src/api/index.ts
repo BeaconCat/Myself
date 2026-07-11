@@ -95,10 +95,12 @@ export const api = {
   tags: () => get<Tag[]>('/tags'),
   archive: () => get<ArchiveGroup[]>('/archive'),
   hero: () => get<HeroFeed>('/hero'),
-  notes: (params: { page?: number; pageSize?: number } = {}) => {
+  notes: (params: { page?: number; pageSize?: number; q?: string; media?: boolean } = {}) => {
     const query = new URLSearchParams();
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    if (params.q) query.set('q', params.q);
+    if (params.media) query.set('media', '1');
     const qs = query.toString();
     return get<NoteList>(`/notes${qs ? `?${qs}` : ''}`);
   },
@@ -189,6 +191,14 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify({ names, quality }),
     }),
+  githubSync: () =>
+    authed<{ ok: boolean; data?: unknown }>('/admin/github/sync', { method: 'POST' }),
+  githubLog: () =>
+    authed<{
+      log: { at: string; ok: boolean; message: string }[];
+      preview: unknown;
+      cachedAt: string | null;
+    }>('/admin/github/log'),
   settings: () => authed<Record<string, unknown>>('/admin/settings'),
   saveSettings: (patch: Record<string, unknown>) =>
     authed<Record<string, unknown>>('/admin/settings', {

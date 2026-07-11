@@ -1,23 +1,32 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
+import { api } from '../api';
 import { useConfigStore } from '../stores/config';
 
-/** 关于页：身份 Hero + 技能 + 历程 + 本站技术栈 + 联系方式（身份文案走站点配置） */
+/** 关于页：全模块由后台「关于管理」配置驱动 */
 const config = useConfigStore();
+const about = computed(() => config.cfg.about);
 
-import { computed } from 'vue';
+const skillGroups = computed(() => about.value.skillGroups);
+const milestones = computed(() => about.value.milestones);
+const links = computed(() => about.value.socials);
 
-/* 以下板块为平台默认示例内容，后续可迁入站点配置 */
-const skillGroups = computed(() => [
-  { title: '标签', items: config.cfg.about.skills },
-  { title: '内容', items: ['文章', '随想', '拼图相册'] },
-  { title: '能力', items: ['主题系统', 'API 中心', '数据备份'] },
+/* 站点数字：运行天数 + 内容统计 */
+const postCount = ref(0);
+const noteCount = ref(0);
+const tagCount = ref(0);
+
+const daysRunning = computed(() => {
+  const from = new Date(about.value.foundedAt || '2026-01-01').getTime();
+  return Math.max(1, Math.floor((Date.now() - from) / 864e5));
+});
+
+const stats = computed(() => [
+  { value: daysRunning.value, label: '运行天数' },
+  { value: postCount.value, label: '文章' },
+  { value: noteCount.value, label: '随想' },
+  { value: tagCount.value, label: '标签' },
 ]);
-
-const milestones = [
-  { year: '01', text: '在后台「设置」里换上你的名字、简介与主题色' },
-  { year: '02', text: '发布第一篇文章，或用随想记录此刻' },
-  { year: '03', text: '创建 APIKey，把日常发文托管给你的 AI 助手' },
-];
 
 const stack = [
   { name: 'Vue 3', role: '前端框架' },
@@ -27,11 +36,18 @@ const stack = [
   { name: 'Markdown', role: '内容规范' },
 ];
 
-const links = computed(() => [
-  { name: 'GitHub', url: `https://github.com/${config.cfg.github.username}`, icon: 'github' },
-  { name: 'Email', url: 'mailto:hi@example.com', icon: 'mail' },
-  { name: 'RSS', url: '/feed', icon: 'rss' },
-]);
+onMounted(async () => {
+  try {
+    const [posts, notes, tags] = await Promise.all([
+      api.posts({ pageSize: 1 }),
+      api.notes({ pageSize: 1 }),
+      api.tags(),
+    ]);
+    postCount.value = posts.total;
+    noteCount.value = notes.total;
+    tagCount.value = tags.length;
+  } catch { /* 后端未启动时统计留零 */ }
+});
 </script>
 
 <template>
@@ -39,14 +55,23 @@ const links = computed(() => [
     <!-- 身份 Hero -->
     <section v-reveal class="hero">
       <div class="hero-avatar">
-        <img src="/favicon-256.png" alt="BeaconCat" draggable="false" />
+        <img :src="about.avatar || '/favicon-256.png'" :alt="about.name" draggable="false" />
         <span class="ring" aria-hidden="true" />
       </div>
-      <h1 class="hero-name">{{ config.cfg.about.name }}</h1>
-      <p class="hero-line">{{ config.cfg.about.tagline }}</p>
-      <p class="hero-bio">{{ config.cfg.about.bio }}</p>
+      <h1 class="hero-name">{{ about.name }}</h1>
+      <p class="hero-line">{{ about.tagline }}</p>
+      <p class="hero-bio">{{ about.bio }}</p>
+      <blockquote v-if="about.motto" class="hero-motto">{{ about.motto }}</blockquote>
       <div class="hero-dots" aria-hidden="true">
         <span style="--c: #ff0032" /><span style="--c: #ffb300" /><span style="--c: #0078ff" />
+      </div>
+    </section>
+
+    <!-- 站点数字 -->
+    <section v-reveal class="stats">
+      <div v-for="s in stats" :key="s.label" class="stat">
+        <strong>{{ s.value }}</strong>
+        <span>{{ s.label }}</span>
       </div>
     </section>
 
@@ -98,9 +123,13 @@ const links = computed(() => [
             <rect x="3" y="5" width="18" height="14" rx="2" />
             <path d="m3 7 9 6 9-6" />
           </svg>
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <svg v-else-if="l.icon === 'rss'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
             <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" />
             <circle cx="5" cy="19" r="1.6" fill="currentColor" stroke="none" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 14a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11.4 5.5" />
+            <path d="M14 10a5 5 0 0 0-7.07 0L4.1 12.83a5 5 0 0 0 7.07 7.07l1.42-1.4" />
           </svg>
           <span>{{ l.name }}</span>
         </a>
@@ -201,6 +230,54 @@ const links = computed(() => [
   font-size: 15px;
   line-height: 2;
   color: var(--text-2);
+}
+
+.hero-motto {
+  margin: 20px auto 0;
+  padding: 10px 26px;
+  width: fit-content;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--text-2);
+  border-left: 3px solid rgba(var(--primary-rgb), 0.6);
+  border-right: 3px solid rgba(var(--primary-rgb), 0.6);
+  background: rgba(var(--primary-rgb), 0.05);
+  border-radius: 8px;
+}
+
+/* 站点数字 */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 56px;
+}
+
+.stat {
+  text-align: center;
+  padding: 20px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast);
+
+  strong {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 26px;
+    background: var(--grad-title);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  span {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+
+  &:hover { transform: scale(1.04); border-color: var(--primary); }
 }
 
 .hero-dots {

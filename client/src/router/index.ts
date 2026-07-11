@@ -26,6 +26,7 @@ export const router = createRouter({
         { path: 'posts/:id', component: () => import('../views/admin/AdminPostEditView.vue') },
         { path: 'notes', component: () => import('../views/admin/AdminNotesView.vue') },
         { path: 'media', component: () => import('../views/admin/AdminMediaView.vue') },
+        { path: 'about', component: () => import('../views/admin/AdminAboutView.vue') },
         { path: 'apikeys', component: () => import('../views/admin/AdminApiKeysView.vue') },
         { path: 'data', component: () => import('../views/admin/AdminDataView.vue') },
         { path: 'quality', component: () => import('../views/admin/AdminQualityView.vue') },

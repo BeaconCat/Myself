@@ -90,8 +90,8 @@ export const useThemeStore = defineStore('theme', {
     toggleMode() {
       this.setMode(this.mode === 'light' ? 'dark' : 'light');
     },
-    setPalette(id: string) {
-      if (!this.allowUserPalette) return;
+    setPalette(id: string, isAdmin = false) {
+      if (!this.allowUserPalette && !isAdmin) return;
       this.paletteId = id;
       this.persistAndApply();
     },

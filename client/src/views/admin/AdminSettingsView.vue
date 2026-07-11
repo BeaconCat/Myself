@@ -9,7 +9,6 @@ const { t } = useI18n();
 const configStore = useConfigStore();
 
 const cfg = reactive<SiteConfig>(JSON.parse(JSON.stringify(configStore.cfg)));
-const skillsText = ref('');
 const message = ref('');
 const busy = ref(false);
 
@@ -18,10 +17,51 @@ const TIMEZONES = [
   'UTC', 'Europe/London', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles',
 ];
 
+/** 锚点子导航 */
+const SECTIONS = [
+  { id: 'sec-platform', key: 'admin.secPlatform' },
+  { id: 'sec-loading', key: 'admin.secLoading' },
+  { id: 'sec-theme', key: 'admin.secTheme' },
+  { id: 'sec-hero', key: 'admin.secHero' },
+  { id: 'sec-timezone', key: 'admin.secTimezone' },
+  { id: 'sec-github', key: 'admin.secGithub' },
+  { id: 'sec-about', key: 'admin.secAbout' },
+  { id: 'sec-users', key: 'admin.secUsers' },
+];
+
+/* GitHub 同步面板 */
+interface SyncLogEntry { at: string; ok: boolean; message: string }
+const ghLog = ref<SyncLogEntry[]>([]);
+const ghPreview = ref<{ stats?: Record<string, number>; fetchedAt?: string } | null>(null);
+const ghSyncing = ref(false);
+const ghMsg = ref('');
+
+async function loadGhLog(): Promise<void> {
+  try {
+    const data = await adminApi.githubLog();
+    ghLog.value = data.log;
+    ghPreview.value = data.preview as typeof ghPreview.value;
+  } catch { /* 忽略 */ }
+}
+
+async function syncNow(): Promise<void> {
+  if (ghSyncing.value) return;
+  ghSyncing.value = true;
+  ghMsg.value = '';
+  try {
+    await adminApi.githubSync();
+    ghMsg.value = t('admin.ghSyncOk');
+  } catch {
+    ghMsg.value = t('admin.ghSyncFail');
+  } finally {
+    ghSyncing.value = false;
+    await loadGhLog();
+  }
+}
+
 async function load(): Promise<void> {
   const remote = await adminApi.settings() as unknown as SiteConfig;
   Object.assign(cfg, JSON.parse(JSON.stringify(remote)));
-  skillsText.value = cfg.about.skills.join(', ');
 }
 
 async function save(): Promise<void> {
@@ -29,7 +69,6 @@ async function save(): Promise<void> {
   busy.value = true;
   message.value = '';
   try {
-    cfg.about.skills = skillsText.value.split(/[,，]+/).map((s) => s.trim()).filter(Boolean);
     cfg.theme.displayCount = Math.min(4, Math.max(1, cfg.theme.displayCount));
     await adminApi.saveSettings(cfg as unknown as Record<string, unknown>);
     await configStore.load();
@@ -103,7 +142,10 @@ async function changePassword(): Promise<void> {
   }
 }
 
-onMounted(load);
+onMounted(async () => {
+  await load();
+  await loadGhLog();
+});
 </script>
 
 <template>
@@ -116,8 +158,13 @@ onMounted(load);
       </div>
     </header>
 
+    <!-- 锚点子导航 -->
+    <nav class="subnav">
+      <a v-for="s in SECTIONS" :key="s.id" :href="`#${s.id}`">{{ t(s.key) }}</a>
+    </nav>
+
     <!-- 平台 -->
-    <section class="card">
+    <section id="sec-platform" class="card">
       <h2>{{ t('admin.secPlatform') }}</h2>
       <div class="row2">
         <label><span>{{ t('admin.siteTitle') }}</span><input v-model="cfg.site.title" type="text" /></label>
@@ -126,7 +173,7 @@ onMounted(load);
     </section>
 
     <!-- Loading 文案 -->
-    <section class="card">
+    <section id="sec-loading" class="card">
       <h2>{{ t('admin.secLoading') }}</h2>
       <div class="row2">
         <label><span>{{ t('admin.bootText') }}</span><input v-model="cfg.loading.bootText" type="text" /></label>
@@ -135,7 +182,7 @@ onMounted(load);
     </section>
 
     <!-- 主题 -->
-    <section class="card">
+    <section id="sec-theme" class="card">
       <h2>{{ t('admin.secTheme') }}</h2>
       <div class="row3">
         <label>
@@ -160,8 +207,9 @@ onMounted(load);
         </label>
       </div>
       <div class="row3">
-        <label class="check">
+        <label class="switch">
           <input v-model="cfg.theme.allowUserPalette" type="checkbox" />
+          <i class="track" aria-hidden="true" />
           <span>{{ t('admin.allowUserPalette') }}</span>
         </label>
         <label>
@@ -196,7 +244,7 @@ onMounted(load);
     </section>
 
     <!-- 首页轮播规则 -->
-    <section class="card">
+    <section id="sec-hero" class="card">
       <h2>{{ t('admin.secHero') }}</h2>
       <div class="row3">
         <label>
@@ -222,7 +270,7 @@ onMounted(load);
     </section>
 
     <!-- 时区 -->
-    <section class="card">
+    <section id="sec-timezone" class="card">
       <h2>{{ t('admin.secTimezone') }}</h2>
       <label class="narrow">
         <span>{{ t('admin.timezone') }}</span>
@@ -233,7 +281,7 @@ onMounted(load);
     </section>
 
     <!-- GitHub -->
-    <section class="card">
+    <section id="sec-github" class="card">
       <h2>{{ t('admin.secGithub') }}</h2>
       <div class="row3">
         <label><span>{{ t('admin.ghUser') }}</span><input v-model="cfg.github.username" type="text" /></label>
@@ -258,21 +306,42 @@ onMounted(load);
       <div v-if="cfg.github.mode === 'manual'" class="row3">
         <label><span>{{ t('admin.ghCommits') }}</span><input v-model.number="cfg.github.stats.commits" type="number" /></label>
       </div>
+
+      <!-- 同步面板：立即同步 / 数据预览 / 同步日志 -->
+      <div v-if="cfg.github.mode === 'api'" class="gh-panel">
+        <div class="gh-actions">
+          <button class="btn primary" :disabled="ghSyncing" @click="syncNow">
+            {{ ghSyncing ? t('admin.ghSyncing') : t('admin.ghSyncNow') }}
+          </button>
+          <span v-if="ghMsg" class="msg">{{ ghMsg }}</span>
+        </div>
+
+        <div v-if="ghPreview?.stats" class="gh-preview">
+          <div class="gp"><strong>{{ ghPreview.stats.repos }}</strong><span>{{ t('admin.ghRepos') }}</span></div>
+          <div class="gp"><strong>{{ ghPreview.stats.stars }}</strong><span>Stars</span></div>
+          <div class="gp"><strong>{{ ghPreview.stats.followers }}</strong><span>{{ t('admin.ghFollowers') }}</span></div>
+          <div class="gp"><strong>{{ ghPreview.stats.commits }}</strong><span>{{ t('admin.ghCommits') }}</span></div>
+        </div>
+
+        <ul v-if="ghLog.length" class="gh-log">
+          <li v-for="(entry, i) in ghLog" :key="i" :class="{ err: !entry.ok }">
+            <time>{{ entry.at.slice(5, 19).replace('T', ' ') }}</time>
+            <span>{{ entry.message }}</span>
+          </li>
+        </ul>
+        <p v-else class="hint">{{ t('admin.ghNoLog') }}</p>
+      </div>
     </section>
 
-    <!-- 关于 -->
-    <section class="card">
+    <!-- 关于：迁至独立管理页 -->
+    <section id="sec-about" class="card about-link">
       <h2>{{ t('admin.secAbout') }}</h2>
-      <div class="row2">
-        <label><span>{{ t('admin.aboutName') }}</span><input v-model="cfg.about.name" type="text" /></label>
-        <label><span>{{ t('admin.aboutTagline') }}</span><input v-model="cfg.about.tagline" type="text" /></label>
-      </div>
-      <label><span>{{ t('admin.aboutBio') }}</span><textarea v-model="cfg.about.bio" rows="3" /></label>
-      <label><span>{{ t('admin.aboutSkills') }}</span><input v-model="skillsText" type="text" :placeholder="t('admin.tagsPlaceholder')" /></label>
+      <p class="hint">{{ t('admin.aboutMoved') }}</p>
+      <router-link to="/admin/about" class="btn primary">{{ t('admin.goAbout') }}</router-link>
     </section>
 
     <!-- 用户管理 -->
-    <section class="card">
+    <section id="sec-users" class="card">
       <h2>{{ t('admin.secUsers') }}</h2>
       <p class="hint">{{ t('admin.usersHint') }}</p>
       <div class="pw-grid">
@@ -314,6 +383,147 @@ onMounted(load);
 
   &.err { color: var(--accent-red); }
 }
+
+/* 锚点子导航 */
+.subnav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  border-radius: var(--radius);
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid var(--border);
+
+  a {
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 999px;
+    color: var(--text-2);
+    transition: all var(--dur-fast);
+
+    &:hover {
+      background: rgba(var(--primary-rgb), 0.1);
+      color: var(--primary);
+    }
+  }
+}
+
+/* 开关 */
+.switch {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+
+  input { display: none; }
+
+  .track {
+    width: 40px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    position: relative;
+    transition: background var(--dur-fast), border-color var(--dur-fast);
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--text-2);
+      transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast);
+    }
+  }
+
+  input:checked + .track {
+    background: rgba(var(--primary-rgb), 0.25);
+    border-color: rgba(var(--primary-rgb), 0.5);
+
+    &::after {
+      transform: translateX(18px);
+      background: var(--primary);
+    }
+  }
+
+  span { font-size: 13px; color: var(--text); }
+}
+
+/* GitHub 同步面板 */
+.gh-panel {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+}
+
+.gh-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.gh-preview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.gp {
+  text-align: center;
+  padding: 12px 6px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+
+  strong {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 20px;
+    background: var(--grad-title);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  span { font-size: 11px; color: var(--text-2); }
+}
+
+.gh-log {
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+
+  li {
+    display: flex;
+    gap: 12px;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    border-bottom: 1px solid var(--border);
+
+    time { color: var(--text-2); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    span { color: var(--text); }
+
+    &.err span { color: var(--accent-red); }
+    &:last-child { border-bottom: none; }
+  }
+}
+
+.about-link .btn { margin-top: 4px; display: inline-block; }
 
 .card {
   padding: 22px 24px;

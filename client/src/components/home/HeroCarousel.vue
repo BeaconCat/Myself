@@ -654,8 +654,11 @@ onBeforeUnmount(() => {
   perspective: 1300px;
   /* 展示区禁选中：双击（退出 lightbox 等）不再拉出文字选区 */
   user-select: none;
-  /* 淡主题色底：轮播区与正文轻分区 */
-  padding: 36px 40px;
+  /* 淡主题色底：轮播区与正文轻分区；宽度突破正文容器 */
+  --hero-w: min(1400px, 100vw - 48px);
+  width: var(--hero-w);
+  margin-inline: calc((var(--hero-w) - 100%) / -2);
+  padding: 36px 56px;
   border-radius: 24px;
   background:
     radial-gradient(560px 300px at 82% 24%, rgba(var(--primary-rgb), 0.08), transparent 65%),

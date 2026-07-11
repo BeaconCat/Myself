@@ -32,7 +32,18 @@ export interface SiteConfig {
     refreshMinutes: number;
     stats: { repos: number; stars: number; followers: number; commits: number };
   };
-  about: { name: string; tagline: string; bio: string; skills: string[] };
+  about: {
+    avatar: string;
+    name: string;
+    tagline: string;
+    bio: string;
+    skills: string[];
+    foundedAt: string;
+    skillGroups: { title: string; items: string[] }[];
+    milestones: { year: string; text: string }[];
+    socials: { name: string; url: string; icon: string }[];
+    motto: string;
+  };
 }
 
 export const FALLBACK_CONFIG: SiteConfig = {
@@ -61,10 +72,28 @@ export const FALLBACK_CONFIG: SiteConfig = {
     stats: { repos: 0, stars: 0, followers: 0, commits: 0 },
   },
   about: {
+    avatar: '',
     name: 'Myself',
     tagline: '开源个人博客引擎',
-    bio: '这里是 Myself 的默认介绍，可在后台「设置 → 关于信息」修改。',
+    bio: '这里是 Myself 的默认介绍，可在后台「关于管理」修改。',
     skills: ['写作', '摄影', '编程'],
+    foundedAt: '2026-01-01',
+    skillGroups: [
+      { title: '创作', items: ['文章', '随想', '摄影'] },
+      { title: '工具', items: ['Markdown', '主题系统', 'API 中心'] },
+      { title: '兴趣', items: ['阅读', '旅行', '音乐'] },
+    ],
+    milestones: [
+      { year: '01', text: '在后台「设置」里换上你的名字、简介与主题色' },
+      { year: '02', text: '发布第一篇文章，或用随想记录此刻' },
+      { year: '03', text: '创建 APIKey，把日常发文托管给你的 AI 助手' },
+    ],
+    socials: [
+      { name: 'GitHub', url: 'https://github.com/your-github', icon: 'github' },
+      { name: 'Email', url: 'mailto:hi@example.com', icon: 'mail' },
+      { name: 'RSS', url: '/feed', icon: 'rss' },
+    ],
+    motto: '记录本身，就是意义。',
   },
 };
 

@@ -52,10 +52,34 @@ export const DEFAULT_CONFIG = {
     stats: { repos: 0, stars: 0, followers: 0, commits: 0 },
   },
   about: {
+    /** 头像 URL（素材库上传），留空用站点 logo */
+    avatar: '',
     name: 'Myself',
     tagline: '开源个人博客引擎',
-    bio: '这里是 Myself 的默认介绍。前往后台「设置 → 关于信息」写下你自己的故事：你是谁、在做什么、热爱什么。',
+    bio: '这里是 Myself 的默认介绍。前往后台「关于管理」写下你自己的故事：你是谁、在做什么、热爱什么。',
     skills: ['写作', '摄影', '编程'],
+    /** 建站日期：关于页展示运行天数 */
+    foundedAt: '2026-01-01',
+    /** 技能分组卡 */
+    skillGroups: [
+      { title: '创作', items: ['文章', '随想', '摄影'] },
+      { title: '工具', items: ['Markdown', '主题系统', 'API 中心'] },
+      { title: '兴趣', items: ['阅读', '旅行', '音乐'] },
+    ],
+    /** 历程时间线 */
+    milestones: [
+      { year: '01', text: '在后台「设置」里换上你的名字、简介与主题色' },
+      { year: '02', text: '发布第一篇文章，或用随想记录此刻' },
+      { year: '03', text: '创建 APIKey，把日常发文托管给你的 AI 助手' },
+    ],
+    /** 社交链接（icon: github | mail | rss | link） */
+    socials: [
+      { name: 'GitHub', url: 'https://github.com/your-github', icon: 'github' },
+      { name: 'Email', url: 'mailto:hi@example.com', icon: 'mail' },
+      { name: 'RSS', url: '/feed', icon: 'rss' },
+    ],
+    /** 关于页格言（Hero 下方引用块） */
+    motto: '记录本身，就是意义。',
   },
   backup: {
     /** 自动备份间隔小时数，0 = 关闭 */
