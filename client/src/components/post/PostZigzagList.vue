@@ -27,10 +27,10 @@ function coverOf(post: Post, index: number): string {
     <router-link
       v-for="(post, i) in posts"
       :key="post.slug"
-      v-reveal
       :to="`/articles/${post.slug}`"
       class="zig"
       :class="{ flip: alternate && i % 2 === 1, compact }"
+      :style="{ '--i': i % 20 }"
     >
       <div class="zig-text">
         <span class="z-date">{{ post.createdAt.slice(0, 10) }}</span>
@@ -57,6 +57,9 @@ function coverOf(post: Post, index: number): string {
   padding: 34px 28px;
   position: relative;
   transition: background var(--dur-fast);
+  /* 逐条浮入（追加加载的新条目挂载时同样生效） */
+  animation: zig-in 0.55s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 0.06s);
 
   /* 偶数条翻转：图左文右 */
   &.flip .zig-text { order: 2; }
@@ -179,6 +182,11 @@ function coverOf(post: Post, index: number): string {
     display: block;
     transition: transform var(--dur-slow) var(--ease-out);
   }
+}
+
+@keyframes zig-in {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: none; }
 }
 
 @media (max-width: 768px) {

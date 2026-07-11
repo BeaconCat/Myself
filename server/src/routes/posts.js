@@ -90,6 +90,9 @@ postsRouter.get('/notes', (req, res) => {
   const pageSize = Math.min(50, Math.max(1, Number(req.query.pageSize) || 20));
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
   const mediaOnly = req.query.media === '1';
+  const from = typeof req.query.from === 'string' ? req.query.from : '';
+  const to = typeof req.query.to === 'string' ? req.query.to : '';
+  const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
   const where = ['1=1'];
   const filter = {};
@@ -98,6 +101,14 @@ postsRouter.get('/notes', (req, res) => {
     filter.q = `%${q}%`;
   }
   if (mediaOnly) where.push(`images != '[]'`);
+  if (DATE.test(from)) {
+    where.push(`created_at >= @from`);
+    filter.from = from;
+  }
+  if (DATE.test(to)) {
+    where.push(`created_at < date(@to, '+1 day')`);
+    filter.to = to;
+  }
   const whereSql = where.join(' AND ');
 
   const { total } = db

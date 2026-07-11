@@ -10,8 +10,8 @@ import { useLoadingStore } from './stores/loading';
 const loading = useLoadingStore();
 /** 路由加载时页面整体缩小 10%（模糊变暗由 RouteLoading 的遮罩层承担） */
 const shrunk = computed(() => loading.routeLoading);
-/** 幕布落下（首屏遮罩在屏/路由 loading 覆盖中）：页面动画整体暂停，完全揭幕才播 */
-const covered = computed(() => loading.bootOverlayVisible || loading.routeLoading);
+/** 幕布落下（首屏/路由遮罩仍在屏上）：页面动画整体暂停，遮罩完全离屏才播 */
+const covered = computed(() => loading.bootOverlayVisible || loading.routeOverlayVisible);
 
 /** 后台等 bare 页面不渲染前台导航 */
 const route = useRoute();

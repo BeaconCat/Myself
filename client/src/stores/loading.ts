@@ -12,6 +12,8 @@ export const useLoadingStore = defineStore('loading', {
     /** 首屏遮罩仍在屏上（含收缩退场动画期间）：页面动画保持暂停 */
     bootOverlayVisible: true,
     routeLoading: false,
+    /** 路由遮罩仍在屏上（含下滑退场动画期间）：动画等它完全消失再播，避免同帧竞争卡顿 */
+    routeOverlayVisible: false,
   }),
   actions: {
     setBootProgress(p: number) {
@@ -23,6 +25,7 @@ export const useLoadingStore = defineStore('loading', {
     },
     startRoute() {
       this.routeLoading = true;
+      this.routeOverlayVisible = true;
     },
     finishRoute() {
       this.routeLoading = false;

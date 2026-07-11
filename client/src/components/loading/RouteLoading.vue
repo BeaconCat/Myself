@@ -25,6 +25,8 @@ watch(
       stage.value = 'leave';
       window.setTimeout(() => {
         if (stage.value === 'leave') stage.value = 'idle';
+        // 遮罩彻底离屏，放行页面动画
+        loading.routeOverlayVisible = false;
       }, LEAVE_MS);
     }
   },

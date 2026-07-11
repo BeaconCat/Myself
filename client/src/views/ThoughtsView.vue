@@ -10,23 +10,90 @@ const { t } = useI18n();
 const config = useConfigStore();
 const notes = ref<Note[]>([]);
 
-/* 帖文 / 媒体 双视图 + 搜索 */
+/* 帖文 / 媒体 双视图 + 搜索 + 时间筛选 + 分段加载（20/页，滚动续载） */
 const tab = ref<'posts' | 'media'>('posts');
 const keyword = ref('');
 const loading = ref(false);
+const page = ref(1);
+const total = ref(0);
+const PAGE_SIZE = 20;
+
+/* 时间筛选 */
+const dateOpen = ref(false);
+const dateFrom = ref('');
+const dateTo = ref('');
+
+const hasDateFilter = computed(() => !!(dateFrom.value || dateTo.value));
+
+function applyQuickRange(days: number): void {
+  const end = new Date();
+  const start = new Date(Date.now() - (days - 1) * 864e5);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  dateFrom.value = fmt(start);
+  dateTo.value = fmt(end);
+  void reload();
+}
+
+function clearDate(): void {
+  dateFrom.value = '';
+  dateTo.value = '';
+  void reload();
+}
+
+function queryParams(nextPage: number) {
+  return {
+    page: nextPage,
+    pageSize: PAGE_SIZE,
+    q: keyword.value || undefined,
+    media: tab.value === 'media' || undefined,
+    from: dateFrom.value || undefined,
+    to: dateTo.value || undefined,
+  };
+}
 
 async function reload(): Promise<void> {
   loading.value = true;
   try {
-    notes.value = (await api.notes({
-      pageSize: 50,
-      q: keyword.value || undefined,
-      media: tab.value === 'media' || undefined,
-    })).items;
+    const res = await api.notes(queryParams(1));
+    notes.value = res.items;
+    total.value = res.total;
+    page.value = 1;
   } finally {
     loading.value = false;
   }
 }
+
+const loadingMore = ref(false);
+const hasMore = computed(() => notes.value.length < total.value);
+
+async function loadMore(): Promise<void> {
+  if (loadingMore.value || loading.value || !hasMore.value) return;
+  loadingMore.value = true;
+  try {
+    const res = await api.notes(queryParams(page.value + 1));
+    notes.value = [...notes.value, ...res.items];
+    total.value = res.total;
+    page.value += 1;
+  } finally {
+    loadingMore.value = false;
+  }
+}
+
+/* 触底哨兵 */
+const sentinel = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
+
+onMounted(() => {
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) void loadMore();
+    },
+    { rootMargin: '400px' },
+  );
+  if (sentinel.value) observer.observe(sentinel.value);
+});
+
+onBeforeUnmount(() => observer?.disconnect());
 
 function switchTab(next: 'posts' | 'media'): void {
   if (tab.value === next) return;
@@ -122,6 +189,42 @@ onBeforeUnmount(() => window.clearTimeout(debounce));
           @input="onSearch"
         />
       </div>
+
+      <!-- 时间选择器 -->
+      <div class="date-wrap">
+        <button
+          class="date-btn"
+          :class="{ on: hasDateFilter || dateOpen }"
+          :title="t('thoughts.dateFilter')"
+          @click="dateOpen = !dateOpen"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="16" rx="2" />
+            <path d="M8 3v4M16 3v4M3 10h18" />
+          </svg>
+        </button>
+
+        <transition name="pop">
+          <div v-if="dateOpen" class="date-pop">
+            <div class="dp-quick">
+              <button @click="applyQuickRange(1)">{{ t('thoughts.today') }}</button>
+              <button @click="applyQuickRange(7)">{{ t('thoughts.last7') }}</button>
+              <button @click="applyQuickRange(30)">{{ t('thoughts.last30') }}</button>
+              <button class="clear" @click="clearDate">{{ t('thoughts.clearDate') }}</button>
+            </div>
+            <div class="dp-range">
+              <label>
+                <span>{{ t('thoughts.dateFrom') }}</span>
+                <input v-model="dateFrom" type="date" @change="reload" />
+              </label>
+              <label>
+                <span>{{ t('thoughts.dateTo') }}</span>
+                <input v-model="dateTo" type="date" @change="reload" />
+              </label>
+            </div>
+          </div>
+        </transition>
+      </div>
     </div>
 
     <!-- 媒体墙（X 风） -->
@@ -170,6 +273,11 @@ onBeforeUnmount(() => window.clearTimeout(debounce));
         </div>
       </article>
     </div>
+
+    <!-- 触底续载 + 到底标注 -->
+    <div ref="sentinel" class="sentinel" aria-hidden="true" />
+    <p v-if="loadingMore" class="more-hint">{{ t('thoughts.loadingMore') }}</p>
+    <p v-else-if="!hasMore && notes.length" class="end-text">{{ config.cfg.site.listEndText }}</p>
 
     <ImageViewer
       v-if="viewerOpen"
@@ -308,6 +416,108 @@ onBeforeUnmount(() => window.clearTimeout(debounce));
 
   &.loading { opacity: 0.55; }
 }
+
+/* 时间选择器 */
+.date-wrap { position: relative; }
+
+.date-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  display: grid;
+  place-items: center;
+  transition: all var(--dur-fast) var(--ease-out);
+
+  svg { width: 17px; height: 17px; }
+
+  &:hover { border-color: var(--primary); color: var(--primary); transform: scale(1.06); }
+
+  &.on {
+    border-color: rgba(var(--primary-rgb), 0.5);
+    color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.08);
+  }
+}
+
+.date-pop {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 30;
+  width: 260px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow), 0 16px 40px -12px rgba(var(--primary-rgb), 0.25);
+}
+
+.pop-enter-active, .pop-leave-active { transition: opacity var(--dur-fast), transform var(--dur-fast) var(--ease-out); }
+.pop-enter-from, .pop-leave-to { opacity: 0; transform: translateY(-8px) scale(0.96); }
+
+.dp-quick {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+
+  button {
+    flex: 1;
+    padding: 6px 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: none;
+    color: var(--text-2);
+    font-size: 12px;
+    font-weight: 600;
+    transition: all var(--dur-fast);
+
+    &:hover { border-color: var(--primary); color: var(--primary); }
+    &.clear:hover { border-color: var(--accent-red); color: var(--accent-red); }
+  }
+}
+
+.dp-range {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    span { font-size: 12px; color: var(--text-2); width: 28px; flex-shrink: 0; }
+
+    input {
+      flex: 1;
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+
+      &:focus { border-color: var(--primary); }
+    }
+  }
+}
+
+/* 触底与到底 */
+.sentinel { height: 1px; }
+
+.more-hint, .end-text {
+  text-align: center;
+  padding: 22px 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.end-text { font-family: var(--font-serif); letter-spacing: 0.1em; }
 
 .tweet {
   display: flex;

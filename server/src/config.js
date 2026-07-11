@@ -8,6 +8,8 @@ export const DEFAULT_CONFIG = {
   site: {
     title: 'Myself',
     subtitle: '个人博客',
+    /** 列表滚动到底的标注语 */
+    listEndText: '—— 到底啦 ——',
   },
   loading: {
     bootText: 'Myself',

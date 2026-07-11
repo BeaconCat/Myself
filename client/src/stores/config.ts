@@ -16,7 +16,7 @@ export interface ThemePreset {
 }
 
 export interface SiteConfig {
-  site: { title: string; subtitle: string };
+  site: { title: string; subtitle: string; listEndText: string };
   loading: { bootText: string; routeText: string };
   theme: {
     defaultPaletteId: string;
@@ -55,7 +55,7 @@ export interface SiteConfig {
 }
 
 export const FALLBACK_CONFIG: SiteConfig = {
-  site: { title: 'Myself', subtitle: '个人博客' },
+  site: { title: 'Myself', subtitle: '个人博客', listEndText: '—— 到底啦 ——' },
   loading: { bootText: 'Myself', routeText: '加载中' },
   theme: {
     defaultPaletteId: 'summer',

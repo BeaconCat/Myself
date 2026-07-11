@@ -63,7 +63,7 @@ const dragging = ref(false);
 
 const ENTER_MS = 800;
 /** 出场启动后多久切入下一条（重叠期：出场透明度已归零但位移未播完） */
-const ITEM_SWAP_MS = 300;
+const ITEM_SWAP_MS = 380;
 const FLY_MS = 550;
 const FLY_EASE = 'cubic-bezier(0.2, 0.8, 0.3, 1)';
 
@@ -122,7 +122,7 @@ let enterTimer = 0;
 const loadingStore = useLoadingStore();
 
 function curtainDown(): boolean {
-  return loadingStore.bootOverlayVisible || loadingStore.routeLoading;
+  return loadingStore.bootOverlayVisible || loadingStore.routeOverlayVisible;
 }
 
 function settle(): void {
@@ -964,7 +964,7 @@ onBeforeUnmount(() => {
 
 /* 出场：30% 时间透明，瞬隐 */
 .hero.out .album-card:not(.fly) {
-  animation-duration: 0.5s;
+  animation-duration: 0.85s;
   animation-timing-function: var(--ease-out);
   animation-fill-mode: both;
   animation-delay: calc(var(--stagger) * 0.4);
@@ -974,11 +974,11 @@ onBeforeUnmount(() => {
 .hero.out .slot-2 { animation-name: leave-up; }
 
 @keyframes leave-down {
-  30% { opacity: 0; }
+  40% { opacity: 0; }
   to { opacity: 0; transform: translate3d(0, 65%, 0) rotateX(-42deg) scale(0.82); }
 }
 @keyframes leave-up {
-  30% { opacity: 0; }
+  40% { opacity: 0; }
   to { opacity: 0; transform: translate3d(0, -65%, -90px) rotateX(38deg) scale(0.7); }
 }
 

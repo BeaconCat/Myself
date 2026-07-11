@@ -95,12 +95,17 @@ export const api = {
   tags: () => get<Tag[]>('/tags'),
   archive: () => get<ArchiveGroup[]>('/archive'),
   hero: () => get<HeroFeed>('/hero'),
-  notes: (params: { page?: number; pageSize?: number; q?: string; media?: boolean } = {}) => {
+  notes: (params: {
+    page?: number; pageSize?: number; q?: string; media?: boolean;
+    from?: string; to?: string;
+  } = {}) => {
     const query = new URLSearchParams();
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
     if (params.q) query.set('q', params.q);
     if (params.media) query.set('media', '1');
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
     const qs = query.toString();
     return get<NoteList>(`/notes${qs ? `?${qs}` : ''}`);
   },

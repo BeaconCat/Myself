@@ -1,48 +1,103 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api, type Post, type Tag } from '../api';
 import PostZigzagList from '../components/post/PostZigzagList.vue';
+import { useConfigStore } from '../stores/config';
 
 const { t } = useI18n();
+const config = useConfigStore();
 
 const posts = ref<Post[]>([]);
 const tags = ref<Tag[]>([]);
 const activeTag = ref('');
 const keyword = ref('');
 const loading = ref(false);
+/** 旧列表整体淡出阶段 */
+const exiting = ref(false);
+/** key 重建触发逐条浮入 */
+const listSeq = ref(0);
 
+const page = ref(1);
+const total = ref(0);
+const PAGE_SIZE = 20;
+
+function queryParams(nextPage: number) {
+  return {
+    page: nextPage,
+    pageSize: PAGE_SIZE,
+    tag: activeTag.value || undefined,
+    q: keyword.value || undefined,
+  };
+}
+
+/**
+ * 切换筛选的丝滑序列：变暗加载 → 数据就绪 → 旧列表整体淡出 → 新列表逐条浮入
+ */
 async function load(): Promise<void> {
   loading.value = true;
   try {
-    const list = await api.posts({
-      tag: activeTag.value || undefined,
-      q: keyword.value || undefined,
-      pageSize: 20,
-    });
-    posts.value = list.items;
+    const res = await api.posts(queryParams(1));
+    exiting.value = true;
+    await new Promise((resolve) => window.setTimeout(resolve, 260));
+    posts.value = res.items;
+    total.value = res.total;
+    page.value = 1;
+    listSeq.value += 1;
+    await nextTick();
+    exiting.value = false;
   } finally {
     loading.value = false;
   }
 }
 
 function pickTag(tag: string): void {
+  if (activeTag.value === tag && !keyword.value) return;
   activeTag.value = tag;
   void load();
 }
 
-/* 搜索防抖 */
 let debounce = 0;
 function onSearch(): void {
   window.clearTimeout(debounce);
   debounce = window.setTimeout(() => void load(), 300);
 }
 
-onBeforeUnmount(() => window.clearTimeout(debounce));
+/* 分段加载：滚动触底追加，20/页 */
+const loadingMore = ref(false);
+const hasMore = computed(() => posts.value.length < total.value);
+
+async function loadMore(): Promise<void> {
+  if (loadingMore.value || loading.value || exiting.value || !hasMore.value) return;
+  loadingMore.value = true;
+  try {
+    const res = await api.posts(queryParams(page.value + 1));
+    posts.value = [...posts.value, ...res.items];
+    total.value = res.total;
+    page.value += 1;
+  } finally {
+    loadingMore.value = false;
+  }
+}
+
+const sentinel = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
 
 onMounted(async () => {
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) void loadMore();
+    },
+    { rootMargin: '400px' },
+  );
+  if (sentinel.value) observer.observe(sentinel.value);
   await load();
   tags.value = await api.tags();
+});
+
+onBeforeUnmount(() => {
+  observer?.disconnect();
+  window.clearTimeout(debounce);
 });
 </script>
 
@@ -79,11 +134,16 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- 统一文左图右的窄行列表 -->
-    <div class="list-wrap" :class="{ loading }">
-      <PostZigzagList :posts="posts" :alternate="false" compact />
+    <!-- 列表：加载变暗 → 整体淡出 → 新列表逐条浮入 -->
+    <div class="list-wrap" :class="{ loading, exiting }">
+      <PostZigzagList :key="listSeq" :posts="posts" :alternate="false" compact />
     </div>
 
+    <div ref="sentinel" class="sentinel" aria-hidden="true" />
+    <p v-if="loadingMore" class="more-hint">{{ t('thoughts.loadingMore') }}</p>
+    <p v-else-if="!loading && !hasMore && posts.length" class="end-text">
+      {{ config.cfg.site.listEndText }}
+    </p>
     <p v-if="!loading && !posts.length" class="empty">{{ t('articles.empty') }}</p>
   </main>
 </template>
@@ -151,9 +211,9 @@ onMounted(async () => {
   gap: 10px;
   overflow-x: auto;
   scrollbar-width: none;
-  /* 留出发光空间，避免 box-shadow 被滚动容器裁切 */
-  padding: 8px 6px;
-  margin: -8px -6px;
+  /* 发光完整余量：上下 14px、左右 12px */
+  padding: 14px 12px;
+  margin: -14px -12px;
 
   &::-webkit-scrollbar { display: none; }
 }
@@ -186,11 +246,24 @@ onMounted(async () => {
   }
 }
 
+/* 切换序列：变暗（加载中）→ 整体淡出（数据就绪）→ 新列表浮入 */
 .list-wrap {
-  transition: opacity var(--dur-fast);
+  transition: opacity 0.26s ease;
 
   &.loading { opacity: 0.55; }
+  &.exiting { opacity: 0; }
 }
+
+.sentinel { height: 1px; }
+
+.more-hint, .end-text {
+  text-align: center;
+  padding: 22px 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.end-text { font-family: var(--font-serif); letter-spacing: 0.1em; }
 
 .empty {
   color: var(--text-2);

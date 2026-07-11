@@ -170,6 +170,7 @@ onMounted(async () => {
         <label><span>{{ t('admin.siteTitle') }}</span><input v-model="cfg.site.title" type="text" /></label>
         <label><span>{{ t('admin.siteSubtitle') }}</span><input v-model="cfg.site.subtitle" type="text" /></label>
       </div>
+      <label><span>{{ t('admin.listEndText') }}</span><input v-model="cfg.site.listEndText" type="text" /></label>
     </section>
 
     <!-- Loading 文案 -->
