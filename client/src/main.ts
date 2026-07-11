@@ -7,6 +7,11 @@ import { vReveal } from './directives/reveal';
 import { useThemeStore } from './stores/theme';
 import { useLoadingStore } from './stores/loading';
 import { useConfigStore } from './stores/config';
+/* 思源字体离线打包（Noto SC 与思源同源；woff2 按 unicode-range 切片按需加载） */
+import '@fontsource/noto-sans-sc/400.css';
+import '@fontsource/noto-sans-sc/500.css';
+import '@fontsource/noto-sans-sc/700.css';
+import '@fontsource/noto-serif-sc/700.css';
 import './styles/base.scss';
 import './styles/motion.scss';
 import './styles/admin.scss';
