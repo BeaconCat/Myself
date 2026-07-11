@@ -23,6 +23,7 @@ const draft = ref<PostDraft>({
   covers: [],
   tags: [],
   status: 'draft',
+  pinned: false,
 });
 
 const tagsText = ref('');
@@ -74,6 +75,7 @@ onMounted(async () => {
     covers: post.covers,
     tags: post.tags,
     status: post.status,
+    pinned: post.pinned,
   };
   tagsText.value = post.tags.join(', ');
 });
@@ -85,6 +87,10 @@ onMounted(async () => {
       <h1>{{ id === null ? t('admin.newPost') : t('admin.editPost') }}</h1>
       <div class="actions">
         <span v-if="message" class="msg">{{ message }}</span>
+        <label class="pin-toggle">
+          <input v-model="draft.pinned" type="checkbox" />
+          <span>{{ t('admin.pinned') }}</span>
+        </label>
         <button class="btn ghost" :disabled="busy" @click="save('draft')">{{ t('admin.saveDraft') }}</button>
         <button class="btn primary" :disabled="busy" @click="save('published')">{{ t('admin.publish') }}</button>
       </div>
@@ -166,6 +172,18 @@ onMounted(async () => {
 .msg {
   font-size: 13px;
   color: var(--primary);
+}
+
+.pin-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+
+  input { accent-color: var(--primary); width: 15px; height: 15px; }
 }
 
 .btn {

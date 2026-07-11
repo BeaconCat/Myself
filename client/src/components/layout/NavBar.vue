@@ -2,8 +2,10 @@
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ThemeSwitcher from './ThemeSwitcher.vue';
+import { useAuthStore } from '../../stores/auth';
 
 const { t } = useI18n();
+const auth = useAuthStore();
 const drawerOpen = ref(false);
 
 const links = [
@@ -30,6 +32,14 @@ const links = [
       </router-link>
     </nav>
     <ThemeSwitcher class="nav-theme" />
+
+    <!-- 管理员快捷入口（登录态常驻 30 天） -->
+    <router-link v-if="auth.loggedIn" to="/admin" class="admin-dot" :title="t('admin.loginTitle')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" />
+      </svg>
+    </router-link>
   </header>
 
   <!-- 移动端：悬浮顶栏 + 汉堡侧栏 -->
@@ -196,6 +206,30 @@ const links = [
   &.active {
     background: rgba(var(--primary-rgb), 0.12);
     color: var(--primary);
+  }
+}
+
+.admin-dot {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(1.5);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  border: 1px solid rgba(var(--primary-rgb), 0.18);
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: all var(--dur-fast) var(--ease-out);
+
+  svg { width: 18px; height: 18px; }
+
+  &:hover {
+    color: var(--primary);
+    border-color: rgba(var(--primary-rgb), 0.5);
+    transform: scale(1.08);
+    box-shadow: var(--shadow), 0 0 14px rgba(var(--primary-rgb), 0.35);
   }
 }
 

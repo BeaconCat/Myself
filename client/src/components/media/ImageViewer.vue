@@ -280,6 +280,7 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 9500;
+  user-select: none;
   background: rgba(8, 8, 12, 0.82);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);

@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { db } from './db.js';
 
-const TOKEN_TTL = '7d';
+const TOKEN_TTL = '30d';
 
 /** 设置表：管理员凭据与 JWT 密钥（首次启动自动初始化） */
 db.exec(`

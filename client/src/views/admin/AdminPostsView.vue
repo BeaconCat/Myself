@@ -46,6 +46,7 @@ onMounted(load);
           <span class="status" :class="post.status">
             {{ post.status === 'draft' ? t('admin.draft') : t('admin.published') }}
           </span>
+          <span v-if="post.pinned" class="pin-badge">{{ t('admin.pinned') }}</span>
         </router-link>
 
         <div class="body">
@@ -118,6 +119,20 @@ onMounted(load);
       color: transparent;
     }
   }
+}
+
+.pin-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  background: rgba(255, 179, 0, 0.28);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .status {

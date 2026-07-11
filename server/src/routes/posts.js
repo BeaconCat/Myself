@@ -53,6 +53,23 @@ postsRouter.get('/posts/:slug', (req, res) => {
   res.json(toPost(row, { withContent: true }));
 });
 
+/** GET /api/v1/hero 首页轮播条目：按配置规则取（最新 n 条，置顶优先/无视） */
+postsRouter.get('/hero', async (_req, res) => {
+  const { getConfig } = await import('../config.js');
+  const hero = getConfig().hero;
+  const count = Math.min(10, Math.max(1, Number(hero.count) || 4));
+  const order = hero.pinnedRule === 'pinned-first'
+    ? 'pinned DESC, created_at DESC'
+    : 'created_at DESC';
+  const rows = db
+    .prepare(`SELECT * FROM posts WHERE status = 'published' ORDER BY ${order} LIMIT ?`)
+    .all(count);
+  res.json({
+    intervalMs: Math.max(1000, Number(hero.intervalMs) || 3000),
+    items: rows.map((r) => toPost(r)),
+  });
+});
+
 /** GET /api/v1/tags 标签及计数 */
 postsRouter.get('/tags', (_req, res) => {
   const rows = db

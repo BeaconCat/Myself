@@ -4,8 +4,10 @@ import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api, type Note } from '../api';
 import ImageViewer from '../components/media/ImageViewer.vue';
+import { useConfigStore } from '../stores/config';
 
 const { t } = useI18n();
+const config = useConfigStore();
 const notes = ref<Note[]>([]);
 
 /* Lightbox 状态 */
@@ -54,7 +56,7 @@ onMounted(async () => {
 <template>
   <main class="page">
     <h1 v-reveal class="page-title">{{ t('nav.thoughts') }}</h1>
-    <p v-reveal class="page-sub">{{ t('thoughts.subtitle') }}</p>
+    <p v-reveal class="page-sub">{{ config.cfg.thoughts.subtitle }}</p>
 
     <!-- X 风信息流 -->
     <div class="feed">

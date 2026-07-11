@@ -37,6 +37,9 @@ db.exec(`
 try {
   db.exec(`ALTER TABLE notes ADD COLUMN images TEXT NOT NULL DEFAULT '[]'`);
 } catch { /* 列已存在 */ }
+try {
+  db.exec(`ALTER TABLE posts ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`);
+} catch { /* 列已存在 */ }
 
 /** 空表分别注入演示数据 */
 export function seedIfEmpty() {
@@ -84,6 +87,7 @@ export function toPost(row, { withContent = false } = {}) {
     excerpt: row.excerpt,
     covers: JSON.parse(row.covers),
     tags: JSON.parse(row.tags),
+    pinned: !!row.pinned,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

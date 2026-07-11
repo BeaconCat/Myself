@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 export interface HeroItem {
   title: string;
@@ -8,6 +9,8 @@ export interface HeroItem {
   /** 头图 1–3 张：立体相册逐张轮转，放完切下一条 */
   covers: string[];
   tag: string;
+  /** 阅读全文跳转目标 */
+  slug?: string;
 }
 
 interface Rect {
@@ -37,6 +40,7 @@ const props = withDefaults(
 );
 
 const { t } = useI18n();
+const router = useRouter();
 
 const itemIndex = ref(0);
 const photoIndex = ref(0);
@@ -477,6 +481,12 @@ function resolveCardAt(x: number, y: number): number | null {
 }
 
 function onZoneDown(e: PointerEvent): void {
+  // 切换按钮有自己的 click：zone 手势必须无视，否则一次点击双触发
+  // （tap 解析命中外扩的后排卡 + 按钮 click 各走一步，3 张时 +2 ≡ -1 表现为倒退）
+  if ((e.target as HTMLElement).closest('.step')) {
+    tap = null;
+    return;
+  }
   tap = { x: e.clientX, y: e.clientY, t: performance.now() };
 }
 
@@ -525,7 +535,11 @@ onBeforeUnmount(() => {
         >{{ c.ch }}</span>
       </h1>
       <p :key="`ex-${itemIndex}`" class="hero-excerpt">{{ item?.excerpt }}</p>
-      <button :key="`btn-${itemIndex}`" class="hero-btn">{{ t('hero.readMore') }}</button>
+      <button
+        :key="`btn-${itemIndex}`"
+        class="hero-btn"
+        @click="item?.slug && router.push(`/articles/${item.slug}`)"
+      >{{ t('hero.readMore') }}</button>
     </div>
 
     <!-- 右：3D 立体相册（按钮在旋转容器外，不受透视挤压） -->

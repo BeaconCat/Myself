@@ -66,8 +66,8 @@ adminRouter.post('/admin/posts', (req, res) => {
   }
   try {
     const info = db.prepare(`
-      INSERT INTO posts (slug, title, excerpt, content_md, covers, tags, status)
-      VALUES (@slug, @title, @excerpt, @contentMd, @covers, @tags, @status)
+      INSERT INTO posts (slug, title, excerpt, content_md, covers, tags, status, pinned)
+      VALUES (@slug, @title, @excerpt, @contentMd, @covers, @tags, @status, @pinned)
     `).run({
       slug: b.slug,
       title: b.title.trim(),
@@ -76,6 +76,7 @@ adminRouter.post('/admin/posts', (req, res) => {
       covers: JSON.stringify(Array.isArray(b.covers) ? b.covers : []),
       tags: JSON.stringify(Array.isArray(b.tags) ? b.tags : []),
       status: b.status === 'draft' ? 'draft' : 'published',
+      pinned: b.pinned ? 1 : 0,
     });
     res.status(201).json({ id: info.lastInsertRowid });
   } catch (err) {
@@ -97,7 +98,8 @@ adminRouter.put('/admin/posts/:id', (req, res) => {
   const info = db.prepare(`
     UPDATE posts SET
       slug = @slug, title = @title, excerpt = @excerpt, content_md = @contentMd,
-      covers = @covers, tags = @tags, status = @status, updated_at = datetime('now')
+      covers = @covers, tags = @tags, status = @status, pinned = @pinned,
+      updated_at = datetime('now')
     WHERE id = @id
   `).run({
     id: req.params.id,
@@ -108,6 +110,7 @@ adminRouter.put('/admin/posts/:id', (req, res) => {
     covers: JSON.stringify(Array.isArray(b.covers) ? b.covers : []),
     tags: JSON.stringify(Array.isArray(b.tags) ? b.tags : []),
     status: b.status === 'draft' ? 'draft' : 'published',
+    pinned: b.pinned ? 1 : 0,
   });
   if (!info.changes) {
     res.status(404).json({ error: 'not_found' });

@@ -7,9 +7,15 @@ export interface Post {
   excerpt: string;
   covers: string[];
   tags: string[];
+  pinned: boolean;
   createdAt: string;
   updatedAt: string;
   contentMd?: string;
+}
+
+export interface HeroFeed {
+  intervalMs: number;
+  items: Post[];
 }
 
 export interface PostList {
@@ -88,6 +94,7 @@ export const api = {
   post: (slug: string) => get<Post>(`/posts/${encodeURIComponent(slug)}`),
   tags: () => get<Tag[]>('/tags'),
   archive: () => get<ArchiveGroup[]>('/archive'),
+  hero: () => get<HeroFeed>('/hero'),
   notes: (params: { page?: number; pageSize?: number } = {}) => {
     const query = new URLSearchParams();
     if (params.page) query.set('page', String(params.page));
@@ -105,6 +112,7 @@ export interface PostDraft {
   covers: string[];
   tags: string[];
   status: 'published' | 'draft';
+  pinned: boolean;
 }
 
 export const adminApi = {

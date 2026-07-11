@@ -18,6 +18,12 @@ export interface SiteConfig {
     displayCount: number;
     presets: ThemePreset[];
   };
+  hero: {
+    intervalMs: number;
+    count: number;
+    pinnedRule: 'pinned-first' | 'ignore';
+  };
+  thoughts: { subtitle: string };
   timezone: string;
   github: {
     username: string;
@@ -45,6 +51,8 @@ export const FALLBACK_CONFIG: SiteConfig = {
       { id: 'winter', name: '冬 · 霜蓝', primary: '#0078ff', primaryDeep: '#005fd6' },
     ],
   },
+  hero: { intervalMs: 3000, count: 4, pinnedRule: 'pinned-first' },
+  thoughts: { subtitle: '碎片化的想法、心情与瞬间，短到装不下一篇文章。' },
   timezone: 'Asia/Shanghai',
   github: {
     username: 'your-github',
