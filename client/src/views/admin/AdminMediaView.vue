@@ -38,10 +38,6 @@ async function remove(item: MediaItem): Promise<void> {
   await load();
 }
 
-async function copyUrl(item: MediaItem): Promise<void> {
-  await navigator.clipboard.writeText(item.url);
-}
-
 function formatSize(bytes: number): string {
   if (bytes > 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   return `${Math.round(bytes / 1024)} KB`;
@@ -188,13 +184,13 @@ onMounted(load);
     <!-- 素材网格 -->
     <div class="grid">
       <div v-for="item in items" :key="item.name" class="cell">
-        <img :src="`${item.url}?v=${item.crop ? JSON.stringify(item.crop).length : 0}`" loading="lazy" alt="" />
+        <!-- size 随裁切变化，作缓存戳保证裁完即时生效 -->
+        <img :src="`${item.url}?v=${item.size}`" loading="lazy" alt="" />
         <div class="cell-bar">
           <span class="size">{{ formatSize(item.size) }}</span>
           <span v-if="item.crop" class="badge">{{ t('admin.cropped') }}</span>
         </div>
         <div class="cell-ops">
-          <button @click="copyUrl(item)">{{ t('admin.copyUrl') }}</button>
           <button @click="openCrop(item)">{{ item.crop ? t('admin.recrop') : t('admin.crop') }}</button>
           <button class="danger" @click="remove(item)">{{ t('admin.delete') }}</button>
         </div>
@@ -351,12 +347,13 @@ onMounted(load);
 }
 
 /* ===== 裁切弹窗 ===== */
+/* 遮罩只轻微衬底：真正的"变暗"只发生在裁切框外的图片区域（box-shadow 蒙版） */
 .crop-mask {
   position: fixed;
   inset: 0;
   z-index: 9000;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(10px);
+  background: rgba(8, 8, 12, 0.18);
+  backdrop-filter: blur(6px);
   display: grid;
   place-items: center;
   padding: 24px;
@@ -375,6 +372,9 @@ onMounted(load);
 .crop-stage {
   position: relative;
   user-select: none;
+  overflow: hidden; /* 裁掉 box-shadow 蒙版溢出弹窗的部分 */
+  width: fit-content;
+  margin: 0 auto;
 
   img {
     display: block;
@@ -386,7 +386,8 @@ onMounted(load);
 .crop-box {
   position: absolute;
   border: 2px solid var(--primary);
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  /* 未选区域变暗（只作用于图片范围，stage overflow 裁掉溢出） */
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
   cursor: move;
   touch-action: none;
 }

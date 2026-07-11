@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../../stores/auth';
@@ -7,6 +8,7 @@ import ThemeSwitcher from '../../components/layout/ThemeSwitcher.vue';
 const { t } = useI18n();
 const router = useRouter();
 const auth = useAuthStore();
+const drawerOpen = ref(false);
 
 const menu = [
   { to: '/admin/posts', key: 'admin.menuPosts' },
@@ -27,6 +29,45 @@ function logout(): void {
 
 <template>
   <div class="admin">
+    <!-- 移动端顶栏 -->
+    <header class="m-top">
+      <router-link to="/" class="brand">
+        <img src="/favicon-64.png" alt="" draggable="false" />
+        <span>Myself</span>
+      </router-link>
+      <button
+        class="hamburger"
+        :class="{ open: drawerOpen }"
+        aria-label="菜单"
+        @click="drawerOpen = !drawerOpen"
+      >
+        <span /><span /><span />
+      </button>
+    </header>
+
+    <!-- 移动端抽屉 -->
+    <transition name="drawer">
+      <aside v-if="drawerOpen" class="m-drawer">
+        <nav class="menu">
+          <router-link
+            v-for="m in menu"
+            :key="m.to"
+            :to="m.to"
+            class="menu-item"
+            active-class="on"
+            @click="drawerOpen = false"
+          >{{ t(m.key) }}</router-link>
+        </nav>
+        <div class="side-foot">
+          <ThemeSwitcher />
+          <button class="logout" @click="logout">{{ t('admin.logout') }}</button>
+        </div>
+      </aside>
+    </transition>
+    <transition name="fade">
+      <div v-if="drawerOpen" class="m-mask" @click="drawerOpen = false" />
+    </transition>
+
     <aside class="side">
       <router-link to="/" class="brand">
         <img src="/favicon-64.png" alt="" draggable="false" />
@@ -162,23 +203,87 @@ function logout(): void {
   min-width: 0;
 }
 
+/* 移动端顶栏 + 抽屉（默认隐藏） */
+.m-top {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border-bottom: 1px solid var(--border);
+
+  .brand { margin-bottom: 0; padding: 0; }
+}
+
+.hamburger {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+
+  span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--text);
+    transition: transform var(--dur) var(--ease-spring), opacity var(--dur-fast);
+  }
+
+  &.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  &.open span:nth-child(2) { opacity: 0; }
+  &.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+}
+
+.m-drawer {
+  display: none;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(78vw, 300px);
+  z-index: 99;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  padding: 74px 18px 20px;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.m-mask {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.drawer-enter-active, .drawer-leave-active { transition: transform var(--dur) var(--ease-out); }
+.drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }
+.fade-enter-active, .fade-leave-active { transition: opacity var(--dur-fast); }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
 @media (max-width: 860px) {
   .admin { grid-template-columns: 1fr; }
 
-  .side {
-    position: static;
-    height: auto;
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
+  .side { display: none; }
+  .m-top { display: flex; }
+  .m-drawer { display: flex; }
+  .m-mask { display: block; }
 
-    .brand { margin-bottom: 0; }
-    .menu { flex-direction: row; }
-    .side-foot { flex-direction: row; margin-left: auto; }
-  }
+  .m-drawer .menu { flex: 1; }
+  .m-drawer .side-foot { align-items: stretch; }
 
-  .content { padding: 20px 16px; }
+  .content { padding: 18px 14px 40px; }
 }
 </style>

@@ -136,7 +136,8 @@ mediaRouter.get('/admin/media/:name/original', (req, res) => {
     res.status(404).json({ error: 'not_found' });
     return;
   }
-  res.sendFile(target);
+  // .originals 为点目录，send 默认 dotfiles:ignore 会 404 → 显式放行
+  res.sendFile(target, { dotfiles: 'allow' });
 });
 
 /** DELETE /api/v1/admin/media/:name 删除（连同原图与裁切记录） */
