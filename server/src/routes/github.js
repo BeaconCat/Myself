@@ -45,6 +45,53 @@ async function gh(path, token) {
   return res.json();
 }
 
+/**
+ * 贡献热力图：
+ * 有票证 → GraphQL contributionCalendar（含精确次数）；
+ * 无票证 → 抓取公开贡献页 HTML 解析 data-date/data-level。
+ */
+async function fetchCalendar(username, token) {
+  if (token) {
+    const res = await undiciFetch('https://api.github.com/graphql', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'myself-blog',
+      },
+      dispatcher: dispatcher(),
+      body: JSON.stringify({
+        query: `query($login:String!){user(login:$login){contributionsCollection{contributionCalendar{weeks{contributionDays{date contributionCount contributionLevel}}}}}}`,
+        variables: { login: username },
+      }),
+    });
+    if (!res.ok) throw new Error(`github_graphql_${res.status}`);
+    const json = await res.json();
+    const weeks = json?.data?.user?.contributionsCollection?.contributionCalendar?.weeks ?? [];
+    const LEVELS = { NONE: 0, FIRST_QUARTILE: 1, SECOND_QUARTILE: 2, THIRD_QUARTILE: 3, FOURTH_QUARTILE: 4 };
+    return weeks.flatMap((w) => w.contributionDays.map((d) => ({
+      date: d.date,
+      count: d.contributionCount,
+      level: LEVELS[d.contributionLevel] ?? 0,
+    })));
+  }
+
+  const res = await undiciFetch(
+    `https://github.com/users/${encodeURIComponent(username)}/contributions`,
+    { headers: { 'User-Agent': 'myself-blog' }, dispatcher: dispatcher() },
+  );
+  if (!res.ok) throw new Error(`github_contrib_${res.status}`);
+  const html = await res.text();
+  const days = [];
+  const re = /data-date="(\d{4}-\d{2}-\d{2})"[^>]*data-level="(\d)"/g;
+  let match;
+  while ((match = re.exec(html)) !== null) {
+    days.push({ date: match[1], count: 0, level: Number(match[2]) });
+  }
+  days.sort((a, b) => (a.date < b.date ? -1 : 1));
+  return days;
+}
+
 async function fetchStatus(username, token) {
   const user = await gh(`/users/${encodeURIComponent(username)}`, token);
   const repos = await gh(
@@ -87,6 +134,12 @@ async function fetchStatus(username, token) {
     if (!commitsThisYear) commitsThisYear = eventCommits;
   } catch { /* 动态失败不致命 */ }
 
+  // 贡献热力图（失败不致命）
+  let heatmap = [];
+  try {
+    heatmap = await fetchCalendar(username, token);
+  } catch { /* 留空，前端隐藏 */ }
+
   return {
     username,
     stats: {
@@ -96,6 +149,7 @@ async function fetchStatus(username, token) {
       commits: commitsThisYear,
     },
     activities,
+    heatmap,
     fetchedAt: new Date().toISOString(),
   };
 }

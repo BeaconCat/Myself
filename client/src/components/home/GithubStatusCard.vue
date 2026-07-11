@@ -16,9 +16,16 @@ interface GhActivity {
   time: string;
 }
 
+interface HeatDay {
+  date: string;
+  count: number;
+  level: number;
+}
+
 const remote = ref<{
   stats: { repos: number; stars: number; followers: number; commits: number };
   activities: GhActivity[];
+  heatmap?: HeatDay[];
 } | null>(null);
 
 onMounted(async () => {
@@ -49,18 +56,23 @@ function timeOf(iso: string): string {
 }
 
 const WEEKS = 26;
-const DAYS = 7;
 
-/** 确定性伪随机热力数据（种子固定，设计稿稳定渲染） */
-const heatmap = computed(() => {
-  const cells: number[] = [];
-  let seed = 20260710;
-  for (let i = 0; i < WEEKS * DAYS; i++) {
-    seed = (seed * 1103515245 + 12345) % 2147483648;
-    const r = seed / 2147483648;
-    cells.push(r < 0.32 ? 0 : r < 0.55 ? 1 : r < 0.75 ? 2 : r < 0.9 ? 3 : 4);
-  }
-  return cells;
+/**
+ * 真实贡献热力：取最近 26 周，按 GitHub 周对齐（列 = 周，行 = 周日起）。
+ * 无数据（manual 模式 / 拉取失败）时隐藏热力图。
+ */
+const heatmap = computed<HeatDay[]>(() => {
+  const days = remote.value?.heatmap ?? [];
+  if (!days.length) return [];
+  const tail = days.slice(-WEEKS * 7);
+  // 首格对齐到所在周的周日：前面补空位
+  const firstWeekday = new Date(`${tail[0].date}T00:00:00Z`).getUTCDay();
+  const pad: HeatDay[] = Array.from({ length: firstWeekday }, (_, i) => ({
+    date: `pad-${i}`,
+    count: -1,
+    level: -1,
+  }));
+  return [...pad, ...tail];
 });
 </script>
 
@@ -89,20 +101,23 @@ const heatmap = computed(() => {
       </div>
     </div>
 
-    <!-- 贡献热力图 -->
-    <div class="heatmap" role="img" aria-label="贡献热力图">
-      <span
-        v-for="(level, i) in heatmap"
-        :key="i"
-        class="cell"
-        :class="`l${level}`"
-      />
-    </div>
-    <div class="legend">
-      <span>少</span>
-      <i class="cell l0" /><i class="cell l1" /><i class="cell l2" /><i class="cell l3" /><i class="cell l4" />
-      <span>多</span>
-    </div>
+    <!-- 贡献热力图（真实数据；无数据时隐藏） -->
+    <template v-if="heatmap.length">
+      <div class="heatmap" role="img" aria-label="贡献热力图">
+        <span
+          v-for="day in heatmap"
+          :key="day.date"
+          class="cell"
+          :class="day.level < 0 ? 'pad' : `l${day.level}`"
+          :title="day.level < 0 ? undefined : `${day.date}${day.count > 0 ? ` · ${day.count} 次贡献` : ''}`"
+        />
+      </div>
+      <div class="legend">
+        <span>少</span>
+        <i class="cell l0" /><i class="cell l1" /><i class="cell l2" /><i class="cell l3" /><i class="cell l4" />
+        <span>多</span>
+      </div>
+    </template>
 
     <!-- 最新动态（api 模式实时） -->
     <ul v-if="activities.length" class="activity">
@@ -194,6 +209,7 @@ const heatmap = computed(() => {
   border-radius: 2px;
   min-width: 0;
 
+  &.pad { background: transparent; }
   &.l0 { background: var(--surface-2); }
   &.l1 { background: rgba(var(--primary-rgb), 0.25); }
   &.l2 { background: rgba(var(--primary-rgb), 0.5); }
