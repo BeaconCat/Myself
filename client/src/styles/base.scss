@@ -12,6 +12,10 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* 原生控件（滚动条/输入清除钮/日期选择器）随模式走，避免深色下冒出亮色系统 UI */
+:root[data-mode='light'] { color-scheme: light; }
+:root[data-mode='dark'] { color-scheme: dark; }
+
 body {
   font-family: var(--font-sans);
   background: var(--bg);
