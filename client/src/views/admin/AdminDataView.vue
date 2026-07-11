@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, type BackupInfo } from '../../api';
+import { useDialogStore } from '../../stores/dialog';
 
 const { t } = useI18n();
 
@@ -38,7 +39,12 @@ async function download(backup: BackupInfo): Promise<void> {
 }
 
 async function remove(backup: BackupInfo): Promise<void> {
-  if (!window.confirm(t('admin.confirmDeleteBackup', { name: backup.name }))) return;
+  const ok = await useDialogStore().confirm({
+    title: t('admin.delete'),
+    message: t('admin.confirmDeleteBackup', { name: backup.name }),
+    danger: true,
+  });
+  if (!ok) return;
   await adminApi.deleteBackup(backup.name);
   await load();
 }

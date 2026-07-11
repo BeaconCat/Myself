@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi, type PostDraft } from '../../api';
 import RichEditor from '../../components/admin/RichEditor.vue';
+import CoverUploader from '../../components/admin/CoverUploader.vue';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -25,7 +26,6 @@ const draft = ref<PostDraft>({
 });
 
 const tagsText = ref('');
-const coversText = ref('');
 const message = ref('');
 const busy = ref(false);
 
@@ -36,7 +36,6 @@ function collect(): PostDraft {
   return {
     ...draft.value,
     tags: tagsText.value.split(/[,，\s]+/).filter(Boolean),
-    covers: coversText.value.split(/\n+/).map((s) => s.trim()).filter(Boolean),
   };
 }
 
@@ -77,7 +76,6 @@ onMounted(async () => {
     status: post.status,
   };
   tagsText.value = post.tags.join(', ');
-  coversText.value = post.covers.join('\n');
 });
 </script>
 
@@ -110,10 +108,10 @@ onMounted(async () => {
         <span>{{ t('admin.fieldExcerpt') }}</span>
         <input v-model="draft.excerpt" type="text" />
       </label>
-      <label class="full">
-        <span>{{ t('admin.fieldCovers') }}</span>
-        <textarea v-model="coversText" rows="2" :placeholder="t('admin.coversPlaceholder')" />
-      </label>
+      <div class="full field">
+        <span class="field-label">{{ t('admin.fieldCovers') }}</span>
+        <CoverUploader v-model="draft.covers" :max="3" />
+      </div>
     </div>
 
     <!-- 正文：所见即所得（底层仍以 Markdown 存储） -->
@@ -205,6 +203,18 @@ onMounted(async () => {
   margin-bottom: 18px;
 
   .full { grid-column: 1 / -1; }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
 }
 
 label {

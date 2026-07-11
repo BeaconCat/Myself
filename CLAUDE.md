@@ -9,6 +9,8 @@
 ## 前端规范
 - 依赖全部离线 npm 包（pnpm 安装），严禁 CDN / 联网拉取资源
 - 严禁 emoji；图标用离线安装的 iconfont
+- 严禁原生 alert/confirm/prompt：一律使用全局模态组件
+  （`stores/dialog.ts` + `components/ui/AppModal.vue`，带灵动进出场动画）
 - 字体：思源黑体（UI/正文）+ 思源宋体（标题/文章），离线 woff2 打包
 - i18n：vue-i18n，默认 zh-CN，字典结构预留其他语言
 - 响应式：PC 顶部毛玻璃胶囊导航；移动端悬浮顶栏 + 汉堡侧栏

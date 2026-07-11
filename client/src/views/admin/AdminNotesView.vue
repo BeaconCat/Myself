@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import MarkdownIt from 'markdown-it';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, api, type Note } from '../../api';
+import { useDialogStore } from '../../stores/dialog';
 
 const { t } = useI18n();
 
+const md = new MarkdownIt({ linkify: true });
 const notes = ref<Note[]>([]);
 const editingId = ref<number | null>(null);
 const contentMd = ref('');
@@ -50,7 +53,12 @@ async function submit(): Promise<void> {
 }
 
 async function remove(note: Note): Promise<void> {
-  if (!window.confirm(t('admin.confirmDeleteNote'))) return;
+  const ok = await useDialogStore().confirm({
+    title: t('admin.delete'),
+    message: t('admin.confirmDeleteNote'),
+    danger: true,
+  });
+  if (!ok) return;
   await adminApi.deleteNote(note.id);
   if (editingId.value === note.id) resetComposer();
   await load();
@@ -102,7 +110,8 @@ onMounted(load);
         class="note-card a-card"
         :class="{ on: editingId === note.id }"
       >
-        <p class="note-text">{{ note.contentMd }}</p>
+        <!-- Markdown 渲染预览 -->
+        <div class="note-text" v-html="md.render(note.contentMd)" />
         <div v-if="note.images.length" class="thumbs">
           <img v-for="src in note.images.slice(0, 4)" :key="src" :src="src" loading="lazy" alt="" />
           <span v-if="note.images.length > 4" class="more">+{{ note.images.length - 4 }}</span>
@@ -168,12 +177,24 @@ onMounted(load);
 .note-text {
   font-size: 14px;
   line-height: 1.8;
-  white-space: pre-wrap;
   word-break: break-word;
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+
+  :deep(p) { margin: 2px 0; }
+  :deep(strong) { color: var(--primary); }
+
+  :deep(code) {
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 0.88em;
+    background: var(--surface-2);
+    padding: 1px 6px;
+    border-radius: 6px;
+  }
+
+  :deep(a) { color: var(--primary); }
 }
 
 .thumbs {

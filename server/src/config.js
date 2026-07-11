@@ -32,6 +32,12 @@ export const DEFAULT_CONFIG = {
   timezone: 'Asia/Shanghai',
   github: {
     username: 'your-github',
+    /** manual = 手填统计；api = 服务端经 GitHub API 拉取 */
+    mode: 'manual',
+    /** 可选只读 PAT：提升配额；留空走匿名公开接口 */
+    token: '',
+    /** api 模式缓存刷新间隔（分钟） */
+    refreshMinutes: 30,
     stats: { repos: 0, stars: 0, followers: 0, commits: 0 },
   },
   about: {

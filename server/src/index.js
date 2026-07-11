@@ -9,6 +9,7 @@ import { externalRouter } from './routes/external.js';
 import { mediaRouter, UPLOAD_DIR } from './routes/media.js';
 import { dataRouter, startAutoBackup } from './routes/datacenter.js';
 import { qualityRouter } from './routes/quality.js';
+import { githubRouter } from './routes/github.js';
 
 seedIfEmpty();
 initAuth();
@@ -21,6 +22,7 @@ app.use('/api/v1', postsRouter);
 app.use('/api/v1', mediaRouter);
 app.use('/api/v1', dataRouter);
 app.use('/api/v1', qualityRouter);
+app.use('/api/v1', githubRouter);
 startAutoBackup();
 app.use('/api/v1', settingsRouter);
 app.use('/api/v1', apiKeysRouter);

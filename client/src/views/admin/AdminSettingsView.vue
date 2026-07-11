@@ -211,11 +211,25 @@ onMounted(load);
       <h2>{{ t('admin.secGithub') }}</h2>
       <div class="row3">
         <label><span>{{ t('admin.ghUser') }}</span><input v-model="cfg.github.username" type="text" /></label>
+        <label>
+          <span>{{ t('admin.ghMode') }}</span>
+          <select v-model="cfg.github.mode">
+            <option value="manual">{{ t('admin.ghManual') }}</option>
+            <option value="api">{{ t('admin.ghApi') }}</option>
+          </select>
+        </label>
+        <label><span>{{ t('admin.ghRefresh') }}</span><input v-model.number="cfg.github.refreshMinutes" type="number" min="1" /></label>
+      </div>
+      <label v-if="cfg.github.mode === 'api'">
+        <span>{{ t('admin.ghToken') }}</span>
+        <input v-model="cfg.github.token" type="password" autocomplete="off" placeholder="ghp_…（可留空走匿名公开接口）" />
+      </label>
+      <div v-if="cfg.github.mode === 'manual'" class="row3" style="margin-top: 14px">
         <label><span>{{ t('admin.ghRepos') }}</span><input v-model.number="cfg.github.stats.repos" type="number" /></label>
         <label><span>Stars</span><input v-model.number="cfg.github.stats.stars" type="number" /></label>
-      </div>
-      <div class="row3">
         <label><span>{{ t('admin.ghFollowers') }}</span><input v-model.number="cfg.github.stats.followers" type="number" /></label>
+      </div>
+      <div v-if="cfg.github.mode === 'manual'" class="row3">
         <label><span>{{ t('admin.ghCommits') }}</span><input v-model.number="cfg.github.stats.commits" type="number" /></label>
       </div>
     </section>

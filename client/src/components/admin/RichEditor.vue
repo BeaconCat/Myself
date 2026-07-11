@@ -9,6 +9,9 @@ import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
 import { adminApi } from '../../api';
+import { useDialogStore } from '../../stores/dialog';
+
+const dialog = useDialogStore();
 
 /**
  * 所见即所得编辑器：对外始终以 Markdown 交换（统一内容规范），
@@ -61,9 +64,9 @@ onBeforeUnmount(() => editor.destroy());
 const fileInput = ref<HTMLInputElement | null>(null);
 const collageInput = ref<HTMLInputElement | null>(null);
 
-function setLink(): void {
+async function setLink(): Promise<void> {
   const prev = editor.getAttributes('link').href as string | undefined;
-  const url = window.prompt('链接地址', prev ?? 'https://');
+  const url = await dialog.prompt({ title: '链接地址', inputValue: prev ?? 'https://' });
   if (url === null) return;
   if (!url) {
     editor.chain().focus().unsetLink().run();
@@ -72,8 +75,12 @@ function setLink(): void {
   editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
 }
 
-function insertImageUrl(): void {
-  const url = window.prompt('图片地址（可先在素材库上传后复制链接）');
+async function insertImageUrl(): Promise<void> {
+  const url = await dialog.prompt({
+    title: '插入图片',
+    message: '可先在素材库上传后复制链接。',
+    placeholder: '/uploads/…',
+  });
   if (url) editor.chain().focus().setImage({ src: url }).run();
 }
 

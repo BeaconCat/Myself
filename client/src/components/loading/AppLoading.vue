@@ -16,7 +16,11 @@ watch(
     if (!done) return;
     window.setTimeout(() => {
       fadeOut.value = true;
-      window.setTimeout(() => { removed.value = true; }, 1400);
+      window.setTimeout(() => {
+        removed.value = true;
+        // 遮罩完全消失后才放行页面动画
+        loading.bootOverlayVisible = false;
+      }, 1400);
     }, 250);
   },
   // 若加载在组件挂载前已完成（缓存命中极快），立即触发退场

@@ -23,6 +23,15 @@
   }
 }
 
+/* 后台页面主标题统一渐变 */
+.page-h {
+  background: var(--grad-title);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  width: fit-content;
+}
+
 .a-card {
   padding: 20px 22px;
   background: var(--surface);

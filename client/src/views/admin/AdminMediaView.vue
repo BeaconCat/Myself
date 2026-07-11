@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, type MediaItem } from '../../api';
+import { useDialogStore } from '../../stores/dialog';
 
 const { t } = useI18n();
 
@@ -27,7 +28,12 @@ async function onFiles(e: Event): Promise<void> {
 }
 
 async function remove(item: MediaItem): Promise<void> {
-  if (!window.confirm(t('admin.confirmDeleteMedia', { name: item.name }))) return;
+  const ok = await useDialogStore().confirm({
+    title: t('admin.delete'),
+    message: t('admin.confirmDeleteMedia', { name: item.name }),
+    danger: true,
+  });
+  if (!ok) return;
   await adminApi.deleteMedia(item.name);
   await load();
 }

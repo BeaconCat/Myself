@@ -1,12 +1,35 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useConfigStore } from '../../stores/config';
+import { formatDateTime } from '../../utils/date';
 
-/** GitHub Status 展示卡：账号与统计走站点配置；动态列表暂为演示数据 */
+/**
+ * GitHub Status 展示卡：经后端 /github-status 获取
+ * （manual 模式回配置数字；api 模式服务端拉 GitHub API 并缓存）。
+ */
 const config = useConfigStore();
 
+interface GhActivity {
+  type: string;
+  repo: string;
+  text: string;
+  time: string;
+}
+
+const remote = ref<{
+  stats: { repos: number; stars: number; followers: number; commits: number };
+  activities: GhActivity[];
+} | null>(null);
+
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/v1/github-status');
+    if (res.ok) remote.value = await res.json();
+  } catch { /* 回退配置数字 */ }
+});
+
 const stats = computed(() => {
-  const s = config.cfg.github.stats;
+  const s = remote.value?.stats ?? config.cfg.github.stats;
   return [
     { label: '仓库', value: s.repos },
     { label: 'Stars', value: s.stars },
@@ -15,13 +38,15 @@ const stats = computed(() => {
   ];
 });
 
-const mock = {
-  activities: [
-    { type: 'commit', repo: 'Myself', text: 'feat: hero 3D album carousel with progress bar', time: '2 小时前' },
-    { type: 'commit', repo: 'Myself', text: 'fix: circular theme transition flash', time: '5 小时前' },
-    { type: 'star', repo: 'vuejs/core', text: 'Starred 仓库', time: '1 天前' },
-  ],
-};
+const activities = computed<GhActivity[]>(() => remote.value?.activities ?? []);
+
+function timeOf(iso: string): string {
+  try {
+    return formatDateTime(iso.replace('T', ' ').replace('Z', '').slice(0, 19));
+  } catch {
+    return iso.slice(0, 10);
+  }
+}
 
 const WEEKS = 26;
 const DAYS = 7;
@@ -79,13 +104,13 @@ const heatmap = computed(() => {
       <span>多</span>
     </div>
 
-    <!-- 最新动态 -->
-    <ul class="activity">
-      <li v-for="(a, i) in mock.activities" :key="i">
+    <!-- 最新动态（api 模式实时） -->
+    <ul v-if="activities.length" class="activity">
+      <li v-for="(a, i) in activities" :key="i">
         <span class="a-dot" :class="a.type" />
         <span class="a-repo">{{ a.repo }}</span>
         <span class="a-text">{{ a.text }}</span>
-        <span class="a-time">{{ a.time }}</span>
+        <span class="a-time">{{ timeOf(a.time) }}</span>
       </li>
     </ul>
   </section>

@@ -134,14 +134,11 @@ function onWheel(e: WheelEvent): void {
   scale.value = next;
 }
 
-/* ===== 指针：长按拖动 + 双指捏合 ===== */
+/* ===== 指针：即时拖动 + 双指捏合 ===== */
 const pointers = new Map<number, { x: number; y: number }>();
-let holdTimer = 0;
 let panReady = false;
 let last = { x: 0, y: 0 };
 let pinchDist = 0;
-
-const HOLD_MS = 180;
 
 function onPointerDown(e: PointerEvent): void {
   (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -149,13 +146,10 @@ function onPointerDown(e: PointerEvent): void {
 
   if (pointers.size === 1) {
     last = { x: e.clientX, y: e.clientY };
-    panReady = false;
-    holdTimer = window.setTimeout(() => {
-      panReady = true;
-      dragging.value = true;
-    }, HOLD_MS);
+    // 即时拖动：按下即可平移
+    panReady = true;
+    dragging.value = true;
   } else if (pointers.size === 2) {
-    window.clearTimeout(holdTimer);
     panReady = false;
     dragging.value = false;
     const [a, b] = [...pointers.values()];
@@ -193,7 +187,6 @@ function onPointerMove(e: PointerEvent): void {
 
 function onPointerUp(e: PointerEvent): void {
   pointers.delete(e.pointerId);
-  window.clearTimeout(holdTimer);
   if (pointers.size < 2) pinchDist = 0;
   if (pointers.size === 0) {
     panReady = false;

@@ -368,11 +368,9 @@ function onWheel(e: WheelEvent): void {
 }
 
 const pointers = new Map<number, { x: number; y: number }>();
-let holdTimer = 0;
 let panReady = false;
 let lastPt = { x: 0, y: 0 };
 let pinchDist = 0;
-const HOLD_MS = 180;
 
 function onPointerDown(e: PointerEvent): void {
   if (expandedIndex.value === null || flights[expandedIndex.value]?.mode !== 'center') return;
@@ -380,13 +378,10 @@ function onPointerDown(e: PointerEvent): void {
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (pointers.size === 1) {
     lastPt = { x: e.clientX, y: e.clientY };
-    panReady = false;
-    holdTimer = window.setTimeout(() => {
-      panReady = true;
-      dragging.value = true;
-    }, HOLD_MS);
+    // 即时拖动：按下即可平移（指南文案仍写长按，直接拖同样响应）
+    panReady = true;
+    dragging.value = true;
   } else if (pointers.size === 2) {
-    window.clearTimeout(holdTimer);
     panReady = false;
     dragging.value = false;
     const [a, b] = [...pointers.values()];
@@ -421,7 +416,6 @@ function onPointerMove(e: PointerEvent): void {
 
 function onPointerUp(e: PointerEvent): void {
   pointers.delete(e.pointerId);
-  window.clearTimeout(holdTimer);
   if (pointers.size < 2) pinchDist = 0;
   if (pointers.size === 0) {
     panReady = false;
@@ -646,6 +640,14 @@ onBeforeUnmount(() => {
   perspective: 1300px;
   /* 展示区禁选中：双击（退出 lightbox 等）不再拉出文字选区 */
   user-select: none;
+  /* 淡主题色底：轮播区与正文轻分区 */
+  padding: 36px 40px;
+  border-radius: 24px;
+  background:
+    radial-gradient(560px 300px at 82% 24%, rgba(var(--primary-rgb), 0.08), transparent 65%),
+    radial-gradient(480px 260px at 12% 80%, rgba(var(--primary-rgb), 0.05), transparent 65%),
+    linear-gradient(180deg, rgba(var(--primary-rgb), 0.045), rgba(var(--primary-rgb), 0.015));
+  border: 1px solid rgba(var(--primary-rgb), 0.08);
 }
 
 /* ===== 左侧文字 ===== */
@@ -993,7 +995,7 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
     gap: 28px;
     min-height: auto;
-    padding-top: 8px;
+    padding: 20px 16px;
   }
 
   .hero-text { align-items: center; text-align: center; }

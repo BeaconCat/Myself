@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, type ApiKeyInfo } from '../../api';
 import { readToken } from '../../stores/auth';
+import { useDialogStore } from '../../stores/dialog';
 import { API_CATALOG, buildAgentPrompt, type Endpoint } from './apiCatalog';
 
 const { t } = useI18n();
@@ -33,7 +34,12 @@ async function create(): Promise<void> {
 }
 
 async function revoke(key: ApiKeyInfo): Promise<void> {
-  if (!window.confirm(t('admin.confirmRevokeKey', { name: key.name }))) return;
+  const ok = await useDialogStore().confirm({
+    title: t('admin.revoke'),
+    message: t('admin.confirmRevokeKey', { name: key.name }),
+    danger: true,
+  });
+  if (!ok) return;
   await adminApi.deleteApiKey(key.id);
   await load();
 }

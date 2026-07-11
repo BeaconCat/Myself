@@ -21,6 +21,9 @@ export interface SiteConfig {
   timezone: string;
   github: {
     username: string;
+    mode: 'manual' | 'api';
+    token?: string;
+    refreshMinutes: number;
     stats: { repos: number; stars: number; followers: number; commits: number };
   };
   about: { name: string; tagline: string; bio: string; skills: string[] };
@@ -43,7 +46,12 @@ export const FALLBACK_CONFIG: SiteConfig = {
     ],
   },
   timezone: 'Asia/Shanghai',
-  github: { username: 'your-github', stats: { repos: 0, stars: 0, followers: 0, commits: 0 } },
+  github: {
+    username: 'your-github',
+    mode: 'manual',
+    refreshMinutes: 30,
+    stats: { repos: 0, stars: 0, followers: 0, commits: 0 },
+  },
   about: {
     name: 'Myself',
     tagline: '开源个人博客引擎',

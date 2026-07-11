@@ -9,6 +9,8 @@ export const useLoadingStore = defineStore('loading', {
   state: () => ({
     bootProgress: 0,
     bootDone: false,
+    /** 首屏遮罩仍在屏上（含收缩退场动画期间）：页面动画保持暂停 */
+    bootOverlayVisible: true,
     routeLoading: false,
   }),
   actions: {

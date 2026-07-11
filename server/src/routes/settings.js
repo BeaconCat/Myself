@@ -12,7 +12,8 @@ settingsRouter.get('/site-config', (_req, res) => {
     loading: cfg.loading,
     theme: cfg.theme,
     timezone: cfg.timezone,
-    github: cfg.github,
+    // 公开配置不下发票证
+    github: { ...cfg.github, token: undefined },
     about: cfg.about,
   });
 });
