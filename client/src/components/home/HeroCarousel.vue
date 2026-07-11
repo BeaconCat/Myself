@@ -1080,22 +1080,23 @@ onBeforeUnmount(() => {
 
   .hero-title {
     font-size: clamp(24px, 6.6vw, 34px);
-    min-height: 2.2em;
+    /* 移动端标题不占位两行，贴紧下文 */
+    min-height: 0;
   }
 
   .hero-excerpt { font-size: 14px; }
 
-  /* 相册收窄居中：两侧各留 30px 给后排卡与切换钮 */
+  /* 相册收窄居中：两侧各留 ~46px 给后排卡探出与切换钮 */
   .album-zone {
-    width: min(100% - 60px, 340px);
+    width: min(100% - 92px, 300px);
     margin-inline: auto;
   }
 
   .album { transform: rotateY(-10deg); }
 
-  /* 后排卡偏移收小，探出量 ≤ 预留空间 */
-  .slot-1 { transform: translate3d(26px, -18px, -60px) scale(0.8); }
-  .slot-2 { transform: translate3d(-34px, 24px, -60px) scale(0.74); }
+  /* 后排卡明显错位（探出量 ≤ 预留空间） */
+  .slot-1 { transform: translate3d(44px, -26px, -60px) scale(0.8); }
+  .slot-2 { transform: translate3d(-46px, 30px, -60px) scale(0.74); }
 
   .step {
     opacity: 1;
@@ -1105,8 +1106,8 @@ onBeforeUnmount(() => {
 
     svg { width: 15px; height: 15px; }
 
-    &.prev { left: -26px; }
-    &.next { right: -26px; }
+    &.prev { left: -40px; }
+    &.next { right: -40px; }
   }
 
   .pills { margin-top: 40px; }
