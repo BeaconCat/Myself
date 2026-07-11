@@ -96,7 +96,23 @@ const links = [
           {{ t(link.key) }}
         </router-link>
       </nav>
-      <ThemeSwitcher />
+
+      <!-- 管理员：写作与控制中心入口 -->
+      <nav v-if="auth.loggedIn" class="drawer-admin">
+        <router-link to="/write/post" class="drawer-link" @click="drawerOpen = false">
+          {{ t('write.menuPost') }}
+        </router-link>
+        <router-link to="/write/note" class="drawer-link" @click="drawerOpen = false">
+          {{ t('write.menuNote') }}
+        </router-link>
+        <router-link to="/admin" class="drawer-link" @click="drawerOpen = false">
+          {{ t('admin.loginTitle') }}
+        </router-link>
+      </nav>
+
+      <div class="drawer-theme">
+        <ThemeSwitcher />
+      </div>
     </aside>
   </transition>
   <transition name="fade">
@@ -298,6 +314,44 @@ const links = [
     border-color: rgba(var(--primary-rgb), 0.5);
     transform: scale(1.08);
     box-shadow: var(--shadow), 0 0 14px rgba(var(--primary-rgb), 0.35);
+  }
+}
+
+.drawer-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* 主题条：居中 + 放大触控目标 */
+.drawer-theme {
+  display: flex;
+  justify-content: center;
+  margin-top: auto;
+  padding-bottom: 8px;
+
+  :deep(.switcher) {
+    padding: 12px 18px;
+    gap: 12px;
+  }
+
+  :deep(.dot) {
+    width: 22px;
+    height: 22px;
+  }
+
+  :deep(.divider) { height: 20px; }
+
+  :deep(.mode-btn) {
+    width: 32px;
+    height: 32px;
+  }
+
+  :deep(.mode-icon) {
+    width: 24px;
+    height: 24px;
   }
 }
 

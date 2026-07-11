@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi, api } from '../../api';
 import CoverUploader from '../../components/admin/CoverUploader.vue';
+import RichEditor from '../../components/admin/RichEditor.vue';
 
 /** 沉浸式写随想：居中卡片，自增高文本 + 拼图配图（拖拽排位）+ 心情 + 置顶 */
 const { t } = useI18n();
@@ -23,15 +24,6 @@ const pinned = ref(false);
 const message = ref('');
 const busy = ref(false);
 
-const textareaEl = ref<HTMLTextAreaElement | null>(null);
-
-function autoGrow(): void {
-  const el = textareaEl.value;
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = `${Math.max(el.scrollHeight, 140)}px`;
-}
-
 async function publish(): Promise<void> {
   if (busy.value || !contentMd.value.trim()) return;
   busy.value = true;
@@ -50,8 +42,6 @@ async function publish(): Promise<void> {
       mood.value = '';
       images.value = [];
       pinned.value = false;
-      await nextTick();
-      autoGrow();
     } else {
       await adminApi.updateNote(id.value, body);
       message.value = t('admin.saved');
@@ -79,9 +69,6 @@ onMounted(async () => {
       pinned.value = note.pinned;
     }
   }
-  await nextTick();
-  autoGrow();
-  textareaEl.value?.focus();
 });
 </script>
 
@@ -99,13 +86,8 @@ onMounted(async () => {
 
     <main class="stage">
       <div class="card">
-        <textarea
-          ref="textareaEl"
-          v-model="contentMd"
-          class="note-input"
-          :placeholder="t('admin.notePlaceholder')"
-          @input="autoGrow"
-        />
+        <!-- 轻量所见即所得（底层仍存 Markdown） -->
+        <RichEditor v-model="contentMd" lite :placeholder="t('admin.notePlaceholder')" />
 
         <!-- 配图拼图：宫格预览 + 拖拽换位 -->
         <CoverUploader v-model="images" :max="9" square />

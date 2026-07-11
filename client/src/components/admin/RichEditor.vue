@@ -17,7 +17,12 @@ const dialog = useDialogStore();
  * 所见即所得编辑器：对外始终以 Markdown 交换（统一内容规范），
  * 内部用 Tiptap 富文本编辑。支持标题/列表/待办/表格/图片/拼图/代码/引用。
  */
-const props = defineProps<{ modelValue: string; placeholder?: string }>();
+const props = defineProps<{
+  modelValue: string;
+  placeholder?: string;
+  /** 轻量模式（随想）：精简工具栏 + 矮编辑区 */
+  lite?: boolean;
+}>();
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 
 let applyingExternal = false;
@@ -137,13 +142,22 @@ const TOOLBAR = [
   { icon: '⎌', title: '撤销', run: () => editor.chain().focus().undo().run(), active: () => false },
   { icon: '⎌⃗', title: '重做', run: () => editor.chain().focus().redo().run(), active: () => false },
 ] as const;
+
+/** 轻量模式保留的按钮（按 title 匹配） */
+const LITE_SET = new Set([
+  '加粗', '斜体', '删除线', '行内代码', '无序列表', '有序列表', '待办清单', '引用', '链接', '撤销', '重做',
+]);
+
+const toolbar = props.lite
+  ? TOOLBAR.filter((item) => 'divider' in item || LITE_SET.has(item.title))
+  : [...TOOLBAR];
 </script>
 
 <template>
-  <div class="rich">
+  <div class="rich" :class="{ lite }">
     <!-- 工具栏 -->
     <div class="toolbar">
-      <template v-for="(item, i) in TOOLBAR" :key="i">
+      <template v-for="(item, i) in toolbar" :key="i">
         <span v-if="'divider' in item && item.divider" class="divider" />
         <button
           v-else
@@ -154,10 +168,12 @@ const TOOLBAR = [
           @click="'run' in item && item.run()"
         >{{ 'icon' in item ? item.icon : '' }}</button>
       </template>
-      <span class="divider" />
-      <button type="button" class="tool" title="插入图片链接" @click="insertImageUrl">图链</button>
-      <button type="button" class="tool" title="上传并插入图片" @click="fileInput?.click()">传图</button>
-      <button type="button" class="tool" title="上传多图插入拼图" @click="collageInput?.click()">拼图</button>
+      <template v-if="!lite">
+        <span class="divider" />
+        <button type="button" class="tool" title="插入图片链接" @click="insertImageUrl">图链</button>
+        <button type="button" class="tool" title="上传并插入图片" @click="fileInput?.click()">传图</button>
+        <button type="button" class="tool" title="上传多图插入拼图" @click="collageInput?.click()">拼图</button>
+      </template>
       <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="uploadInsert" />
       <input ref="collageInput" type="file" accept="image/*" multiple hidden @change="uploadCollage" />
     </div>
@@ -218,6 +234,26 @@ const TOOLBAR = [
   height: 18px;
   background: var(--border);
   margin: 0 6px;
+}
+
+/* 轻量模式：矮编辑区、无外框（融入所在卡片） */
+.rich.lite {
+  border: none;
+  border-radius: 0;
+  background: none;
+
+  .toolbar {
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  .content :deep(.ProseMirror) {
+    min-height: 140px;
+    padding: 12px 4px;
+    font-size: 16px;
+  }
 }
 
 .content {
