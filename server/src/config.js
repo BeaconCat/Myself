@@ -60,26 +60,62 @@ export const DEFAULT_CONFIG = {
     skills: ['写作', '摄影', '编程'],
     /** 建站日期：关于页展示运行天数 */
     foundedAt: '2026-01-01',
-    /** 技能分组卡 */
-    skillGroups: [
-      { title: '创作', items: ['文章', '随想', '摄影'] },
-      { title: '工具', items: ['Markdown', '主题系统', 'API 中心'] },
-      { title: '兴趣', items: ['阅读', '旅行', '音乐'] },
-    ],
-    /** 历程时间线 */
-    milestones: [
-      { year: '01', text: '在后台「设置」里换上你的名字、简介与主题色' },
-      { year: '02', text: '发布第一篇文章，或用随想记录此刻' },
-      { year: '03', text: '创建 APIKey，把日常发文托管给你的 AI 助手' },
-    ],
-    /** 社交链接（icon: github | mail | rss | link） */
-    socials: [
-      { name: 'GitHub', url: 'https://github.com/your-github', icon: 'github' },
-      { name: 'Email', url: 'mailto:hi@example.com', icon: 'mail' },
-      { name: 'RSS', url: '/feed', icon: 'rss' },
-    ],
-    /** 关于页格言（Hero 下方引用块） */
+    /** 关于页格言（身份卡下方引用块） */
     motto: '记录本身，就是意义。',
+    /**
+     * 模块化区块（有序，身份卡固定在最前不入列）。
+     * 每项 { id, type, data }，type 见前端模块注册表。
+     */
+    modules: [
+      { id: 'm-stats', type: 'stats', data: {} },
+      {
+        id: 'm-skills',
+        type: 'skills',
+        data: {
+          groups: [
+            { title: '创作', items: ['文章', '随想', '摄影'] },
+            { title: '工具', items: ['Markdown', '主题系统', 'API 中心'] },
+            { title: '兴趣', items: ['阅读', '旅行', '音乐'] },
+          ],
+        },
+      },
+      {
+        id: 'm-milestones',
+        type: 'milestones',
+        data: {
+          items: [
+            { year: '01', text: '在后台「设置」里换上你的名字、简介与主题色' },
+            { year: '02', text: '发布第一篇文章，或用随想记录此刻' },
+            { year: '03', text: '创建 APIKey，把日常发文托管给你的 AI 助手' },
+          ],
+        },
+      },
+      { id: 'm-github', type: 'github', data: {} },
+      {
+        id: 'm-socials',
+        type: 'socials',
+        data: {
+          items: [
+            { name: 'GitHub', url: 'https://github.com/your-github', icon: 'github' },
+            { name: 'Email', url: 'mailto:hi@example.com', icon: 'mail' },
+            { name: 'RSS', url: '/feed', icon: 'rss' },
+          ],
+        },
+      },
+      {
+        id: 'm-stack',
+        type: 'stack',
+        data: {
+          items: [
+            { name: 'Vue 3', role: '前端框架' },
+            { name: 'Vite', role: '构建工具' },
+            { name: 'Express', role: 'API 服务' },
+            { name: 'SQLite', role: '数据存储' },
+            { name: 'Markdown', role: '内容规范' },
+          ],
+        },
+      },
+    ],
   },
   backup: {
     /** 自动备份间隔小时数，0 = 关闭 */
@@ -98,11 +134,31 @@ function deepMerge(base, patch) {
   return out;
 }
 
+/** 旧版扁平 about 字段 → 模块化迁移 */
+function migrateAboutModules(cfg) {
+  const about = cfg.about ?? {};
+  if (Array.isArray(about.modules) && about.modules.length) return cfg;
+  const defaults = structuredClone(DEFAULT_CONFIG.about.modules);
+  for (const mod of defaults) {
+    if (mod.type === 'skills' && Array.isArray(about.skillGroups)) {
+      mod.data.groups = about.skillGroups;
+    }
+    if (mod.type === 'milestones' && Array.isArray(about.milestones)) {
+      mod.data.items = about.milestones;
+    }
+    if (mod.type === 'socials' && Array.isArray(about.socials)) {
+      mod.data.items = about.socials;
+    }
+  }
+  about.modules = defaults;
+  return cfg;
+}
+
 export function getConfig() {
   const raw = db.prepare(`SELECT value FROM settings WHERE key = 'site_config'`).get()?.value;
   if (!raw) return structuredClone(DEFAULT_CONFIG);
   try {
-    return deepMerge(DEFAULT_CONFIG, JSON.parse(raw));
+    return migrateAboutModules(deepMerge(DEFAULT_CONFIG, JSON.parse(raw)));
   } catch {
     return structuredClone(DEFAULT_CONFIG);
   }

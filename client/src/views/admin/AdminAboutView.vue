@@ -2,9 +2,12 @@
 import { onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi } from '../../api';
-import { useConfigStore, type SiteConfig } from '../../stores/config';
+import { useConfigStore, type AboutModule, type SiteConfig } from '../../stores/config';
+import { createModule, metaOf } from '../../about/registry';
+import ModulePicker from '../../components/admin/ModulePicker.vue';
+import CoverUploader from '../../components/admin/CoverUploader.vue';
 
-/** 关于管理：关于页所有模块的可视化配置 */
+/** 关于管理：身份默认置顶，其余模块条目式增删/拖拽/行内编辑 */
 const { t } = useI18n();
 const configStore = useConfigStore();
 
@@ -13,10 +16,13 @@ const about = reactive<AboutCfg>(JSON.parse(JSON.stringify(configStore.cfg.about
 const skillsText = ref('');
 const message = ref('');
 const busy = ref(false);
+const pickerOpen = ref(false);
+const expanded = ref('');
 
 async function load(): Promise<void> {
   const remote = await adminApi.settings() as unknown as SiteConfig;
   Object.assign(about, JSON.parse(JSON.stringify(remote.about)));
+  if (!Array.isArray(about.modules)) about.modules = [];
   skillsText.value = about.skills.join(', ');
 }
 
@@ -36,7 +42,7 @@ async function save(): Promise<void> {
   }
 }
 
-/* 头像上传 */
+/* 头像 */
 const avatarInput = ref<HTMLInputElement | null>(null);
 const avatarBusy = ref(false);
 
@@ -54,35 +60,39 @@ async function onAvatar(e: Event): Promise<void> {
   }
 }
 
-/* 列表模块增删 */
-function addGroup(): void {
-  about.skillGroups.push({ title: '新分组', items: [] });
+/* 模块操作 */
+function addModules(types: string[]): void {
+  for (const type of types) about.modules.push(createModule(type));
+  pickerOpen.value = false;
 }
 
-function addMilestone(): void {
-  about.milestones.push({ year: '', text: '' });
+function removeModule(mod: AboutModule): void {
+  about.modules = about.modules.filter((m) => m.id !== mod.id);
 }
 
-function addSocial(): void {
-  about.socials.push({ name: '', url: '', icon: 'link' });
+let dragIndex = -1;
+
+function onDragStart(i: number): void {
+  dragIndex = i;
 }
 
-/** 分组条目用逗号文本编辑 */
-const groupItemsText = reactive<Record<number, string>>({});
-
-function syncGroupText(): void {
-  about.skillGroups.forEach((g, i) => { groupItemsText[i] = g.items.join(', '); });
+function onDrop(i: number): void {
+  if (dragIndex < 0 || dragIndex === i) return;
+  const [moved] = about.modules.splice(dragIndex, 1);
+  about.modules.splice(i, 0, moved);
+  dragIndex = -1;
 }
 
-function applyGroupText(i: number): void {
-  about.skillGroups[i].items = (groupItemsText[i] ?? '')
-    .split(/[,，]+/).map((s) => s.trim()).filter(Boolean);
+/* 通用列表编辑辅助 */
+function parseList(text: string): string[] {
+  return text.split(/[,，]+/).map((s) => s.trim()).filter(Boolean);
 }
 
-onMounted(async () => {
-  await load();
-  syncGroupText();
-});
+function parseLines(text: string): string[] {
+  return text.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+}
+
+onMounted(load);
 </script>
 
 <template>
@@ -94,13 +104,23 @@ onMounted(async () => {
       </div>
       <div class="actions">
         <span v-if="message" class="msg">{{ message }}</span>
+        <button class="a-btn ghost" @click="pickerOpen = true">{{ t('admin.addModule') }}</button>
         <button class="a-btn primary" :disabled="busy" @click="save">{{ t('admin.saveAll') }}</button>
       </div>
     </header>
 
-    <!-- 身份 -->
-    <section class="a-card block">
-      <h2 class="sec-h">{{ t('admin.aboutIdentity') }}</h2>
+    <!-- 身份（默认模块，置顶不可删） -->
+    <section class="a-card block identity-card">
+      <div class="row-head">
+        <span class="m-icon locked">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" />
+          </svg>
+        </span>
+        <strong>{{ t('admin.aboutIdentity') }}</strong>
+        <span class="lock-tag">{{ t('admin.moduleLocked') }}</span>
+      </div>
       <div class="identity">
         <button class="avatar" :disabled="avatarBusy" @click="avatarInput?.click()">
           <img :src="about.avatar || '/favicon-256.png'" alt="" />
@@ -122,72 +142,310 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- 技能分组 -->
-    <section class="a-card block">
-      <h2 class="sec-h">{{ t('admin.aboutGroups') }}</h2>
-      <div v-for="(group, i) in about.skillGroups" :key="i" class="line">
-        <input v-model="group.title" class="a-input title-in" type="text" :placeholder="t('admin.groupTitle')" />
-        <input
-          v-model="groupItemsText[i]"
-          class="a-input flex-in"
-          type="text"
-          :placeholder="t('admin.tagsPlaceholder')"
-          @change="applyGroupText(i)"
-        />
-        <button class="op danger" @click="about.skillGroups.splice(i, 1)">{{ t('admin.delete') }}</button>
-      </div>
-      <button class="a-btn ghost" @click="addGroup">{{ t('admin.addItem') }}</button>
-    </section>
+    <!-- 模块条目列表 -->
+    <div class="mod-list">
+      <div
+        v-for="(mod, i) in about.modules"
+        :key="mod.id"
+        class="mod-row a-card"
+        :class="{ open: expanded === mod.id }"
+        draggable="true"
+        @dragstart="onDragStart(i)"
+        @dragover.prevent
+        @drop="onDrop(i)"
+      >
+        <div class="row-head">
+          <span class="grip" aria-hidden="true">⋮⋮</span>
+          <span class="m-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path :d="metaOf(mod.type)?.icon" />
+            </svg>
+          </span>
+          <strong>{{ metaOf(mod.type)?.name }}</strong>
+          <span class="summary">{{ metaOf(mod.type)?.summary(mod.data) }}</span>
+          <button class="op" @click="expanded = expanded === mod.id ? '' : mod.id">
+            {{ expanded === mod.id ? t('admin.collapse') : t('admin.edit') }}
+          </button>
+          <button class="op danger" @click="removeModule(mod)">{{ t('admin.delete') }}</button>
+        </div>
 
-    <!-- 历程 -->
-    <section class="a-card block">
-      <h2 class="sec-h">{{ t('admin.aboutMilestones') }}</h2>
-      <div v-for="(m, i) in about.milestones" :key="i" class="line">
-        <input v-model="m.year" class="a-input title-in" type="text" :placeholder="t('admin.msYear')" />
-        <input v-model="m.text" class="a-input flex-in" type="text" :placeholder="t('admin.msText')" />
-        <button class="op danger" @click="about.milestones.splice(i, 1)">{{ t('admin.delete') }}</button>
-      </div>
-      <button class="a-btn ghost" @click="addMilestone">{{ t('admin.addItem') }}</button>
-    </section>
+        <!-- 行内编辑器（按类型） -->
+        <div v-if="expanded === mod.id" class="editor">
+          <template v-if="mod.type === 'stats' || mod.type === 'github'">
+            <p class="hint">{{ metaOf(mod.type)?.summary(mod.data) }}</p>
+          </template>
 
-    <!-- 社交链接 -->
-    <section class="a-card block">
-      <h2 class="sec-h">{{ t('admin.aboutSocials') }}</h2>
-      <div v-for="(s, i) in about.socials" :key="i" class="line">
-        <input v-model="s.name" class="a-input title-in" type="text" :placeholder="t('admin.socialName')" />
-        <input v-model="s.url" class="a-input flex-in" type="text" placeholder="https://…" />
-        <select v-model="s.icon" class="a-input icon-in">
-          <option value="github">GitHub</option>
-          <option value="mail">Mail</option>
-          <option value="rss">RSS</option>
-          <option value="link">Link</option>
-        </select>
-        <button class="op danger" @click="about.socials.splice(i, 1)">{{ t('admin.delete') }}</button>
+          <template v-else-if="mod.type === 'motto'">
+            <input v-model="mod.data.text" class="a-input" type="text" />
+          </template>
+
+          <template v-else-if="mod.type === 'skills' || mod.type === 'favorites'">
+            <div v-for="(group, gi) in mod.data.groups" :key="gi" class="line">
+              <input v-model="group.title" class="a-input w-narrow" type="text" :placeholder="t('admin.groupTitle')" />
+              <input
+                class="a-input flex-in"
+                type="text"
+                :value="group.items.join(', ')"
+                :placeholder="t('admin.tagsPlaceholder')"
+                @change="group.items = parseList(($event.target as HTMLInputElement).value)"
+              />
+              <button class="op danger" @click="mod.data.groups.splice(gi, 1)">{{ t('admin.delete') }}</button>
+            </div>
+            <button class="a-btn ghost sm" @click="mod.data.groups.push({ title: '', items: [] })">{{ t('admin.addItem') }}</button>
+          </template>
+
+          <template v-else-if="mod.type === 'skillbars'">
+            <div v-for="(item, ii) in mod.data.items" :key="ii" class="line">
+              <input v-model="item.name" class="a-input w-narrow" type="text" :placeholder="t('admin.fieldName')" />
+              <input v-model.number="item.level" class="a-input w-num" type="number" min="0" max="100" />
+              <input v-model.number="item.level" class="range" type="range" min="0" max="100" />
+              <button class="op danger" @click="mod.data.items.splice(ii, 1)">{{ t('admin.delete') }}</button>
+            </div>
+            <button class="a-btn ghost sm" @click="mod.data.items.push({ name: '', level: 50 })">{{ t('admin.addItem') }}</button>
+          </template>
+
+          <template v-else-if="mod.type === 'languages'">
+            <div v-for="(item, ii) in mod.data.items" :key="ii" class="line">
+              <input v-model="item.name" class="a-input w-narrow" type="text" :placeholder="t('admin.fieldName')" />
+              <input v-model.number="item.percent" class="a-input w-num" type="number" min="0" max="100" />
+              <input v-model="item.color" class="color-in" type="color" />
+              <button class="op danger" @click="mod.data.items.splice(ii, 1)">{{ t('admin.delete') }}</button>
+            </div>
+            <button class="a-btn ghost sm" @click="mod.data.items.push({ name: '', percent: 10, color: '#0078ff' })">{{ t('admin.addItem') }}</button>
+          </template>
+
+          <template v-else-if="mod.type === 'milestones'">
+            <div v-for="(item, ii) in mod.data.items" :key="ii" class="line">
+              <input v-model="item.year" class="a-input w-narrow" type="text" :placeholder="t('admin.msYear')" />
+              <input v-model="item.text" class="a-input flex-in" type="text" :placeholder="t('admin.msText')" />
+              <button class="op danger" @click="mod.data.items.splice(ii, 1)">{{ t('admin.delete') }}</button>
+            </div>
+            <button class="a-btn ghost sm" @click="mod.data.items.push({ year: '', text: '' })">{{ t('admin.addItem') }}</button>
+          </template>
+
+          <template v-else-if="mod.type === 'gallery'">
+            <CoverUploader v-model="mod.data.images" :max="12" />
+          </template>
+
+          <template v-else-if="mod.type === 'quotes'">
+            <div v-for="(item, ii) in mod.data.items" :key="ii" class="line">
+              <input v-model="item.text" class="a-input flex-in" type="text" :placeholder="t('admin.quoteText')" />
+              <input v-model="item.from" class="a-input w-narrow" type="text" :placeholder="t('admin.quoteFrom')" />
+              <button class="op danger" @click="mod.data.items.splice(ii, 1)">{{ t('admin.delete') }}</button>
+            </div>
+            <button class="a-btn ghost sm" @click="mod.data.items.push({ text: '', from: '' })">{{ t('admin.addItem') }}</button>
+          </template>
+
+          <template v-else-if="mod.type === 'devices' || mod.type === 'stack'">
+            <div v-for="(item, ii) in mod.data.items" :key="ii" class="line">
+              <input v-model="item.name" class="a-input w-narrow" type="text" :placeholder="t('admin.fieldName')" />
+              <input
+                v-if="mod.type === 'devices'"
+                v-model="item.desc"
+                class="a-input flex-in"
+                type="text"
+                :placeholder="t('admin.fieldDesc')"
+              />
+              <input
+                v-else
+                v-model="item.role"
+                class="a-input flex-in"
+                type="text"
+                :placeholder="t('admin.fieldDesc')"
+              />
+              <button class="op danger" @click="mod.data.items.splice(ii, 1)">{{ t('admin.delete') }}</button>
+            </div>
+            <button
+              class="a-btn ghost sm"
+              @click="mod.data.items.push(mod.type === 'devices' ? { name: '', desc: '' } : { name: '', role: '' })"
+            >{{ t('admin.addItem') }}</button>
+          </template>
+
+          <template v-else-if="mod.type === 'faq'">
+            <div v-for="(item, ii) in mod.data.items" :key="ii" class="faq-line">
+              <input v-model="item.q" class="a-input" type="text" :placeholder="t('admin.faqQ')" />
+              <textarea v-model="item.a" class="a-input" rows="2" :placeholder="t('admin.faqA')" />
+              <button class="op danger" @click="mod.data.items.splice(ii, 1)">{{ t('admin.delete') }}</button>
+            </div>
+            <button class="a-btn ghost sm" @click="mod.data.items.push({ q: '', a: '' })">{{ t('admin.addItem') }}</button>
+          </template>
+
+          <template v-else-if="mod.type === 'now'">
+            <textarea
+              class="a-input"
+              rows="4"
+              :value="mod.data.items.join('\n')"
+              :placeholder="t('admin.nowPlaceholder')"
+              @change="mod.data.items = parseLines(($event.target as HTMLTextAreaElement).value)"
+            />
+          </template>
+
+          <template v-else-if="mod.type === 'socials'">
+            <div v-for="(item, ii) in mod.data.items" :key="ii" class="line">
+              <input v-model="item.name" class="a-input w-narrow" type="text" :placeholder="t('admin.socialName')" />
+              <input v-model="item.url" class="a-input flex-in" type="text" placeholder="https://…" />
+              <select v-model="item.icon" class="a-input w-narrow">
+                <option value="github">GitHub</option>
+                <option value="mail">Mail</option>
+                <option value="rss">RSS</option>
+                <option value="link">Link</option>
+              </select>
+              <button class="op danger" @click="mod.data.items.splice(ii, 1)">{{ t('admin.delete') }}</button>
+            </div>
+            <button class="a-btn ghost sm" @click="mod.data.items.push({ name: '', url: '', icon: 'link' })">{{ t('admin.addItem') }}</button>
+          </template>
+
+          <template v-else-if="mod.type === 'contact'">
+            <div class="row2">
+              <label><span>{{ t('admin.contactTitle') }}</span><input v-model="mod.data.title" class="a-input" type="text" /></label>
+              <label><span>{{ t('admin.contactBtn') }}</span><input v-model="mod.data.buttonText" class="a-input" type="text" /></label>
+            </div>
+            <label><span>{{ t('admin.contactText') }}</span><input v-model="mod.data.text" class="a-input" type="text" /></label>
+            <label><span>URL</span><input v-model="mod.data.url" class="a-input" type="text" /></label>
+          </template>
+        </div>
       </div>
-      <button class="a-btn ghost" @click="addSocial">{{ t('admin.addItem') }}</button>
-    </section>
+    </div>
+
+    <p v-if="!about.modules.length" class="empty">{{ t('admin.noModules') }}</p>
+
+    <ModulePicker v-if="pickerOpen" @close="pickerOpen = false" @add="addModules" />
   </div>
 </template>
 
 <style scoped lang="scss">
 .about-admin { max-width: 860px; }
 
-.actions {
+.actions { display: flex; align-items: center; gap: 12px; }
+.msg { font-size: 13px; color: var(--primary); }
+.block { margin-bottom: 16px; }
+.hint { font-size: 13px; color: var(--text-2); }
+.empty { color: var(--text-2); text-align: center; padding: 40px 0; }
+
+/* 行头 */
+.row-head {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+
+  strong { font-size: 14.5px; flex-shrink: 0; }
 }
 
-.msg { font-size: 13px; color: var(--primary); }
+.grip {
+  color: var(--text-2);
+  letter-spacing: -2px;
+  user-select: none;
+  cursor: grab;
 
-.block { margin-bottom: 18px; }
-
-.sec-h {
-  font-size: 16px;
-  margin-bottom: 16px;
-  padding-left: 12px;
-  border-left: 4px solid var(--primary);
+  &:active { cursor: grabbing; }
 }
+
+.m-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: rgba(var(--primary-rgb), 0.1);
+  color: var(--primary);
+
+  svg { width: 17px; height: 17px; }
+}
+
+.lock-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.summary {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 模块列表 */
+.mod-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mod-row {
+  padding: 14px 18px;
+  transition: border-color var(--dur-fast), box-shadow var(--dur);
+
+  &.open { border-color: rgba(var(--primary-rgb), 0.45); }
+  &:hover { box-shadow: 0 8px 24px -12px rgba(var(--primary-rgb), 0.2); }
+}
+
+.editor {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.faq-line {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--border);
+
+  .op { align-self: flex-end; }
+}
+
+.w-narrow { width: 130px; flex-shrink: 0; }
+.w-num { width: 74px; flex-shrink: 0; }
+.flex-in { flex: 1; min-width: 0; }
+
+.range { flex: 1; accent-color: var(--primary); }
+
+.color-in {
+  width: 38px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.op {
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  flex-shrink: 0;
+
+  &.danger { color: var(--accent-red); }
+  &:hover { opacity: 0.75; }
+}
+
+.a-btn.sm { padding: 7px 16px; font-size: 12.5px; align-self: flex-start; }
+
+/* 身份卡 */
+.identity-card .row-head { margin-bottom: 16px; }
 
 .identity {
   display: flex;
@@ -225,7 +483,6 @@ onMounted(async () => {
   &:hover {
     border-color: var(--primary);
     transform: scale(1.03);
-
     .avatar-tip { opacity: 1; }
   }
 }
@@ -249,28 +506,6 @@ label {
   gap: 6px;
 
   span { font-size: 12px; font-weight: 600; color: var(--text-2); }
-}
-
-.line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.title-in { width: 130px; flex-shrink: 0; }
-.flex-in { flex: 1; }
-.icon-in { width: 110px; flex-shrink: 0; }
-
-.op {
-  border: none;
-  background: none;
-  font-size: 13px;
-  font-weight: 600;
-  flex-shrink: 0;
-
-  &.danger { color: var(--accent-red); }
-  &:hover { opacity: 0.75; }
 }
 
 @media (max-width: 720px) {
