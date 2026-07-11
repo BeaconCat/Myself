@@ -53,16 +53,26 @@ async function fetchStatus(username, token) {
   );
   const stars = repos.reduce((sum, r) => sum + (r.stargazers_count ?? 0), 0);
 
+  // 年度提交总数：Commit Search API（匿名可用，配额低；失败回退事件统计）
+  let commitsThisYear = 0;
+  const year = new Date().getFullYear();
+  try {
+    const search = await gh(
+      `/search/commits?q=${encodeURIComponent(`author:${username} author-date:>=${year}-01-01`)}&per_page=1`,
+      token,
+    );
+    commitsThisYear = search.total_count ?? 0;
+  } catch { /* 回退下方事件粗算 */ }
+
   // 最近公开动态（PushEvent 提交）
   let activities = [];
-  let commitsThisYear = 0;
   try {
     const events = await gh(`/users/${encodeURIComponent(username)}/events/public?per_page=30`, token);
-    const year = new Date().getFullYear();
+    let eventCommits = 0;
     for (const ev of events) {
       if (ev.type !== 'PushEvent') continue;
       if (new Date(ev.created_at).getFullYear() === year) {
-        commitsThisYear += ev.payload?.commits?.length ?? 0;
+        eventCommits += ev.payload?.commits?.length ?? 0;
       }
       for (const commit of ev.payload?.commits ?? []) {
         if (activities.length >= 5) break;
@@ -74,6 +84,7 @@ async function fetchStatus(username, token) {
         });
       }
     }
+    if (!commitsThisYear) commitsThisYear = eventCommits;
   } catch { /* 动态失败不致命 */ }
 
   return {
