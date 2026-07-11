@@ -52,13 +52,16 @@ router.beforeEach(async (to, from) => {
   }
   // 首屏由 AppLoading 负责；后台子路由无 name，用 matched 判断是否已在站内
   if (!from.matched.length) return;
+  // 控制中心内部标签页切换不播 loading
+  if (to.meta.admin && from.meta.admin) return;
   shownAt = performance.now();
   useLoadingStore().startRoute();
   await new Promise((resolve) => window.setTimeout(resolve, COVER_MS));
 });
 
-router.afterEach((_to, from) => {
+router.afterEach((to, from) => {
   if (!from.matched.length) return;
+  if (to.meta.admin && from.meta.admin) return;
   const loading = useLoadingStore();
   const remain = Math.max(0, MIN_SHOW_MS - (performance.now() - shownAt));
   // 揭幕 = 最短展示时间到 且 目标页数据门闩全部释放
