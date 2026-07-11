@@ -61,7 +61,8 @@ const lightboxOn = ref(false);
 const lbClosing = ref(false);
 const dragging = ref(false);
 
-const ENTER_MS = 800;
+/** enter 保持时长必须 ≥ 卡片动画 0.75s + 末卡级联 0.2s，过早摘类会尾段跳变闪烁 */
+const ENTER_MS = 1000;
 /** 出场启动后多久切入下一条（重叠期：出场透明度已归零但位移未播完） */
 const ITEM_SWAP_MS = 380;
 const FLY_MS = 550;

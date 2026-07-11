@@ -238,9 +238,10 @@ onBeforeUnmount(() => window.clearTimeout(debounce));
     <!-- 媒体墙（X 风） -->
     <div v-if="tab === 'media'" class="media-wall" :class="{ loading }">
       <button
-        v-for="cell in mediaCells"
+        v-for="(cell, i) in mediaCells"
         :key="`${cell.note.id}-${cell.index}`"
         class="media-cell"
+        :style="{ '--i': i % 30 }"
         @click="openViewer(cell.note.images, cell.index)"
       >
         <img :src="cell.src" loading="lazy" alt="" />
@@ -250,7 +251,12 @@ onBeforeUnmount(() => window.clearTimeout(debounce));
 
     <!-- X 风信息流 -->
     <div v-else class="feed" :class="{ loading }">
-      <article v-for="note in notes" :key="note.id" v-reveal class="tweet">
+      <article
+        v-for="(note, i) in notes"
+        :key="note.id"
+        class="tweet"
+        :style="{ '--i': i % PAGE_SIZE }"
+      >
         <img class="avatar" src="/favicon-64.png" alt="" draggable="false" />
         <div class="tweet-main">
           <header class="tweet-head">
@@ -399,6 +405,8 @@ onBeforeUnmount(() => window.clearTimeout(debounce));
   aspect-ratio: 1;
   overflow: hidden;
   cursor: zoom-in;
+  animation: tweet-in 0.45s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 0.03s);
 
   img {
     width: 100%;
@@ -533,8 +541,16 @@ onBeforeUnmount(() => window.clearTimeout(debounce));
   padding: 20px 12px;
   border-bottom: 1px solid var(--border);
   transition: background var(--dur-fast);
+  /* 逐条浮入（含追加加载的新条目） */
+  animation: tweet-in 0.5s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 0.05s);
 
   &:hover { background: rgba(var(--primary-rgb), 0.04); }
+}
+
+@keyframes tweet-in {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: none; }
 }
 
 .avatar {
