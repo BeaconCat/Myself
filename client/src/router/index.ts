@@ -61,5 +61,6 @@ router.afterEach((_to, from) => {
   if (!from.matched.length) return;
   const loading = useLoadingStore();
   const remain = Math.max(0, MIN_SHOW_MS - (performance.now() - shownAt));
-  window.setTimeout(() => loading.finishRoute(), remain);
+  // 揭幕 = 最短展示时间到 且 目标页数据门闩全部释放
+  loading.scheduleFinish(performance.now() + remain);
 });

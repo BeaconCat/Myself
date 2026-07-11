@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { api, type Post, type Tag } from '../api';
 import PostZigzagList from '../components/post/PostZigzagList.vue';
 import { useConfigStore } from '../stores/config';
+import { useLoadingStore } from '../stores/loading';
 
 const { t } = useI18n();
 const config = useConfigStore();
@@ -91,8 +92,13 @@ onMounted(async () => {
     { rootMargin: '400px' },
   );
   if (sentinel.value) observer.observe(sentinel.value);
-  await load();
-  tags.value = await api.tags();
+  const release = useLoadingStore().holdRoute();
+  try {
+    await load();
+    tags.value = await api.tags();
+  } finally {
+    release();
+  }
 });
 
 onBeforeUnmount(() => {

@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import HeroCarousel, { type HeroItem } from '../components/home/HeroCarousel.vue';
 import { placeholderCover } from '../utils/placeholder';
 import { api, type Post } from '../api';
+import { useLoadingStore } from '../stores/loading';
 import PostZigzagList from '../components/post/PostZigzagList.vue';
 import GithubStatusCard from '../components/home/GithubStatusCard.vue';
 import AboutMeCard from '../components/home/AboutMeCard.vue';
@@ -26,19 +27,25 @@ function coversOf(post: Post, index: number): string[] {
 }
 
 onMounted(async () => {
-  const [feed, list] = await Promise.all([
-    api.hero(),
-    api.posts({ pageSize: 4 }),
-  ]);
-  heroInterval.value = feed.intervalMs;
-  heroItems.value = feed.items.map((post, i) => ({
-    title: post.title,
-    excerpt: post.excerpt,
-    covers: coversOf(post, i),
-    tag: post.tags[0] ?? '文章',
-    slug: post.slug,
-  }));
-  latest.value = list.items;
+  // 数据就绪前按住路由揭幕，避免揭开后轮播才闪现
+  const release = useLoadingStore().holdRoute();
+  try {
+    const [feed, list] = await Promise.all([
+      api.hero(),
+      api.posts({ pageSize: 4 }),
+    ]);
+    heroInterval.value = feed.intervalMs;
+    heroItems.value = feed.items.map((post, i) => ({
+      title: post.title,
+      excerpt: post.excerpt,
+      covers: coversOf(post, i),
+      tag: post.tags[0] ?? '文章',
+      slug: post.slug,
+    }));
+    latest.value = list.items;
+  } finally {
+    release();
+  }
 });
 </script>
 

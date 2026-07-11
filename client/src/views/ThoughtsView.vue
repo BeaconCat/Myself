@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { api, type Note } from '../api';
 import ImageViewer from '../components/media/ImageViewer.vue';
 import { useConfigStore } from '../stores/config';
+import { useLoadingStore } from '../stores/loading';
 
 const { t } = useI18n();
 const config = useConfigStore();
@@ -158,7 +159,14 @@ function timeOf(s: string): string {
   return s.slice(0, 10);
 }
 
-onMounted(reload);
+onMounted(async () => {
+  const release = useLoadingStore().holdRoute();
+  try {
+    await reload();
+  } finally {
+    release();
+  }
+});
 onBeforeUnmount(() => window.clearTimeout(debounce));
 </script>
 
