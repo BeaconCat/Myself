@@ -1068,20 +1068,55 @@ onBeforeUnmount(() => {
   to { width: var(--to, 100%); }
 }
 
+/* 移动端：保持左右双栏，整体等比缩小 */
 @media (max-width: 900px) {
   .hero {
-    grid-template-columns: 1fr;
-    gap: 28px;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 18px;
     min-height: auto;
   }
 
-  .hero-text { align-items: center; text-align: center; }
-  .hero-excerpt { font-size: 14px; }
+  .hero-title {
+    font-size: clamp(18px, 5.2vw, 28px);
+    min-height: 2.2em;
+  }
+
+  .hero-tag { font-size: 10.5px; padding: 3px 10px; }
+
+  .hero-excerpt {
+    font-size: 12.5px;
+    line-height: 1.7;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .hero-btn {
+    font-size: 13px;
+    padding: 9px 20px;
+    border-radius: 10px;
+  }
+
   .album { transform: rotateY(-10deg); }
-  .step { opacity: 1; pointer-events: auto; }
-  .step.prev { left: -12px; }
-  .step.next { right: -12px; }
-  .pills { margin-top: 48px; }
+
+  /* 后排卡偏移随小相册减半 */
+  .slot-1 { transform: translate3d(34px, -22px, -60px) scale(0.8); }
+  .slot-2 { transform: translate3d(-46px, 32px, -60px) scale(0.74); }
+
+  .step {
+    opacity: 1;
+    pointer-events: auto;
+    width: 32px;
+    height: 32px;
+
+    svg { width: 15px; height: 15px; }
+
+    &.prev { left: -10px; }
+    &.next { right: -10px; }
+  }
+
+  .pills { margin-top: 34px; }
 }
 </style>
 
