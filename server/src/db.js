@@ -40,6 +40,9 @@ try {
 try {
   db.exec(`ALTER TABLE posts ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`);
 } catch { /* 列已存在 */ }
+try {
+  db.exec(`ALTER TABLE notes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`);
+} catch { /* 列已存在 */ }
 
 /** 空表分别注入演示数据 */
 export function seedIfEmpty() {

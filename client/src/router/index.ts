@@ -17,13 +17,23 @@ export const router = createRouter({
       meta: { bare: true },
     },
     {
+      path: '/write/post',
+      component: () => import('../views/write/WritePostView.vue'),
+      meta: { admin: true, bare: true },
+    },
+    {
+      path: '/write/note',
+      component: () => import('../views/write/WriteNoteView.vue'),
+      meta: { admin: true, bare: true },
+    },
+    {
       path: '/admin',
       component: () => import('../views/admin/AdminLayout.vue'),
       meta: { admin: true, bare: true },
       children: [
         { path: '', redirect: '/admin/posts' },
         { path: 'posts', component: () => import('../views/admin/AdminPostsView.vue') },
-        { path: 'posts/:id', component: () => import('../views/admin/AdminPostEditView.vue') },
+        { path: 'posts/:id', redirect: (to) => ({ path: '/write/post', query: { id: String(to.params.id) } }) },
         { path: 'notes', component: () => import('../views/admin/AdminNotesView.vue') },
         { path: 'media', component: () => import('../views/admin/AdminMediaView.vue') },
         { path: 'about', component: () => import('../views/admin/AdminAboutView.vue') },

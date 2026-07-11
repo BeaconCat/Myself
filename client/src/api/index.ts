@@ -40,7 +40,15 @@ export interface Note {
   contentMd: string;
   mood: string;
   images: string[];
+  pinned: boolean;
   createdAt: string;
+}
+
+export interface NoteDraft {
+  contentMd: string;
+  mood: string;
+  images: string[];
+  pinned: boolean;
 }
 
 export interface NoteList {
@@ -146,9 +154,9 @@ export const adminApi = {
     authed<{ ok: boolean }>(`/admin/posts/${id}`, { method: 'PUT', body: JSON.stringify(draft) }),
   deletePost: (id: number) =>
     authed<{ ok: boolean }>(`/admin/posts/${id}`, { method: 'DELETE' }),
-  createNote: (note: { contentMd: string; mood: string; images: string[] }) =>
+  createNote: (note: NoteDraft) =>
     authed<{ id: number }>('/admin/notes', { method: 'POST', body: JSON.stringify(note) }),
-  updateNote: (id: number, note: { contentMd: string; mood: string; images: string[] }) =>
+  updateNote: (id: number, note: NoteDraft) =>
     authed<{ ok: boolean }>(`/admin/notes/${id}`, { method: 'PUT', body: JSON.stringify(note) }),
   deleteNote: (id: number) =>
     authed<{ ok: boolean }>(`/admin/notes/${id}`, { method: 'DELETE' }),

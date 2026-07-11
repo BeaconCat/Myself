@@ -115,7 +115,7 @@ postsRouter.get('/notes', (req, res) => {
     .prepare(`SELECT COUNT(*) AS total FROM notes WHERE ${whereSql}`)
     .get(filter);
   const rows = db
-    .prepare(`SELECT * FROM notes WHERE ${whereSql} ORDER BY created_at DESC LIMIT @limit OFFSET @offset`)
+    .prepare(`SELECT * FROM notes WHERE ${whereSql} ORDER BY pinned DESC, created_at DESC LIMIT @limit OFFSET @offset`)
     .all({ ...filter, limit: pageSize, offset: (page - 1) * pageSize });
   res.json({
     items: rows.map((r) => ({
@@ -123,6 +123,7 @@ postsRouter.get('/notes', (req, res) => {
       contentMd: r.content_md,
       mood: r.mood,
       images: JSON.parse(r.images ?? '[]'),
+      pinned: !!r.pinned,
       createdAt: r.created_at,
     })),
     page,

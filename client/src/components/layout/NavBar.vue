@@ -7,6 +7,7 @@ import { useAuthStore } from '../../stores/auth';
 const { t } = useI18n();
 const auth = useAuthStore();
 const drawerOpen = ref(false);
+const writeOpen = ref(false);
 
 const links = [
   { to: '/', key: 'nav.home' },
@@ -32,6 +33,32 @@ const links = [
       </router-link>
     </nav>
     <ThemeSwitcher class="nav-theme" />
+
+    <!-- 写作入口：文章 / 随想 -->
+    <div v-if="auth.loggedIn" class="write-wrap">
+      <button class="admin-dot" :title="t('write.menuTitle')" @click="writeOpen = !writeOpen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
+      </button>
+      <transition name="pop">
+        <div v-if="writeOpen" class="write-menu" @click="writeOpen = false">
+          <router-link to="/write/post" class="wm-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 3h9l5 5v13H6zM14 3v6h6" />
+            </svg>
+            <span>{{ t('write.menuPost') }}</span>
+          </router-link>
+          <router-link to="/write/note" class="wm-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.3 8.8 8.8 0 0 1-3.8-.8L3 21l2-5.2a8 8 0 0 1-1-3.9A8.4 8.4 0 0 1 12.5 3.5 8.4 8.4 0 0 1 21 11.5Z" />
+            </svg>
+            <span>{{ t('write.menuNote') }}</span>
+          </router-link>
+        </div>
+      </transition>
+    </div>
 
     <!-- 管理员快捷入口（登录态常驻 30 天） -->
     <router-link v-if="auth.loggedIn" to="/admin" class="admin-dot" :title="t('admin.loginTitle')">
@@ -208,6 +235,47 @@ const links = [
     color: var(--primary);
   }
 }
+
+.write-wrap { position: relative; }
+
+.write-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  min-width: 150px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow), 0 16px 40px -12px rgba(var(--primary-rgb), 0.25);
+}
+
+.wm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  transition: all var(--dur-fast);
+
+  svg { width: 16px; height: 16px; }
+
+  &:hover {
+    background: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary);
+    transform: translateX(2px);
+  }
+}
+
+.pop-enter-active, .pop-leave-active { transition: opacity var(--dur-fast), transform var(--dur-fast) var(--ease-out); }
+.pop-enter-from, .pop-leave-to { opacity: 0; transform: translateY(-8px) scale(0.96); }
 
 .admin-dot {
   width: 40px;

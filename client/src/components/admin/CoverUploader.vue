@@ -2,8 +2,11 @@
 import { ref } from 'vue';
 import { adminApi } from '../../api';
 
-/** 封面上传：点击 / 拖拽入框，最多 max 张，缩略图可移除（不支持手填 URL） */
-const props = withDefaults(defineProps<{ modelValue: string[]; max?: number }>(), { max: 3 });
+/** 图片上传：点击 / 拖拽入框，最多 max 张，缩略图可移除、可拖拽排序；square = 方格拼图预览 */
+const props = withDefaults(
+  defineProps<{ modelValue: string[]; max?: number; square?: boolean }>(),
+  { max: 3, square: false },
+);
 const emit = defineEmits<{ 'update:modelValue': [value: string[]] }>();
 
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -37,11 +40,35 @@ function onDrop(e: DragEvent): void {
 function remove(url: string): void {
   emit('update:modelValue', props.modelValue.filter((u) => u !== url));
 }
+
+/* 拖拽排序 */
+let dragIndex = -1;
+
+function onDragStart(i: number): void {
+  dragIndex = i;
+}
+
+function onDropTo(i: number): void {
+  if (dragIndex < 0 || dragIndex === i) return;
+  const list = [...props.modelValue];
+  const [moved] = list.splice(dragIndex, 1);
+  list.splice(i, 0, moved);
+  dragIndex = -1;
+  emit('update:modelValue', list);
+}
 </script>
 
 <template>
-  <div class="covers">
-    <div v-for="url in modelValue" :key="url" class="thumb">
+  <div class="covers" :class="{ square }">
+    <div
+      v-for="(url, i) in modelValue"
+      :key="url"
+      class="thumb"
+      draggable="true"
+      @dragstart="onDragStart(i)"
+      @dragover.prevent
+      @drop="onDropTo(i)"
+    >
       <img :src="url" alt="" />
       <button type="button" class="remove" aria-label="移除" @click="remove(url)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
@@ -85,6 +112,11 @@ function remove(url: string): void {
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
+  cursor: grab;
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast);
+
+  &:active { cursor: grabbing; }
+  &:hover { border-color: rgba(var(--primary-rgb), 0.5); }
 
   img {
     width: 100%;
@@ -142,5 +174,16 @@ function remove(url: string): void {
   }
 
   &.busy { opacity: 0.6; pointer-events: none; }
+}
+
+/* 方格拼图模式：随想配图，三列宫格预览可拖拽换位 */
+.covers.square {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  .thumb, .drop {
+    width: 100%;
+    aspect-ratio: 1;
+  }
 }
 </style>

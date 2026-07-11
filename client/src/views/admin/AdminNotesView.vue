@@ -9,46 +9,24 @@ const { t } = useI18n();
 
 const md = new MarkdownIt({ linkify: true });
 const notes = ref<Note[]>([]);
-const editingId = ref<number | null>(null);
-const contentMd = ref('');
-const mood = ref('');
-const imagesText = ref('');
-const busy = ref(false);
 
 async function load(): Promise<void> {
   notes.value = (await api.notes({ pageSize: 50 })).items;
 }
 
-function startEdit(note: Note): void {
-  editingId.value = note.id;
-  contentMd.value = note.contentMd;
-  mood.value = note.mood;
-  imagesText.value = note.images.join('\n');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function resetComposer(): void {
-  editingId.value = null;
-  contentMd.value = '';
-  mood.value = '';
-  imagesText.value = '';
-}
-
-async function submit(): Promise<void> {
-  if (busy.value || !contentMd.value.trim()) return;
-  busy.value = true;
+/** 卡片置顶开关：即时保存 */
+async function togglePin(note: Note): Promise<void> {
+  note.pinned = !note.pinned;
   try {
-    const body = {
-      contentMd: contentMd.value,
-      mood: mood.value,
-      images: imagesText.value.split(/\n+/).map((s) => s.trim()).filter(Boolean),
-    };
-    if (editingId.value === null) await adminApi.createNote(body);
-    else await adminApi.updateNote(editingId.value, body);
-    resetComposer();
+    await adminApi.updateNote(note.id, {
+      contentMd: note.contentMd,
+      mood: note.mood,
+      images: note.images,
+      pinned: note.pinned,
+    });
     await load();
-  } finally {
-    busy.value = false;
+  } catch {
+    note.pinned = !note.pinned;
   }
 }
 
@@ -60,7 +38,6 @@ async function remove(note: Note): Promise<void> {
   });
   if (!ok) return;
   await adminApi.deleteNote(note.id);
-  if (editingId.value === note.id) resetComposer();
   await load();
 }
 
@@ -74,33 +51,8 @@ onMounted(load);
         <h1>{{ t('admin.menuNotes') }}</h1>
         <p>{{ t('admin.notesHint') }}</p>
       </div>
+      <router-link to="/write/note" class="a-btn primary">{{ t('write.newNote') }}</router-link>
     </header>
-
-    <!-- 发布 / 编辑 -->
-    <div class="composer a-card" :class="{ editing: editingId !== null }">
-      <div v-if="editingId !== null" class="edit-flag">
-        {{ t('admin.editingNote', { id: editingId }) }}
-        <button class="op" @click="resetComposer">{{ t('admin.cancel') }}</button>
-      </div>
-      <textarea
-        v-model="contentMd"
-        rows="4"
-        class="a-input"
-        :placeholder="t('admin.notePlaceholder')"
-      />
-      <textarea
-        v-model="imagesText"
-        rows="2"
-        class="a-input"
-        :placeholder="t('admin.noteImagesPlaceholder')"
-      />
-      <div class="composer-bar">
-        <input v-model="mood" class="a-input" type="text" :placeholder="t('admin.moodPlaceholder')" />
-        <button class="a-btn primary" :disabled="busy || !contentMd.trim()" @click="submit">
-          {{ editingId === null ? t('admin.publishNote') : t('admin.saveNote') }}
-        </button>
-      </div>
-    </div>
 
     <!-- 卡片流 -->
     <div class="note-grid">
@@ -108,9 +60,8 @@ onMounted(load);
         v-for="note in notes"
         :key="note.id"
         class="note-card a-card"
-        :class="{ on: editingId === note.id }"
+        :class="{ pinned: note.pinned }"
       >
-        <!-- Markdown 渲染预览 -->
         <div class="note-text" v-html="md.render(note.contentMd)" />
         <div v-if="note.images.length" class="thumbs">
           <img v-for="src in note.images.slice(0, 4)" :key="src" :src="src" loading="lazy" alt="" />
@@ -120,7 +71,14 @@ onMounted(load);
           <span v-if="note.mood" class="mood">{{ note.mood }}</span>
           <time>{{ note.createdAt.slice(0, 16) }}</time>
           <span class="spacer" />
-          <button class="op" @click="startEdit(note)">{{ t('admin.edit') }}</button>
+          <!-- 置顶开关 -->
+          <label class="pin" :title="t('admin.pinned')">
+            <input type="checkbox" :checked="note.pinned" @change="togglePin(note)" />
+            <i class="track" aria-hidden="true" />
+          </label>
+          <router-link class="op" :to="{ path: '/write/note', query: { id: String(note.id) } }">
+            {{ t('admin.edit') }}
+          </router-link>
           <button class="op danger" @click="remove(note)">{{ t('admin.delete') }}</button>
         </footer>
       </article>
@@ -129,31 +87,6 @@ onMounted(load);
 </template>
 
 <style scoped lang="scss">
-.composer {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 24px;
-
-  &.editing { border-color: rgba(var(--primary-rgb), 0.5); }
-}
-
-.edit-flag {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--primary);
-}
-
-.composer-bar {
-  display: flex;
-  gap: 12px;
-
-  input { flex: 1; }
-}
-
 .note-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -171,7 +104,7 @@ onMounted(load);
     box-shadow: 0 10px 30px -12px rgba(var(--primary-rgb), 0.25);
   }
 
-  &.on { border-color: rgba(var(--primary-rgb), 0.5); }
+  &.pinned { border-color: rgba(var(--primary-rgb), 0.45); }
 }
 
 .note-text {
@@ -210,11 +143,7 @@ onMounted(load);
     background: var(--surface-2);
   }
 
-  .more {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-2);
-  }
+  .more { font-size: 12px; font-weight: 700; color: var(--text-2); }
 }
 
 .note-foot {
@@ -234,6 +163,43 @@ onMounted(load);
   }
 
   .spacer { flex: 1; }
+}
+
+/* 置顶滑轨（迷你） */
+.pin {
+  cursor: pointer;
+
+  input { display: none; }
+
+  .track {
+    display: block;
+    width: 32px;
+    height: 18px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    position: relative;
+    transition: all var(--dur-fast);
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--text-2);
+      transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast);
+    }
+  }
+
+  input:checked + .track {
+    background: rgba(var(--primary-rgb), 0.25);
+    border-color: rgba(var(--primary-rgb), 0.5);
+
+    &::after { transform: translateX(14px); background: var(--primary); }
+  }
 }
 
 .op {

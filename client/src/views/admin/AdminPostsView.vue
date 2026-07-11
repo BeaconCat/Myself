@@ -32,13 +32,13 @@ onMounted(load);
         <h1>{{ t('admin.menuPosts') }}</h1>
         <p>{{ t('admin.postsHint') }}</p>
       </div>
-      <router-link to="/admin/posts/new" class="a-btn primary">{{ t('admin.newPost') }}</router-link>
+      <router-link to="/write/post" class="a-btn primary">{{ t('admin.newPost') }}</router-link>
     </header>
 
     <!-- 卡片网格（同随想管理风格），有封面则封面置顶 -->
     <div class="post-grid">
       <article v-for="post in posts" :key="post.id" class="post-card a-card">
-        <router-link :to="`/admin/posts/${post.id}`" class="cover-wrap">
+        <router-link :to="{ path: '/write/post', query: { id: String(post.id) } }" class="cover-wrap">
           <img v-if="post.covers[0]" class="cover" :src="post.covers[0]" loading="lazy" alt="" />
           <div v-else class="cover placeholder">
             <span>{{ post.title.slice(0, 1) }}</span>
@@ -58,7 +58,7 @@ onMounted(load);
           <footer class="foot">
             <time>{{ post.createdAt.slice(0, 10) }}</time>
             <span class="spacer" />
-            <router-link class="op" :to="`/admin/posts/${post.id}`">{{ t('admin.edit') }}</router-link>
+            <router-link class="op" :to="{ path: '/write/post', query: { id: String(post.id) } }">{{ t('admin.edit') }}</router-link>
             <button class="op danger" @click="remove(post)">{{ t('admin.delete') }}</button>
           </footer>
         </div>

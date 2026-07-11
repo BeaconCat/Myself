@@ -137,12 +137,13 @@ adminRouter.post('/admin/notes', (req, res) => {
     return;
   }
   const info = db.prepare(`
-    INSERT INTO notes (content_md, mood, images)
-    VALUES (@contentMd, @mood, @images)
+    INSERT INTO notes (content_md, mood, images, pinned)
+    VALUES (@contentMd, @mood, @images, @pinned)
   `).run({
     contentMd: b.contentMd.trim(),
     mood: String(b.mood ?? ''),
     images: JSON.stringify(Array.isArray(b.images) ? b.images.slice(0, 9) : []),
+    pinned: b.pinned ? 1 : 0,
   });
   res.status(201).json({ id: info.lastInsertRowid });
 });
@@ -155,13 +156,14 @@ adminRouter.put('/admin/notes/:id', (req, res) => {
     return;
   }
   const info = db.prepare(`
-    UPDATE notes SET content_md = @contentMd, mood = @mood, images = @images
+    UPDATE notes SET content_md = @contentMd, mood = @mood, images = @images, pinned = @pinned
     WHERE id = @id
   `).run({
     id: req.params.id,
     contentMd: b.contentMd.trim(),
     mood: String(b.mood ?? ''),
     images: JSON.stringify(Array.isArray(b.images) ? b.images.slice(0, 9) : []),
+    pinned: b.pinned ? 1 : 0,
   });
   if (!info.changes) {
     res.status(404).json({ error: 'not_found' });
