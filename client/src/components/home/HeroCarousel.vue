@@ -883,12 +883,13 @@ onBeforeUnmount(() => {
   from { opacity: 0; transform: translate3d(0, -70%, 40px) rotateX(48deg) scale(0.8); }
   25% { opacity: 1; }
 }
+/* 后排卡绕 Y 轴翻正：左卡从左向右翻、右卡从右向左翻 */
 @keyframes enter-right {
-  from { opacity: 0; transform: translate3d(85%, -46px, -120px) rotateX(-36deg) scale(0.72); }
+  from { opacity: 0; transform: translate3d(85%, -46px, -120px) rotateY(62deg) scale(0.72); }
   25% { opacity: 0.85; }
 }
 @keyframes enter-left {
-  from { opacity: 0; transform: translate3d(-85%, 72px, -120px) rotateX(36deg) scale(0.7); }
+  from { opacity: 0; transform: translate3d(-85%, 72px, -120px) rotateY(-62deg) scale(0.7); }
   25% { opacity: 0.85; }
 }
 
