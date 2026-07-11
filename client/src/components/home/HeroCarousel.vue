@@ -59,8 +59,8 @@ const lightboxOn = ref(false);
 const lbClosing = ref(false);
 const dragging = ref(false);
 
-const OUT_MS = 330;
-const ENTER_MS = 550;
+const OUT_MS = 520;
+const ENTER_MS = 800;
 const FLY_MS = 550;
 const FLY_EASE = 'cubic-bezier(0.2, 0.8, 0.3, 1)';
 
@@ -870,7 +870,7 @@ onBeforeUnmount(() => {
 
 /* 入场（无弹性；透明度前 25% 拉满，凭空出现） */
 .hero.enter .album-card:not(.fly) {
-  animation-duration: 0.5s;
+  animation-duration: 0.75s;
   animation-timing-function: var(--ease-out);
   animation-fill-mode: both;
   animation-delay: var(--stagger);
@@ -880,21 +880,21 @@ onBeforeUnmount(() => {
 .hero.enter .slot-2 { animation-name: enter-left; }
 
 @keyframes enter-top {
-  from { opacity: 0; transform: translate3d(0, -70%, 40px) scale(0.8); }
+  from { opacity: 0; transform: translate3d(0, -70%, 40px) rotateX(48deg) scale(0.8); }
   25% { opacity: 1; }
 }
 @keyframes enter-right {
-  from { opacity: 0; transform: translate3d(85%, -46px, -120px) scale(0.72); }
+  from { opacity: 0; transform: translate3d(85%, -46px, -120px) rotateX(-36deg) scale(0.72); }
   25% { opacity: 0.85; }
 }
 @keyframes enter-left {
-  from { opacity: 0; transform: translate3d(-85%, 72px, -120px) scale(0.7); }
+  from { opacity: 0; transform: translate3d(-85%, 72px, -120px) rotateX(36deg) scale(0.7); }
   25% { opacity: 0.85; }
 }
 
 /* 出场：30% 时间透明，瞬隐 */
 .hero.out .album-card:not(.fly) {
-  animation-duration: 0.3s;
+  animation-duration: 0.5s;
   animation-timing-function: var(--ease-out);
   animation-fill-mode: both;
   animation-delay: calc(var(--stagger) * 0.4);
