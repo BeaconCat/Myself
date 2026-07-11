@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ThemeSwitcher from './ThemeSwitcher.vue';
 import { useAuthStore } from '../../stores/auth';
@@ -8,6 +8,17 @@ const { t } = useI18n();
 const auth = useAuthStore();
 const drawerOpen = ref(false);
 const writeOpen = ref(false);
+
+/* 点击菜单外任意处自动收起 */
+const writeWrap = ref<HTMLElement | null>(null);
+
+function onDocPointerDown(e: PointerEvent): void {
+  if (!writeOpen.value) return;
+  if (!writeWrap.value?.contains(e.target as Node)) writeOpen.value = false;
+}
+
+onMounted(() => document.addEventListener('pointerdown', onDocPointerDown));
+onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocPointerDown));
 
 const links = [
   { to: '/', key: 'nav.home' },
@@ -35,7 +46,7 @@ const links = [
     <ThemeSwitcher class="nav-theme" />
 
     <!-- 写作入口：文章 / 随想 -->
-    <div v-if="auth.loggedIn" class="write-wrap">
+    <div v-if="auth.loggedIn" ref="writeWrap" class="write-wrap">
       <button class="admin-dot" :title="t('write.menuTitle')" @click="writeOpen = !writeOpen">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 20h9" />
