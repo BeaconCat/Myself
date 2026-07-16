@@ -41,7 +41,7 @@ watch(
     <template v-if="post">
       <!-- 封面手风琴：挤压展开，点展开段飞出 Lightbox -->
       <div v-if="post.covers.length" v-reveal class="cover-band">
-        <CoverAccordion :images="post.covers" autoplay="always" />
+        <CoverAccordion :images="post.covers" />
       </div>
 
       <header v-reveal class="article-head">
@@ -71,11 +71,15 @@ watch(
   padding: 110px 24px 80px;
 }
 
+/* 封面带：突破正文栏加宽 */
 .cover-band {
+  --band-w: min(1100px, 100vw - 48px);
+  width: var(--band-w);
+  margin-inline: calc((var(--band-w) - 100%) / -2);
   height: clamp(240px, 40vw, 440px);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  margin-bottom: 26px;
+  margin-bottom: 30px;
 }
 
 .article-head .meta {

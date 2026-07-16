@@ -205,8 +205,9 @@ function rectStyle(r: Rect): Record<string, string> {
 function slotTransform(slot: number): string {
   const pose = deckPose();
   if (slot === 1) return `${pose} translate3d(76px, -46px, -90px) scale(0.8)`;
-  if (slot === 2) return `${pose} translate3d(-124px, 86px, -90px) scale(0.74)`;
-  return `${pose} scale(0.86)`;
+  if (slot === 2) return `${pose} translate3d(-140px, 96px, -90px) scale(0.74)`;
+  // 前排卡左移补偿 rotateY 透视右推
+  return `${pose} translate3d(-18px, 0, 0) scale(0.86)`;
 }
 
 /**
@@ -908,7 +909,8 @@ onBeforeUnmount(() => {
 }
 
 .slot-0 {
-  transform: translate3d(0, 0, 0) scale(0.86);
+  /* 左移补偿 rotateY 透视把视觉中心推向右侧 */
+  transform: translate3d(-18px, 0, 0) scale(0.86);
   opacity: 1;
   z-index: 3;
   filter: none;
@@ -922,7 +924,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 .slot-2 {
-  transform: translate3d(-124px, 86px, -90px) scale(0.74);
+  transform: translate3d(-140px, 96px, -90px) scale(0.74);
   opacity: 0.85;
   z-index: 1;
   filter: brightness(0.72);
@@ -1096,6 +1098,7 @@ onBeforeUnmount(() => {
   .album { transform: rotateY(-10deg); }
 
   /* 后排卡明显错位（探出量 ≤ 预留空间） */
+  .slot-0 { transform: translate3d(-8px, 0, 0) scale(0.86); }
   .slot-1 { transform: translate3d(44px, -26px, -60px) scale(0.8); }
   .slot-2 { transform: translate3d(-68px, 54px, -60px) scale(0.74); }
 

@@ -44,7 +44,7 @@ export const DEFAULT_CONFIG = {
   },
   covers: {
     /** 封面手风琴自动展开轮换间隔（毫秒） */
-    expandMs: 5000,
+    expandMs: 10000,
   },
   timezone: 'Asia/Shanghai',
   github: {

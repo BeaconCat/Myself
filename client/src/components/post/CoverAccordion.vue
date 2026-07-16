@@ -1,20 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { useConfigStore } from '../../stores/config';
 import ImageViewer, { type OriginRect } from '../media/ImageViewer.vue';
 
 /**
  * 封面挤压手风琴（≤3 张）：|AAAA|B|C| → |A|BBBB|C| → |A|B|CCCC|
- * 自动轮换间隔走站点配置；点未展开段=快速展开，点展开段=FLIP 飞出 Lightbox。
+ * - 未悬浮时自动轮播（默认 10s，走 covers.expandMs 配置），悬浮暂停
+ * - 位移与缩放同帧：段用绝对定位，left/width 同曲线过渡
+ * - 展开段底部倒计时条（右锚定向右收缩），条走完驱动切换；暂停时条滑出
+ * - 同屏多行初始化错峰：每行顺延 1s；用户一旦手动切换即退出错峰
+ * - 点未展开段=展开；点展开段=FLIP 飞出 Lightbox
  */
-const props = withDefaults(
-  defineProps<{
-    images: string[];
-    /** always：常驻轮换（文章页）；hover：悬停才轮换（列表缩略图） */
-    autoplay?: 'always' | 'hover';
-  }>(),
-  { autoplay: 'always' },
-);
+const props = defineProps<{ images: string[] }>();
 
 const config = useConfigStore();
 
@@ -22,15 +19,19 @@ const active = ref(0);
 const hovering = ref(false);
 const viewerOpen = ref(false);
 const viewerRect = ref<OriginRect | undefined>();
+/** 用户已手动干预：不再应用初始化错峰延迟 */
+const userTouched = ref(false);
 
 const list = computed(() => props.images.slice(0, 3));
-const expandMs = computed(() => Math.max(1500, Number(config.cfg.covers?.expandMs) || 5000));
-/** 倒计时/轮换暂停条件：hover 模式未悬停、或 Lightbox 打开 */
-const paused = computed(
-  () => viewerOpen.value || (props.autoplay === 'hover' && !hovering.value),
-);
+const expandMs = computed(() => Math.max(1500, Number(config.cfg.covers?.expandMs) || 10000));
+const paused = computed(() => viewerOpen.value || hovering.value);
+/** 轮播中（条显示条件） */
+const rolling = computed(() => list.value.length > 1 && !paused.value);
 
-/** 倒计时条走完即切换：视觉与逻辑同一时钟 */
+/* 初始化错峰：同屏连续轮播行依次 +1s，卸载让位 */
+const stagger = useStagger();
+const initialDelayMs = computed(() => (userTouched.value ? 0 : stagger.delayMs));
+
 function onCountdownEnd(): void {
   if (paused.value || list.value.length < 2) return;
   active.value = (active.value + 1) % list.value.length;
@@ -38,10 +39,10 @@ function onCountdownEnd(): void {
 
 function onSegClick(e: MouseEvent, i: number): void {
   if (i !== active.value) {
+    userTouched.value = true;
     active.value = i;
     return;
   }
-  // 已展开：FLIP 飞出 Lightbox
   const img = (e.currentTarget as HTMLElement).querySelector('img');
   if (!img) return;
   const r = img.getBoundingClientRect();
@@ -49,6 +50,32 @@ function onSegClick(e: MouseEvent, i: number): void {
   viewerOpen.value = true;
 }
 
+/** 绝对布局：active 权重 4、其余 1，left/width 同帧过渡（无 flex reflow 分离感） */
+const GAP = 3;
+
+function segStyle(i: number) {
+  const len = list.value.length;
+  const total = len - 1 + 4;
+  const weight = (idx: number) => (idx === active.value ? 4 : 1);
+  let prefix = 0;
+  for (let k = 0; k < i; k++) prefix += weight(k);
+  return {
+    left: `calc(${(prefix / total) * 100}% + ${i * GAP}px)`,
+    width: `calc(${(weight(i) / total) * 100}% - ${((len - 1) * GAP * weight(i)) / total}px)`,
+  };
+}
+</script>
+
+<script lang="ts">
+/** 模块级错峰调度：实例创建领号（0s/1s/2s…），卸载归还 */
+let staggerCount = 0;
+
+function useStagger() {
+  const slot = staggerCount++;
+  onBeforeUnmount(() => { staggerCount = Math.max(0, staggerCount - 1); });
+  return { delayMs: slot * 1000 };
+}
+export default {};
 </script>
 
 <template>
@@ -63,21 +90,28 @@ function onSegClick(e: MouseEvent, i: number): void {
       type="button"
       class="seg"
       :class="{ on: i === active }"
+      :style="segStyle(i)"
       @click.stop.prevent="onSegClick($event, i)"
     >
       <img :src="src" alt="" loading="lazy" draggable="false" />
-      <!-- 倒计时：右侧锚定，从左向右收缩 -->
+    </button>
+
+    <!-- 倒计时条：贴底、随轮播状态滑入滑出；条走完切下一张 -->
+    <transition name="cd">
       <span
-        v-if="i === active && list.length > 1"
-        :key="`p-${active}`"
+        v-if="rolling"
+        :key="`cd-${active}-${userTouched}`"
         class="countdown"
-        :style="{
-          animationDuration: expandMs + 'ms',
-          animationPlayState: paused ? 'paused' : 'running',
-        }"
+        :style="[
+          segStyle(active),
+          {
+            animationDuration: expandMs + 'ms',
+            animationDelay: initialDelayMs + 'ms',
+          },
+        ]"
         @animationend="onCountdownEnd"
       />
-    </button>
+    </transition>
 
     <ImageViewer
       v-if="viewerOpen"
@@ -91,26 +125,28 @@ function onSegClick(e: MouseEvent, i: number): void {
 
 <style scoped lang="scss">
 .acc {
-  display: flex;
-  gap: 4px;
+  position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
+  background: var(--surface-2);
 }
 
 .seg {
-  position: relative;
-  flex: 1 1 0%;
-  min-width: 0;
+  position: absolute;
+  top: 0;
+  bottom: 0;
   border: none;
   padding: 0;
   background: var(--surface-2);
   overflow: hidden;
   cursor: pointer;
-  /* 位移与缩放同帧：flex 简写整体过渡 */
-  transition: flex 0.6s var(--ease-out), filter var(--dur-fast);
+  /* 位移(left)与宽度同曲线同帧过渡 */
+  transition:
+    left 0.6s var(--ease-out),
+    width 0.6s var(--ease-out),
+    filter var(--dur-fast);
 
-  /* 图片绝对铺满：容器变宽时裁切随动，无二段跳感 */
   img {
     position: absolute;
     inset: 0;
@@ -126,29 +162,32 @@ function onSegClick(e: MouseEvent, i: number): void {
     &:hover { filter: brightness(0.9); }
   }
 
-  &.on {
-    flex: 4 1 0%;
-    cursor: zoom-in;
-  }
+  &.on { cursor: zoom-in; }
 }
 
-/* 倒计时条：右端固定，宽度从满向右收缩归零 */
+/* 倒计时条：随展开段定位，右锚定向右收缩 */
 .countdown {
   position: absolute;
-  right: 8px;
   bottom: 8px;
-  left: 8px;
   height: 3px;
+  margin-inline: 10px;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--primary), var(--primary-deep));
   box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.6);
   transform-origin: right center;
   animation: countdown-shrink linear both;
   pointer-events: none;
+  /* left/width 跟随段换位 */
+  transition: left 0.6s var(--ease-out), width 0.6s var(--ease-out);
 }
 
 @keyframes countdown-shrink {
   from { transform: scaleX(1); }
   to { transform: scaleX(0); }
 }
+
+/* 条入场自底浮入 / 退场沉底滑出 */
+.cd-enter-active { transition: opacity 0.3s ease, translate 0.3s var(--ease-out); }
+.cd-leave-active { transition: opacity 0.25s ease, translate 0.25s ease; }
+.cd-enter-from, .cd-leave-to { opacity: 0; translate: 0 10px; }
 </style>

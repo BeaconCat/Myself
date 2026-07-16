@@ -44,7 +44,7 @@ function coversOf(post: Post, index: number): string[] {
       </div>
       <!-- 缩略图手风琴：悬停轮换，点未展开段切换、点展开段 Lightbox -->
       <div class="zig-media">
-        <CoverAccordion :images="coversOf(post, i)" autoplay="hover" />
+        <CoverAccordion :images="coversOf(post, i)" />
       </div>
     </router-link>
   </div>
