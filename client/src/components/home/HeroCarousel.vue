@@ -838,7 +838,8 @@ onBeforeUnmount(() => {
 /* 未旋转的定位层：切换按钮挂这里，不受 3D 透视影响 */
 .album-zone {
   position: relative;
-  width: min(100%, 430px);
+  /* 大屏自适应放大：宽屏时右半区不空 */
+  width: min(100%, clamp(430px, 36vw, 580px));
   perspective: 1300px;
   /* 光标定在容器级：3D 命中测试在层叠卡片间跳动时指针形态不变 */
   cursor: pointer;

@@ -42,6 +42,10 @@ export const DEFAULT_CONFIG = {
   thoughts: {
     subtitle: '碎片化的想法、心情与瞬间，短到装不下一篇文章。',
   },
+  covers: {
+    /** 封面手风琴自动展开轮换间隔（毫秒） */
+    expandMs: 5000,
+  },
   timezone: 'Asia/Shanghai',
   github: {
     username: 'your-github',

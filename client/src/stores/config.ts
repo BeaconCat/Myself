@@ -32,6 +32,7 @@ export interface SiteConfig {
     pinnedRule: 'pinned-first' | 'ignore';
   };
   thoughts: { subtitle: string };
+  covers: { expandMs: number };
   timezone: string;
   github: {
     username: string;
@@ -72,6 +73,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
   },
   hero: { intervalMs: 3000, count: 4, pinnedRule: 'pinned-first' },
   thoughts: { subtitle: '碎片化的想法、心情与瞬间，短到装不下一篇文章。' },
+  covers: { expandMs: 5000 },
   timezone: 'Asia/Shanghai',
   github: {
     username: 'your-github',

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Post } from '../../api';
 import { placeholderCover } from '../../utils/placeholder';
+import CoverAccordion from './CoverAccordion.vue';
 
 /** alternate：交错翻转（首页）；compact：窄行（文章页，统一文左图右） */
 withDefaults(
@@ -15,10 +16,10 @@ const fallbackPalette = [
   ['#00c853', '#00512a'],
 ];
 
-function coverOf(post: Post, index: number): string {
-  if (post.covers.length) return post.covers[0];
+function coversOf(post: Post, index: number): string[] {
+  if (post.covers.length) return post.covers.slice(0, 3);
   const [from, to] = fallbackPalette[index % fallbackPalette.length];
-  return placeholderCover(from, to, post.tags[0] ?? 'Post');
+  return [placeholderCover(from, to, post.tags[0] ?? 'Post')];
 }
 </script>
 
@@ -41,8 +42,9 @@ function coverOf(post: Post, index: number): string {
           <span v-for="tag in post.tags" :key="tag">{{ tag }}</span>
         </div>
       </div>
+      <!-- 缩略图手风琴：悬停轮换，点未展开段切换、点展开段 Lightbox -->
       <div class="zig-media">
-        <img :src="coverOf(post, i)" :alt="post.title" loading="lazy" draggable="false" />
+        <CoverAccordion :images="coversOf(post, i)" autoplay="hover" />
       </div>
     </router-link>
   </div>

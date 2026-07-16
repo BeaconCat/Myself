@@ -72,6 +72,14 @@ async function get<T>(path: string): Promise<T> {
 
 import { readToken } from '../stores/auth';
 
+/** 票证失效：清除并踢回登录页 */
+function kickToLogin(): void {
+  localStorage.removeItem('myself.token');
+  if (!window.location.pathname.startsWith('/admin/login')) {
+    window.location.assign('/admin/login');
+  }
+}
+
 /** 带管理员 Token 的请求 */
 async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -82,6 +90,10 @@ async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
       ...init.headers,
     },
   });
+  if (res.status === 401) {
+    kickToLogin();
+    throw new Error('unauthorized');
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string }).error ?? `api_error_${res.status}`);
@@ -177,6 +189,10 @@ export const adminApi = {
       headers: { Authorization: `Bearer ${readToken()}` },
       body: form,
     });
+    if (res.status === 401) {
+      kickToLogin();
+      throw new Error('unauthorized');
+    }
     if (!res.ok) throw new Error(`api_error_${res.status}`);
     return res.json() as Promise<MediaItem[]>;
   },

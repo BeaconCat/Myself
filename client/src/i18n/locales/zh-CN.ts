@@ -193,6 +193,7 @@ export default {
     pinnedFirst: '置顶优先',
     pinnedIgnore: '无视置顶，按规则',
     thoughtsSubtitle: '随想页副标题',
+    coverExpandMs: '封面手风琴轮换间隔（毫秒）',
     pinned: '置顶',
     secTimezone: '时区',
     timezone: '站点时区（影响日期时间显示）',

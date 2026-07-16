@@ -25,11 +25,21 @@ const SECTIONS = [
   { id: 'sec-hero', key: 'admin.secHero' },
   { id: 'sec-timezone', key: 'admin.secTimezone' },
   { id: 'sec-github', key: 'admin.secGithub' },
-  { id: 'sec-about', key: 'admin.secAbout' },
   { id: 'sec-users', key: 'admin.secUsers' },
 ];
 
 /* GitHub 同步面板 */
+import { formatDateTime } from '../../utils/date';
+
+/** ISO 时间按站点时区显示 */
+function logTime(iso: string): string {
+  try {
+    return formatDateTime(iso.replace('T', ' ').replace('Z', '').slice(0, 19)).slice(5);
+  } catch {
+    return iso.slice(5, 16);
+  }
+}
+
 interface SyncLogEntry { at: string; ok: boolean; message: string }
 const ghLog = ref<SyncLogEntry[]>([]);
 const ghPreview = ref<{ stats?: Record<string, number>; fetchedAt?: string } | null>(null);
@@ -268,6 +278,10 @@ onMounted(async () => {
         <span>{{ t('admin.thoughtsSubtitle') }}</span>
         <input v-model="cfg.thoughts.subtitle" type="text" />
       </label>
+      <label class="narrow" style="margin-top: 14px">
+        <span>{{ t('admin.coverExpandMs') }}</span>
+        <input v-model.number="cfg.covers.expandMs" type="number" min="1500" step="500" />
+      </label>
     </section>
 
     <!-- 时区 -->
@@ -337,19 +351,12 @@ onMounted(async () => {
 
         <ul v-if="ghLog.length" class="gh-log">
           <li v-for="(entry, i) in ghLog" :key="i" :class="{ err: !entry.ok }">
-            <time>{{ entry.at.slice(5, 19).replace('T', ' ') }}</time>
+            <time>{{ logTime(entry.at) }}</time>
             <span>{{ entry.message }}</span>
           </li>
         </ul>
         <p v-else class="hint">{{ t('admin.ghNoLog') }}</p>
       </div>
-    </section>
-
-    <!-- 关于：迁至独立管理页 -->
-    <section id="sec-about" class="card about-link">
-      <h2>{{ t('admin.secAbout') }}</h2>
-      <p class="hint">{{ t('admin.aboutMoved') }}</p>
-      <router-link to="/admin/about" class="btn primary">{{ t('admin.goAbout') }}</router-link>
     </section>
 
     <!-- 用户管理 -->

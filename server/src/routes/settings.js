@@ -13,6 +13,7 @@ settingsRouter.get('/site-config', (_req, res) => {
     theme: cfg.theme,
     hero: cfg.hero,
     thoughts: cfg.thoughts,
+    covers: cfg.covers,
     timezone: cfg.timezone,
     // 公开配置不下发票证
     github: { ...cfg.github, token: undefined },

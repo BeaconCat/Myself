@@ -6,6 +6,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, type Post } from '../api';
+import CoverAccordion from '../components/post/CoverAccordion.vue';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -38,6 +39,11 @@ watch(
 <template>
   <main class="page">
     <template v-if="post">
+      <!-- 封面手风琴：挤压展开，点展开段飞出 Lightbox -->
+      <div v-if="post.covers.length" v-reveal class="cover-band">
+        <CoverAccordion :images="post.covers" autoplay="always" />
+      </div>
+
       <header v-reveal class="article-head">
         <div class="meta">
           <span class="date">{{ post.createdAt.slice(0, 10) }}</span>
@@ -63,6 +69,13 @@ watch(
   max-width: 760px;
   margin: 0 auto;
   padding: 110px 24px 80px;
+}
+
+.cover-band {
+  height: clamp(180px, 30vw, 320px);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 26px;
 }
 
 .article-head .meta {
