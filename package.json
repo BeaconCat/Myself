@@ -1,0 +1,14 @@
+{
+  "name": "myself",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Myself — 开源个人博客引擎（Vue 3 + Express + SQLite）",
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently -n client,server -c cyan,magenta \"pnpm -C client dev\" \"pnpm -C server dev\"",
+    "build": "pnpm -C client build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
