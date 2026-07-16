@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
@@ -205,7 +205,7 @@ function rectStyle(r: Rect): Record<string, string> {
 function slotTransform(slot: number): string {
   const pose = deckPose();
   if (slot === 1) return `${pose} translate3d(76px, -46px, -90px) scale(0.8)`;
-  if (slot === 2) return `${pose} translate3d(-104px, 72px, -90px) scale(0.74)`;
+  if (slot === 2) return `${pose} translate3d(-124px, 86px, -90px) scale(0.74)`;
   return `${pose} scale(0.86)`;
 }
 
@@ -231,13 +231,13 @@ function centerStyle(src: string): Promise<Record<string, string>> {
   return new Promise((resolve) => {
     const probe = new Image();
     probe.onload = () => {
-      const maxW = window.innerWidth * 0.86;
+      const maxW = document.documentElement.clientWidth * 0.86;
       const maxH = window.innerHeight * 0.8;
       const ratio = Math.min(maxW / probe.naturalWidth, maxH / probe.naturalHeight);
       const w = probe.naturalWidth * ratio;
       const h = probe.naturalHeight * ratio;
       resolve({
-        left: `${(window.innerWidth - w) / 2}px`,
+        left: `${(document.documentElement.clientWidth - w) / 2}px`,
         top: `${(window.innerHeight - h) / 2}px`,
         width: `${w}px`,
         height: `${h}px`,
@@ -245,9 +245,9 @@ function centerStyle(src: string): Promise<Record<string, string>> {
       });
     };
     probe.onerror = () => resolve({
-      left: `${window.innerWidth * 0.15}px`,
+      left: `${document.documentElement.clientWidth * 0.15}px`,
       top: `${window.innerHeight * 0.15}px`,
-      width: `${window.innerWidth * 0.7}px`,
+      width: `${document.documentElement.clientWidth * 0.7}px`,
       height: `${window.innerHeight * 0.7}px`,
       borderRadius: '0px',
     });
@@ -419,7 +419,7 @@ function onWheel(e: WheelEvent): void {
   const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
   const next = clampScale(scale.value * factor);
   const ratio = next / scale.value;
-  const cx = e.clientX - window.innerWidth / 2;
+  const cx = e.clientX - document.documentElement.clientWidth / 2;
   const cy = e.clientY - window.innerHeight / 2;
   tx.value = cx - (cx - tx.value) * ratio;
   ty.value = cy - (cy - ty.value) * ratio;
@@ -457,7 +457,7 @@ function onPointerMove(e: PointerEvent): void {
     if (pinchDist > 0) {
       const next = clampScale(scale.value * (dist / pinchDist));
       const ratio = next / scale.value;
-      const cx = (a.x + b.x) / 2 - window.innerWidth / 2;
+      const cx = (a.x + b.x) / 2 - document.documentElement.clientWidth / 2;
       const cy = (a.y + b.y) / 2 - window.innerHeight / 2;
       tx.value = cx - (cx - tx.value) * ratio;
       ty.value = cy - (cy - ty.value) * ratio;
@@ -922,7 +922,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 .slot-2 {
-  transform: translate3d(-104px, 72px, -90px) scale(0.74);
+  transform: translate3d(-124px, 86px, -90px) scale(0.74);
   opacity: 0.85;
   z-index: 1;
   filter: brightness(0.72);

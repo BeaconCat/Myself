@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { useConfigStore } from '../../stores/config';
 import ImageViewer, { type OriginRect } from '../media/ImageViewer.vue';
 
@@ -25,23 +25,20 @@ const viewerRect = ref<OriginRect | undefined>();
 
 const list = computed(() => props.images.slice(0, 3));
 const expandMs = computed(() => Math.max(1500, Number(config.cfg.covers?.expandMs) || 5000));
+/** 倒计时/轮换暂停条件：hover 模式未悬停、或 Lightbox 打开 */
+const paused = computed(
+  () => viewerOpen.value || (props.autoplay === 'hover' && !hovering.value),
+);
 
-let timer = 0;
-
-function restart(): void {
-  window.clearInterval(timer);
-  if (list.value.length < 2) return;
-  timer = window.setInterval(() => {
-    if (viewerOpen.value) return;
-    if (props.autoplay === 'hover' && !hovering.value) return;
-    active.value = (active.value + 1) % list.value.length;
-  }, expandMs.value);
+/** 倒计时条走完即切换：视觉与逻辑同一时钟 */
+function onCountdownEnd(): void {
+  if (paused.value || list.value.length < 2) return;
+  active.value = (active.value + 1) % list.value.length;
 }
 
 function onSegClick(e: MouseEvent, i: number): void {
   if (i !== active.value) {
     active.value = i;
-    restart();
     return;
   }
   // 已展开：FLIP 飞出 Lightbox
@@ -52,9 +49,6 @@ function onSegClick(e: MouseEvent, i: number): void {
   viewerOpen.value = true;
 }
 
-watch(expandMs, restart);
-onMounted(restart);
-onBeforeUnmount(() => window.clearInterval(timer));
 </script>
 
 <template>
@@ -72,6 +66,17 @@ onBeforeUnmount(() => window.clearInterval(timer));
       @click.stop.prevent="onSegClick($event, i)"
     >
       <img :src="src" alt="" loading="lazy" draggable="false" />
+      <!-- 倒计时：右侧锚定，从左向右收缩 -->
+      <span
+        v-if="i === active && list.length > 1"
+        :key="`p-${active}`"
+        class="countdown"
+        :style="{
+          animationDuration: expandMs + 'ms',
+          animationPlayState: paused ? 'paused' : 'running',
+        }"
+        @animationend="onCountdownEnd"
+      />
     </button>
 
     <ImageViewer
@@ -95,21 +100,23 @@ onBeforeUnmount(() => window.clearInterval(timer));
 
 .seg {
   position: relative;
-  flex: 1 1 0;
+  flex: 1 1 0%;
   min-width: 0;
   border: none;
   padding: 0;
   background: var(--surface-2);
   overflow: hidden;
   cursor: pointer;
-  /* 挤压展开动画 */
-  transition: flex-grow 0.6s var(--ease-out), filter var(--dur-fast);
+  /* 位移与缩放同帧：flex 简写整体过渡 */
+  transition: flex 0.6s var(--ease-out), filter var(--dur-fast);
 
+  /* 图片绝对铺满：容器变宽时裁切随动，无二段跳感 */
   img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    display: block;
     user-select: none;
   }
 
@@ -120,8 +127,28 @@ onBeforeUnmount(() => window.clearInterval(timer));
   }
 
   &.on {
-    flex-grow: 4;
+    flex: 4 1 0%;
     cursor: zoom-in;
   }
+}
+
+/* 倒计时条：右端固定，宽度从满向右收缩归零 */
+.countdown {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--primary-deep));
+  box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.6);
+  transform-origin: right center;
+  animation: countdown-shrink linear both;
+  pointer-events: none;
+}
+
+@keyframes countdown-shrink {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
 }
 </style>

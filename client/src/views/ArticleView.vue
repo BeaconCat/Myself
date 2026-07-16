@@ -72,7 +72,7 @@ watch(
 }
 
 .cover-band {
-  height: clamp(180px, 30vw, 320px);
+  height: clamp(240px, 40vw, 440px);
   border-radius: var(--radius-lg);
   overflow: hidden;
   margin-bottom: 26px;
