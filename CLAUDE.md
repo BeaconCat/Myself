@@ -12,14 +12,14 @@
 - 严禁原生 alert/confirm/prompt：一律使用全局模态组件
   （`stores/dialog.ts` + `components/ui/AppModal.vue`，带灵动进出场动画）
 - 字体：思源黑体（UI/正文）+ 思源宋体（标题/文章），离线 woff2 打包
-- i18n：vue-i18n，默认 zh-CN，字典结构预留其他语言
+- i18n：vue-i18n，当前仅 zh-CN（`i18n/locales/zh-CN.ts`）；多语言暂缓，新增文案一律走字典不写死
 - 响应式：PC 顶部毛玻璃胶囊导航；移动端悬浮顶栏 + 汉堡侧栏
 
 ## 主题系统
 - 两层：`mode`（light/dark）×`palette`（季节色盘）
 - 品牌常量（所有主题贯穿）：`--accent-red:#ff0032` `--accent-yellow:#ffb300` `--accent-blue:#0078ff`
-- 内置四季色盘：spring / summer / autumn / winter，每套含 light+dark 两组变量
-- 色盘定义为独立文件（`client/src/themes/*.ts`），支持后续新增自定义色盘
+- 内置四季预设：spring / summer / autumn / winter，由后端站点配置 `theme.presets` 下发（每组仅 primary / primaryDeep）
+- 色盘运行时派生：`client/src/themes/derive.ts` 从主色推导整套 light+dark 变量并注入，不维护独立色盘文件；后台可自定义最多 10 组预设
 - 全部通过 CSS variables 注入 `:root[data-mode][data-palette]`
 
 ## 动画规范（全站）
