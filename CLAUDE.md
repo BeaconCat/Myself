@@ -1,7 +1,7 @@
 # Myself — 个人博客（内部代号 Myself）
 
 ## 总体
-- Monorepo：`client/`（Vue 3 + Vite 7 + PNPM）+ `server/`（Node.js Express + SQLite）
+- Monorepo：`client/`（Vue 3 + Vite 7 + PNPM）+ `server/`（Go 1.26 net/http + SQLite，纯 Go 无 cgo）；旧 Node 实现归档于 `server-node/`
 - 遵循 Google 开发规范；代码简洁专业、易维护
 - 内容统一 Markdown 存储与渲染
 - 每个功能开发完 → 运行测试服务器人工测试 → 通过后 commit 到 GitHub 私有仓 `BeaconCat/Myself`
@@ -34,7 +34,10 @@
 ## 后端规范
 - RESTful API，前缀 `/api/v1`
 - JWT 管理员认证（后台编辑）；API 中心：APIKey 认证（`X-Api-Key`），供外部 AI 发文
-- SQLite 存储（better-sqlite3），文章正文为 Markdown
+- SQLite 存储（modernc.org/sqlite），文章正文为 Markdown
+- 布局：`cmd/myself-server` 入口，`internal/{store,auth,config,imaging,httpapi}`；标准库 ServeMux 方法路由
+- 图片处理纯 Go（stdlib + gen2brain/webp），备份 archive/zip；本机无 gcc，勿引入 cgo 依赖
+- 启动：根目录 `pnpm dev`（concurrently 拉起 client + `go -C server run`）；`go test ./...`
 
 ## 分期
 - P0 骨架：主题系统、i18n、响应式布局、motion 系统、Hero 轮播 ✅进行中
