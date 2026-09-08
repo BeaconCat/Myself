@@ -86,6 +86,7 @@ type compressResult struct {
 }
 
 // POST /admin/quality/compress { names: string[], quality: 1-100 }
+// 立即返回 202 {id,total}，后台串行处理；进度经 GET /admin/quality/jobs/{id} 轮询。
 // PNG → WebP（保留 alpha，文件名改 .webp，站内引用自动替换）；JPG/WebP → 原格式重压。
 // 原图备份到 .originals 保留后路。
 func (s *Server) qualityCompress(w http.ResponseWriter, r *http.Request) {
@@ -100,36 +101,40 @@ func (s *Server) qualityCompress(w http.ResponseWriter, r *http.Request) {
 	}
 	quality = clamp(quality, 1, 100)
 
-	results := []compressResult{}
+	names := []string{}
 	for _, name := range b.strings("names", 0) {
 		if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
 			continue
 		}
-		full := filepath.Join(s.UploadDir, name)
-		if !fileExists(full) {
+		if !compressibleExt[imaging.Ext(name)] || !fileExists(filepath.Join(s.UploadDir, name)) {
 			continue
 		}
-		ext := imaging.Ext(name)
-		if !compressibleExt[ext] {
-			continue
-		}
-		stat, err := os.Stat(full)
-		if err != nil {
-			continue
-		}
-		before := stat.Size()
-		if err := copyIfMissing(full, filepath.Join(s.originalsDir, name)); err != nil {
-			results = append(results, compressResult{Name: name, Error: err.Error()})
-			continue
-		}
-		res, err := s.compressOne(name, full, ext, before, quality)
-		if err != nil {
-			results = append(results, compressResult{Name: name, Error: err.Error()})
-			continue
-		}
-		results = append(results, res)
+		names = append(names, name)
 	}
-	writeJSON(w, http.StatusOK, results)
+	if s.jobs.running() {
+		writeError(w, http.StatusConflict, "job_running")
+		return
+	}
+	job := s.jobs.create(len(names))
+	go s.runCompressJob(job.ID, names, quality)
+	writeJSON(w, http.StatusAccepted, map[string]any{"id": job.ID, "total": len(names)})
+}
+
+// compressNamed 压缩单个文件，返回结果（源文件消失等情况返回 nil 跳过）。
+func (s *Server) compressNamed(name string, quality int) *compressResult {
+	full := filepath.Join(s.UploadDir, name)
+	stat, err := os.Stat(full)
+	if err != nil {
+		return nil
+	}
+	if err := copyIfMissing(full, filepath.Join(s.originalsDir, name)); err != nil {
+		return &compressResult{Name: name, Error: err.Error()}
+	}
+	res, err := s.compressOne(name, full, imaging.Ext(name), stat.Size(), quality)
+	if err != nil {
+		return &compressResult{Name: name, Error: err.Error()}
+	}
+	return &res
 }
 
 func (s *Server) compressOne(name, full, ext string, before int64, quality int) (compressResult, error) {

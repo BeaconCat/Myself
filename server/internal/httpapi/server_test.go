@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"myself/server/internal/auth"
 	"myself/server/internal/config"
@@ -235,6 +236,32 @@ func TestMediaUploadCropThumb(t *testing.T) {
 	if err != nil || cfg.Width != 1100 || cfg.Height != 300 {
 		t.Fatalf("cropped file: %+v %v", cfg, err)
 	}
+
+	// 后台压缩任务：202 → 轮询到完成，png 变 webp
+	var accepted struct {
+		ID    string `json:"id"`
+		Total int    `json:"total"`
+	}
+	e.call(http.MethodPost, "/api/v1/admin/quality/compress", map[string]any{"names": []string{name, "../x.png"}, "quality": 70}, &accepted, http.StatusAccepted)
+	if accepted.Total != 1 || accepted.ID == "" {
+		t.Fatalf("compress accepted: %+v", accepted)
+	}
+	var job compressJob
+	for i := 0; i < 200; i++ {
+		e.call(http.MethodGet, "/api/v1/admin/quality/jobs/"+accepted.ID, nil, &job, http.StatusOK)
+		if !job.Running {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if job.Running || job.Done != 1 || len(job.Results) != 1 || !strings.HasSuffix(job.Results[0].NewName, ".webp") {
+		t.Fatalf("compress job: %+v", job)
+	}
+	if fileExists(filepath.Join(e.root, "uploads", name)) {
+		t.Fatal("png should be replaced by webp")
+	}
+	name = job.Results[0].NewName
+	e.call(http.MethodGet, "/api/v1/admin/quality/jobs/nope", nil, nil, http.StatusNotFound)
 
 	res = e.do(http.MethodGet, "/uploads/.originals/"+name, nil, nil)
 	if res.StatusCode != http.StatusNotFound {

@@ -223,11 +223,13 @@ export const adminApi = {
     return res.blob();
   },
   qualityScan: () => authed<QualityItem[]>('/admin/quality/scan'),
+  /** 发起后台压缩任务：立即返回任务 id，用 qualityJob 轮询进度 */
   qualityCompress: (names: string[], quality: number) =>
-    authed<CompressResult[]>('/admin/quality/compress', {
+    authed<{ id: string; total: number }>('/admin/quality/compress', {
       method: 'POST',
       body: JSON.stringify({ names, quality }),
     }),
+  qualityJob: (id: string) => authed<CompressJob>(`/admin/quality/jobs/${id}`),
   githubSync: () =>
     authed<{ ok: boolean; data?: unknown }>('/admin/github/sync', { method: 'POST' }),
   githubLog: () =>
@@ -270,6 +272,17 @@ export interface QualityItem {
   height: number;
   hasAlpha: boolean;
   compressible: boolean;
+}
+
+export interface CompressJob {
+  id: string;
+  total: number;
+  done: number;
+  running: boolean;
+  current: string;
+  results: CompressResult[];
+  startedAt: string;
+  endedAt?: string;
 }
 
 export interface CompressResult {

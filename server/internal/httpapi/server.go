@@ -44,6 +44,7 @@ type Server struct {
 	ghFlight  singleflight.Group
 
 	thumbsDir string
+	jobs      *jobRegistry
 }
 
 // New 构造 Server 并准备目录。
@@ -52,6 +53,7 @@ func New(d Deps) *Server {
 		Deps:         d,
 		originalsDir: filepath.Join(d.UploadDir, ".originals"),
 		thumbsDir:    filepath.Join(d.UploadDir, "thumbs"),
+		jobs:         newJobRegistry(),
 	}
 	for _, dir := range []string{s.originalsDir, s.thumbsDir, d.BackupDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -107,6 +109,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("DELETE "+p+"/admin/backups/{name}", admin(s.deleteBackup))
 	mux.HandleFunc("GET "+p+"/admin/quality/scan", admin(s.qualityScan))
 	mux.HandleFunc("POST "+p+"/admin/quality/compress", admin(s.qualityCompress))
+	mux.HandleFunc("GET "+p+"/admin/quality/jobs/{id}", admin(s.compressJobStatus))
 	mux.HandleFunc("POST "+p+"/admin/github/sync", admin(s.githubSync))
 	mux.HandleFunc("GET "+p+"/admin/github/log", admin(s.githubLog))
 

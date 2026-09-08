@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { adminApi, type CompressResult, type QualityItem } from '../../api';
+import { adminApi, type CompressJob, type CompressResult, type QualityItem } from '../../api';
+import { useDialogStore } from '../../stores/dialog';
 
 const { t } = useI18n();
 
@@ -10,6 +11,14 @@ const selected = ref<Set<string>>(new Set());
 const quality = ref(80);
 const busy = ref(false);
 const results = ref<CompressResult[]>([]);
+/** 后台任务进度（轮询） */
+const job = ref<CompressJob | null>(null);
+let pollTimer = 0;
+const dialog = useDialogStore();
+
+const progressPercent = computed(() =>
+  job.value && job.value.total ? Math.round((job.value.done / job.value.total) * 100) : 0,
+);
 
 const totalSelectedSize = computed(() =>
   items.value.filter((i) => selected.value.has(i.name)).reduce((sum, i) => sum + i.size, 0),
@@ -34,17 +43,40 @@ function selectAll(): void {
     : new Set(items.value.map((i) => i.name));
 }
 
+/** 发起后台任务后每 600ms 轮询，直到 running=false */
 async function compress(): Promise<void> {
   if (busy.value || !selected.value.size) return;
   busy.value = true;
+  results.value = [];
   try {
-    results.value = await adminApi.qualityCompress([...selected.value], quality.value);
+    const { id } = await adminApi.qualityCompress([...selected.value], quality.value);
+    job.value = await adminApi.qualityJob(id);
+    await new Promise<void>((resolve) => {
+      const tick = async (): Promise<void> => {
+        try {
+          job.value = await adminApi.qualityJob(id);
+        } catch {
+          resolve();
+          return;
+        }
+        if (job.value.running) pollTimer = window.setTimeout(() => void tick(), 600);
+        else resolve();
+      };
+      pollTimer = window.setTimeout(() => void tick(), 600);
+    });
+    results.value = job.value?.results ?? [];
     items.value = await adminApi.qualityScan();
     selected.value = new Set();
+  } catch (err) {
+    if ((err as Error).message === 'job_running') void dialog.alert({ message: t('admin.compressRunning') });
+    else throw err;
   } finally {
     busy.value = false;
+    job.value = null;
   }
 }
+
+onBeforeUnmount(() => window.clearTimeout(pollTimer));
 
 function formatSize(bytes: number): string {
   if (bytes > 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -79,6 +111,15 @@ onMounted(scan);
       <button class="btn primary" :disabled="busy || !selected.size" @click="compress">
         {{ busy ? t('admin.compressing') : t('admin.compress') }}
       </button>
+    </div>
+
+    <!-- 后台任务进度 -->
+    <div v-if="job" class="progress">
+      <div class="bar"><span :style="{ width: `${progressPercent}%` }" /></div>
+      <span class="progress-text">
+        {{ t('admin.compressProgress', { done: job.done, total: job.total }) }}
+        <em v-if="job.current">{{ job.current }}</em>
+      </span>
     </div>
 
     <!-- 结果 -->
@@ -144,6 +185,39 @@ onMounted(scan);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-bottom: 16px;
+}
+
+/* 进度条：主色填充，宽度过渡走 motion token */
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: -6px 0 16px;
+  font-size: 13px;
+  color: var(--text-2);
+
+  .bar {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+
+    span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--primary);
+      transition: width var(--dur) var(--ease-out);
+    }
+  }
+
+  em {
+    font-style: normal;
+    margin-left: 8px;
+    font-family: Consolas, monospace;
+    opacity: 0.8;
+  }
 }
 
 .q-label {

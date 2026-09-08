@@ -85,6 +85,8 @@ export default {
     selectedInfo: '已选 {n} 张 · {size}',
     compress: '开始压缩',
     compressing: '压缩中…',
+    compressProgress: '压缩中 {done}/{total}',
+    compressRunning: '已有压缩任务在运行，请稍候',
     compressFailed: '压缩失败',
     qualityImage: '图片',
     qualityFormat: '格式',
