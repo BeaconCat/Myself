@@ -28,9 +28,7 @@ export default {
   article: {
     back: '返回文章列表',
     notFound: '文章不存在或已下线',
-  },
-  archive: {
-    month: '{year} 年 {month} 月',
+    toc: '目录',
   },
   viewer: {
     wheel: '滚轮缩放',

@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import MarkdownIt from 'markdown-it';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, api, type Note } from '../../api';
 import { useDialogStore } from '../../stores/dialog';
+import { render as renderMarkdown } from '../../utils/markdown';
 
 const { t } = useI18n();
 
-const md = new MarkdownIt({ linkify: true });
 const notes = ref<Note[]>([]);
 
 async function load(): Promise<void> {
@@ -62,7 +61,7 @@ onMounted(load);
         class="note-card a-card"
         :class="{ pinned: note.pinned }"
       >
-        <div class="note-text" v-html="md.render(note.contentMd)" />
+        <div class="note-text" v-html="renderMarkdown(note.contentMd)" />
         <div v-if="note.images.length" class="thumbs">
           <img v-for="src in note.images.slice(0, 4)" :key="src" :src="src" loading="lazy" alt="" />
           <span v-if="note.images.length > 4" class="more">+{{ note.images.length - 4 }}</span>

@@ -17,6 +17,8 @@ import (
 	"myself/server/internal/auth"
 	"myself/server/internal/config"
 	"myself/server/internal/store"
+
+	"golang.org/x/sync/singleflight"
 )
 
 // Deps 是 Server 依赖。
@@ -27,6 +29,8 @@ type Deps struct {
 	UploadDir string
 	BackupDir string
 	DataDir   string
+	// Frontend 可选：内嵌 SPA 处理器，接管非 /api、/uploads 的请求。
+	Frontend http.Handler
 }
 
 // Server 聚合全部路由处理器。
@@ -37,12 +41,19 @@ type Server struct {
 	ghMu      sync.Mutex
 	ghCache   githubCache
 	ghSyncLog []syncEntry
+	ghFlight  singleflight.Group
+
+	thumbsDir string
 }
 
 // New 构造 Server 并准备目录。
 func New(d Deps) *Server {
-	s := &Server{Deps: d, originalsDir: filepath.Join(d.UploadDir, ".originals")}
-	for _, dir := range []string{s.originalsDir, d.BackupDir} {
+	s := &Server{
+		Deps:         d,
+		originalsDir: filepath.Join(d.UploadDir, ".originals"),
+		thumbsDir:    filepath.Join(d.UploadDir, "thumbs"),
+	}
+	for _, dir := range []string{s.originalsDir, s.thumbsDir, d.BackupDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			log.Fatalf("[myself-server] mkdir %s: %v", dir, err)
 		}
@@ -64,8 +75,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+p+"/tags", s.tags)
 	mux.HandleFunc("GET "+p+"/notes", s.listNotes)
 	mux.HandleFunc("GET "+p+"/img/{from}/{to}/{label}", s.placeholderImage)
-	mux.HandleFunc("GET "+p+"/archive", s.archive)
 	mux.HandleFunc("GET "+p+"/site-config", s.siteConfig)
+	mux.HandleFunc("GET /feed", s.rssFeed)
+	mux.HandleFunc("GET /feed.xml", s.rssFeed)
 	mux.HandleFunc("GET "+p+"/github-status", s.githubStatus)
 	mux.HandleFunc("POST "+p+"/auth/login", s.login)
 
@@ -109,10 +121,36 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT "+p+"/ext/notes/{id}", ext(s.extUpdateNote))
 	mux.HandleFunc("DELETE "+p+"/ext/notes/{id}", ext(s.extDeleteNote))
 
-	// 静态素材：忽略点文件/点目录，缓存一天
+	// 静态素材：忽略点文件/点目录，缓存一天；thumbs/ 按需生成缩略图
+	mux.HandleFunc("GET /uploads/thumbs/{name}", s.serveThumb)
 	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", s.uploadsHandler()))
 
-	return recoverMiddleware(mux)
+	if s.Frontend != nil {
+		mux.Handle("/", s.Frontend)
+	}
+	return recoverMiddleware(logMiddleware(mux))
+}
+
+// logMiddleware 访问日志：方法 路径 状态 耗时。
+func logMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(sw, r)
+		if strings.HasPrefix(r.URL.Path, "/api/") || sw.status >= 400 {
+			log.Printf("%s %s %d %s", r.Method, r.URL.RequestURI(), sw.status, time.Since(start).Round(time.Millisecond))
+		}
+	})
+}
+
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusWriter) WriteHeader(code int) {
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
 }
 
 func (s *Server) uploadsHandler() http.Handler {

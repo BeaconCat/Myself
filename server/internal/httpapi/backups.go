@@ -13,8 +13,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"myself/server/internal/config"
 )
 
 var backupNameRe = regexp.MustCompile(`^backup-[\d-]+\.zip$`)
@@ -106,7 +104,7 @@ func (s *Server) StartAutoBackup() {
 		go func() {
 			var last time.Time
 			for range time.Tick(time.Minute) {
-				hours := config.Num(config.Sub(s.Config.Get(), "backup"), "autoHours")
+				hours := s.Config.Typed().Backup.AutoHours
 				if hours <= 0 {
 					continue
 				}

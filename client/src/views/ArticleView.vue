@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import MarkdownIt from 'markdown-it';
-// @ts-expect-error 无类型声明的离线插件
-import taskLists from 'markdown-it-task-lists';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, type Post } from '../api';
 import CoverAccordion from '../components/post/CoverAccordion.vue';
+import { renderWithToc, type TocItem } from '../utils/markdown';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -14,11 +12,47 @@ const route = useRoute();
 const post = ref<Post | null>(null);
 const notFound = ref(false);
 
-const md = new MarkdownIt({ linkify: true }).use(taskLists);
-
-const html = computed(() =>
-  post.value?.contentMd ? md.render(post.value.contentMd) : '',
+const rendered = computed(() =>
+  post.value?.contentMd ? renderWithToc(post.value.contentMd) : { html: '', toc: [] as TocItem[] },
 );
+const html = computed(() => rendered.value.html);
+const toc = computed(() => rendered.value.toc);
+
+/* 目录高亮：观察正文标题进入视口 */
+const activeId = ref('');
+let observer: IntersectionObserver | null = null;
+
+function observeHeadings(): void {
+  observer?.disconnect();
+  observer = null;
+  if (!toc.value.length) return;
+  const headings = toc.value
+    .map((item) => document.getElementById(item.id))
+    .filter((el): el is HTMLElement => !!el);
+  if (!headings.length) return;
+  observer = new IntersectionObserver(
+    (entries) => {
+      const visible = entries
+        .filter((e) => e.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (visible[0]) activeId.value = visible[0].target.id;
+    },
+    { rootMargin: '-100px 0px -65% 0px', threshold: 0 },
+  );
+  headings.forEach((el) => observer?.observe(el));
+  activeId.value = headings[0]?.id ?? '';
+}
+
+watch(toc, () => void nextTick(observeHeadings));
+onBeforeUnmount(() => observer?.disconnect());
+
+function jumpTo(id: string): void {
+  const el = document.getElementById(id);
+  if (!el) return;
+  activeId.value = id;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  history.replaceState(null, '', `#${id}`);
+}
 
 watch(
   () => route.params.slug,
@@ -52,6 +86,20 @@ watch(
       </header>
       <!-- Markdown 渲染区（标题由正文一级标题承担） -->
       <article v-reveal class="markdown" v-html="html" />
+
+      <!-- 目录：宽屏固定右栏，跟随滚动高亮 -->
+      <nav v-if="toc.length > 1" class="toc" :aria-label="t('article.toc')">
+        <p class="toc-title">{{ t('article.toc') }}</p>
+        <ul>
+          <li
+            v-for="item in toc"
+            :key="item.id"
+            :class="[`lv${item.level}`, { active: item.id === activeId }]"
+          >
+            <a :href="`#${item.id}`" @click.prevent="jumpTo(item.id)">{{ item.text }}</a>
+          </li>
+        </ul>
+      </nav>
       <router-link v-reveal to="/articles" class="back">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
           <path d="M19 12H5M11 6l-6 6 6 6" />
@@ -100,10 +148,77 @@ watch(
   color: var(--primary);
 }
 
+/* 目录：正文右侧固定栏，仅宽屏显示 */
+.toc {
+  display: none;
+  position: fixed;
+  top: 130px;
+  left: calc(50% + 400px);
+  width: 220px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  animation: toc-in var(--dur-slow) var(--ease-out) both;
+
+  @media (min-width: 1240px) { display: block; }
+
+  .toc-title {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--text-2);
+    margin: 0 0 8px;
+  }
+
+  ul { list-style: none; margin: 0; padding: 0; }
+
+  li {
+    position: relative;
+    padding: 4px 0 4px 12px;
+    border-left: 2px solid transparent;
+    transition: border-color var(--dur-fast), background var(--dur-fast);
+
+    &.lv3 { padding-left: 24px; font-size: 12px; }
+
+    a {
+      display: block;
+      color: var(--text-2);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition: color var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+    }
+
+    &:hover a { color: var(--text); transform: translateX(2px); }
+
+    &.active {
+      border-left-color: var(--primary);
+      a { color: var(--primary); font-weight: 600; }
+    }
+  }
+}
+
+@keyframes toc-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toc { animation: none; }
+}
+
 /* 文章排版：宋体标题 + 黑体正文 */
 .markdown {
   line-height: 1.9;
   font-size: 16px;
+
+  :deep(h1), :deep(h2), :deep(h3), :deep(h4) { scroll-margin-top: 100px; }
 
   :deep(h1) {
     font-size: clamp(28px, 3.6vw, 38px);

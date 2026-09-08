@@ -25,7 +25,7 @@ export const API_CATALOG: ApiGroup[] = [
       { method: 'GET', path: '/api/v1/posts?page=1&pageSize=10&tag=&q=', desc: '已发布文章列表：分页、标签过滤、关键词搜索', auth: 'none' },
       { method: 'GET', path: '/api/v1/posts/:slug', desc: '文章详情（含 Markdown 正文）', auth: 'none', sample: { ':slug': 'welcome-to-myself' } },
       { method: 'GET', path: '/api/v1/tags', desc: '标签及文章计数', auth: 'none' },
-      { method: 'GET', path: '/api/v1/archive', desc: '按年月归档', auth: 'none' },
+      { method: 'GET', path: '/feed', desc: 'RSS 2.0 订阅源（最新 20 篇）', auth: 'none' },
       { method: 'GET', path: '/api/v1/notes?page=1&pageSize=20', desc: '随想信息流', auth: 'none' },
       { method: 'GET', path: '/api/v1/site-config', desc: '站点公开配置（标题/主题/关于等）', auth: 'none' },
       { method: 'GET', path: '/api/v1/img/:from/:to/:label', desc: '本地渐变占位图（hex 颜色对 + 文本）', auth: 'none', sample: { ':from': 'ff0032', ':to': '7a0020', ':label': 'Demo' } },
@@ -118,7 +118,7 @@ X-Api-Key: ${key}
 - DELETE ${baseUrl}/api/v1/ext/notes/{id}              删除
 
 只读参考（无需认证）：
-- GET ${baseUrl}/api/v1/posts / /api/v1/tags / /api/v1/archive / /api/v1/site-config
+- GET ${baseUrl}/api/v1/posts / /api/v1/tags / /api/v1/site-config / /feed
 
 ## 行为准则
 1. 写作前先 GET 现有内容，避免重复主题与 slug 冲突（409 = slug 已存在）

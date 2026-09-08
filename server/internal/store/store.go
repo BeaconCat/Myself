@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -22,14 +24,15 @@ func Open(dataDir string) (*DB, error) {
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		return nil, err
 	}
-	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)",
+	// WAL + busy_timeout：多读单写；_txlock=immediate 让事务开头即拿写锁，避免升级死锁。
+	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)&_txlock=immediate",
 		filepath.ToSlash(filepath.Join(dataDir, "myself.db")))
 	raw, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
 	}
-	// SQLite 单写者：限制单连接避免 database is locked。
-	raw.SetMaxOpenConns(1)
+	raw.SetMaxOpenConns(max(4, runtime.NumCPU()))
+	raw.SetConnMaxIdleTime(5 * time.Minute)
 	db := &DB{raw}
 	if err := db.migrate(); err != nil {
 		raw.Close()
@@ -267,4 +270,32 @@ func JSONStrings(v []string) string {
 // IsUniqueErr 判断是否唯一约束冲突。
 func IsUniqueErr(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE")
+}
+
+// TagCount 标签及文章数。
+type TagCount struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+// TagCounts 用 json_each 在 SQL 层聚合已发布文章的标签，按最近使用排序。
+func (db *DB) TagCounts() ([]TagCount, error) {
+	rows, err := db.Query(`SELECT je.value, COUNT(*) AS n, MAX(p.created_at) AS latest
+		FROM posts p, json_each(p.tags) je
+		WHERE p.status = 'published' AND json_valid(p.tags)
+		GROUP BY je.value ORDER BY latest DESC, n DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []TagCount{}
+	for rows.Next() {
+		var t TagCount
+		var latest string
+		if err := rows.Scan(&t.Name, &t.Count, &latest); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
 }

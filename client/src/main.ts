@@ -14,6 +14,7 @@ import '@fontsource/noto-sans-sc/700.css';
 import '@fontsource/noto-serif-sc/700.css';
 import './styles/base.scss';
 import './styles/motion.scss';
+import './styles/highlight.scss';
 import './styles/admin.scss';
 
 const app = createApp(App);

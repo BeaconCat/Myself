@@ -38,10 +38,12 @@
 - 布局：`cmd/myself-server` 入口，`internal/{store,auth,config,imaging,httpapi}`；标准库 ServeMux 方法路由
 - 图片处理纯 Go（stdlib + gen2brain/webp），备份 archive/zip；本机无 gcc，勿引入 cgo 依赖
 - 启动：根目录 `pnpm dev`（concurrently 拉起 client + `go -C server run`）；`go test ./...`
+- 生产：`pnpm build` → client 产物输出 `server/web/dist` → go:embed 单二进制托管 SPA + API；`/feed` RSS；`/uploads/thumbs/<name>.webp` 按需缩略图
+- 前端 Markdown 统一走 `client/src/utils/markdown.ts`（highlight.js 离线 + TOC 锚点），请求统一经 `client/src/api/index.ts`
 
 ## 分期
 - P0 骨架：主题系统、i18n、响应式布局、motion 系统、Hero 轮播 ✅进行中
-- P1 博客核心：列表/详情/标签/归档，Markdown 渲染
-- P2 后台：登录 + 帖文 CRUD（Markdown 实时预览）
-- P3 API 中心：APIKey 管理
+- P1 博客核心：列表/详情/标签/随想（原归档已并入随想），Markdown 渲染 + 代码高亮 + TOC + RSS ✅
+- P2 后台：登录 + 帖文 CRUD（TipTap 富文本，Markdown 存储）✅
+- P3 API 中心：APIKey 管理 ✅
 - P4 预留：用户系统、评论

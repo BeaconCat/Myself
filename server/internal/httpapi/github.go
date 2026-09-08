@@ -74,12 +74,12 @@ func (s *Server) logSync(ok bool, message string) {
 
 // githubClient 出站策略：可配代理（github.proxy）与跳过 TLS 校验（github.insecureTls）。
 // insecureTls 仅作用于本只读拉取通道——用于本机存在 TLS 注入（安全软件/TUN 代理自签证书）的环境。
-func githubClient(cfg config.Map) *http.Client {
+func githubClient(cfg config.GitHub) *http.Client {
 	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
-	if config.Bool(cfg, "insecureTls") {
+	if cfg.InsecureTLS {
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // 用户显式开启
 	}
-	proxy := strings.TrimSpace(config.Str(cfg, "proxy"))
+	proxy := strings.TrimSpace(cfg.Proxy)
 	if proxy == "" {
 		proxy = os.Getenv("HTTPS_PROXY")
 	}
@@ -290,19 +290,19 @@ func (g ghFetcher) fetchStatus(username string) (*githubData, error) {
 	}, nil
 }
 
-func cacheKey(cfg config.Map) string {
+func cacheKey(cfg config.GitHub) string {
 	suffix := "anon"
-	if config.Str(cfg, "token") != "" {
+	if cfg.Token != "" {
 		suffix = "tok"
 	}
-	return config.Str(cfg, "username") + ":" + suffix
+	return cfg.Username + ":" + suffix
 }
 
-func manualPayload(cfg config.Map, fallback string) map[string]any {
+func manualPayload(cfg config.GitHub, fallback string) map[string]any {
 	out := map[string]any{
 		"mode":       "manual",
-		"username":   cfg["username"],
-		"stats":      cfg["stats"],
+		"username":   cfg.Username,
+		"stats":      cfg.Stats,
 		"activities": []any{},
 	}
 	if fallback != "" {
@@ -324,16 +324,16 @@ func withData(base map[string]any, d *githubData) map[string]any {
 
 // GET /github-status 公开：api 模式拉取（带缓存），manual 模式回配置数字
 func (s *Server) githubStatus(w http.ResponseWriter, _ *http.Request) {
-	cfg := config.Sub(s.Config.Get(), "github")
-	if config.Str(cfg, "mode") != "api" {
+	cfg := s.Config.Typed().GitHub
+	if cfg.Mode != "api" {
 		writeJSON(w, http.StatusOK, manualPayload(cfg, ""))
 		return
 	}
-	minutes := config.Num(cfg, "refreshMinutes")
+	minutes := cfg.RefreshMinutes
 	if minutes == 0 {
 		minutes = 30
 	}
-	ttl := time.Duration(max(1, minutes) * float64(time.Minute))
+	ttl := time.Duration(max(1, minutes)) * time.Minute
 	key := cacheKey(cfg)
 
 	s.ghMu.Lock()
@@ -344,8 +344,11 @@ func (s *Server) githubStatus(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	fetcher := ghFetcher{client: githubClient(cfg), token: config.Str(cfg, "token")}
-	data, err := fetcher.fetchStatus(config.Str(cfg, "username"))
+	// 缓存过期瞬间的并发请求合并为一次拉取
+	result, err, _ := s.ghFlight.Do(key, func() (any, error) {
+		return s.fetchAndCache(cfg, key, "拉取成功")
+	})
+	data, _ := result.(*githubData)
 	if err != nil {
 		s.logSync(false, err.Error())
 		// 拉取失败回退：旧缓存 → 手填数字
@@ -356,27 +359,32 @@ func (s *Server) githubStatus(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, manualPayload(cfg, err.Error()))
 		return
 	}
+	writeJSON(w, http.StatusOK, withData(map[string]any{"mode": "api", "cached": false}, data))
+}
+
+// fetchAndCache 拉取并写缓存 + 同步日志；label 用于日志前缀。
+func (s *Server) fetchAndCache(cfg config.GitHub, key, label string) (*githubData, error) {
+	fetcher := ghFetcher{client: githubClient(cfg), token: cfg.Token}
+	data, err := fetcher.fetchStatus(cfg.Username)
+	if err != nil {
+		s.logSync(false, label+"失败："+err.Error())
+		return nil, err
+	}
 	s.ghMu.Lock()
 	s.ghCache = githubCache{at: time.Now(), key: key, data: data}
 	s.ghMu.Unlock()
-	s.logSync(true, fmt.Sprintf("拉取成功：%d 仓库 / %d stars", data.Stats.Repos, data.Stats.Stars))
-	writeJSON(w, http.StatusOK, withData(map[string]any{"mode": "api", "cached": false}, data))
+	s.logSync(true, fmt.Sprintf("%s：%d 仓库 / %d stars", label, data.Stats.Repos, data.Stats.Stars))
+	return data, nil
 }
 
 // POST /admin/github/sync 立即同步（强刷缓存），返回最新数据
 func (s *Server) githubSync(w http.ResponseWriter, _ *http.Request) {
-	cfg := config.Sub(s.Config.Get(), "github")
-	fetcher := ghFetcher{client: githubClient(cfg), token: config.Str(cfg, "token")}
-	data, err := fetcher.fetchStatus(config.Str(cfg, "username"))
+	cfg := s.Config.Typed().GitHub
+	data, err := s.fetchAndCache(cfg, cacheKey(cfg), "手动同步")
 	if err != nil {
-		s.logSync(false, "手动同步失败："+err.Error())
 		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	s.ghMu.Lock()
-	s.ghCache = githubCache{at: time.Now(), key: cacheKey(cfg), data: data}
-	s.ghMu.Unlock()
-	s.logSync(true, fmt.Sprintf("手动同步成功：%d 仓库 / %d stars", data.Stats.Repos, data.Stats.Stars))
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "data": data})
 }
 

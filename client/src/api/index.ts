@@ -30,11 +30,6 @@ export interface Tag {
   count: number;
 }
 
-export interface ArchiveGroup {
-  month: string;
-  items: Post[];
-}
-
 export interface Note {
   id: number;
   contentMd: string;
@@ -113,8 +108,9 @@ export const api = {
   },
   post: (slug: string) => get<Post>(`/posts/${encodeURIComponent(slug)}`),
   tags: () => get<Tag[]>('/tags'),
-  archive: () => get<ArchiveGroup[]>('/archive'),
   hero: () => get<HeroFeed>('/hero'),
+  siteConfig: <T>() => get<T>('/site-config'),
+  githubStatus: <T>() => get<T>('/github-status'),
   notes: (params: {
     page?: number; pageSize?: number; q?: string; media?: boolean;
     from?: string; to?: string;
@@ -196,6 +192,18 @@ export const adminApi = {
     if (!res.ok) throw new Error(`api_error_${res.status}`);
     return res.json() as Promise<MediaItem[]>;
   },
+  /** 原图二进制（重裁 UI 用；需鉴权头，img 标签带不了，取 blob） */
+  mediaOriginal: async (name: string): Promise<Blob> => {
+    const res = await fetch(`${BASE}/admin/media/${encodeURIComponent(name)}/original`, {
+      headers: { Authorization: `Bearer ${readToken()}` },
+    });
+    if (res.status === 401) {
+      kickToLogin();
+      throw new Error('unauthorized');
+    }
+    if (!res.ok) throw new Error(`api_error_${res.status}`);
+    return res.blob();
+  },
   cropMedia: (name: string, rect: { left: number; top: number; width: number; height: number }) =>
     authed<MediaItem>(`/admin/media/${encodeURIComponent(name)}/crop`, {
       method: 'POST',
@@ -239,6 +247,8 @@ export const adminApi = {
 export interface MediaItem {
   name: string;
   url: string;
+  /** 最长边 480px 的 webp 缩略图，按需生成 */
+  thumb: string;
   size: number;
   hasOriginal: boolean;
   crop: { left: number; top: number; width: number; height: number } | null;
@@ -276,4 +286,10 @@ export interface ApiKeyInfo {
   prefix: string;
   lastUsedAt: string | null;
   createdAt: string;
+}
+
+/** 站内素材 URL → 缩略图 URL；非站内素材（占位图/外链）原样返回 */
+export function thumbOf(url: string): string {
+  if (!url.startsWith('/uploads/') || url.startsWith('/uploads/thumbs/')) return url;
+  return `/uploads/thumbs/${url.slice('/uploads/'.length)}.webp`;
 }

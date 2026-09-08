@@ -1,0 +1,57 @@
+/* 代码高亮配色：跟随主题 mode，主色由色盘派生。类名对应 highlight.js 输出。 */
+:root {
+  --hl-comment: #7a8290;
+  --hl-keyword: #b3379a;
+  --hl-string: #0f7b3d;
+  --hl-number: #b35a00;
+  --hl-title: #0055cc;
+  --hl-attr: #6b46c1;
+  --hl-built: #007a82;
+  --hl-punct: var(--text-2);
+}
+
+:root[data-mode='dark'] {
+  --hl-comment: #8b93a1;
+  --hl-keyword: #ff7ac6;
+  --hl-string: #8fe3a1;
+  --hl-number: #ffb86c;
+  --hl-title: #82aaff;
+  --hl-attr: #c3a6ff;
+  --hl-built: #7fdbff;
+}
+
+pre.hljs {
+  position: relative;
+  font-family: Consolas, 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 13.5px;
+  line-height: 1.7;
+  tab-size: 2;
+
+  /* 右上角语言标签 */
+  &::before {
+    content: attr(data-lang);
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    opacity: 0.7;
+  }
+
+  code { color: var(--text); }
+
+  .hljs-comment, .hljs-quote { color: var(--hl-comment); font-style: italic; }
+  .hljs-keyword, .hljs-selector-tag, .hljs-meta, .hljs-doctag { color: var(--hl-keyword); }
+  .hljs-string, .hljs-regexp, .hljs-addition, .hljs-template-tag { color: var(--hl-string); }
+  .hljs-number, .hljs-literal, .hljs-symbol, .hljs-bullet, .hljs-link { color: var(--hl-number); }
+  .hljs-title, .hljs-section, .hljs-name, .hljs-selector-id, .hljs-selector-class { color: var(--hl-title); font-weight: 600; }
+  .hljs-attr, .hljs-attribute, .hljs-variable, .hljs-template-variable, .hljs-params { color: var(--hl-attr); }
+  .hljs-built_in, .hljs-type, .hljs-class, .hljs-tag { color: var(--hl-built); }
+  .hljs-punctuation, .hljs-operator { color: var(--hl-punct); }
+  .hljs-deletion { color: var(--accent-red); }
+  .hljs-emphasis { font-style: italic; }
+  .hljs-strong { font-weight: 700; }
+}

@@ -2,16 +2,21 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"myself/server/internal/auth"
 	"myself/server/internal/config"
 	"myself/server/internal/httpapi"
 	"myself/server/internal/store"
+	"myself/server/web"
 )
 
 func main() {
@@ -37,6 +42,7 @@ func main() {
 		UploadDir: filepath.Join(root, "uploads"),
 		BackupDir: filepath.Join(root, "backups"),
 		DataDir:   filepath.Join(root, "data"),
+		Frontend:  web.Handler(),
 	})
 	srv.StartAutoBackup()
 
@@ -49,9 +55,21 @@ func main() {
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	log.Printf("[myself-server] listening on http://localhost:%s", port)
-	if err := httpServer.ListenAndServe(); err != nil {
-		log.Fatal(err)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	go func() {
+		log.Printf("[myself-server] listening on http://localhost:%s", port)
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	}()
+	<-ctx.Done()
+	log.Print("[myself-server] shutting down")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		log.Printf("[myself-server] shutdown: %v", err)
 	}
 }
 

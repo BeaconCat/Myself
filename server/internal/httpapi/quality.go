@@ -147,6 +147,7 @@ func (s *Server) compressOne(name, full, ext string, before int64, quality int) 
 			return compressResult{}, err
 		}
 		os.Remove(full)
+		s.removeThumb(name)
 		if _, err := s.DB.Exec(`INSERT INTO media (name) VALUES (?) ON CONFLICT(name) DO NOTHING`, newName); err != nil {
 			return compressResult{}, err
 		}

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { api } from '../api';
 
 /** 关于页可排序模块（data 结构由模块注册表约定） */
 export interface AboutModule {
@@ -108,10 +109,7 @@ export const useConfigStore = defineStore('config', {
   actions: {
     async load() {
       try {
-        const res = await fetch('/api/v1/site-config');
-        if (res.ok) {
-          this.cfg = (await res.json()) as SiteConfig;
-        }
+        this.cfg = await api.siteConfig<SiteConfig>();
       } catch { /* 后端未启动时用回退配置 */ }
       this.loaded = true;
       document.title = this.cfg.site.title;

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/draw"
 	"image/gif"
 	"image/jpeg"
 	"image/png"
@@ -17,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/gen2brain/webp"
+	"golang.org/x/image/draw"
 )
 
 // Info 是图片元数据。
@@ -141,5 +141,24 @@ func toOpaqueRGBA(img image.Image) image.Image {
 	out := image.NewRGBA(img.Bounds())
 	draw.Draw(out, out.Bounds(), image.White, image.Point{}, draw.Src)
 	draw.Draw(out, out.Bounds(), img, img.Bounds().Min, draw.Over)
+	return out
+}
+
+// Fit 等比缩放到最长边不超过 maxSide；已够小则原样返回。
+func Fit(img image.Image, maxSide int) image.Image {
+	b := img.Bounds()
+	w, h := b.Dx(), b.Dy()
+	if w <= maxSide && h <= maxSide {
+		return img
+	}
+	if w >= h {
+		h = h * maxSide / w
+		w = maxSide
+	} else {
+		w = w * maxSide / h
+		h = maxSide
+	}
+	out := image.NewNRGBA(image.Rect(0, 0, max(1, w), max(1, h)))
+	draw.CatmullRom.Scale(out, out.Bounds(), img, b, draw.Over, nil)
 	return out
 }

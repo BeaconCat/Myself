@@ -62,13 +62,14 @@ const boxStyle = computed(() => ({
 const originalUrl = ref('');
 
 async function openCrop(item: MediaItem): Promise<void> {
-  // 原图接口需要鉴权头，img 标签带不了，取 blob 转对象 URL
-  const res = await fetch(`/api/v1/admin/media/${encodeURIComponent(item.name)}/original`, {
-    headers: { Authorization: `Bearer ${localStorage.getItem('myself.token') ?? ''}` },
-  });
-  if (!res.ok) return;
+  let blob: Blob;
+  try {
+    blob = await adminApi.mediaOriginal(item.name);
+  } catch {
+    return;
+  }
   URL.revokeObjectURL(originalUrl.value);
-  originalUrl.value = URL.createObjectURL(await res.blob());
+  originalUrl.value = URL.createObjectURL(blob);
   cropping.value = item;
 }
 
@@ -185,7 +186,7 @@ onMounted(load);
     <div class="grid">
       <div v-for="item in items" :key="item.name" class="cell">
         <!-- size 随裁切变化，作缓存戳保证裁完即时生效 -->
-        <img :src="`${item.url}?v=${item.size}`" loading="lazy" alt="" />
+        <img :src="`${item.thumb}?v=${item.size}`" loading="lazy" alt="" />
         <div class="cell-bar">
           <span class="size">{{ formatSize(item.size) }}</span>
           <span v-if="item.crop" class="badge">{{ t('admin.cropped') }}</span>

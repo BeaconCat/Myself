@@ -39,6 +39,7 @@ func safeName(name string) string {
 type mediaItem struct {
 	Name        string        `json:"name"`
 	URL         string        `json:"url"`
+	Thumb       string        `json:"thumb"`
 	Size        int64         `json:"size"`
 	HasOriginal bool          `json:"hasOriginal"`
 	Crop        *imaging.Rect `json:"crop"`
@@ -53,6 +54,7 @@ func (s *Server) fileInfo(name string) (mediaItem, error) {
 	item := mediaItem{
 		Name:      name,
 		URL:       "/uploads/" + name,
+		Thumb:     thumbURL(name),
 		Size:      stat.Size(),
 		CreatedAt: isoTime(stat.ModTime()),
 	}
@@ -278,6 +280,7 @@ func (s *Server) deleteMedia(w http.ResponseWriter, r *http.Request) {
 	}
 	os.Remove(filepath.Join(s.UploadDir, name))
 	os.Remove(filepath.Join(s.originalsDir, name))
+	s.removeThumb(name)
 	if _, err := s.DB.Exec(`DELETE FROM media WHERE name = ?`, name); err != nil {
 		fail(w, err)
 		return

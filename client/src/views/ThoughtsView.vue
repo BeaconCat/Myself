@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import MarkdownIt from 'markdown-it';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { api, type Note } from '../api';
+import { api, thumbOf, type Note } from '../api';
+import { render as renderMarkdown } from '../utils/markdown';
 import ImageViewer from '../components/media/ImageViewer.vue';
 import { useConfigStore } from '../stores/config';
 import { useLoadingStore } from '../stores/loading';
@@ -141,10 +141,8 @@ function gridClass(n: number): string {
   return 'gn';
 }
 
-const md = new MarkdownIt({ linkify: true });
-
 function render(note: Note): string {
-  return md.render(note.contentMd);
+  return renderMarkdown(note.contentMd);
 }
 
 /** 相对时间：今天/昨天内显示口语化，更早显示日期 */
@@ -244,7 +242,7 @@ onBeforeUnmount(() => window.clearTimeout(debounce));
         :style="{ '--i': i % 30 }"
         @click="openViewer(cell.note.images, cell.index)"
       >
-        <img :src="cell.src" loading="lazy" alt="" />
+        <img :src="thumbOf(cell.src)" loading="lazy" alt="" />
       </button>
       <p v-if="!loading && !mediaCells.length" class="empty">{{ t('thoughts.mediaEmpty') }}</p>
     </div>
@@ -281,7 +279,7 @@ onBeforeUnmount(() => window.clearTimeout(debounce));
               class="pic"
               @click="openViewer(note.images, i)"
             >
-              <img :src="src" alt="" loading="lazy" draggable="false" />
+              <img :src="thumbOf(src)" alt="" loading="lazy" draggable="false" />
             </button>
           </div>
         </div>

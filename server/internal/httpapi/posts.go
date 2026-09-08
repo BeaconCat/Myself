@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strings"
 
-	"myself/server/internal/config"
 	"myself/server/internal/store"
 )
 
@@ -79,14 +78,14 @@ func (s *Server) getPost(w http.ResponseWriter, r *http.Request) {
 
 // GET /hero 首页轮播条目：按配置规则取（最新 n 条，置顶优先/无视）
 func (s *Server) hero(w http.ResponseWriter, _ *http.Request) {
-	hero := config.Sub(s.Config.Get(), "hero")
-	count := int(config.Num(hero, "count"))
+	hero := s.Config.Typed().Hero
+	count := hero.Count
 	if count == 0 {
 		count = 4
 	}
 	count = clamp(count, 1, 10)
 	order := "created_at DESC"
-	if config.Str(hero, "pinnedRule") == "pinned-first" {
+	if hero.PinnedRule == "pinned-first" {
 		order = "pinned DESC, created_at DESC"
 	}
 	rows, err := s.DB.QueryPosts(`WHERE status = 'published' ORDER BY `+order+` LIMIT ?`, count)
@@ -94,47 +93,22 @@ func (s *Server) hero(w http.ResponseWriter, _ *http.Request) {
 		fail(w, err)
 		return
 	}
-	interval := int(config.Num(hero, "intervalMs"))
+	interval := hero.IntervalMs
 	if interval == 0 {
 		interval = 3000
 	}
-	if interval < 1000 {
-		interval = 1000
-	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"intervalMs": interval,
+		"intervalMs": max(1000, interval),
 		"items":      toPosts(rows, store.PostOpts{}),
 	})
 }
 
-// GET /tags 标签及计数（按首次出现顺序）
+// GET /tags 标签及计数（SQL 层聚合，按最近使用排序）
 func (s *Server) tags(w http.ResponseWriter, _ *http.Request) {
-	rows, err := s.DB.Query(`SELECT tags FROM posts WHERE status = 'published'`)
+	out, err := s.DB.TagCounts()
 	if err != nil {
 		fail(w, err)
 		return
-	}
-	defer rows.Close()
-	type tagCount struct {
-		Name  string `json:"name"`
-		Count int    `json:"count"`
-	}
-	index := map[string]int{}
-	out := []tagCount{}
-	for rows.Next() {
-		var raw string
-		if err := rows.Scan(&raw); err != nil {
-			fail(w, err)
-			return
-		}
-		for _, t := range store.ParseStrings(raw) {
-			if i, ok := index[t]; ok {
-				out[i].Count++
-				continue
-			}
-			index[t] = len(out)
-			out = append(out, tagCount{Name: t, Count: 1})
-		}
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -212,33 +186,4 @@ func (s *Server) placeholderImage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 	_, _ = w.Write([]byte(svg))
-}
-
-// GET /archive 按年-月归档
-func (s *Server) archive(w http.ResponseWriter, _ *http.Request) {
-	rows, err := s.DB.QueryPosts(`WHERE status = 'published' ORDER BY created_at DESC`)
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	type group struct {
-		Month string       `json:"month"`
-		Items []store.Post `json:"items"`
-	}
-	index := map[string]int{}
-	out := []group{}
-	for _, row := range rows {
-		key := row.CreatedAt
-		if len(key) > 7 {
-			key = key[:7]
-		}
-		i, ok := index[key]
-		if !ok {
-			i = len(out)
-			index[key] = i
-			out = append(out, group{Month: key, Items: []store.Post{}})
-		}
-		out[i].Items = append(out[i].Items, row.ToPost(store.PostOpts{}))
-	}
-	writeJSON(w, http.StatusOK, out)
 }

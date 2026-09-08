@@ -8,9 +8,13 @@ internal/store      SQLite 连接、建表迁移、种子数据、行模型
 internal/auth       管理员凭据（scrypt，与旧 Node 哈希兼容）+ JWT
 internal/config     站点配置（settings.site_config，深合并 + 旧字段迁移）
 internal/imaging    纯 Go 图片解码/裁切/压缩（png/jpeg/gif/webp）
-internal/httpapi    /api/v1 路由与全部 handler、/uploads 静态服务
+internal/httpapi    /api/v1 路由与全部 handler、/uploads 静态服务（thumbs/ 按需缩略图）、/feed RSS
+web                 go:embed 内嵌前端构建产物（client 构建输出到 web/dist），SPA 回落
 ```
 
 运行：`go run ./cmd/myself-server`（工作目录即数据根：`data/`、`uploads/`、`backups/`）。
 环境变量：`PORT`（默认 3100）、`MYSELF_ROOT`（覆盖数据根目录）。
 测试：`go test ./...`
+
+生产部署：根目录 `pnpm build` → 前端产物进 `server/web/dist` → Go 编译为单二进制 `server/bin/myself-server`，
+直接托管前端 + API + 素材，无需额外反代。

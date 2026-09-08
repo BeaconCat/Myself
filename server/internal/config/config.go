@@ -237,3 +237,53 @@ func Bool(m Map, key string) bool {
 	v, _ := m[key].(bool)
 	return v
 }
+
+/* ===== 服务端消费的强类型视图 ===== */
+
+// Hero 首页轮播规则。
+type Hero struct {
+	IntervalMs int    `json:"intervalMs"`
+	Count      int    `json:"count"`
+	PinnedRule string `json:"pinnedRule"`
+}
+
+// GitHub 状态拉取配置。
+type GitHub struct {
+	Username       string `json:"username"`
+	Mode           string `json:"mode"`
+	Token          string `json:"token"`
+	RefreshMinutes int    `json:"refreshMinutes"`
+	Proxy          string `json:"proxy"`
+	InsecureTLS    bool   `json:"insecureTls"`
+	Stats          any    `json:"stats"`
+}
+
+// Site 站点基础信息。
+type Site struct {
+	Title    string `json:"title"`
+	Subtitle string `json:"subtitle"`
+}
+
+// Typed 是后端逻辑用到的配置子集；前端专用字段留在 Map 里透传。
+type Typed struct {
+	Site     Site   `json:"site"`
+	Hero     Hero   `json:"hero"`
+	GitHub   GitHub `json:"github"`
+	Timezone string `json:"timezone"`
+	Backup   struct {
+		AutoHours float64 `json:"autoHours"`
+	} `json:"backup"`
+}
+
+// Typed 返回强类型配置（经 JSON 往返，容忍前端写入的字符串数字）。
+func (s *Service) Typed() Typed {
+	return ToTyped(s.Get())
+}
+
+// ToTyped Map → Typed。数字字段若被存成字符串则按 0 处理，调用方需兜底默认值。
+func ToTyped(m Map) Typed {
+	var t Typed
+	raw, _ := json.Marshal(m)
+	_ = json.Unmarshal(raw, &t)
+	return t
+}

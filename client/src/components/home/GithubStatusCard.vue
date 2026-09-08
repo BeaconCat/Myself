@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { api } from '../../api';
 import { computed, onMounted, ref } from 'vue';
 import { useConfigStore } from '../../stores/config';
 import { formatDateTime } from '../../utils/date';
@@ -30,8 +31,7 @@ const remote = ref<{
 
 onMounted(async () => {
   try {
-    const res = await fetch('/api/v1/github-status');
-    if (res.ok) remote.value = await res.json();
+    remote.value = await api.githubStatus();
   } catch { /* 回退配置数字 */ }
 });
 
