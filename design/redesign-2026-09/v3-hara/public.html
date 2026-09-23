@@ -1,0 +1,1109 @@
+<!doctype html>
+<!--
+  Myself · 全站视觉翻新 · v3「白」（Hara）· 用户前端 7 屏
+  ------------------------------------------------------------
+  设计逻辑：原研哉的「白」——空作为容器，纸的质感，克制到只剩必要之物。
+    · 浅色主场：近白纸底 #F6F5F1 / 墨黑字 #161616 / 极淡分隔 hairline
+    · 深色模式：夜间的纸——深海军蓝 #0B1220 / 暖灰字 #E6E1D8（07 屏以 data-mode="dark" 作用域演示）
+    · 思源宋体承担标题与文章正文；思源黑体做 UI；IBM Plex Mono 做日期/编号/代码；
+      Cormorant Garamond 只用于大数字（404、统计）
+    · 三信号色只做「朱砂印」：当前导航（primary）、置顶（yellow）、发布/主要动作（red）、链接与 API（blue）
+    · logo 的「门与光」只以一道极细的「光路」渐变线与封面下方的地面光晕暗示，不画具象
+    · 动效 = 呼吸：慢、少、柔。reveal 入场 / hero 文字模糊切入 / 封面卡 3D 飞入飞出 / 卡片轻倾 / 光晕呼吸
+  参照：Kenya Hara《白》《设计中的设计》、无印良品海报排印、Dieter Rams「Less, but better」
+  假设：
+    · 默认展示 浅色 + 夏炽红（primary #ff0032）；右上角开关可切换到 深色 + 冬霜蓝（primary #0078ff）
+    · 封面/配图全部为 CSS 渐变占位卡（对应线上 /api/v1/img/<from>/<to>/<label>）
+    · 头像用 logo（相对路径 ../../logo.png）
+  预留 UI（示例数据，画成完整可信界面）：文章详情的评论区；搜索浮层的随想/标签混合结果
+-->
+<html lang="zh-CN" data-mode="light" data-palette="summer">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Myself · 个人博客 — v3 白</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   0. Tokens
+   ============================================================ */
+:root{
+  --accent-red:#ff0032; --accent-yellow:#ffb300; --accent-blue:#0078ff;
+
+  --paper:#F6F5F1; --paper-2:#EEEDE8; --paper-3:#E6E4DE;
+  --ink:#161616; --ink-2:#4B4A46; --ink-3:#8B8A84; --ink-4:#B8B6AF;
+  --line:rgba(22,22,22,.10); --line-2:rgba(22,22,22,.05);
+  --glass:rgba(246,245,241,.72);
+  --light:rgba(255,255,255,.95); --floor:rgba(0,120,255,.10);
+  --shadow:0 1px 2px rgba(20,20,20,.04),0 18px 48px -18px rgba(20,20,20,.16);
+  --code-bg:#EFEEE9;
+
+  --primary:#ff0032; --primary-deep:#c20026;
+
+  --serif:"Noto Serif SC","Source Han Serif SC","Songti SC",serif;
+  --sans:"Noto Sans SC","Source Han Sans SC","PingFang SC",sans-serif;
+  --mono:"IBM Plex Mono","SFMono-Regular",Menlo,monospace;
+  --display:"Cormorant Garamond","Noto Serif SC",serif;
+
+  --w:1120px; --measure:680px;
+  --r-1:2px; --r-2:4px; --r-pill:999px;
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:32px; --s-7:48px; --s-8:64px; --s-9:96px; --s-10:144px;
+
+  --dur-fast:.2s; --dur:.35s; --dur-slow:.6s; --dur-breath:6s;
+  --ease-out:cubic-bezier(.2,.8,.3,1); --ease-spring:cubic-bezier(.2,.8,.3,1.2);
+}
+[data-palette="spring"]{--primary:#00c853;--primary-deep:#009440}
+[data-palette="summer"]{--primary:#ff0032;--primary-deep:#c20026}
+[data-palette="autumn"]{--primary:#ffb300;--primary-deep:#c98a00}
+[data-palette="winter"]{--primary:#0078ff;--primary-deep:#0052b3}
+[data-mode="dark"]{
+  --paper:#0B1220; --paper-2:#101A2C; --paper-3:#162238;
+  --ink:#E6E1D8; --ink-2:#B3AEA5; --ink-3:#77746E; --ink-4:#4B4E57;
+  --line:rgba(230,225,216,.12); --line-2:rgba(230,225,216,.06);
+  --glass:rgba(11,18,32,.66);
+  --light:rgba(255,255,255,.85); --floor:rgba(0,120,255,.18);
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 24px 60px -20px rgba(0,0,0,.6);
+  --code-bg:#0F1727;
+}
+
+/* ============================================================
+   1. Base
+   ============================================================ */
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--paper);color:var(--ink);
+  font-family:var(--sans);font-size:15px;line-height:1.75;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  font-feature-settings:"palt" 1;
+}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit;color:inherit}
+ul,ol{list-style:none}
+img{display:block;max-width:100%}
+svg{display:block}
+.serif{font-family:var(--serif)}
+.mono{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.wrap{width:min(var(--w),calc(100% - 96px));margin:0 auto}
+.hair{height:1px;background:var(--line)}
+.ico{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* screen shell */
+section[data-screen]{position:relative;padding:0 0 var(--s-10);overflow-x:clip;background:var(--paper);color:var(--ink)}
+section[data-screen] + section[data-screen]{border-top:1px solid var(--line)}
+.screen-label{position:absolute;left:14px;top:12px;font:11px/1 var(--mono);letter-spacing:.1em;color:var(--ink-4);z-index:9;pointer-events:none}
+
+/* 光路：一道极细的光渐变线（logo 的门缝） */
+.lightpath{position:absolute;left:50%;top:0;width:1px;height:100%;pointer-events:none;
+  background:linear-gradient(to bottom,transparent,var(--light) 30%,var(--light) 55%,transparent);
+  opacity:.5}
+[data-mode="light"] .lightpath{background:linear-gradient(to bottom,transparent,rgba(22,22,22,.28) 40%,rgba(22,22,22,.28) 55%,transparent);opacity:.35}
+
+/* reveal（呼吸式入场） */
+.rv{opacity:0;transform:translateY(12px);transition:opacity var(--dur-slow) var(--ease-out),transform var(--dur-slow) var(--ease-out)}
+.rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+  .rv{opacity:1;transform:none}
+}
+
+/* ============================================================
+   2. Navigation（PC 毛玻璃胶囊）
+   ============================================================ */
+.nav{position:sticky;top:0;z-index:20;padding:var(--s-5) 0 0}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:var(--s-5)}
+.brand{display:flex;align-items:center;gap:12px}
+.brand img{width:28px;height:28px;border-radius:7px}
+.brand b{font-family:var(--serif);font-weight:600;font-size:17px;letter-spacing:.04em}
+.brand small{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.1em;margin-left:2px}
+.capsule{display:flex;align-items:center;gap:2px;padding:4px;border-radius:var(--r-pill);
+  background:var(--glass);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);
+  border:1px solid var(--line);box-shadow:0 1px 0 rgba(255,255,255,.4) inset}
+.capsule a{position:relative;padding:7px 16px;border-radius:var(--r-pill);font-size:14px;color:var(--ink-2);transition:color var(--dur-fast),background var(--dur-fast)}
+.capsule a:hover{color:var(--ink);background:var(--line-2)}
+.capsule a.on{color:var(--ink)}
+.capsule a.on::after{content:"";position:absolute;left:50%;bottom:2px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--primary)}
+.capsule .sep{width:1px;height:16px;background:var(--line);margin:0 6px}
+.capsule .ib{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;color:var(--ink-2);transition:background var(--dur-fast),color var(--dur-fast)}
+.capsule .ib:hover{background:var(--line-2);color:var(--ink)}
+
+/* ============================================================
+   3. Cover placeholders（CSS 渐变占位卡）
+   ============================================================ */
+.cover{position:relative;overflow:hidden;border-radius:var(--r-2);background:var(--paper-3);color:#fff;isolation:isolate}
+.cover::before{content:"";position:absolute;inset:0;background:var(--g,linear-gradient(150deg,#0078ff,#0b1220))}
+.cover::after{content:"";position:absolute;inset:0;background:radial-gradient(70% 60% at 25% 0%,rgba(255,255,255,.28),transparent 60%),linear-gradient(to top,rgba(0,0,0,.28),transparent 45%)}
+.cover span{position:absolute;left:14px;bottom:12px;z-index:1;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
+.cover em{position:absolute;right:14px;top:12px;z-index:1;font-family:var(--display);font-style:italic;font-size:22px;opacity:.6}
+.g-blue{--g:linear-gradient(150deg,#0078ff 0%,#0b1220 100%)}
+.g-red{--g:linear-gradient(150deg,#ff0032 0%,#2a0009 100%)}
+.g-amber{--g:linear-gradient(150deg,#ffb300 0%,#4a2f00 100%)}
+.g-green{--g:linear-gradient(150deg,#00c853 0%,#04301a 100%)}
+.g-ink{--g:linear-gradient(150deg,#3b4658 0%,#0b1220 100%)}
+.g-blue-2{--g:linear-gradient(150deg,#5aa8ff 0%,#0052b3 100%)}
+.g-red-2{--g:linear-gradient(150deg,#ff6b86 0%,#c20026 100%)}
+.g-amber-2{--g:linear-gradient(150deg,#ffd166 0%,#c98a00 100%)}
+.g-green-2{--g:linear-gradient(150deg,#7de8a6 0%,#009440 100%)}
+.g-paper{--g:linear-gradient(150deg,#e8e6df 0%,#b8b6af 100%)}
+
+/* ============================================================
+   4. Home
+   ============================================================ */
+.hero{position:relative;padding:var(--s-9) 0 var(--s-8);perspective:1400px}
+.hero .wrap{display:grid;grid-template-columns:1fr 460px;gap:var(--s-8);align-items:center}
+.hero-eyebrow{display:flex;align-items:center;gap:14px;margin-bottom:var(--s-5)}
+.hero-eyebrow i{width:28px;height:1px;background:var(--ink-3)}
+.hero-title{font-family:var(--serif);font-weight:500;font-size:54px;line-height:1.24;letter-spacing:.01em;max-width:600px;min-height:2.48em}
+.hero-sum{margin-top:var(--s-5);font-family:var(--serif);font-size:17px;line-height:1.9;color:var(--ink-2);max-width:520px;min-height:3.8em}
+.hero-tags{display:flex;gap:var(--s-3);margin-top:var(--s-5)}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink-3);padding:4px 0;border-bottom:1px solid var(--line);transition:color var(--dur-fast),border-color var(--dur-fast)}
+.tag:hover{color:var(--ink);border-color:var(--ink)}
+.hero-cta{display:inline-flex;align-items:center;gap:10px;margin-top:var(--s-6);font-size:14px;color:var(--ink)}
+.hero-cta i{width:36px;height:1px;background:var(--ink);transition:width var(--dur) var(--ease-out)}
+.hero-cta:hover i{width:56px}
+.hero-meta{display:flex;align-items:center;gap:var(--s-5);margin-top:var(--s-7)}
+.dots{display:flex;gap:8px}
+.dots b{width:20px;height:2px;background:var(--line);border-radius:1px;overflow:hidden;position:relative}
+.dots b.on::after{content:"";position:absolute;inset:0;background:var(--ink);transform-origin:left;animation:fill 10s linear forwards}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+/* hero text 模糊切入/飞出 */
+.blur-in{animation:blurIn var(--dur-slow) var(--ease-out) both}
+.blur-out{animation:blurOut .4s var(--ease-out) both}
+@keyframes blurIn{from{opacity:0;filter:blur(10px);transform:translateY(10px)}to{opacity:1;filter:blur(0);transform:none}}
+@keyframes blurOut{from{opacity:1;filter:blur(0)}to{opacity:0;filter:blur(8px);transform:translateY(-8px)}}
+/* 右侧封面卡 3D */
+.deck{position:relative;height:340px;transform-style:preserve-3d}
+.deck .cover{position:absolute;left:24px;top:20px;width:380px;height:250px;box-shadow:var(--shadow);
+  transition:transform var(--dur-slow) var(--ease-out),opacity var(--dur-slow) var(--ease-out);transform-style:preserve-3d;will-change:transform}
+.deck .cover.c0{transform:translate3d(0,0,0) rotateY(-10deg) rotateX(2deg);z-index:3}
+.deck .cover.c1{transform:translate3d(44px,26px,-90px) rotateY(-10deg) rotateX(2deg);z-index:2;opacity:.9}
+.deck .cover.c2{transform:translate3d(88px,52px,-180px) rotateY(-10deg) rotateX(2deg);z-index:1;opacity:.75}
+.deck .cover.fly-out{animation:flyOut .5s var(--ease-out) both}
+.deck .cover.fly-in{animation:flyIn .7s var(--ease-spring) both}
+@keyframes flyOut{to{transform:translate3d(-120px,-20px,120px) rotateY(-40deg);opacity:0}}
+@keyframes flyIn{from{transform:translate3d(220px,40px,-260px) rotateY(24deg);opacity:0}}
+/* 地面光晕：logo 门下的那道光 */
+.floor{position:absolute;left:0;right:0;bottom:-6px;height:64px;pointer-events:none;
+  background:radial-gradient(50% 100% at 45% 100%,var(--floor),transparent 70%);
+  animation:breath var(--dur-breath) ease-in-out infinite}
+@keyframes breath{0%,100%{opacity:.7;transform:scaleX(1)}50%{opacity:1;transform:scaleX(1.08)}}
+
+/* section heading */
+.sh{display:flex;align-items:baseline;justify-content:space-between;padding:var(--s-4) 0;border-top:1px solid var(--ink);margin-bottom:var(--s-6)}
+.sh h2{font-family:var(--serif);font-weight:500;font-size:22px;letter-spacing:.06em}
+.sh a{font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--ink-3)}
+.sh a:hover{color:var(--ink)}
+
+/* latest list：编号 + 标题 + 摘要 */
+.plist{display:grid}
+.plist li{display:grid;grid-template-columns:64px 1fr 220px;gap:var(--s-6);padding:var(--s-5) 0;border-bottom:1px solid var(--line);align-items:baseline;transition:transform var(--dur) var(--ease-out)}
+.plist li:hover{transform:translateX(6px)}
+.plist .no{font-family:var(--display);font-size:26px;font-weight:500;color:var(--ink-3);line-height:1}
+.plist h3{font-family:var(--serif);font-weight:500;font-size:20px;line-height:1.5}
+.plist h3 .pin{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent-yellow);margin-left:10px;vertical-align:middle}
+.plist p{color:var(--ink-2);font-size:14px;margin-top:6px;max-width:640px}
+.plist .meta{text-align:right}
+.plist .meta .tags{display:flex;gap:10px;justify-content:flex-end;margin-top:4px}
+
+.home-grid{display:grid;grid-template-columns:1fr 360px;gap:var(--s-9);margin-top:var(--s-9);align-items:start}
+/* thoughts preview */
+.tlist li{padding:var(--s-4) 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:36px 1fr;gap:var(--s-4)}
+.avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;background:#0b1220}
+.tlist .head{display:flex;align-items:center;gap:10px}
+.tlist .head b{font-weight:500;font-size:14px}
+.mood{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-3);border:1px solid var(--line);padding:1px 6px;border-radius:var(--r-1)}
+.tlist p{font-family:var(--serif);font-size:15px;color:var(--ink-2);margin-top:4px;line-height:1.8}
+.tlist p strong{color:var(--ink);font-weight:600}
+/* about mini */
+.about-mini{padding:var(--s-5) 0}
+.about-mini .id{display:flex;gap:var(--s-4);align-items:center}
+.about-mini .avatar{width:52px;height:52px;border-radius:12px}
+.about-mini h4{font-family:var(--serif);font-size:18px;font-weight:600}
+.about-mini .tagline{font-size:13px;color:var(--ink-3)}
+.about-mini blockquote{font-family:var(--serif);font-size:15px;color:var(--ink-2);margin:var(--s-5) 0;padding-left:14px;border-left:1px solid var(--ink)}
+.ghbar{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.ghbar div{padding:12px 0;text-align:center}
+.ghbar div + div{border-left:1px solid var(--line)}
+.ghbar b{display:block;font-family:var(--display);font-size:24px;font-weight:600;line-height:1}
+.ghbar small{font-size:11px;color:var(--ink-3);letter-spacing:.06em}
+
+/* footer */
+.foot{margin-top:var(--s-9);padding-top:var(--s-5);border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--ink-3);font-size:12px}
+.foot .links{display:flex;gap:var(--s-5)}
+.foot a:hover{color:var(--ink)}
+
+/* mobile inset */
+.mobile-note{display:grid;grid-template-columns:300px 1fr;gap:var(--s-8);align-items:center;margin-top:var(--s-9);padding-top:var(--s-8);border-top:1px solid var(--line)}
+.phone{width:300px;height:560px;border:1px solid var(--line);border-radius:28px;background:var(--paper);position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.phone .topbar{position:absolute;left:12px;right:12px;top:14px;height:44px;border-radius:var(--r-pill);background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 14px;z-index:3}
+.phone .topbar b{font-family:var(--serif);font-size:14px}
+.phone .topbar .ib{width:30px;height:30px;display:grid;place-items:center}
+.phone .page{padding:76px 20px 0}
+.phone .page h5{font-family:var(--serif);font-weight:500;font-size:20px;line-height:1.4}
+.phone .page p{font-size:12px;color:var(--ink-2);margin-top:8px}
+.phone .page .cover{height:120px;margin-top:14px}
+.phone .drawer{position:absolute;top:0;right:0;bottom:0;width:62%;background:var(--paper);border-left:1px solid var(--line);padding:76px 22px 0;z-index:2;box-shadow:-20px 0 40px -20px rgba(0,0,0,.2)}
+.phone .drawer a{display:block;font-family:var(--serif);font-size:18px;padding:10px 0;border-bottom:1px solid var(--line-2);position:relative}
+.phone .drawer a.on::before{content:"";position:absolute;left:-13px;top:50%;width:5px;height:5px;margin-top:-2.5px;border-radius:50%;background:var(--primary)}
+.phone .drawer .row{display:flex;gap:10px;margin-top:18px}
+.phone .drawer .row span{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center}
+.phone .scrim{position:absolute;inset:0;background:rgba(22,22,22,.18);z-index:1}
+.mobile-note p{font-size:14px;color:var(--ink-2);max-width:480px}
+.mobile-note h3{font-family:var(--serif);font-weight:500;font-size:20px;margin-bottom:var(--s-3)}
+
+/* ============================================================
+   5. Articles list
+   ============================================================ */
+.page-head{padding:var(--s-8) 0 var(--s-6)}
+.page-head h1{font-family:var(--serif);font-weight:500;font-size:40px;letter-spacing:.04em;line-height:1.2}
+.page-head p{margin-top:var(--s-3);color:var(--ink-3);font-size:14px}
+.toolbar{display:flex;align-items:center;justify-content:space-between;padding:var(--s-4) 0;border-top:1px solid var(--ink);border-bottom:1px solid var(--line)}
+.filters{display:flex;gap:4px}
+.filters a{padding:6px 14px;border-radius:var(--r-pill);font-size:13px;color:var(--ink-2);position:relative}
+.filters a.on{color:var(--ink)}
+.filters a.on::after{content:"";position:absolute;left:50%;bottom:-1px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--primary)}
+.filters a:hover{color:var(--ink)}
+.filters a em{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--ink-4);margin-left:6px}
+.search-in{display:flex;align-items:center;gap:10px;width:280px;padding:8px 0;border-bottom:1px solid var(--line);color:var(--ink-3);font-size:13px}
+.search-in kbd{margin-left:auto;font-family:var(--mono);font-size:10px;border:1px solid var(--line);padding:1px 6px;border-radius:var(--r-1);color:var(--ink-4)}
+.alist li{display:grid;grid-template-columns:200px 1fr;gap:var(--s-7);padding:var(--s-7) 0;border-bottom:1px solid var(--line)}
+.alist .cover{height:126px;transition:transform var(--dur-slow) var(--ease-out)}
+.alist li:hover .cover{transform:translateY(-3px)}
+.alist .meta-row{display:flex;gap:var(--s-4);align-items:center;margin-bottom:10px}
+.alist h3{font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.4}
+.alist h3:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:6px}
+.alist p{font-family:var(--serif);color:var(--ink-2);font-size:15px;margin-top:10px;max-width:var(--measure);line-height:1.9}
+.alist .tags{display:flex;gap:var(--s-4);margin-top:var(--s-4)}
+.end{display:flex;align-items:center;gap:var(--s-5);justify-content:center;margin-top:var(--s-8);color:var(--ink-3);font-family:var(--mono);font-size:11px;letter-spacing:.14em}
+.end i{width:48px;height:1px;background:var(--line)}
+
+/* ============================================================
+   6. Article detail
+   ============================================================ */
+.band{width:min(1280px,calc(100% - 96px));margin:var(--s-6) auto 0;display:flex;gap:6px;height:420px}
+.band .cover{flex:1;transition:flex var(--dur-slow) var(--ease-out)}
+.band .cover.open{flex:3.2}
+.band .cover:hover{flex:3.2}
+.band .cover.open ~ .cover,.band .cover:hover ~ .cover{flex:1}
+.band-bar{width:min(1280px,calc(100% - 96px));margin:10px auto 0;display:flex;gap:6px}
+.band-bar b{flex:1;height:2px;background:var(--line);position:relative;overflow:hidden}
+.band-bar b.on::after{content:"";position:absolute;inset:0;background:var(--ink);transform-origin:left;animation:fill 8s linear infinite}
+.art{display:grid;grid-template-columns:1fr 220px;gap:var(--s-9);margin-top:var(--s-8)}
+.art-title{max-width:var(--measure)}
+.art-title h1{font-family:var(--serif);font-weight:500;font-size:40px;line-height:1.35;margin:var(--s-4) 0 var(--s-5)}
+.art-title .meta{display:flex;gap:var(--s-5);align-items:center;color:var(--ink-3);font-size:13px}
+.art-title .meta .dot{width:3px;height:3px;border-radius:50%;background:var(--ink-4)}
+.prose{max-width:var(--measure);font-family:var(--serif);font-size:17px;line-height:2;color:var(--ink);margin-top:var(--s-7)}
+.prose > * + *{margin-top:1.4em}
+.prose h2{font-size:26px;font-weight:500;line-height:1.4;margin-top:2.4em;letter-spacing:.02em;position:relative}
+.prose h2::before{content:"";position:absolute;left:-28px;top:.72em;width:14px;height:1px;background:var(--ink)}
+.prose h3{font-size:20px;font-weight:500;margin-top:2em}
+.prose p{color:var(--ink);}
+.prose p a{color:var(--accent-blue);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;text-decoration-color:rgba(0,120,255,.4)}
+.prose blockquote{padding:4px 0 4px 22px;border-left:1px solid var(--ink);color:var(--ink-2);font-size:17px}
+.prose blockquote cite{display:block;font-family:var(--mono);font-style:normal;font-size:11px;letter-spacing:.1em;color:var(--ink-3);margin-top:8px}
+.prose pre{position:relative;font-family:var(--mono);font-size:13px;line-height:1.75;background:var(--code-bg);border:1px solid var(--line);border-radius:var(--r-2);padding:20px 22px;overflow:auto;color:var(--ink)}
+.prose pre::before{content:attr(data-lang);position:absolute;right:0;top:0;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);padding:6px 12px;border-left:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0 var(--r-2) 0 var(--r-2)}
+.prose pre .k{color:var(--accent-blue)}.prose pre .s{color:var(--primary-deep)}.prose pre .c{color:var(--ink-3)}
+.prose code:not(pre code){font-family:var(--mono);font-size:.85em;background:var(--code-bg);padding:2px 6px;border-radius:var(--r-1);border:1px solid var(--line)}
+.prose table{width:100%;border-collapse:collapse;font-size:15px;font-family:var(--sans)}
+.prose th,.prose td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.prose th{font-weight:500;font-size:12px;letter-spacing:.06em;color:var(--ink-3);border-bottom:1px solid var(--ink)}
+.prose td code{white-space:nowrap}
+.prose ul.task{font-family:var(--sans);font-size:15px}
+.prose ul.task li{display:flex;gap:12px;align-items:flex-start;padding:6px 0}
+.prose ul.task i{width:16px;height:16px;border:1px solid var(--ink-3);border-radius:var(--r-1);flex:none;margin-top:6px;position:relative}
+.prose ul.task i.done{border-color:var(--ink);background:var(--ink)}
+.prose ul.task i.done::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid var(--paper);border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+.prose ul.task li.done span{color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px}
+.prose ul.plain li{position:relative;padding-left:20px}
+.prose ul.plain li::before{content:"";position:absolute;left:0;top:.95em;width:8px;height:1px;background:var(--ink-2)}
+/* TOC */
+.toc{position:sticky;top:120px;align-self:start;padding-top:var(--s-4)}
+.toc .mono{margin-bottom:var(--s-4)}
+.toc a{display:block;font-size:13px;color:var(--ink-3);padding:5px 0 5px 14px;border-left:1px solid var(--line);transition:color var(--dur-fast)}
+.toc a.h3{padding-left:28px;font-size:12px}
+.toc a.on{color:var(--ink);border-left-color:var(--ink)}
+.toc a:hover{color:var(--ink)}
+.toc .progress{margin-top:var(--s-5);font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-4)}
+/* prev/next */
+.pn{max-width:var(--measure);display:grid;grid-template-columns:1fr 1fr;margin-top:var(--s-9);border-top:1px solid var(--ink);border-bottom:1px solid var(--line)}
+.pn a{padding:var(--s-5) 0;display:block}
+.pn a + a{border-left:1px solid var(--line);padding-left:var(--s-6);text-align:right}
+.pn b{display:block;font-family:var(--serif);font-weight:500;font-size:17px;margin-top:6px}
+.related{max-width:var(--measure);margin-top:var(--s-8)}
+.related ul{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--s-5);margin-top:var(--s-4)}
+.related li .cover{height:88px;margin-bottom:10px}
+.related li b{font-family:var(--serif);font-weight:500;font-size:15px;line-height:1.5;display:block}
+.related li small{color:var(--ink-3);font-size:12px}
+/* comments（预留 UI） */
+.comments{max-width:var(--measure);margin-top:var(--s-9)}
+.comments .sh{margin-bottom:var(--s-4)}
+.clist > li{display:grid;grid-template-columns:36px 1fr;gap:var(--s-4);padding:var(--s-5) 0;border-bottom:1px solid var(--line)}
+.clist .avatar{background:var(--paper-3);display:grid;place-items:center;font-family:var(--serif);font-size:14px;color:var(--ink-2)}
+.clist .avatar.me{background:#0b1220}
+.clist .head{display:flex;align-items:center;gap:10px;font-size:13px}
+.clist .head b{font-weight:500}
+.clist .head time{color:var(--ink-3);font-family:var(--mono);font-size:11px}
+.clist .author{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--accent-blue);border:1px solid rgba(0,120,255,.35);padding:0 5px;border-radius:var(--r-1)}
+.clist p{font-size:15px;color:var(--ink);margin-top:6px;line-height:1.8}
+.clist .ops{display:flex;gap:var(--s-4);margin-top:8px;font-size:12px;color:var(--ink-3)}
+.clist .ops a:hover{color:var(--ink)}
+.clist .reply{margin-top:var(--s-4);padding:var(--s-4) 0 0 var(--s-5);border-left:1px solid var(--line);display:grid;grid-template-columns:28px 1fr;gap:12px}
+.clist .reply .avatar{width:28px;height:28px}
+.cform{margin-top:var(--s-6);display:grid;grid-template-columns:36px 1fr;gap:var(--s-4)}
+.cform .box{border:1px solid var(--line);border-radius:var(--r-2);background:var(--paper);transition:border-color var(--dur-fast)}
+.cform .box:hover{border-color:var(--ink-3)}
+.cform textarea{width:100%;height:96px;padding:14px 16px;border:0;background:transparent;font:15px/1.7 var(--sans);color:var(--ink);resize:none;outline:none}
+.cform .bar{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 8px 16px;border-top:1px solid var(--line)}
+.cform .bar small{font-size:12px;color:var(--ink-3)}
+.cform .bar .fields{display:flex;gap:var(--s-4)}
+.cform .bar input{border:0;border-bottom:1px solid var(--line);background:transparent;font-size:12px;width:120px;padding:4px 0;outline:none}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 18px;border-radius:var(--r-1);font-size:13px;letter-spacing:.06em;border:1px solid var(--ink);color:var(--ink);transition:background var(--dur-fast),color var(--dur-fast),transform var(--dur-fast)}
+.btn:hover{background:var(--ink);color:var(--paper)}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--accent-red);border-color:var(--accent-red);color:#fff}
+.btn.primary:hover{background:#d90029;border-color:#d90029}
+
+/* ============================================================
+   7. Thoughts
+   ============================================================ */
+.th-tools{display:flex;align-items:center;justify-content:space-between;padding:var(--s-4) 0;border-top:1px solid var(--ink);border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:4px}
+.tabs a{padding:6px 14px;font-size:14px;color:var(--ink-3);position:relative;border-radius:var(--r-pill)}
+.tabs a.on{color:var(--ink)}
+.tabs a.on::after{content:"";position:absolute;left:50%;bottom:-1px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--primary)}
+.ranges{display:flex;gap:2px}
+.ranges a{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-3);padding:5px 10px;border-radius:var(--r-1)}
+.ranges a.on{color:var(--ink);background:var(--line-2)}
+.ranges a:hover{color:var(--ink)}
+.th-grid{display:grid;grid-template-columns:1fr 280px;gap:var(--s-9);margin-top:var(--s-6);align-items:start}
+.note{display:grid;grid-template-columns:44px 1fr;gap:var(--s-4);padding:var(--s-6) 0;border-bottom:1px solid var(--line)}
+.note .avatar{width:44px;height:44px}
+.note .head{display:flex;align-items:center;gap:12px}
+.note .head b{font-weight:500}
+.note .head time{color:var(--ink-3);font-family:var(--mono);font-size:11px;letter-spacing:.06em}
+.note .head .pin{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--accent-yellow);display:flex;align-items:center;gap:6px}
+.note .head .pin::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent-yellow)}
+.note .body{font-family:var(--serif);font-size:17px;line-height:1.95;margin-top:8px;max-width:600px}
+.note .body strong{font-weight:600}
+.note .body code{font-family:var(--mono);font-size:.85em;background:var(--code-bg);padding:1px 5px;border-radius:var(--r-1);border:1px solid var(--line)}
+.note .pics{display:grid;gap:4px;margin-top:var(--s-4);max-width:520px}
+.note .pics.n1{grid-template-columns:1fr}
+.note .pics.n1 .cover{height:280px}
+.note .pics.n4{grid-template-columns:1fr 1fr;width:360px}
+.note .pics.n4 .cover{aspect-ratio:1/1}
+.note .pics.n2{grid-template-columns:1fr 1fr}
+.note .pics.n2 .cover{aspect-ratio:4/3}
+.note .foot{display:flex;gap:var(--s-5);margin-top:var(--s-4);font-size:12px;color:var(--ink-3);border:0;padding:0}
+.note .foot a:hover{color:var(--ink)}
+.th-side{position:sticky;top:120px}
+.th-side .box + .box{margin-top:var(--s-7)}
+.th-side h4{font-family:var(--serif);font-weight:500;font-size:15px;padding-bottom:10px;border-bottom:1px solid var(--ink);margin-bottom:var(--s-3)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-family:var(--mono);font-size:11px}
+.cal span{aspect-ratio:1;display:grid;place-items:center;color:var(--ink-3);border-radius:var(--r-1);position:relative}
+.cal span.h{color:var(--ink-4);font-size:9px}
+.cal span.has{color:var(--ink)}
+.cal span.has::after{content:"";position:absolute;left:50%;bottom:3px;width:3px;height:3px;margin-left:-1.5px;border-radius:50%;background:var(--ink-3)}
+.cal span.on{background:var(--ink);color:var(--paper)}
+.cal span.on::after{background:var(--paper)}
+.moods{display:flex;flex-wrap:wrap;gap:8px}
+.wall{margin-top:var(--s-9)}
+.wall .cols{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:var(--s-4)}
+.wall .col{display:grid;gap:8px;align-content:start}
+.wall .cover{transition:transform var(--dur-slow) var(--ease-out)}
+.wall .cover:hover{transform:scale(1.015)}
+
+/* ============================================================
+   8. About
+   ============================================================ */
+.idcard{display:grid;grid-template-columns:120px 1fr auto;gap:var(--s-7);align-items:center;padding:var(--s-8) 0;border-bottom:1px solid var(--ink)}
+.idcard .avatar{width:120px;height:120px;border-radius:26px;box-shadow:var(--shadow)}
+.idcard h1{font-family:var(--serif);font-weight:500;font-size:40px;letter-spacing:.04em;line-height:1.2}
+.idcard .tagline{margin-top:8px;color:var(--ink-2);font-size:15px}
+.idcard blockquote{font-family:var(--serif);font-size:18px;color:var(--ink);margin-top:var(--s-4)}
+.idcard .days{text-align:right}
+.idcard .days b{display:block;font-family:var(--display);font-weight:500;font-size:64px;line-height:1}
+.idcard .days small{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink-3)}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:0 var(--s-9)}
+.mod{padding:var(--s-7) 0;border-bottom:1px solid var(--line)}
+.mod.full{grid-column:1/-1}
+.mod h3{font-family:var(--serif);font-weight:500;font-size:20px;letter-spacing:.06em;display:flex;align-items:baseline;gap:12px;margin-bottom:var(--s-5)}
+.mod h3 small{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-4);text-transform:uppercase}
+.stats{display:grid;grid-template-columns:repeat(4,1fr)}
+.stats div{padding:14px 0;border-top:1px solid var(--line)}
+.stats b{display:block;font-family:var(--display);font-weight:500;font-size:40px;line-height:1}
+.stats small{display:block;margin-top:6px;font-size:12px;color:var(--ink-3)}
+.skills{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s-5)}
+.skills h5{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink-3);text-transform:uppercase;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.skills li{font-family:var(--serif);font-size:16px;padding:5px 0}
+.tl{position:relative;padding-left:28px}
+.tl::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:1px;background:var(--line)}
+.tl li{position:relative;padding:8px 0 var(--s-4)}
+.tl li::before{content:"";position:absolute;left:-26px;top:16px;width:5px;height:5px;border-radius:50%;background:var(--paper);border:1px solid var(--ink)}
+.tl li.done::before{background:var(--ink)}
+.tl b{font-family:var(--serif);font-weight:500;font-size:16px;display:block}
+.tl small{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.06em}
+.tl .num{font-family:var(--display);font-size:22px;color:var(--ink-3);margin-right:10px;font-weight:500}
+.heat{display:grid;grid-template-columns:repeat(52,1fr);grid-auto-rows:1fr;gap:3px;aspect-ratio:52/7}
+.heat i{border-radius:1px;background:var(--line-2)}
+.heat i.l1{background:rgba(0,120,255,.18)}.heat i.l2{background:rgba(0,120,255,.38)}.heat i.l3{background:rgba(0,120,255,.62)}.heat i.l4{background:var(--accent-blue)}
+[data-mode="dark"] .heat i{background:var(--line)}
+.heat-foot{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-4);margin-top:8px}
+.commits{margin-top:var(--s-5)}
+.commits li{display:grid;grid-template-columns:70px 1fr 90px;gap:var(--s-4);padding:9px 0;border-top:1px solid var(--line);font-size:13px}
+.commits code{font-family:var(--mono);font-size:12px;color:var(--accent-blue)}
+.commits time{font-family:var(--mono);font-size:11px;color:var(--ink-3);text-align:right}
+.social{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s-4)}
+.social a{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line);font-size:14px}
+.social a small{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.social a:hover{border-top-color:var(--ink)}
+.stack{display:flex;flex-wrap:wrap;gap:10px}
+.stack span{font-family:var(--mono);font-size:12px;letter-spacing:.06em;padding:6px 12px;border:1px solid var(--line);border-radius:var(--r-1)}
+.quote{font-family:var(--serif);font-size:22px;line-height:1.7;max-width:640px}
+.quote cite{display:block;font-style:normal;font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.12em;margin-top:12px}
+.now li{display:grid;grid-template-columns:80px 1fr;gap:var(--s-4);padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.now li small{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.08em;padding-top:3px}
+
+/* ============================================================
+   9. Search overlay（命令面板）
+   ============================================================ */
+.overlay-demo{position:relative;height:760px;overflow:hidden}
+.overlay-demo .bg{position:absolute;inset:0;filter:blur(2px);opacity:.55;pointer-events:none;transform:scale(1.01)}
+.overlay-demo .scrim{position:absolute;inset:0;background:rgba(22,22,22,.32)}
+.panel{position:absolute;left:50%;top:96px;width:680px;transform:translateX(-50%);background:var(--paper);border:1px solid var(--line);border-radius:var(--r-2);box-shadow:var(--shadow);overflow:hidden;animation:panelIn var(--dur-slow) var(--ease-out) both}
+@keyframes panelIn{from{opacity:0;transform:translate(-50%,-10px) scale(.985)}}
+.panel .in{display:flex;align-items:center;gap:14px;padding:18px 22px;border-bottom:1px solid var(--line);font-family:var(--serif);font-size:19px}
+.panel .in .caret{width:1px;height:22px;background:var(--ink);animation:blink 1.2s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.panel .in .esc{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-4);border:1px solid var(--line);padding:2px 7px;border-radius:var(--r-1)}
+.panel .grp{padding:12px 10px 6px}
+.panel .grp .mono{padding:4px 12px 8px;font-size:10px}
+.panel .it{display:grid;grid-template-columns:20px 1fr auto;gap:14px;align-items:center;padding:10px 12px;border-radius:var(--r-2);font-size:14px}
+.panel .it.on{background:var(--line-2)}
+.panel .it .k{width:20px;height:20px;border:1px solid var(--line);border-radius:var(--r-1);display:grid;place-items:center;font-family:var(--mono);font-size:9px;color:var(--ink-3)}
+.panel .it b{font-family:var(--serif);font-weight:500;display:block}
+.panel .it small{display:block;color:var(--ink-3);font-size:12px;margin-top:1px}
+.panel .it mark{background:transparent;color:var(--ink);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:var(--primary)}
+.panel .it .go{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-4)}
+.panel .it.on .go{color:var(--ink-2)}
+.panel .foot{margin:0;padding:10px 22px;border-top:1px solid var(--line);display:flex;gap:var(--s-5);font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-4)}
+.panel .foot kbd{border:1px solid var(--line);padding:0 5px;border-radius:var(--r-1);margin-right:4px}
+
+/* ============================================================
+   10. 404（夜间的纸）
+   ============================================================ */
+.nf{min-height:820px;display:grid;place-items:center;text-align:center;position:relative}
+.nf .col{display:flex;flex-direction:column;align-items:center;position:relative}
+.nf .num{font-family:var(--display);font-weight:500;font-size:200px;line-height:1;letter-spacing:.02em;color:var(--ink);position:relative;z-index:1}
+.nf .door{width:1px;height:180px;margin-bottom:28px;
+  background:linear-gradient(to bottom,transparent,var(--light) 70%,var(--light));opacity:.9;
+  box-shadow:0 0 24px 2px rgba(255,255,255,.28)}
+.nf .glow{width:640px;height:120px;margin:-40px 0 -50px;
+  background:radial-gradient(50% 100% at 50% 0%,var(--floor),transparent 70%);animation:breath var(--dur-breath) ease-in-out infinite}
+.nf h2{font-family:var(--serif);font-weight:500;font-size:26px;margin-top:var(--s-6);letter-spacing:.06em}
+.nf p{color:var(--ink-2);margin-top:var(--s-3);font-size:14px}
+.nf .acts{display:flex;gap:var(--s-5);justify-content:center;margin-top:var(--s-7)}
+.nf .btn{border-color:var(--ink-2)}
+
+/* theme switch（演示用） */
+.tswitch{position:absolute;right:24px;top:92px;z-index:50;display:flex;gap:6px;padding:6px;border-radius:var(--r-pill);background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:var(--shadow)}
+.tswitch button{padding:6px 12px;border-radius:var(--r-pill);font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-2)}
+.tswitch button.on{background:var(--ink);color:var(--paper)}
+</style>
+</head>
+<body>
+
+<!-- ============================================================ 01 首页 -->
+<section data-screen="home" id="home">
+  <span class="screen-label">01 · 首页 HOME</span>
+
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="#home"><img src="../../logo.png" alt=""><b>Myself</b><small>个人博客</small></a>
+      <nav class="capsule">
+        <a class="on" href="#home">首页</a><a href="#articles">文章</a><a href="#thoughts">随想</a><a href="#about">关于</a>
+        <span class="sep"></span>
+        <a class="ib" href="#search" title="搜索"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></a>
+        <button class="ib" title="主题" onclick="toggleMode()"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <a class="ib" href="#" title="RSS"><svg class="ico" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1" fill="currentColor"/></svg></a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <div class="hero-eyebrow"><span class="mono" id="hero-eyebrow">最新文章 · 01 / 04</span><i></i></div>
+        <h1 class="hero-title" id="hero-title">欢迎使用 Myself</h1>
+        <p class="hero-sum" id="hero-sum">一个开源的个人博客引擎：Vue 3 + Go + SQLite，内容皆 Markdown，主题随四季流转。</p>
+        <div class="hero-tags" id="hero-tags"><a class="tag" href="#">指南</a></div>
+        <a class="hero-cta" href="#article"><i></i><span id="hero-cta">阅读全文</span></a>
+        <div class="hero-meta">
+          <div class="dots" id="hero-dots"><b class="on"></b><b></b><b></b><b></b></div>
+          <span class="mono" id="hero-date">2026 · 07 · 01</span>
+        </div>
+      </div>
+      <div class="deck" id="deck">
+        <div class="floor"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="sh rv"><h2>最新文章</h2><a href="#articles">全部 4 篇 →</a></div>
+    <ul class="plist">
+      <li class="rv"><span class="no">01</span><div><h3>把发文托管给 AI：API 中心<span class="pin" title="置顶"></span></h3><p>创建 APIKey，让外部 AI 通过 X-Api-Key 认证的 REST 接口替你发布文章与随想。</p></div><div class="meta"><span class="mono">2026 · 07 · 04</span><div class="tags"><a class="tag">指南</a><a class="tag">API</a></div></div></li>
+      <li class="rv"><span class="no">02</span><div><h3>用 Markdown 写作</h3><p>文章与随想共用一条 Markdown 管线：可移植、可版本化、对 AI 友好。</p></div><div class="meta"><span class="mono">2026 · 07 · 03</span><div class="tags"><a class="tag">指南</a><a class="tag">写作</a></div></div></li>
+      <li class="rv"><span class="no">03</span><div><h3>主题系统指南</h3><p>两层主题架构：深浅模式与色盘正交组合；后台可自定义最多十组主题色并拖拽排序。</p></div><div class="meta"><span class="mono">2026 · 07 · 02</span><div class="tags"><a class="tag">指南</a><a class="tag">主题</a></div></div></li>
+      <li class="rv"><span class="no">04</span><div><h3>欢迎使用 Myself</h3><p>一个开源的个人博客引擎：Vue 3 + Go + SQLite，内容皆 Markdown，主题随四季流转。</p></div><div class="meta"><span class="mono">2026 · 07 · 01</span><div class="tags"><a class="tag">指南</a></div></div></li>
+    </ul>
+
+    <div class="home-grid">
+      <div>
+        <div class="sh rv"><h2>随想</h2><a href="#thoughts">信息流 →</a></div>
+        <ul class="tlist">
+          <li class="rv"><div class="avatar"><img src="../../logo.png" alt=""></div><div><div class="head"><b>BeaconCat</b><span class="mono">07 · 04 · 21:16</span><span class="mood">API</span></div><p>后台「API 中心」可以创建 APIKey，把发文托管给你的 AI 助手——内容统一走 Markdown。</p></div></li>
+          <li class="rv"><div class="avatar"><img src="../../logo.png" alt=""></div><div><div class="head"><b>BeaconCat</b><span class="mono">07 · 03 · 18:40</span><span class="mood">主题</span></div><p>试试右上角的主题切换：四季色盘 × 深浅模式，切换时有圆形蒙版扩散动画。</p></div></li>
+          <li class="rv"><div class="avatar"><img src="../../logo.png" alt=""></div><div><div class="head"><b>BeaconCat</b><span class="mono">07 · 02 · 10:05</span><span class="mood">功能</span></div><p>随想的配图支持双拼、三拼、四宫格直到九宫格，点开可全屏缩放拖拽查看。</p></div></li>
+        </ul>
+      </div>
+      <aside>
+        <div class="sh rv"><h2>关于</h2><a href="#about">更多 →</a></div>
+        <div class="about-mini rv">
+          <div class="id"><div class="avatar"><img src="../../logo.png" alt=""></div><div><h4>BeaconCat</h4><div class="tagline">开源个人博客引擎 · 建站于 2026-01-01</div></div></div>
+          <blockquote>记录本身，就是意义。</blockquote>
+          <div class="ghbar"><div><b>18</b><small>仓库</small></div><div><b>4</b><small>Stars</small></div><div><b>12</b><small>关注者</small></div><div><b>326</b><small>年度提交</small></div></div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="mobile-note rv">
+      <div class="phone">
+        <div class="topbar"><b>Myself</b><span class="ib"><svg class="ico" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></span></div>
+        <div class="page">
+          <h5>欢迎使用 Myself</h5>
+          <p>一个开源的个人博客引擎：Vue 3 + Go + SQLite。</p>
+          <div class="cover g-blue"><span>cover · 01</span></div>
+          <p style="margin-top:18px">主题系统指南 — 两层主题架构：深浅模式与色盘正交组合。</p>
+        </div>
+        <div class="scrim"></div>
+        <div class="drawer">
+          <a class="on">首页</a><a>文章</a><a>随想</a><a>关于</a>
+          <div class="row"><span><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span><span><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg></span><span><svg class="ico" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1" fill="currentColor"/></svg></span></div>
+        </div>
+      </div>
+      <div>
+        <h3>移动端：悬浮顶栏 + 抽屉</h3>
+        <p>顶栏是同一枚毛玻璃胶囊，缩到只剩站名与一个开关；抽屉从右侧滑入，导航项仍用宋体，当前页只留一粒朱砂点。没有底部 tab bar，一切都在一个手势之内。</p>
+      </div>
+    </div>
+
+    <footer class="foot">
+      <span>© 2026 BeaconCat · Myself 开源个人博客引擎</span>
+      <div class="links"><a href="#">GitHub</a><a href="#">RSS</a><a href="#">Email</a></div>
+    </footer>
+  </div>
+</section>
+
+<!-- ============================================================ 02 文章列表 -->
+<section data-screen="articles" id="articles">
+  <span class="screen-label">02 · 文章列表 ARTICLES</span>
+  <header class="nav"><div class="wrap">
+    <a class="brand" href="#home"><img src="../../logo.png" alt=""><b>Myself</b><small>个人博客</small></a>
+    <nav class="capsule"><a href="#home">首页</a><a class="on" href="#articles">文章</a><a href="#thoughts">随想</a><a href="#about">关于</a><span class="sep"></span>
+      <a class="ib" href="#search"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></a>
+      <button class="ib" onclick="toggleMode()"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      <a class="ib" href="#"><svg class="ico" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1" fill="currentColor"/></svg></a>
+    </nav>
+  </div></header>
+
+  <div class="wrap">
+    <div class="page-head rv"><h1>文章</h1><p>四篇长文。按时间倒序，置顶在前。</p></div>
+    <div class="toolbar rv">
+      <div class="filters"><a class="on">全部<em>4</em></a><a>指南<em>4</em></a><a>主题<em>1</em></a><a>写作<em>1</em></a><a>API<em>1</em></a></div>
+      <div class="search-in"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>在文章中搜索</span><kbd>/</kbd></div>
+    </div>
+    <ul class="alist">
+      <li class="rv"><div class="cover g-blue"><span>API · 01</span><em>04</em></div><div>
+        <div class="meta-row"><span class="mono">2026 · 07 · 04</span><span class="mono" style="color:var(--accent-yellow)">置顶</span><span class="mono">6 分钟</span></div>
+        <h3>把发文托管给 AI：API 中心</h3>
+        <p>创建 APIKey，让外部 AI 通过 X-Api-Key 认证的 REST 接口替你发布文章与随想。</p>
+        <div class="tags"><a class="tag">指南</a><a class="tag">API</a></div></div></li>
+      <li class="rv"><div class="cover g-amber"><span>Markdown · 01</span><em>03</em></div><div>
+        <div class="meta-row"><span class="mono">2026 · 07 · 03</span><span class="mono">8 分钟</span></div>
+        <h3>用 Markdown 写作</h3>
+        <p>文章与随想共用一条 Markdown 管线：可移植、可版本化、对 AI 友好。</p>
+        <div class="tags"><a class="tag">指南</a><a class="tag">写作</a></div></div></li>
+      <li class="rv"><div class="cover g-green"><span>Theme · 01</span><em>02</em></div><div>
+        <div class="meta-row"><span class="mono">2026 · 07 · 02</span><span class="mono">5 分钟</span></div>
+        <h3>主题系统指南</h3>
+        <p>两层主题架构：深浅模式与色盘正交组合；后台可自定义最多十组主题色并拖拽排序。</p>
+        <div class="tags"><a class="tag">指南</a><a class="tag">主题</a></div></div></li>
+      <li class="rv"><div class="cover g-red"><span>Welcome · 01</span><em>01</em></div><div>
+        <div class="meta-row"><span class="mono">2026 · 07 · 01</span><span class="mono">4 分钟</span></div>
+        <h3>欢迎使用 Myself</h3>
+        <p>一个开源的个人博客引擎：Vue 3 + Go + SQLite，内容皆 Markdown，主题随四季流转。</p>
+        <div class="tags"><a class="tag">指南</a></div></div></li>
+    </ul>
+    <div class="end rv"><i></i><span>到此为止 · 共 4 篇</span><i></i></div>
+  </div>
+</section>
+
+<!-- ============================================================ 03 文章详情 -->
+<section data-screen="article" id="article">
+  <span class="screen-label">03 · 文章详情 ARTICLE</span>
+  <header class="nav"><div class="wrap">
+    <a class="brand" href="#home"><img src="../../logo.png" alt=""><b>Myself</b><small>个人博客</small></a>
+    <nav class="capsule"><a href="#home">首页</a><a class="on" href="#articles">文章</a><a href="#thoughts">随想</a><a href="#about">关于</a><span class="sep"></span>
+      <a class="ib" href="#search"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></a>
+      <button class="ib" onclick="toggleMode()"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      <a class="ib" href="#"><svg class="ico" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1" fill="currentColor"/></svg></a>
+    </nav>
+  </div></header>
+
+  <div class="band rv">
+    <div class="cover g-amber open"><span>Markdown · 01</span><em>i</em></div>
+    <div class="cover g-amber-2"><span>Markdown · 02</span><em>ii</em></div>
+    <div class="cover g-ink"><span>Markdown · 03</span><em>iii</em></div>
+  </div>
+  <div class="band-bar"><b class="on"></b><b></b><b></b></div>
+
+  <div class="wrap">
+    <div class="art">
+      <div>
+        <div class="art-title rv">
+          <span class="mono">文章 · 03 / 04</span>
+          <h1>用 Markdown 写作</h1>
+          <div class="meta"><span>2026 年 7 月 3 日</span><i class="dot"></i><span>8 分钟阅读</span><i class="dot"></i><a class="tag">指南</a><a class="tag">写作</a></div>
+        </div>
+
+        <article class="prose rv">
+          <p>文章与随想共用一条 Markdown 管线：可移植、可版本化、对 AI 友好。这篇文章记录这条管线的设计取舍，以及在 Myself 里可以用到的全部语法。</p>
+
+          <h2 id="why">为什么是 Markdown</h2>
+          <p>富文本编辑器把格式藏进不可见的标签里；Markdown 把格式写在纸面上。前者需要一个编辑器才能打开，后者用任何一台机器的任何一个文本编辑器都能读。当你十年后想把这些文字搬到别处，只有纯文本还会毫发无损。</p>
+          <blockquote>好的格式不是被看见的，而是被读到的。<cite>—— 写在第一次迁移之后</cite></blockquote>
+          <p>另一个原因是 AI。外部助手通过 <a href="#">API 中心</a> 投稿时，Markdown 是它们最熟悉的输出格式——不需要任何转换层，写出来即可发布。</p>
+
+          <h2 id="pipeline">一条管线</h2>
+          <p>文章与随想在存储层完全相同：一段 Markdown 正文加少量元信息。渲染层也只有一个入口 <code>utils/markdown.ts</code>，负责语法解析、代码高亮与 TOC 锚点生成。</p>
+          <h3 id="code">代码块与语言角标</h3>
+          <p>代码块右上角会显示语言名，高亮在离线环境下由 highlight.js 完成：</p>
+<pre data-lang="go"><span class="c">// 通过 APIKey 发布一篇文章</span>
+<span class="k">func</span> (h *Handler) CreatePost(w http.ResponseWriter, r *http.Request) {
+    key := r.Header.Get(<span class="s">"X-Api-Key"</span>)
+    <span class="k">if</span> !h.auth.Verify(key) {
+        http.Error(w, <span class="s">"unauthorized"</span>, http.StatusUnauthorized)
+        <span class="k">return</span>
+    }
+    <span class="k">var</span> in PostInput
+    json.NewDecoder(r.Body).Decode(&amp;in)
+    h.store.Posts.Create(r.Context(), in.Markdown())
+}</pre>
+          <h3 id="table">表格</h3>
+          <p>表格用来对照语法与效果，在窄屏上会横向滚动而不会挤压文字：</p>
+          <table>
+            <thead><tr><th>语法</th><th>效果</th><th>适用</th></tr></thead>
+            <tbody>
+              <tr><td><code>**强调**</code></td><td><strong>强调</strong></td><td>文章 / 随想</td></tr>
+              <tr><td><code>&gt; 引用</code></td><td>左侧一根墨线的引用块</td><td>文章</td></tr>
+              <tr><td><code>```go</code></td><td>带语言角标的代码块</td><td>文章</td></tr>
+              <tr><td><code>- [x] 任务</code></td><td>可勾选的任务列表</td><td>文章 / 随想</td></tr>
+            </tbody>
+          </table>
+          <h3 id="task">任务列表</h3>
+          <ul class="task">
+            <li class="done"><i class="done"></i><span>把旧博客的文章导出为 Markdown</span></li>
+            <li class="done"><i class="done"></i><span>校对代码块的语言标记</span></li>
+            <li><i></i><span>给每篇文章补三张封面</span></li>
+            <li><i></i><span>让 AI 助手试投第一篇随想</span></li>
+          </ul>
+
+          <h2 id="portable">可移植与可版本化</h2>
+          <p>所有正文都是 UTF-8 文本，意味着它们可以放进 Git、可以 diff、可以在任何编辑器里重写。数据中心的备份只是把 SQLite 与上传目录打成一个 zip——没有私有格式，没有锁定。</p>
+          <ul class="plain">
+            <li>备份 = 数据库 + uploads，一个 zip</li>
+            <li>导出 = 每篇文章一个 <code>.md</code>，front-matter 存元信息</li>
+            <li>RSS 直接从 Markdown 渲染，无需二次维护</li>
+          </ul>
+
+          <h2 id="end">结语</h2>
+          <p>Markdown 不是最强大的格式，但它是最诚实的：你看见的就是你写下的。对一个想写很多年的博客来说，这比任何功能都重要。</p>
+        </article>
+
+        <nav class="pn rv">
+          <a href="#"><span class="mono">← 上一篇</span><b>主题系统指南</b></a>
+          <a href="#"><span class="mono">下一篇 →</span><b>把发文托管给 AI：API 中心</b></a>
+        </nav>
+
+        <div class="related rv">
+          <span class="mono">相关文章</span>
+          <ul>
+            <li><div class="cover g-red"><span>Welcome</span></div><b>欢迎使用 Myself</b><small>2026 · 07 · 01</small></li>
+            <li><div class="cover g-green"><span>Theme</span></div><b>主题系统指南</b><small>2026 · 07 · 02</small></li>
+            <li><div class="cover g-blue"><span>API</span></div><b>把发文托管给 AI：API 中心</b><small>2026 · 07 · 04</small></li>
+          </ul>
+        </div>
+
+        <div class="comments rv">
+          <div class="sh"><h2>评论</h2><a>3 条</a></div>
+          <ul class="clist">
+            <li><div class="avatar">山</div><div>
+              <div class="head"><b>山中</b><time>2026-07-03 22:14</time></div>
+              <p>「你看见的就是你写下的」这句说服了我。之前一直用 Notion，导出的 HTML 里全是无意义的 div。</p>
+              <div class="ops"><a>回复</a><a>赞 4</a></div>
+              <div class="reply">
+                <div class="avatar me"><img src="../../logo.png" alt=""></div><div>
+                  <div class="head"><b>BeaconCat</b><span class="author">作者</span><time>2026-07-04 08:02</time></div>
+                  <p>可以先用数据中心的导出功能过一遍，front-matter 会保留标签与日期。</p>
+                  <div class="ops"><a>回复</a><a>赞 2</a></div>
+                </div>
+              </div>
+            </div></li>
+            <li><div class="avatar">北</div><div>
+              <div class="head"><b>北野</b><time>2026-07-05 13:40</time></div>
+              <p>任务列表在随想里也能用吗？想拿来记每天的小清单。</p>
+              <div class="ops"><a>回复</a><a>赞 1</a></div>
+            </div></li>
+            <li><div class="avatar">Q</div><div>
+              <div class="head"><b>Quill</b><time>2026-07-06 09:27</time></div>
+              <p>代码块的语言角标很克制，比彩色标签好看。请问表格在手机上是横向滚动还是折行？</p>
+              <div class="ops"><a>回复</a><a>赞</a></div>
+            </div></li>
+          </ul>
+          <form class="cform" onsubmit="return false">
+            <div class="avatar" style="background:var(--paper-3)"></div>
+            <div class="box">
+              <textarea placeholder="写下你的看法。支持 Markdown。"></textarea>
+              <div class="bar">
+                <div class="fields"><input placeholder="昵称"><input placeholder="邮箱（不公开）"></div>
+                <button class="btn" type="button">发表评论</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <aside class="toc rv">
+        <span class="mono">目录</span>
+        <a class="on" href="#why">为什么是 Markdown</a>
+        <a href="#pipeline">一条管线</a>
+        <a class="h3" href="#code">代码块与语言角标</a>
+        <a class="h3" href="#table">表格</a>
+        <a class="h3" href="#task">任务列表</a>
+        <a href="#portable">可移植与可版本化</a>
+        <a href="#end">结语</a>
+        <div class="progress">已读 12%</div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 04 随想 -->
+<section data-screen="thoughts" id="thoughts">
+  <span class="screen-label">04 · 随想 THOUGHTS</span>
+  <header class="nav"><div class="wrap">
+    <a class="brand" href="#home"><img src="../../logo.png" alt=""><b>Myself</b><small>个人博客</small></a>
+    <nav class="capsule"><a href="#home">首页</a><a href="#articles">文章</a><a class="on" href="#thoughts">随想</a><a href="#about">关于</a><span class="sep"></span>
+      <a class="ib" href="#search"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></a>
+      <button class="ib" onclick="toggleMode()"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      <a class="ib" href="#"><svg class="ico" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1" fill="currentColor"/></svg></a>
+    </nav>
+  </div></header>
+
+  <div class="wrap">
+    <div class="page-head rv"><h1>随想</h1><p>短的、即时的、未经整理的。</p></div>
+    <div class="th-tools rv">
+      <div class="tabs"><a class="on">信息流</a><a>媒体墙</a></div>
+      <div class="ranges"><a class="on">全部</a><a>今天</a><a>本周</a><a>本月</a><a>自定义…</a></div>
+      <div class="search-in" style="width:220px"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>搜索随想</span></div>
+    </div>
+
+    <div class="th-grid">
+      <div>
+        <article class="note rv">
+          <div class="avatar"><img src="../../logo.png" alt=""></div>
+          <div>
+            <div class="head"><b>BeaconCat</b><time>2026-07-01 · 09:12</time><span class="mood">欢迎</span><span class="pin">置顶</span></div>
+            <p class="body">欢迎使用 <strong>Myself</strong>。这是一条「随想」——短内容流，支持 Markdown、心情标签和最多九张配图。</p>
+            <div class="pics n1"><div class="cover g-blue"><span>光 · 01</span></div></div>
+            <div class="foot"><a>回复</a><a>分享</a><a>#欢迎</a></div>
+          </div>
+        </article>
+        <article class="note rv">
+          <div class="avatar"><img src="../../logo.png" alt=""></div>
+          <div>
+            <div class="head"><b>BeaconCat</b><time>2026-07-02 · 10:05</time><span class="mood">功能</span></div>
+            <p class="body">随想的配图支持双拼、三拼、四宫格直到九宫格，点开可全屏缩放拖拽查看。</p>
+            <div class="pics n4"><div class="cover g-amber"><span>i</span></div><div class="cover g-green"><span>ii</span></div><div class="cover g-red"><span>iii</span></div><div class="cover g-ink"><span>iv</span></div></div>
+            <div class="foot"><a>回复</a><a>分享</a><a>#功能</a></div>
+          </div>
+        </article>
+        <article class="note rv">
+          <div class="avatar"><img src="../../logo.png" alt=""></div>
+          <div>
+            <div class="head"><b>BeaconCat</b><time>2026-07-03 · 18:40</time><span class="mood">主题</span></div>
+            <p class="body">试试右上角的主题切换：四季色盘 × 深浅模式，切换时有圆形蒙版扩散动画。</p>
+            <div class="foot"><a>回复</a><a>分享</a><a>#主题</a></div>
+          </div>
+        </article>
+        <article class="note rv">
+          <div class="avatar"><img src="../../logo.png" alt=""></div>
+          <div>
+            <div class="head"><b>BeaconCat</b><time>2026-07-04 · 21:16</time><span class="mood">API</span></div>
+            <p class="body">后台「API 中心」可以创建 APIKey，把发文托管给你的 AI 助手——内容统一走 <code>Markdown</code>。</p>
+            <div class="foot"><a>回复</a><a>分享</a><a>#API</a></div>
+          </div>
+        </article>
+        <div class="end rv" style="margin-top:var(--s-7)"><i></i><span>四条随想 · 2026 年 7 月</span><i></i></div>
+      </div>
+
+      <aside class="th-side rv">
+        <div class="box">
+          <h4>2026 年 7 月</h4>
+          <div class="cal">
+            <span class="h">一</span><span class="h">二</span><span class="h">三</span><span class="h">四</span><span class="h">五</span><span class="h">六</span><span class="h">日</span>
+            <span></span><span></span><span class="has on">1</span><span class="has">2</span><span class="has">3</span><span class="has">4</span><span>5</span>
+            <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span>
+            <span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span>
+            <span>20</span><span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span>26</span>
+            <span>27</span><span>28</span><span>29</span><span>30</span><span>31</span><span></span><span></span>
+          </div>
+        </div>
+        <div class="box">
+          <h4>心情</h4>
+          <div class="moods"><span class="mood">欢迎 1</span><span class="mood">功能 1</span><span class="mood">主题 1</span><span class="mood">API 1</span></div>
+        </div>
+        <div class="box">
+          <h4>订阅</h4>
+          <p style="font-size:13px;color:var(--ink-2)">随想同样进入 RSS。<a href="#" style="color:var(--accent-blue)">/feed</a></p>
+        </div>
+      </aside>
+    </div>
+
+    <div class="wall rv">
+      <div class="sh"><h2>媒体墙</h2><a>6 张 · 来自 2 条随想</a></div>
+      <div class="cols">
+        <div class="col"><div class="cover g-blue" style="height:300px"><span>光 · 01</span></div><div class="cover g-red" style="height:180px"><span>iii</span></div></div>
+        <div class="col"><div class="cover g-amber" style="height:200px"><span>i</span></div><div class="cover g-paper" style="height:260px;color:#3a3a37"><span>纸</span></div></div>
+        <div class="col"><div class="cover g-green" style="height:260px"><span>ii</span></div><div class="cover g-blue-2" style="height:200px"><span>冬</span></div></div>
+        <div class="col"><div class="cover g-ink" style="height:220px"><span>iv</span></div><div class="cover g-amber-2" style="height:240px"><span>秋</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 05 关于 -->
+<section data-screen="about" id="about">
+  <span class="screen-label">05 · 关于 ABOUT</span>
+  <header class="nav"><div class="wrap">
+    <a class="brand" href="#home"><img src="../../logo.png" alt=""><b>Myself</b><small>个人博客</small></a>
+    <nav class="capsule"><a href="#home">首页</a><a href="#articles">文章</a><a href="#thoughts">随想</a><a class="on" href="#about">关于</a><span class="sep"></span>
+      <a class="ib" href="#search"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></a>
+      <button class="ib" onclick="toggleMode()"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      <a class="ib" href="#"><svg class="ico" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1" fill="currentColor"/></svg></a>
+    </nav>
+  </div></header>
+
+  <div class="wrap">
+    <div class="idcard rv">
+      <div class="avatar"><img src="../../logo.png" alt=""></div>
+      <div>
+        <h1>BeaconCat</h1>
+        <div class="tagline">开源个人博客引擎 · Myself 的作者与第一个用户</div>
+        <blockquote>记录本身，就是意义。</blockquote>
+      </div>
+      <div class="days"><b>265</b><small>天 · 自 2026-01-01</small></div>
+    </div>
+
+    <div class="mods">
+      <div class="mod full rv">
+        <h3>统计<small>stats</small></h3>
+        <div class="stats"><div><b>4</b><small>文章</small></div><div><b>4</b><small>随想</small></div><div><b>5</b><small>标签</small></div><div><b>12,480</b><small>字</small></div></div>
+      </div>
+      <div class="mod rv">
+        <h3>技能<small>skills</small></h3>
+        <div class="skills">
+          <div><h5>创作</h5><ul><li>文章</li><li>随想</li><li>摄影</li></ul></div>
+          <div><h5>工具</h5><ul><li>Markdown</li><li>主题系统</li><li>API 中心</li></ul></div>
+          <div><h5>兴趣</h5><ul><li>阅读</li><li>旅行</li><li>音乐</li></ul></div>
+        </div>
+      </div>
+      <div class="mod rv">
+        <h3>里程碑<small>milestones</small></h3>
+        <ul class="tl">
+          <li class="done"><b><span class="num">01</span>在后台换上你的名字与主题色</b><small>2026 · 01 · 01</small></li>
+          <li class="done"><b><span class="num">02</span>发布第一篇文章</b><small>2026 · 07 · 01</small></li>
+          <li><b><span class="num">03</span>创建 APIKey 托管给 AI</b><small>进行中</small></li>
+        </ul>
+      </div>
+      <div class="mod full rv">
+        <h3>GitHub<small>18 仓库 · 4 stars · 12 关注者 · 年度提交 326</small></h3>
+        <div class="heat" id="heat"></div>
+        <div class="heat-foot"><span>2025 · 10</span><span>2026 · 01</span><span>2026 · 04</span><span>2026 · 07</span><span>2026 · 09</span></div>
+        <ul class="commits">
+          <li><code>6b064aa</code><span>refactor: split oversized components into focused units</span><time>09 · 08</time></li>
+          <li><code>a0a1546</code><span>feat: image compression runs as background job with polled progress</span><time>09 · 08</time></li>
+          <li><code>3d879e3</code><span>feat: embed SPA in Go binary, RSS feed, on-demand thumbnails</span><time>09 · 08</time></li>
+          <li><code>f318041</code><span>feat: migrate backend to Go (net/http + modernc sqlite)</span><time>09 · 08</time></li>
+        </ul>
+      </div>
+      <div class="mod rv">
+        <h3>社交<small>links</small></h3>
+        <div class="social"><a href="#">GitHub<small>@BeaconCat</small></a><a href="#">Email<small>写信</small></a><a href="#">RSS<small>/feed</small></a></div>
+      </div>
+      <div class="mod rv">
+        <h3>技术栈<small>stack</small></h3>
+        <div class="stack"><span>Vue 3</span><span>Vite</span><span>Go</span><span>SQLite</span><span>Markdown</span></div>
+      </div>
+      <div class="mod rv">
+        <h3>语录<small>quote</small></h3>
+        <blockquote class="quote">「白」不是一种颜色，而是一种容纳的可能。<cite>—— 原研哉《白》</cite></blockquote>
+      </div>
+      <div class="mod rv">
+        <h3>此刻<small>now</small></h3>
+        <ul class="now">
+          <li><small>在写</small><span>《把发文托管给 AI：API 中心》的续篇</span></li>
+          <li><small>在读</small><span>《设计中的设计》</span></li>
+          <li><small>在做</small><span>Myself 后台的图片压缩任务</span></li>
+          <li><small>坐标</small><span>Asia/Shanghai · UTC+8</span></li>
+        </ul>
+      </div>
+    </div>
+    <footer class="foot">
+      <span>© 2026 BeaconCat · Myself 开源个人博客引擎</span>
+      <div class="links"><a href="#">GitHub</a><a href="#">RSS</a><a href="#">Email</a></div>
+    </footer>
+  </div>
+</section>
+
+<!-- ============================================================ 06 搜索浮层 -->
+<section data-screen="search" id="search" style="padding-bottom:0">
+  <span class="screen-label">06 · 搜索浮层 SEARCH</span>
+  <div class="overlay-demo">
+    <div class="bg">
+      <header class="nav" style="position:static"><div class="wrap">
+        <a class="brand"><img src="../../logo.png" alt=""><b>Myself</b><small>个人博客</small></a>
+        <nav class="capsule"><a class="on">首页</a><a>文章</a><a>随想</a><a>关于</a></nav>
+      </div></header>
+      <div class="wrap" style="padding-top:64px">
+        <span class="mono">最新文章 · 01 / 04</span>
+        <h1 class="hero-title" style="margin-top:20px">欢迎使用 Myself</h1>
+        <p class="hero-sum">一个开源的个人博客引擎：Vue 3 + Go + SQLite，内容皆 Markdown，主题随四季流转。</p>
+        <div class="sh" style="margin-top:80px"><h2>最新文章</h2><a>全部 4 篇 →</a></div>
+      </div>
+    </div>
+    <div class="scrim"></div>
+    <div class="panel">
+      <div class="in"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>主题</span><i class="caret"></i><span class="esc">ESC</span></div>
+      <div class="grp">
+        <span class="mono">文章 · 1</span>
+        <div class="it on"><span class="k">A</span><div><b><mark>主题</mark>系统指南</b><small>两层主题架构：深浅模式与色盘正交组合；后台可自定义最多十组主题色…</small></div><span class="go">ENTER ↵</span></div>
+      </div>
+      <div class="grp">
+        <span class="mono">随想 · 1</span>
+        <div class="it"><span class="k">N</span><div><b>试试右上角的<mark>主题</mark>切换</b><small>四季色盘 × 深浅模式，切换时有圆形蒙版扩散动画。 · 2026-07-03</small></div><span class="go">打开</span></div>
+      </div>
+      <div class="grp">
+        <span class="mono">标签 · 2</span>
+        <div class="it"><span class="k">#</span><div><b>#<mark>主题</mark></b><small>1 篇文章</small></div><span class="go">筛选</span></div>
+        <div class="it"><span class="k">#</span><div><b>#指南</b><small>4 篇文章 · 包含「主题系统指南」</small></div><span class="go">筛选</span></div>
+      </div>
+      <div class="foot"><span><kbd>↑</kbd><kbd>↓</kbd>选择</span><span><kbd>↵</kbd>打开</span><span><kbd>⌘K</kbd>随时呼出</span><span style="margin-left:auto">4 个结果 · 3 ms</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 07 404（夜间的纸） -->
+<section data-screen="404" id="nf" data-mode="dark" data-palette="winter" style="padding-bottom:0">
+  <span class="screen-label">07 · 404 · 深色 + 冬霜蓝</span>
+  <div class="nf">
+    <div class="col">
+      <div class="door"></div>
+      <div class="num">404</div>
+      <div class="glow"></div>
+      <h2>门后没有这一页。</h2>
+      <p>也许它被移走了，也许从未存在。灯还亮着，回头就好。</p>
+      <div class="acts"><a class="btn" href="#home">回到首页</a><a class="btn" href="#search">搜索一下</a></div>
+    </div>
+  </div>
+  <div class="wrap" style="padding:var(--s-8) 0 var(--s-8)">
+    <footer class="foot" style="margin-top:0"><span>© 2026 BeaconCat · Myself</span><div class="links"><a>GitHub</a><a>RSS</a><a>Email</a></div></footer>
+  </div>
+</section>
+
+<div class="tswitch">
+  <button class="on" data-set="light,summer">浅 · 夏</button>
+  <button data-set="dark,winter">深 · 冬</button>
+  <button data-set="light,spring">浅 · 春</button>
+  <button data-set="dark,autumn">深 · 秋</button>
+</div>
+
+<script>
+/* ---------- theme switch（演示） ---------- */
+const root=document.documentElement;
+function setTheme(mode,pal){root.dataset.mode=mode;root.dataset.palette=pal;
+  document.querySelectorAll('.tswitch button').forEach(b=>b.classList.toggle('on',b.dataset.set===mode+','+pal));}
+function toggleMode(){setTheme(root.dataset.mode==='light'?'dark':'light',root.dataset.palette)}
+document.querySelectorAll('.tswitch button').forEach(b=>b.onclick=()=>{const[m,p]=b.dataset.set.split(',');setTheme(m,p)});
+
+/* ---------- reveal ---------- */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{rootMargin:'0px 0px -6% 0px'});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+setTimeout(()=>document.querySelectorAll('.rv').forEach(el=>el.classList.add('in')),1500); /* 安全网：截图/无 IO 环境 */
+
+/* ---------- hero 轮播：每 10 秒换一篇；组内封面每 3 秒轮转 ---------- */
+const posts=[
+  {t:'欢迎使用 Myself',s:'一个开源的个人博客引擎：Vue 3 + Go + SQLite，内容皆 Markdown，主题随四季流转。',tags:['指南'],d:'2026 · 07 · 01',c:[['g-red','Welcome · 01'],['g-red-2','Welcome · 02']]},
+  {t:'主题系统指南',s:'两层主题架构：深浅模式与色盘正交组合；后台可自定义最多十组主题色并拖拽排序。',tags:['指南','主题'],d:'2026 · 07 · 02',c:[['g-green','Theme · 01'],['g-green-2','Theme · 02'],['g-ink','Theme · 03']]},
+  {t:'用 Markdown 写作',s:'文章与随想共用一条 Markdown 管线：可移植、可版本化、对 AI 友好。',tags:['指南','写作'],d:'2026 · 07 · 03',c:[['g-amber','Markdown · 01'],['g-amber-2','Markdown · 02'],['g-ink','Markdown · 03']]},
+  {t:'把发文托管给 AI：API 中心',s:'创建 APIKey，让外部 AI 通过 X-Api-Key 认证的 REST 接口替你发布文章与随想。',tags:['指南','API'],d:'2026 · 07 · 04',c:[['g-blue','API · 01'],['g-blue-2','API · 02'],['g-ink','API · 03']]}
+];
+const deck=document.getElementById('deck');
+let cur=0,rot=null;
+const pad=n=>String(n).padStart(2,'0');
+function renderDeck(i,fly){
+  deck.querySelectorAll('.cover').forEach(el=>{el.classList.add('fly-out');setTimeout(()=>el.remove(),520)});
+  posts[i].c.forEach(([g,l],k)=>{
+    const d=document.createElement('div');d.className='cover '+g+' c'+k+(fly?' fly-in':'');
+    d.style.animationDelay=(k*90)+'ms';
+    d.innerHTML='<span>'+l+'</span><em>'+pad(i+1)+'</em>';deck.appendChild(d);
+    setTimeout(()=>d.classList.remove('fly-in'),900);
+  });
+  clearInterval(rot);
+  rot=setInterval(()=>{const cs=[...deck.querySelectorAll('.cover:not(.fly-out)')];if(cs.length<2)return;
+    cs.forEach((el,k)=>{el.className=el.className.replace(/c\d/,'c'+((k+cs.length-1)%cs.length))});},3200);
+}
+function renderText(i){
+  const ids=['hero-eyebrow','hero-title','hero-sum','hero-tags','hero-date'];
+  ids.forEach((id,k)=>{const el=document.getElementById(id);el.classList.remove('blur-in');el.classList.add('blur-out');el.style.animationDelay=(Math.random()*160)+'ms'});
+  setTimeout(()=>{
+    document.getElementById('hero-eyebrow').textContent='最新文章 · '+pad(i+1)+' / 04';
+    document.getElementById('hero-title').textContent=posts[i].t;
+    document.getElementById('hero-sum').textContent=posts[i].s;
+    document.getElementById('hero-tags').innerHTML=posts[i].tags.map(t=>'<a class="tag" href="#">'+t+'</a>').join('');
+    document.getElementById('hero-date').textContent=posts[i].d;
+    ids.forEach(id=>{const el=document.getElementById(id);el.classList.remove('blur-out');el.classList.add('blur-in');el.style.animationDelay=(Math.random()*260)+'ms'});
+  },420);
+  document.querySelectorAll('#hero-dots b').forEach((b,k)=>{b.classList.remove('on');if(k===i){void b.offsetWidth;b.classList.add('on')}});
+}
+function go(i){cur=i;renderText(i);renderDeck(i,true)}
+renderDeck(0,true);
+setInterval(()=>go((cur+1)%posts.length),10000);
+document.querySelectorAll('#hero-dots b').forEach((b,k)=>b.onclick=()=>go(k));
+/* 3D 轻倾（鼠标） */
+const hero=document.querySelector('.hero');
+hero.addEventListener('mousemove',e=>{const r=hero.getBoundingClientRect();const x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
+  deck.style.transform='rotateY('+(x*6)+'deg) rotateX('+(-y*4)+'deg)';deck.style.transition='transform .6s var(--ease-out)'});
+hero.addEventListener('mouseleave',()=>{deck.style.transform=''});
+
+/* ---------- GitHub 热力图（确定性伪随机） ---------- */
+(function(){const h=document.getElementById('heat');if(!h)return;let seed=7;const rnd=()=>{seed=(seed*9301+49297)%233280;return seed/233280};
+  let html='';for(let i=0;i<52*7;i++){const v=rnd();const w=Math.floor(i/7);const bias=w>36?.25:0;const l=v<.55-bias?0:v<.75-bias?1:v<.88-bias?2:v<.96?3:4;html+='<i class="l'+l+'"></i>'}h.innerHTML=html})();
+</script>
+</body>
+</html>

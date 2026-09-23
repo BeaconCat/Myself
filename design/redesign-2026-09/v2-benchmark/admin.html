@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-mode="light" data-palette="summer">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Myself · 后台设计稿 v2 · 标杆迁移</title>
+<!--
+================================================================================
+Myself 全站视觉翻新 · v2「现实参照 · 标杆迁移」· 管理员后台（admin.html）
+================================================================================
+
+■ 本版设计逻辑
+  后台参照 Ghost Admin（Ghost 博客系统的管理端），把「为什么它是最优雅的写作型 CMS」
+  拆成原理，迁移到 Myself 的 10 个模块与品牌（门·光·书页母题、三信号色、思源黑/宋）。
+
+■ 参照拆解：Ghost Admin
+  核实来源：docs.ghost.org/architecture、SitePoint《The Designer's Guide to Getting
+  Started with Ghost》、thememyblog《Minimalism in Ghost》、forum.ghost.org 相关帖。
+  1) 结构：一根极简的左侧栏承载全部入口（Dashboard / View site / Posts · Drafts ·
+     Scheduled · Published / Pages / Tags / Members / Settings），分组用小标题而非图标
+     堆砌；侧栏与画布同一浅灰底，靠文字层级区分。
+  2) 以编辑器为中心：进入编辑器后侧栏消失、界面「退到背景」，只剩一列居中写作栏、
+     一根轻顶栏与右侧滑出的 Post settings 抽屉；发布是一个明确的、独立的按钮与流程。
+  3) 列表：Posts 是带状态筛选（Published / Draft / Scheduled）的表格，行 hover 才露出
+     操作；状态用彩色小点 + 文字，不用大色块。
+  4) 气质：白底、极少装饰、13–14px 中性字号、黑色实心主按钮、灰度分隔；颜色只给
+     状态（绿 = 已发布、黄 = 定时、灰 = 草稿）与一个品牌强调。
+  → 为什么高级：后台的高级来自「减少界面自身的存在感」——所有 chrome 都比内容浅
+     一档；写作时连侧栏都让位；操作按需显现，而不是常驻。
+
+■ 迁移到 Myself
+  - 侧栏 232px，同画布浅灰底（#F4F4F2），分组「内容 / 系统」；底部用户卡 + 主题切换。
+  - 默认展示「浅色 + 夏炽红」：主色 #ff0032 只做当前项指示、焦点环、关键计数与发布
+    按钮上的一枚小点；主按钮为近黑实心（与前台一致），避免红色大面积铺开。
+  - 三信号色映射状态：蓝 = 已发布 / 已完成，黄 = 定时 / 进行中 / 待审，红 = 草稿 /
+    危险操作；一律「小点 + 文字」。
+  - 编辑器页无侧栏：左 Markdown 源（等宽）/ 右实时预览（思源宋）/ 右侧元信息抽屉；
+    底部发布条含「定时发布（预留）」。
+  - 表格与列表：hairline 分隔、hover 才显示行操作；数字统一 JetBrains Mono。
+  - 「光」母题只出现在登录页左侧品牌板与空状态里，后台其余部分保持无色相。
+
+■ 假设
+  - 演示用 Google Fonts；落地时改为 @fontsource 离线包。素材缩略图为 CSS 渐变占位。
+  - 侧栏由一段原生 JS 从 <template> 注入到各屏，落地时对应 Vue 布局组件。
+  - 图表为单序列 CSS 柱图 / 热力格（单一色相、细柱、4px 圆角、坐标轴退后）。
+
+■ 预留 UI（画成完整可信界面，数据为示例）
+  - 03 编辑器的「定时发布」；08 API 中心的「调用日志」；09 数据中心的「导入导出」；
+    10 评论与用户（P4）整屏。
+================================================================================
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --accent-red:#ff0032; --accent-yellow:#ffb300; --accent-blue:#0078ff;
+  --primary:#ff0032; --primary-deep:#b8001f;
+  --bg:#F4F4F2; --surface:#FFFFFF; --surface-2:#F7F7F5; --surface-3:#EEEEEA;
+  --line:rgba(16,21,34,.08); --line-2:rgba(16,21,34,.16);
+  --text:#12172A; --text-2:#525B70; --text-3:#8B93A6;
+  --primary-soft:color-mix(in oklab,var(--primary) 12%,transparent);
+  --primary-line:color-mix(in oklab,var(--primary) 45%,transparent);
+  --shadow:0 1px 2px rgba(16,21,34,.05),0 12px 32px -16px rgba(16,21,34,.18);
+  --shadow-lg:0 30px 80px -30px rgba(16,21,34,.35),0 0 0 1px rgba(16,21,34,.06);
+  --sans:"Noto Sans SC",system-ui,sans-serif; --serif:"Noto Serif SC",serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  --dur-fast:.2s; --dur:.35s; --dur-slow:.6s; --ease-out:cubic-bezier(.2,.8,.3,1); --ease-spring:cubic-bezier(.2,.8,.3,1.2);
+  --r-s:6px; --r-m:10px; --r-l:14px; --r-pill:999px; --sb:232px;
+}
+:root[data-palette=spring]{--primary:#00c853;--primary-deep:#00893a}
+:root[data-palette=summer]{--primary:#ff0032;--primary-deep:#b8001f}
+:root[data-palette=autumn]{--primary:#ffb300;--primary-deep:#b87d00}
+:root[data-palette=winter]{--primary:#0078ff;--primary-deep:#0052c2}
+:root[data-mode=dark]{
+  --bg:#070B14; --surface:#0E1524; --surface-2:#121A2B; --surface-3:#172033;
+  --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.14);
+  --text:#E9EDF5; --text-2:#9CA6BA; --text-3:#5C6780;
+  --shadow:0 1px 0 rgba(255,255,255,.04) inset,0 20px 50px -20px rgba(0,0,0,.7);
+  --shadow-lg:0 40px 100px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:400 13.5px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none} img{display:block;max-width:100%}
+button,input,select,textarea{font:inherit;color:inherit;background:none;border:0;outline:none}
+::selection{background:var(--primary);color:#fff}
+.mono{font-family:var(--mono);font-size:12px;letter-spacing:.01em}
+.t2{color:var(--text-2)} .t3{color:var(--text-3)}
+
+[data-screen]{position:relative;min-height:900px;border-bottom:1px dashed var(--line-2);overflow:hidden}
+.screen-label{position:absolute;left:16px;top:10px;z-index:60;font:500 11px/1 var(--mono);color:#8b93a6;opacity:.8;letter-spacing:.06em;pointer-events:none}
+
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:var(--sb) 1fr;min-height:900px}
+.sb{padding:36px 14px 18px;display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--line);background:var(--bg)}
+.sb .logo{display:flex;align-items:center;gap:10px;padding:6px 10px 18px}
+.sb .logo img{width:28px;height:28px;border-radius:8px}
+.sb .logo b{font-size:14px;font-weight:600;display:block;line-height:1.2} .sb .logo span{font:400 11px var(--mono);color:var(--text-3)}
+.sb .grp{font:500 10.5px var(--mono);letter-spacing:.14em;color:var(--text-3);padding:16px 10px 6px}
+.sb a{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--r-s);color:var(--text-2);font-size:13.5px;transition:all var(--dur-fast);position:relative}
+.sb a:hover{color:var(--text);background:var(--surface-3)}
+.sb a.on{color:var(--text);background:var(--surface);box-shadow:var(--shadow);font-weight:500}
+.sb a.on::before{content:"";position:absolute;left:-14px;top:50%;width:3px;height:16px;margin-top:-8px;border-radius:0 3px 3px 0;background:var(--primary)}
+.sb a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.sb a .n{margin-left:auto;font:400 11px var(--mono);color:var(--text-3)}
+.sb a .p4{margin-left:auto;font:500 9.5px var(--mono);padding:2px 5px;border-radius:3px;background:var(--surface-3);color:var(--text-3);letter-spacing:.08em}
+.sb .spacer{flex:1}
+.sb .user{display:flex;align-items:center;gap:10px;padding:10px;border-top:1px solid var(--line);margin-top:10px}
+.sb .user img{width:30px;height:30px;border-radius:50%}
+.sb .user b{display:block;font-size:13px;font-weight:600;line-height:1.2} .sb .user span{font-size:11px;color:var(--text-3)}
+.sb .user .tg{margin-left:auto;width:38px;height:22px;border-radius:11px;background:var(--surface-3);position:relative;cursor:pointer;border:1px solid var(--line-2)}
+.sb .user .tg::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform var(--dur) var(--ease-spring)}
+:root[data-mode=dark] .sb .user .tg::after{transform:translateX(16px)}
+.main{background:var(--surface);padding:40px 44px 56px;min-width:0}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:26px}
+.ph h1{font:600 24px/1.2 var(--sans);letter-spacing:-.01em} .ph p{color:var(--text-3);margin-top:4px;font-size:13px}
+.ph .acts{display:flex;gap:8px;align-items:center}
+
+/* ---------- controls ---------- */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:var(--r-s);font-weight:500;font-size:13px;cursor:pointer;border:1px solid var(--line-2);background:var(--surface);transition:all var(--dur-fast);white-space:nowrap}
+.btn:hover{border-color:var(--text-3);transform:translateY(-1px)} .btn:active{transform:scale(.98)}
+.btn-primary{background:var(--text);color:var(--bg);border-color:var(--text)} .btn-primary:hover{border-color:var(--text);box-shadow:0 8px 20px -10px rgba(16,21,34,.6)}
+.btn-primary i{width:6px;height:6px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 2px color-mix(in oklab,var(--primary) 35%,transparent)}
+.btn-ghost{border-color:transparent;color:var(--text-2)} .btn-ghost:hover{background:var(--surface-2);color:var(--text)}
+.btn-danger{color:var(--accent-red)} .btn-danger:hover{border-color:var(--accent-red);background:color-mix(in oklab,var(--accent-red) 6%,transparent)}
+.btn.sm{padding:5px 10px;font-size:12px}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.in{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--line-2);border-radius:var(--r-s);background:var(--surface);font-size:13px;transition:all var(--dur-fast)}
+.in:focus-within,.in:hover{border-color:var(--text-3)} .in:focus-within{box-shadow:0 0 0 3px var(--primary-soft);border-color:var(--primary)}
+.in input,.in select,.in textarea{flex:1;min-width:0;width:100%} .in input::placeholder,.in textarea::placeholder{color:var(--text-3)}
+.in svg{width:14px;height:14px;stroke:var(--text-3);fill:none;stroke-width:1.7}
+.in.sm{padding:6px 10px;font-size:12.5px}
+.kbd{font:500 10.5px/1 var(--mono);padding:3px 5px;border:1px solid var(--line-2);border-radius:4px;color:var(--text-3)}
+.fld{display:grid;gap:6px;margin-bottom:16px} .fld label{font-size:12.5px;font-weight:500;color:var(--text-2)} .fld small{font-size:11.5px;color:var(--text-3)}
+.fld.row{grid-template-columns:180px 1fr;gap:20px;align-items:start;padding:16px 0;border-bottom:1px solid var(--line);margin:0}
+.fld.row label{padding-top:8px;font-size:13px;color:var(--text)} .fld.row label small{display:block;font-weight:400;margin-top:2px}
+.sw{display:inline-block;width:36px;height:20px;border-radius:10px;vertical-align:middle;background:var(--surface-3);border:1px solid var(--line-2);position:relative;cursor:pointer;flex:none;transition:background var(--dur)}
+.sw::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform var(--dur) var(--ease-spring)}
+.sw.on{background:var(--text);border-color:var(--text)} .sw.on::after{transform:translateX(16px)}
+.chk{width:15px;height:15px;border:1px solid var(--line-2);border-radius:4px;display:inline-grid;place-items:center;flex:none;background:var(--surface)}
+.chk.on{background:var(--text);border-color:var(--text)} .chk.on::after{content:"";width:7px;height:4px;border-left:1.5px solid #fff;border-bottom:1.5px solid #fff;transform:translateY(-1px) rotate(-45deg)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);white-space:nowrap}
+.pill i{width:6px;height:6px;border-radius:50%;background:var(--text-3)} .pill.pub i{background:var(--accent-blue)} .pill.sch i{background:var(--accent-yellow)} .pill.dft i{background:var(--accent-red)} .pill.ok i{background:#00c853}
+.tag{font:500 11px var(--mono);padding:3px 7px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line);color:var(--text-2)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.tabs span{padding:8px 12px;font-size:13px;color:var(--text-3);cursor:pointer;position:relative;transition:color var(--dur-fast)}
+.tabs span:hover{color:var(--text)} .tabs span.on{color:var(--text);font-weight:500} .tabs span.on::after{content:"";position:absolute;left:8px;right:8px;bottom:-1px;height:2px;background:var(--text);border-radius:2px}
+.tabs span small{font:400 11px var(--mono);color:var(--text-3);margin-left:5px}
+.seg{display:inline-flex;padding:3px;border:1px solid var(--line-2);border-radius:var(--r-s);gap:2px;background:var(--surface-2)}
+.seg span{padding:4px 10px;border-radius:4px;font-size:12px;color:var(--text-2);cursor:pointer} .seg span.on{background:var(--surface);color:var(--text);box-shadow:var(--shadow);font-weight:500}
+
+/* ---------- cards / tables ---------- */
+.card{border:1px solid var(--line);border-radius:var(--r-m);background:var(--surface);overflow:hidden}
+.card .ch{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+.card .ch h3{font-size:13.5px;font-weight:600} .card .ch h3 small{font:400 11px var(--mono);color:var(--text-3);margin-left:8px}
+.card .cb{padding:18px}
+.grid{display:grid;gap:16px} .g2{grid-template-columns:1fr 1fr} .g3{grid-template-columns:repeat(3,1fr)} .g4{grid-template-columns:repeat(4,1fr)} .g32{grid-template-columns:1.6fr 1fr} .g23{grid-template-columns:1fr 1.6fr}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-weight:500;font-size:11.5px;color:var(--text-3);padding:10px 14px;border-bottom:1px solid var(--line);letter-spacing:.03em;white-space:nowrap}
+td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr{transition:background var(--dur-fast)} tbody tr:hover{background:var(--surface-2)}
+tr .ra{opacity:0;transition:opacity var(--dur-fast);display:flex;gap:4px;justify-content:flex-end} tr:hover .ra,tr.show .ra{opacity:1}
+td .tt{font-weight:500;font-size:13.5px;white-space:nowrap} td .sub{font-size:11.5px;color:var(--text-3);margin-top:2px}
+.num{font-family:var(--mono);font-size:12.5px;color:var(--text-2);white-space:nowrap}
+.key{white-space:nowrap} .grid>*{min-width:0} .card{min-width:0}
+.stat{padding:18px 20px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--surface)}
+.stat .l{font-size:12px;color:var(--text-3);display:flex;justify-content:space-between} .stat .v{font:500 30px/1.1 var(--mono);letter-spacing:-.02em;margin:10px 0 6px} .stat .d{font-size:11.5px;color:var(--text-3)} .stat .d b{font-weight:500;color:var(--text-2)}
+.stat .l i{width:6px;height:6px;border-radius:50%;margin-top:6px}
+.ava{width:30px;height:30px;border-radius:50%;overflow:hidden;flex:none;display:grid;place-items:center;background:var(--surface-3);font:600 11px var(--mono);color:var(--text-2)}
+.ava img{width:100%;height:100%}
+.cover{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--ca),var(--cb) 55%,var(--cc));color:#fff;display:grid;place-items:center}
+.cover::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 80% at 20% 0%,rgba(255,255,255,.28),transparent 60%),linear-gradient(180deg,transparent 60%,rgba(0,0,0,.3));mix-blend-mode:soft-light}
+.cover .lbl{position:absolute;left:8px;top:6px;font:500 9px/1 var(--mono);letter-spacing:.12em;opacity:.85}
+.c-winter{--ca:#04204f;--cb:#0078ff;--cc:#b8dbff} .c-summer{--ca:#5a0014;--cb:#ff0032;--cc:#ffb1c0} .c-autumn{--ca:#5c3a00;--cb:#ffb300;--cc:#ffe7a8} .c-spring{--ca:#004d22;--cb:#00c853;--cc:#b6ffd3} .c-navy{--ca:#070B14;--cb:#1a2a4d;--cc:#3f5a8f} .c-grey{--ca:#2b3140;--cb:#5a6478;--cc:#b6bfd0}
+.bar{height:6px;border-radius:3px;background:var(--surface-3);overflow:hidden;position:relative} .bar i{display:block;height:100%;border-radius:3px;background:var(--text);transition:width var(--dur-slow)}
+.bar i.p{background:var(--primary)}
+.empty{padding:40px;text-align:center;color:var(--text-3);font-size:12.5px}
+.toast{position:absolute;right:28px;bottom:12px;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r-m);background:var(--text);color:var(--bg);font-size:12.5px;box-shadow:var(--shadow-lg);z-index:20}
+.toast i{width:6px;height:6px;border-radius:50%;background:#00c853}
+
+/* ---------- 01 login ---------- */
+.login{display:grid;grid-template-columns:1fr 1fr;min-height:900px}
+.login .brand{position:relative;background:#070B14;color:#E9EDF5;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;padding:48px 56px}
+.login .brand .beam{position:absolute;left:50%;top:0;width:2px;height:520px;transform:translateX(-50%);background:linear-gradient(rgba(255,255,255,.6),transparent)}
+.login .brand .beam::before{content:"";position:absolute;left:50%;top:0;width:520px;height:520px;transform:translateX(-50%);background:radial-gradient(60% 100% at 50% 0%,rgba(255,255,255,.08),transparent 70%)}
+.login .brand .floor{position:absolute;left:50%;top:440px;width:800px;height:260px;transform:translateX(-50%);background:radial-gradient(50% 50% at 50% 50%,rgba(0,120,255,.22),transparent 70%);filter:blur(20px)}
+.login .brand .lg{position:relative;display:flex;align-items:center;gap:12px} .login .brand .lg img{width:36px;height:36px;border-radius:10px} .login .brand .lg b{font-size:16px;font-weight:600} .login .brand .lg span{display:block;font:400 11px var(--mono);color:#5C6780}
+.login .brand .mid{position:relative;text-align:center}
+.login .brand .mid img{width:180px;height:180px;margin:0 auto 34px;border-radius:44px;box-shadow:0 60px 120px -40px rgba(0,120,255,.5)}
+.login .brand .mid h2{font:600 30px/1.3 var(--serif)} .login .brand .mid p{color:#9CA6BA;margin-top:10px;font-size:14px}
+.login .brand .ft{position:relative;display:flex;justify-content:space-between;font:400 11px var(--mono);color:#5C6780}
+.login .form{display:grid;place-items:center;background:var(--surface)}
+.login .form>div{width:360px}
+.login .form h1{font:600 26px/1.2 var(--sans);letter-spacing:-.01em} .login .form>div>p{color:var(--text-3);margin:8px 0 34px;font-size:13px}
+.login .remember{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2);margin:4px 0 22px} .login .remember a{margin-left:auto;color:var(--text-3)}
+.login .btn-primary{width:100%;justify-content:center;padding:11px}
+.login .form .ft{margin-top:60px;font:400 11px var(--mono);color:var(--text-3);text-align:center}
+
+/* ---------- 02 dashboard ---------- */
+.chart{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;align-items:end;height:150px;padding:6px 0 0}
+.chart div{display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:6px;align-items:center}
+.chart div b{width:22px;border-radius:4px 4px 0 0;background:var(--text);display:block;position:relative;transition:opacity var(--dur-fast)} .chart div:hover b{opacity:.7}
+.chart div b.p{background:var(--primary)}
+.chart div b .tip{position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%);font:500 10px var(--mono);color:var(--text-3);white-space:nowrap}
+.chart div span{font:400 10.5px var(--mono);color:var(--text-3)}
+.chart-base{border-top:1px solid var(--line-2);margin-top:2px}
+.act{display:grid;grid-template-columns:30px 1fr auto;gap:12px;align-items:start;padding:12px 18px;border-bottom:1px solid var(--line)} .act:last-child{border:0}
+.act p{font-size:13px} .act p b{font-weight:500} .act p code{font:400 11px var(--mono);padding:1px 5px;background:var(--surface-2);border-radius:3px;border:1px solid var(--line)}
+.act small{display:block;font-size:11.5px;color:var(--text-3);margin-top:2px} .act .t{font:400 11px var(--mono);color:var(--text-3);white-space:nowrap}
+.kv{display:grid;grid-template-columns:1fr auto;gap:8px 16px;font-size:13px;padding:0 18px} .kv div{padding:10px 0;border-bottom:1px solid var(--line);color:var(--text-2)} .kv div:nth-child(2n){text-align:right;font-family:var(--mono);font-size:12px;color:var(--text)} .kv div:nth-last-child(-n+2){border:0}
+.qa{display:grid;grid-template-columns:repeat(3,1fr);gap:10px} .qa a{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:var(--r-m);transition:all var(--dur-fast)} .qa a:hover{border-color:var(--line-2);background:var(--surface-2);transform:translateY(-1px)}
+.qa a .ic{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:var(--surface-3)} .qa a .ic svg{width:16px;height:16px;stroke:var(--text);fill:none;stroke-width:1.6}
+.qa a b{display:block;font-size:13px;font-weight:500} .qa a span{font-size:11.5px;color:var(--text-3)}
+
+/* ---------- 03 editor ---------- */
+.ed{display:grid;grid-template-rows:auto 1fr auto;min-height:900px;background:var(--surface)}
+.ed-top{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--line)}
+.ed-top .back{display:flex;align-items:center;gap:6px;color:var(--text-2);font-size:13px} .ed-top .st{font:400 12px var(--mono);color:var(--text-3);display:flex;align-items:center;gap:8px}
+.ed-top .st i{width:6px;height:6px;border-radius:50%;background:var(--accent-red)}
+.ed-top .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.ed-body{display:grid;grid-template-columns:1fr 1fr 300px;min-height:0}
+.ed-src{padding:28px 30px;border-right:1px solid var(--line);font:400 13px/1.85 var(--mono);color:var(--text-2);white-space:pre-wrap;background:var(--surface-2)}
+.ed-src .h{color:var(--text);font-weight:500} .ed-src .m{color:var(--primary)} .ed-src .g{color:var(--text-3)}
+.ed-src .caret{display:inline-block;width:1.5px;height:1em;background:var(--primary);vertical-align:-2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.ed-src .ln{display:inline-block;width:28px;color:var(--text-3);opacity:.6;user-select:none}
+.ed-prev{padding:28px 36px;border-right:1px solid var(--line);font:400 15.5px/1.9 var(--serif);overflow:hidden}
+.ed-prev h1{font:700 28px/1.3 var(--serif);margin-bottom:14px} .ed-prev h2{font:600 20px/1.4 var(--serif);margin:1.6em 0 .6em}
+.ed-prev p{margin-bottom:1.2em;color:color-mix(in oklab,var(--text) 88%,var(--text-2))}
+.ed-prev pre{background:#12172A;color:#e6e9f0;padding:14px 16px;border-radius:8px;font:400 12.5px/1.7 var(--mono);margin:1.2em 0;position:relative}
+.ed-prev pre .lang{position:absolute;right:10px;top:8px;font:500 9.5px var(--mono);letter-spacing:.12em;color:#8B93A6;border:1px solid rgba(255,255,255,.15);padding:3px 6px;border-radius:4px}
+.ed-prev .cap{font:500 10.5px var(--mono);letter-spacing:.14em;color:var(--text-3);margin-bottom:18px;display:flex;justify-content:space-between}
+.ed-meta{padding:22px 22px;overflow:hidden;background:var(--surface)}
+.ed-meta h4{font-size:13px;font-weight:600;margin-bottom:14px;display:flex;justify-content:space-between} .ed-meta h4 span{font:400 11px var(--mono);color:var(--text-3)}
+.ed-meta .fld{margin-bottom:14px}
+.covers{display:grid;grid-template-columns:repeat(3,1fr);gap:6px} .covers .cover{aspect-ratio:4/3;border-radius:6px} .covers .add{aspect-ratio:4/3;border:1px dashed var(--line-2);border-radius:6px;display:grid;place-items:center;color:var(--text-3);font-size:18px}
+.covers .cover .x{position:absolute;right:4px;top:4px;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,.5);font:400 10px/16px var(--mono);text-align:center}
+.tagin{display:flex;flex-wrap:wrap;gap:5px;padding:6px 8px;border:1px solid var(--line-2);border-radius:var(--r-s)} .tagin .tag{background:var(--surface-3)} .tagin input{width:60px;font-size:12px}
+.radio{display:flex;gap:6px} .radio span{flex:1;text-align:center;padding:6px;border:1px solid var(--line-2);border-radius:var(--r-s);font-size:12.5px;color:var(--text-2);cursor:pointer} .radio span.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.sched{padding:12px;border:1px solid var(--line-2);border-radius:var(--r-s);background:var(--surface-2);font-size:12.5px}
+.sched .row2{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.sched .row2 b{font-weight:500} .sched .rsv{font:500 9.5px var(--mono);letter-spacing:.1em;padding:2px 5px;border-radius:3px;background:var(--surface-3);color:var(--text-3)}
+.sched .dt{display:flex;gap:6px} .sched .dt .in{flex:1;padding:6px 8px;font-size:12px;font-family:var(--mono)}
+.ed-bot{display:flex;align-items:center;gap:16px;padding:12px 20px;border-top:1px solid var(--line);background:var(--surface);font:400 12px var(--mono);color:var(--text-3)}
+.ed-bot .r{margin-left:auto;display:flex;gap:8px;font-family:var(--sans)}
+.ed-bot .r .split{display:inline-flex} .ed-bot .r .split .btn:first-child{border-radius:6px 0 0 6px} .ed-bot .r .split .btn:last-child{border-radius:0 6px 6px 0;border-left-color:rgba(255,255,255,.2);padding:8px 10px}
+
+/* ---------- 04 notes ---------- */
+.composer{border:1px solid var(--line-2);border-radius:var(--r-l);background:var(--surface);box-shadow:var(--shadow);overflow:hidden;margin-bottom:26px}
+.composer .top{display:grid;grid-template-columns:36px 1fr;gap:14px;padding:18px 20px 10px}
+.composer textarea{width:100%;min-height:84px;resize:none;font-size:15px;line-height:1.7}
+.composer .imgs{display:grid;grid-template-columns:repeat(9,64px);gap:6px;padding:0 20px 14px 70px}
+.composer .imgs .cover{aspect-ratio:1;border-radius:6px} .composer .imgs .add{aspect-ratio:1;border:1px dashed var(--line-2);border-radius:6px;display:grid;place-items:center;color:var(--text-3);font-size:16px;cursor:pointer}
+.composer .imgs .add.dim{opacity:.4}
+.composer .bot{display:flex;align-items:center;gap:8px;padding:10px 14px 10px 70px;border-top:1px solid var(--line);background:var(--surface-2)}
+.composer .bot .moods{display:flex;gap:4px} .composer .bot .moods span{font:500 11px var(--mono);padding:4px 9px;border-radius:var(--r-pill);border:1px solid var(--line-2);color:var(--text-2);cursor:pointer} .composer .bot .moods span.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.composer .bot .cnt{margin-left:auto;font:400 11px var(--mono);color:var(--text-3)}
+.nlist{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ncard{border:1px solid var(--line);border-radius:var(--r-m);padding:16px 18px;position:relative;transition:border-color var(--dur-fast)} .ncard:hover{border-color:var(--line-2)}
+.ncard .h{display:flex;align-items:center;gap:10px;margin-bottom:8px} .ncard .h b{font-size:13px;font-weight:600;display:block;line-height:1.2} .ncard .h span{font:400 11px var(--mono);color:var(--text-3)}
+.ncard .h .mood{margin-left:auto;font:500 11px var(--mono);padding:3px 8px;border-radius:var(--r-pill);border:1px solid var(--line-2);color:var(--text-2)}
+.ncard p{font-size:14px;color:var(--text)} .ncard p strong{font-weight:600}
+.ncard .ig{display:grid;gap:3px;margin-top:10px;border-radius:6px;overflow:hidden;max-width:300px} .ncard .ig .cover{aspect-ratio:1} .ig.g1{grid-template-columns:1fr} .ig.g1 .cover{aspect-ratio:2/1} .ig.g4{grid-template-columns:1fr 1fr}
+.ncard .ft{display:flex;gap:6px;margin-top:12px;align-items:center;font:400 11px var(--mono);color:var(--text-3)} .ncard .ft .btn{margin-left:auto}
+.ncard .ft .btn+.btn{margin-left:0}
+.ncard .pinb{position:absolute;right:16px;top:16px;font:500 10px var(--mono);padding:2px 6px;border-radius:4px;background:var(--primary-soft);color:var(--primary);letter-spacing:.08em}
+
+/* ---------- 05 media ---------- */
+.drop{border:1px dashed var(--line-2);border-radius:var(--r-m);padding:18px;display:flex;align-items:center;gap:14px;background:var(--surface-2);margin-bottom:18px}
+.drop .ic{width:40px;height:40px;border-radius:10px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center} .drop .ic svg{width:18px;height:18px;stroke:var(--text-2);fill:none;stroke-width:1.6}
+.drop b{font-size:13.5px;font-weight:500;display:block} .drop span{font-size:12px;color:var(--text-3)} .drop .btn{margin-left:auto}
+.mgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.mitem{border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden;transition:all var(--dur) var(--ease-spring);position:relative;cursor:pointer} .mitem:hover{transform:translateY(-2px);border-color:var(--line-2);box-shadow:var(--shadow)}
+.mitem .cover{aspect-ratio:4/3} .mitem .cover .bd{position:absolute;right:6px;top:6px;display:flex;gap:4px} .mitem .cover .bd span{font:500 9px var(--mono);padding:2px 5px;border-radius:3px;background:rgba(0,0,0,.55);letter-spacing:.06em}
+.mitem .mi{padding:8px 10px;display:flex;justify-content:space-between;align-items:center;font-size:12px} .mitem .mi b{font-weight:500;font-family:var(--mono);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px} .mitem .mi span{font:400 11px var(--mono);color:var(--text-3)}
+.mitem.sel{border-color:var(--text);box-shadow:0 0 0 2px var(--text)}
+.mitem .chk{position:absolute;left:8px;top:8px;background:rgba(255,255,255,.9)}
+.task .row1{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12.5px}
+.task .row1 b{font-weight:500} .task .row1 span{font:400 11px var(--mono);color:var(--text-3)}
+.task ul{list-style:none;margin-top:14px;border-top:1px solid var(--line)} .task li{display:grid;grid-template-columns:1fr auto auto;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;align-items:center}
+.task li .f{font-family:var(--mono);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .task li .sz{font:400 11px var(--mono);color:var(--text-3)} .task li .sz b{color:var(--text);font-weight:500} .task li .sv{font:500 11px var(--mono);color:#00893a}
+:root[data-mode=dark] .task li .sv{color:#00c853}
+.task li .run{color:var(--accent-yellow)} .task li .wait{color:var(--text-3)}
+.cropbox{position:relative;aspect-ratio:16/10;border-radius:8px;overflow:hidden;background:#070B14}
+.cropbox .cover{position:absolute;inset:0;opacity:.5}
+.cropbox .frame{position:absolute;left:12%;top:10%;width:60%;height:60%;border:1px solid #fff;box-shadow:0 0 0 999px rgba(0,0,0,.45);background:linear-gradient(135deg,var(--ca),var(--cb) 55%,var(--cc));--ca:#04204f;--cb:#0078ff;--cc:#b8dbff}
+.cropbox .frame::before,.cropbox .frame::after{content:"";position:absolute;background:rgba(255,255,255,.35)} .cropbox .frame::before{left:33.3%;top:0;bottom:0;width:1px;box-shadow:33.3cqw 0 0 rgba(255,255,255,.35)} .cropbox .frame::after{top:33.3%;left:0;right:0;height:1px}
+.cropbox .frame i{position:absolute;width:8px;height:8px;background:#fff;border-radius:1px} .cropbox .frame i:nth-child(1){left:-4px;top:-4px} .cropbox .frame i:nth-child(2){right:-4px;top:-4px} .cropbox .frame i:nth-child(3){left:-4px;bottom:-4px} .cropbox .frame i:nth-child(4){right:-4px;bottom:-4px}
+.ratios{display:flex;gap:6px;margin:12px 0} .ratios span{font:500 11px var(--mono);padding:5px 9px;border:1px solid var(--line-2);border-radius:4px;color:var(--text-2);cursor:pointer} .ratios span.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+
+/* ---------- 06 about mgmt ---------- */
+.mlist{border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden}
+.mrow{display:grid;grid-template-columns:20px 26px 1fr auto auto;gap:12px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--line);background:var(--surface);transition:background var(--dur-fast)} .mrow:last-child{border:0} .mrow:hover{background:var(--surface-2)}
+.mrow .hd{color:var(--text-3);font-size:14px;cursor:grab;letter-spacing:-2px} .mrow .n{font:400 11px var(--mono);color:var(--text-3)} .mrow b{font-weight:500;font-size:13.5px} .mrow b small{font-weight:400;color:var(--text-3);margin-left:8px;font-size:12px}
+.mrow.on{background:var(--surface-2);box-shadow:inset 3px 0 0 var(--primary)}
+.mrow.drag{transform:rotate(-.6deg) scale(1.01);box-shadow:var(--shadow-lg);border-radius:6px;position:relative;z-index:2}
+.picker{display:grid;grid-template-columns:repeat(4,1fr);gap:8px} .picker div{padding:12px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;text-align:center;cursor:pointer;transition:all var(--dur-fast)} .picker div:hover{border-color:var(--text);transform:translateY(-1px)}
+.picker div.used{color:var(--text-3);background:var(--surface-2)} .picker div i{display:block;font:400 10px var(--mono);color:var(--text-3);margin-top:2px;font-style:normal}
+.ie{border:1px solid var(--line);border-radius:var(--r-m);padding:18px} .ie h4{font-size:13px;font-weight:600;margin-bottom:14px;display:flex;justify-content:space-between} .ie h4 span{font:400 11px var(--mono);color:var(--text-3)}
+.prev-id{display:flex;align-items:center;gap:14px;padding:16px;border:1px solid var(--line);border-radius:10px;background:#070B14;color:#E9EDF5;margin-top:16px}
+.prev-id img{width:44px;height:44px;border-radius:12px} .prev-id b{font:600 16px var(--serif);display:block} .prev-id span{font-size:12px;color:#9CA6BA} .prev-id .u{margin-left:auto;text-align:right} .prev-id .u b{font:500 22px var(--mono)} .prev-id .u span{font:400 10px var(--mono)}
+
+/* ---------- 07 settings ---------- */
+.set{display:grid;grid-template-columns:200px 1fr;gap:40px}
+.subnav{position:sticky;top:20px;align-self:start} .subnav a{display:block;padding:7px 10px;border-radius:6px;font-size:13px;color:var(--text-2)} .subnav a.on{background:var(--surface-2);color:var(--text);font-weight:500} .subnav a:hover{color:var(--text)}
+.sec{padding:8px 0 28px;margin-bottom:24px;border-bottom:1px solid var(--line)} .sec:last-child{border:0}
+.sec h2{font-size:15px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:10px} .sec>p{font-size:12.5px;color:var(--text-3);margin-bottom:8px}
+.presets{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px}
+.preset{border:1px solid var(--line);border-radius:10px;padding:10px;position:relative;background:var(--surface);transition:all var(--dur-fast);cursor:grab}
+.preset:hover{border-color:var(--line-2);transform:translateY(-1px)} .preset.def{border-color:var(--text)}
+.preset .sw2{height:44px;border-radius:6px;display:grid;grid-template-columns:1fr 1fr;overflow:hidden} .preset .sw2 i{display:block}
+.preset b{display:block;font-size:12.5px;font-weight:500;margin-top:8px} .preset span{font:400 10.5px var(--mono);color:var(--text-3)}
+.preset .hd{position:absolute;right:8px;top:8px;color:rgba(255,255,255,.7);font-size:12px;letter-spacing:-2px}
+.preset .df{position:absolute;left:8px;top:8px;font:500 9px var(--mono);letter-spacing:.1em;padding:2px 5px;border-radius:3px;background:rgba(0,0,0,.5);color:#fff}
+.preset.empty{border-style:dashed;display:grid;place-items:center;min-height:106px;color:var(--text-3);font-size:12px;cursor:pointer}
+.modes{display:flex;gap:8px;margin-top:8px} .modes .m{flex:1;border:1px solid var(--line-2);border-radius:8px;padding:10px;display:flex;align-items:center;gap:10px;font-size:12.5px;cursor:pointer} .modes .m i{width:22px;height:22px;border-radius:6px;border:1px solid var(--line-2)} .modes .m.on{border-color:var(--text)}
+
+/* ---------- 08 api ---------- */
+.key{font-family:var(--mono);font-size:12px} .key .mask{color:var(--text-3)}
+.modal{border:1px solid var(--line-2);border-radius:var(--r-l);background:var(--surface);box-shadow:var(--shadow-lg);overflow:hidden}
+.modal .mh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center} .modal .mh h3{font-size:14px;font-weight:600} .modal .mh span{color:var(--text-3);font-size:16px}
+.modal .mb{padding:20px} .modal .mf{padding:12px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;background:var(--surface-2)}
+.keybox{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--primary-line);border-radius:8px;background:var(--primary-soft);font:500 13px var(--mono);word-break:break-all}
+.keybox .btn{margin-left:auto;flex:none}
+.warn{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--text-2);margin-top:12px} .warn i{width:6px;height:6px;border-radius:50%;background:var(--accent-yellow);margin-top:7px;flex:none}
+.scopes{display:flex;gap:6px;flex-wrap:wrap} .scopes span{font:500 11px var(--mono);padding:4px 8px;border:1px solid var(--line-2);border-radius:4px;color:var(--text-2);display:flex;gap:6px;align-items:center} .scopes span.on{border-color:var(--text);color:var(--text)}
+.ep{display:grid;grid-template-columns:64px 1fr auto;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);align-items:center;font-size:13px} .ep:last-child{border:0}
+.ep .m{font:600 10.5px var(--mono);padding:3px 6px;border-radius:4px;text-align:center;letter-spacing:.06em} .m.get{background:color-mix(in oklab,var(--accent-blue) 12%,transparent);color:var(--accent-blue)} .m.post{background:color-mix(in oklab,#00c853 14%,transparent);color:#00893a} .m.del{background:color-mix(in oklab,var(--accent-red) 10%,transparent);color:var(--accent-red)} .m.put{background:color-mix(in oklab,var(--accent-yellow) 18%,transparent);color:#8a5d00}
+:root[data-mode=dark] .m.post{color:#00c853} :root[data-mode=dark] .m.put{color:var(--accent-yellow)}
+.ep code{font:400 12px var(--mono)} .ep small{display:block;font-size:11.5px;color:var(--text-3)}
+.dbg{display:grid;grid-template-columns:1fr 1fr;gap:0} .dbg>div{padding:16px 18px} .dbg>div:first-child{border-right:1px solid var(--line)}
+.dbg .url{display:flex;gap:6px;margin-bottom:12px} .dbg .url .m{align-self:center}
+.code{background:#12172A;color:#e6e9f0;padding:12px 14px;border-radius:6px;font:400 12px/1.7 var(--mono);white-space:pre;overflow:auto;margin-top:8px}
+.code .k{color:#8fc4ff} .code .s{color:#ffd47a} .code .n{color:#ff7a90} .code .c{color:#6b7791}
+.dbg .lab{font:500 10.5px var(--mono);letter-spacing:.12em;color:var(--text-3);margin:12px 0 4px}
+.dbg .resp{display:flex;align-items:center;gap:10px;font-size:12.5px;margin-bottom:8px} .dbg .resp b{font:600 12px var(--mono);color:#00893a} :root[data-mode=dark] .dbg .resp b{color:#00c853}
+
+/* ---------- 09 data ---------- */
+.usage{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;margin:12px 0 10px} .usage i{display:block;height:100%} .usage i.a{background:var(--text)} .usage i.b{background:var(--text-3)} .usage i.c{background:var(--line-2)}
+.legend{display:flex;gap:18px;font-size:12px;color:var(--text-2)} .legend span{display:flex;align-items:center;gap:6px} .legend i{width:8px;height:8px;border-radius:2px} .legend b{font-weight:500;font-family:var(--mono);font-size:11.5px}
+.ie2{display:grid;grid-template-columns:1fr 1fr;gap:12px} .ie2 .card .cb{display:grid;gap:8px} .ie2 .btn{justify-content:center}
+
+/* ---------- 10 comments/users ---------- */
+.crow{display:grid;grid-template-columns:18px 30px 1fr auto;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);align-items:start} .crow:last-child{border:0}
+.crow .who{display:flex;align-items:center;gap:8px;font-size:13px} .crow .who b{font-weight:600} .crow .who span{font:400 11px var(--mono);color:var(--text-3)}
+.crow p{font-size:13.5px;color:var(--text);margin:4px 0 6px} .crow .on{font-size:11.5px;color:var(--text-3)} .crow .on b{font-weight:500;color:var(--text-2)}
+.crow .acts{display:flex;gap:4px}
+.crow.pending{background:color-mix(in oklab,var(--accent-yellow) 5%,transparent)}
+.role{font:500 10.5px var(--mono);padding:2px 6px;border-radius:4px;border:1px solid var(--line-2);color:var(--text-2);letter-spacing:.06em}
+.role.admin{background:var(--text);color:var(--bg);border-color:var(--text)}
+
+.rv{opacity:0;transform:translateY(10px);transition:opacity var(--dur-slow) var(--ease-out),transform var(--dur-slow) var(--ease-out)} .rv.in{opacity:1;transform:none}
+html.static .rv{opacity:1;transform:none;transition:none}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}.rv{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<template id="sbTpl">
+  <div class="logo"><img src="../../logo.png" alt=""><div><b>Myself</b><span>ADMIN · v2.0</span></div></div>
+  <a data-k="dash"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="11" width="8" height="10" rx="1.5"/><rect x="3" y="14" width="8" height="7" rx="1.5"/></svg>概览</a>
+  <a data-k="site"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/></svg>查看站点<span class="n">↗</span></a>
+  <div class="grp">内容</div>
+  <a data-k="posts"><svg viewBox="0 0 24 24"><path d="M6 3h9l5 5v13H6z"/><path d="M14 3v6h6M9 13h7M9 17h7"/></svg>文章<span class="n">4</span></a>
+  <a data-k="notes"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>随想<span class="n">4</span></a>
+  <a data-k="media"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m21 16-5-5-8 8"/></svg>素材库<span class="n">23</span></a>
+  <a data-k="about"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>关于</a>
+  <div class="grp">系统</div>
+  <a data-k="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>外观与站点</a>
+  <a data-k="api"><svg viewBox="0 0 24 24"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 4l-4 16"/></svg>API 中心</a>
+  <a data-k="data"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>数据中心</a>
+  <a data-k="users"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0M16 4.5a3.5 3.5 0 0 1 0 7M22 20a7 7 0 0 0-5-6.7"/></svg>评论与用户<span class="p4">P4</span></a>
+  <div class="spacer"></div>
+  <div class="user"><img src="../../logo.png" alt=""><div><b>BeaconCat</b><span>管理员</span></div><span class="tg" title="深色模式" onclick="toggleMode()"></span></div>
+</template>
+
+<!-- ===================================================== 01 登录 -->
+<section data-screen="login">
+  <span class="screen-label">01 · 登录 LOGIN</span>
+  <div class="login">
+    <div class="brand">
+      <div class="beam"></div><div class="floor"></div>
+      <div class="lg"><img src="../../logo.png" alt=""><div><b>Myself</b><span>ADMIN CONSOLE</span></div></div>
+      <div class="mid"><img src="../../logo.png" alt=""><h2>记录本身，就是意义。</h2><p>开源个人博客引擎 · Vue 3 + Go + SQLite</p></div>
+      <div class="ft"><span>© 2026 BEACONCAT</span><span>SINCE 2026-01-01 · 266 DAYS</span></div>
+    </div>
+    <div class="form"><div>
+      <h1>登录后台</h1><p>仅限站点管理员。密码错误 5 次后锁定 15 分钟。</p>
+      <div class="fld"><label>用户名</label><div class="in"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><input value="beaconcat"></div></div>
+      <div class="fld"><label>密码</label><div class="in"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" value="••••••••••••"><span class="t3 mono" style="font-size:11px">显示</span></div></div>
+      <div class="remember"><span class="chk on"></span>记住我 30 天<a href="#">忘记密码？</a></div>
+      <a class="btn btn-primary" href="#"><i></i>登录</a>
+      <div class="ft">MYSELF v2.0 · GO 1.26 · SQLITE · 127.0.0.1:8080</div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ===================================================== 02 概览 -->
+<section data-screen="dashboard">
+  <span class="screen-label">02 · 概览 DASHBOARD</span>
+  <div class="shell"><aside class="sb" data-active="dash"></aside>
+  <main class="main">
+    <div class="ph"><div><h1>早安，BeaconCat</h1><p>2026-09-23 星期三 · 站点已运行 266 天 · 上次登录 昨天 22:41</p></div>
+      <div class="acts"><a class="btn" href="#">写随想</a><a class="btn" href="#">上传素材</a><a class="btn btn-primary" href="#"><i></i>写文章</a></div></div>
+    <div class="grid g4" style="margin-bottom:16px">
+      <div class="stat"><div class="l">文章<i style="background:var(--accent-blue)"></i></div><div class="v">4</div><div class="d"><b>3</b> 已发布 · <b>1</b> 草稿</div></div>
+      <div class="stat"><div class="l">随想<i style="background:var(--accent-yellow)"></i></div><div class="v">4</div><div class="d">本周 <b>+2</b> · 1 条置顶</div></div>
+      <div class="stat"><div class="l">素材<i style="background:var(--accent-red)"></i></div><div class="v">23</div><div class="d"><b>186 MB</b> · 9 张待压缩</div></div>
+      <div class="stat"><div class="l">备份<i style="background:var(--text-3)"></i></div><div class="v">6</div><div class="d">最近 <b>今天 03:00</b> · 自动</div></div>
+    </div>
+    <div class="grid g32" style="margin-bottom:16px">
+      <div class="card"><div class="ch"><h3>最近 7 天发布 <small>文章 + 随想</small></h3><div class="seg"><span class="on">7 天</span><span>30 天</span></div></div>
+        <div class="cb">
+          <div class="chart">
+            <div><b style="height:30%"><span class="tip">1</span></b><span>09-17</span></div>
+            <div><b style="height:0;border-top:2px solid var(--line-2)"><span class="tip">0</span></b><span>09-18</span></div>
+            <div><b style="height:60%"><span class="tip">2</span></b><span>09-19</span></div>
+            <div><b style="height:30%"><span class="tip">1</span></b><span>09-20</span></div>
+            <div><b style="height:90%"><span class="tip">3</span></b><span>09-21</span></div>
+            <div><b style="height:30%"><span class="tip">1</span></b><span>09-22</span></div>
+            <div><b class="p" style="height:60%"><span class="tip">2</span></b><span>今天</span></div>
+          </div>
+          <div class="chart-base"></div>
+          <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:12px;color:var(--text-3)"><span>共 10 条 · 日均 1.4</span><span>较上周 <b style="color:var(--text)">+25%</b></span></div>
+        </div>
+      </div>
+      <div class="card"><div class="ch"><h3>最近动态</h3><a class="t3 mono" href="#">全部</a></div>
+        <div class="act"><span class="ava">AI</span><div><p><b>Claude 助手</b> 通过 <code>mk_live_…7f2a</code> 投稿了随想</p><small>「后台「API 中心」可以创建 APIKey，把发文托管给…」</small></div><span class="t">12 分钟前</span></div>
+        <div class="act"><span class="ava"><img src="../../logo.png" alt=""></span><div><p><b>你</b> 发布了文章《把发文托管给 AI：API 中心》</p><small>指南 / API · 7 min</small></div><span class="t">今天 09:12</span></div>
+        <div class="act"><span class="ava">AI</span><div><p><b>Claude 助手</b> 通过 <code>mk_live_…7f2a</code> 创建了草稿</p><small>《用 Markdown 写作》· 待你审阅后发布</small></div><span class="t">昨天 23:08</span></div>
+        <div class="act"><span class="ava">SY</span><div><p><b>系统</b> 完成了自动备份</p><small>myself-2026-09-23-0300.zip · 74.2 MB</small></div><span class="t">今天 03:00</span></div>
+      </div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><div class="ch"><h3>系统状态</h3><span class="pill ok"><i></i>运行正常</span></div>
+        <div class="kv"><div>数据库大小</div><div>12.4 MB</div><div>上次备份</div><div>今天 03:00 · 自动</div><div>GitHub 同步</div><div>12 分钟前 · 326 commits</div><div>缩略图缓存</div><div>212 张 · 38 MB</div><div>版本</div><div>v2.0.0 · Go 1.26</div><div>进程运行</div><div>12 天 4 小时 · 38 MB</div></div>
+      </div>
+      <div class="card"><div class="ch"><h3>待处理</h3><span class="t3 mono">4 项</span></div>
+        <div class="cb" style="padding-top:12px">
+          <div class="qa" style="grid-template-columns:1fr;gap:8px">
+            <a href="#"><span class="ic"><svg viewBox="0 0 24 24"><path d="M6 3h9l5 5v13H6z"/><path d="M14 3v6h6"/></svg></span><div><b>1 篇草稿待审阅</b><span>《用 Markdown 写作》· 由 AI 助手创建</span></div><span class="pill sch" style="margin-left:auto"><i></i>待审</span></a>
+            <a href="#"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span><div><b>2 条评论待审核</b><span>来自 Lin、Kay</span></div><span class="pill sch" style="margin-left:auto"><i></i>待审</span></a>
+            <a href="#"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m21 16-5-5-8 8"/></svg></span><div><b>压缩任务进行中</b><span>9 张待压缩 · 已完成 62%</span></div><span class="pill sch" style="margin-left:auto"><i></i>运行中</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main></div>
+</section>
+
+<!-- ===================================================== 03 文章管理 + 编辑器 -->
+<section data-screen="posts" style="min-height:auto">
+  <span class="screen-label">03 · 文章列表 POSTS</span>
+  <div class="shell"><aside class="sb" data-active="posts"></aside>
+  <main class="main">
+    <div class="ph"><div><h1>文章</h1><p>4 篇 · 最近发布 2026-07-04</p></div><div class="acts"><a class="btn" href="#">导入 Markdown</a><a class="btn btn-primary" href="#"><i></i>新建文章</a></div></div>
+    <div class="tabs"><span class="on">全部<small>4</small></span><span>已发布<small>3</small></span><span>草稿<small>1</small></span><span>定时<small>0</small></span><span>置顶<small>1</small></span></div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+      <div class="in sm" style="width:280px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input placeholder="搜索标题、slug 或正文"><span class="kbd">/</span></div>
+      <div class="in sm" style="width:140px"><select><option>全部标签</option></select></div>
+      <div class="seg" style="margin-left:auto"><span class="on">更新时间 ↓</span><span>标题</span><span>阅读量</span></div>
+    </div>
+    <div class="grid" style="grid-template-columns:1fr 300px;gap:24px;align-items:start">
+    <div class="card"><table>
+      <thead><tr><th style="width:36px"><span class="chk"></span></th><th>标题</th><th>状态</th><th>标签</th><th>阅读</th><th>更新</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><span class="chk"></span></td><td><div class="tt">欢迎使用 Myself <span class="tag" style="margin-left:6px">置顶</span></div><div class="sub">/posts/welcome · 4 min · 3 张封面</div></td><td><span class="pill pub"><i></i>已发布</span></td><td><span class="tag">指南</span></td><td class="num">1,284</td><td class="num">2026-07-01</td><td><div class="ra"><a class="btn sm btn-ghost" href="#">编辑</a><a class="btn sm btn-ghost" href="#">预览</a><a class="btn sm btn-ghost" href="#">…</a></div></td></tr>
+        <tr><td><span class="chk"></span></td><td><div class="tt">主题系统指南</div><div class="sub">/posts/theme-guide · 6 min · 3 张封面</div></td><td><span class="pill pub"><i></i>已发布</span></td><td><span class="tag">指南</span> <span class="tag">主题</span></td><td class="num">962</td><td class="num">2026-07-02</td><td><div class="ra"><a class="btn sm btn-ghost" href="#">编辑</a><a class="btn sm btn-ghost" href="#">预览</a><a class="btn sm btn-ghost" href="#">…</a></div></td></tr>
+        <tr class="show"><td><span class="chk on"></span></td><td><div class="tt">用 Markdown 写作</div><div class="sub">/posts/writing-in-markdown · 5 min · 由 AI 助手创建</div></td><td><span class="pill dft"><i></i>草稿</span></td><td><span class="tag">指南</span> <span class="tag">写作</span></td><td class="num">—</td><td class="num">2026-07-03</td><td><div class="ra"><a class="btn sm btn-ghost" href="#">编辑</a><a class="btn sm btn-ghost" href="#">预览</a><a class="btn sm btn-ghost" href="#">…</a></div></td></tr>
+        <tr><td><span class="chk"></span></td><td><div class="tt">把发文托管给 AI：API 中心</div><div class="sub">/posts/api-center · 7 min · 3 张封面</div></td><td><span class="pill pub"><i></i>已发布</span></td><td><span class="tag">指南</span> <span class="tag">API</span></td><td class="num">418</td><td class="num">2026-07-04</td><td><div class="ra"><a class="btn sm btn-ghost" href="#">编辑</a><a class="btn sm btn-ghost" href="#">预览</a><a class="btn sm btn-ghost" href="#">…</a></div></td></tr>
+      </tbody></table>
+      <div style="display:flex;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--text-3)"><span>已选 1 篇 · <a href="#" style="color:var(--text)">发布</a> · <a href="#" style="color:var(--text)">置顶</a> · <a href="#" style="color:var(--accent-red)">删除</a></span><span class="mono">1 – 4 / 4</span></div>
+    </div>
+    <div style="display:grid;gap:16px">
+      <div class="card"><div class="ch"><h3>标签 <small>5 个</small></h3><a class="btn sm btn-ghost" href="#">管理</a></div>
+        <div class="kv" style="padding:0 18px 6px"><div>指南</div><div>4</div><div>主题</div><div>1</div><div>写作</div><div>1</div><div>API</div><div>1</div><div>随笔 <span class="t3" style="font-size:11px">· 未使用</span></div><div>0</div></div>
+      </div>
+      <div class="card"><div class="ch"><h3>待审阅草稿</h3><span class="pill sch"><i></i>1</span></div>
+        <div class="cb" style="padding-top:12px">
+          <div class="tt" style="font-size:13.5px;font-weight:500">用 Markdown 写作</div>
+          <div class="sub" style="font-size:11.5px;color:var(--text-3);margin:2px 0 10px">由 Claude 助手通过 <span class="mono">mk_live_…7f2a</span> 创建 · 昨天 23:08</div>
+          <p style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin-bottom:12px">文章与随想共用一条 Markdown 管线：可移植、可版本化、对 AI 友好。</p>
+          <div style="display:flex;gap:6px"><a class="btn sm btn-primary" href="#"><i></i>审阅并发布</a><a class="btn sm btn-ghost" href="#">打开编辑器</a></div>
+        </div>
+      </div>
+      <div class="card"><div class="ch"><h3>阅读 · 30 天</h3><span class="mono t3">2,664</span></div>
+        <div class="cb" style="padding-top:10px">
+          <div class="chart" style="height:70px;grid-template-columns:repeat(10,1fr);gap:6px">
+            <div><b style="height:35%"></b></div><div><b style="height:50%"></b></div><div><b style="height:42%"></b></div><div><b style="height:70%"></b></div><div><b style="height:55%"></b></div><div><b style="height:48%"></b></div><div><b style="height:88%"></b></div><div><b style="height:62%"></b></div><div><b style="height:74%"></b></div><div><b class="p" style="height:100%"></b></div>
+          </div>
+          <div class="chart-base"></div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;font:400 10.5px var(--mono);color:var(--text-3)"><span>08-25</span><span>今天</span></div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </main></div>
+</section>
+
+<section data-screen="editor">
+  <span class="screen-label">03b · 编辑器 EDITOR（侧栏退场，写作为中心）</span>
+  <div class="ed">
+    <div class="ed-top">
+      <a class="back" href="#">← 文章</a><span class="st"><i></i>草稿 · 已保存 12:04</span>
+      <div class="r"><div class="seg"><span class="on">分栏</span><span>仅编辑</span><span>仅预览</span></div><a class="btn btn-ghost" href="#">预览</a><a class="btn" href="#">设置</a><a class="btn btn-primary" href="#"><i></i>发布</a></div>
+    </div>
+    <div class="ed-body">
+      <div class="ed-src"><span class="ln">1</span><span class="h"># 用 Markdown 写作</span>
+<span class="ln">2</span>
+<span class="ln">3</span>文章与随想共用一条 Markdown 管线：<span class="m">**可移植**</span>、<span class="m">**可版本化**</span>、对 AI 友好。
+<span class="ln">4</span>
+<span class="ln">5</span><span class="h">## 为什么是 Markdown</span>
+<span class="ln">6</span>
+<span class="ln">7</span>正文以纯文本存进 SQLite，导出即 <span class="m">`.md`</span> 文件；渲染统一走
+<span class="ln">8</span><span class="m">`client/src/utils/markdown.ts`</span>，代码高亮与 TOC 锚点在同一处生成。
+<span class="ln">9</span>
+<span class="ln">10</span><span class="m">&gt;</span> 写作的成本应该只剩下想清楚要说什么。
+<span class="ln">11</span>
+<span class="ln">12</span><span class="h">## 一条管线，两种内容</span>
+<span class="ln">13</span>
+<span class="ln">14</span><span class="m">```ts</span>
+<span class="ln">15</span><span class="g">export function</span> render(md: string) {
+<span class="ln">16</span>  <span class="g">return</span> pipeline(md, { highlight: <span class="g">true</span>, toc: <span class="g">true</span> })
+<span class="ln">17</span>}
+<span class="ln">18</span><span class="m">```</span>
+<span class="ln">19</span>
+<span class="ln">20</span><span class="m">- [x]</span> 文章：长文，封面手风琴、标签、摘要
+<span class="ln">21</span><span class="m">- [x]</span> 随想：短流，心情标签、九宫格配图
+<span class="ln">22</span><span class="m">- [ ]</span> 评论：同一渲染器，限制标签白名单<span class="caret"></span></div>
+      <div class="ed-prev">
+        <div class="cap"><span>实时预览 · NOTO SERIF SC</span><span>1,102 字 · 5 MIN</span></div>
+        <h1>用 Markdown 写作</h1>
+        <p>文章与随想共用一条 Markdown 管线：<strong>可移植</strong>、<strong>可版本化</strong>、对 AI 友好。</p>
+        <h2>为什么是 Markdown</h2>
+        <p>正文以纯文本存进 SQLite，导出即 <code style="font:400 12.5px var(--mono);background:var(--surface-2);padding:1px 5px;border-radius:4px;border:1px solid var(--line)">.md</code> 文件；渲染统一走 <code style="font:400 12.5px var(--mono);background:var(--surface-2);padding:1px 5px;border-radius:4px;border:1px solid var(--line)">client/src/utils/markdown.ts</code>，代码高亮与 TOC 锚点在同一处生成。</p>
+        <p style="border-left:1px solid var(--line-2);padding-left:16px;color:var(--text-2)">写作的成本应该只剩下想清楚要说什么。</p>
+        <h2>一条管线，两种内容</h2>
+        <pre><span class="lang">TS</span><span style="color:#8fc4ff">export function</span> render(md: string) {
+  <span style="color:#8fc4ff">return</span> pipeline(md, { highlight: <span style="color:#ffd47a">true</span>, toc: <span style="color:#ffd47a">true</span> })
+}</pre>
+      </div>
+      <div class="ed-meta">
+        <h4>文章设置 <span>元信息</span></h4>
+        <div class="fld"><label>Slug</label><div class="in sm"><span class="t3 mono">/posts/</span><input value="writing-in-markdown"></div></div>
+        <div class="fld"><label>封面 <small>· 最多 3 张，前台手风琴</small></label><div class="covers"><div class="cover c-autumn"><span class="lbl">1</span><span class="x">×</span></div><div class="cover c-navy"><span class="lbl">2</span><span class="x">×</span></div><div class="add">+</div></div></div>
+        <div class="fld"><label>标签</label><div class="tagin"><span class="tag">指南 ×</span><span class="tag">写作 ×</span><input placeholder="添加…"></div></div>
+        <div class="fld"><label>摘要</label><div class="in sm"><textarea rows="3" style="resize:none;font-size:12.5px;line-height:1.6">文章与随想共用一条 Markdown 管线：可移植、可版本化、对 AI 友好。</textarea></div><small>58 / 120 字 · 用于列表与 RSS</small></div>
+        <div class="fld"><label>状态</label><div class="radio"><span class="on">草稿</span><span>已发布</span></div></div>
+        <div class="fld"><label style="display:flex;justify-content:space-between;align-items:center">置顶到首页 <span class="sw"></span></label></div>
+        <div class="fld"><label style="display:flex;justify-content:space-between;align-items:center">加入 Hero 轮播 <span class="sw on"></span></label></div>
+        <div class="sched"><div class="row2"><b>定时发布</b><span class="rsv">预留</span></div><div class="dt"><div class="in"><input value="2026-09-24"></div><div class="in"><input value="09:00"></div></div><div class="t3" style="font-size:11px;margin-top:6px">按站点时区 Asia/Shanghai · 到点自动切换为「已发布」</div></div>
+        <div class="fld" style="margin-top:14px"><label>作者</label><div class="in sm"><span class="ava" style="width:18px;height:18px"><img src="../../logo.png" alt=""></span><input value="BeaconCat"></div></div>
+      </div>
+    </div>
+    <div class="ed-bot"><span>上次保存 12:04:37</span><span>1,102 字</span><span>阅读 5 MIN</span><span>MARKDOWN · UTF-8</span>
+      <div class="r"><a class="btn btn-ghost" href="#">保存草稿</a><a class="btn" href="#">定时发布</a><span class="split"><a class="btn btn-primary" href="#"><i></i>立即发布</a><a class="btn btn-primary" href="#">▾</a></span></div></div>
+  </div>
+</section>
+
+<!-- ===================================================== 04 随想管理 -->
+<section data-screen="notes">
+  <span class="screen-label">04 · 随想管理 NOTES</span>
+  <div class="shell"><aside class="sb" data-active="notes"></aside>
+  <main class="main">
+    <div class="ph"><div><h1>随想</h1><p>4 条 · 每天打开就写一句</p></div><div class="acts"><div class="seg"><span class="on">全部</span><span>置顶</span><span>有图</span></div><div class="in sm" style="width:200px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input placeholder="搜索随想"></div></div></div>
+    <div class="composer">
+      <div class="top"><span class="ava"><img src="../../logo.png" alt=""></span><textarea>今天把随想的 composer 也搬进了新后台：输入框、心情、九图上传都在一张卡里，敲 ⌘↵ 直接发布。</textarea></div>
+      <div class="imgs"><div class="cover c-winter"><span class="lbl">1</span></div><div class="cover c-summer"><span class="lbl">2</span></div><div class="cover c-autumn"><span class="lbl">3</span></div><div class="add">+</div><div class="add dim"></div><div class="add dim"></div><div class="add dim"></div><div class="add dim"></div><div class="add dim"></div></div>
+      <div class="bot"><span class="t3" style="font-size:12px">心情</span><div class="moods"><span>欢迎</span><span class="on">功能</span><span>主题</span><span>API</span><span>+</span></div><span class="t3" style="font-size:12px;margin-left:10px;display:flex;gap:6px;align-items:center">置顶 <span class="sw"></span></span><span class="cnt">48 / 500 · 3 / 9 图</span><a class="btn btn-primary" href="#"><i></i>发布 <span class="kbd" style="color:var(--bg);border-color:rgba(255,255,255,.3)">⌘↵</span></a></div>
+    </div>
+    <div class="nlist">
+      <div class="ncard"><span class="pinb">置顶</span><div class="h"><span class="ava"><img src="../../logo.png" alt=""></span><div><b>BeaconCat</b><span>2026-07-04 · 21:12</span></div><span class="mood" style="margin-right:44px">API</span></div>
+        <p>后台「API 中心」可以创建 APIKey，把发文托管给你的 AI 助手——内容统一走 Markdown。</p>
+        <div class="ft"><span>赞 6 · 评论 2</span><a class="btn sm btn-ghost" href="#">编辑</a><a class="btn sm btn-ghost" href="#">取消置顶</a><a class="btn sm btn-ghost btn-danger" href="#">删除</a></div></div>
+      <div class="ncard"><div class="h"><span class="ava"><img src="../../logo.png" alt=""></span><div><b>BeaconCat</b><span>2026-07-03 · 09:40</span></div><span class="mood">主题</span></div>
+        <p>试试右上角的主题切换：四季色盘 × 深浅模式，切换时有圆形蒙版扩散动画。</p>
+        <div class="ft"><span>赞 3</span><a class="btn sm btn-ghost" href="#">编辑</a><a class="btn sm btn-ghost" href="#">置顶</a><a class="btn sm btn-ghost btn-danger" href="#">删除</a></div></div>
+      <div class="ncard"><div class="h"><span class="ava"><img src="../../logo.png" alt=""></span><div><b>BeaconCat</b><span>2026-07-02 · 18:03</span></div><span class="mood">功能</span></div>
+        <p>随想的配图支持双拼、三拼、四宫格直到九宫格，点开可全屏缩放拖拽查看。</p>
+        <div class="ig g4"><div class="cover c-winter"></div><div class="cover c-summer"></div><div class="cover c-autumn"></div><div class="cover c-spring"></div></div>
+        <div class="ft"><span>赞 8 · 评论 1 · 4 图</span><a class="btn sm btn-ghost" href="#">编辑</a><a class="btn sm btn-ghost" href="#">置顶</a><a class="btn sm btn-ghost btn-danger" href="#">删除</a></div></div>
+      <div class="ncard"><div class="h"><span class="ava"><img src="../../logo.png" alt=""></span><div><b>BeaconCat</b><span>2026-07-01 · 08:00</span></div><span class="mood">欢迎</span></div>
+        <p>欢迎使用 <strong>Myself</strong>。这是一条「随想」——短内容流，支持 Markdown、心情标签和最多九张配图。</p>
+        <div class="ig g1"><div class="cover c-navy"><span class="lbl">MYSELF</span></div></div>
+        <div class="ft"><span>赞 12 · 评论 3 · 1 图</span><a class="btn sm btn-ghost" href="#">编辑</a><a class="btn sm btn-ghost" href="#">置顶</a><a class="btn sm btn-ghost btn-danger" href="#">删除</a></div></div>
+    </div>
+  </main></div>
+</section>
+
+<!-- ===================================================== 05 素材库 -->
+<section data-screen="media">
+  <span class="screen-label">05 · 素材库 MEDIA</span>
+  <div class="shell"><aside class="sb" data-active="media"></aside>
+  <main class="main">
+    <div class="ph"><div><h1>素材库</h1><p>23 个文件 · 186 MB · 缩略图按需生成 WebP</p></div><div class="acts"><div class="seg"><span class="on">全部</span><span>已裁切</span><span>未压缩<small class="mono" style="margin-left:4px">9</small></span></div><a class="btn btn-primary" href="#"><i></i>上传</a></div></div>
+    <div class="grid" style="grid-template-columns:1fr 340px;gap:24px">
+      <div>
+        <div class="drop"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span><div><b>拖拽图片到这里，或点击选择</b><span>JPG / PNG / WebP · 单文件 ≤ 20 MB · 上传后自动生成缩略图</span></div><a class="btn" href="#">选择文件</a></div>
+        <div class="mgrid">
+          <div class="mitem sel"><div class="cover c-winter"><span class="chk on"></span><div class="bd"><span>裁切</span><span>WEBP</span></div></div><div class="mi"><b>hero-welcome.webp</b><span>1.2 MB</span></div></div>
+          <div class="mitem"><div class="cover c-summer"><span class="chk"></span><div class="bd"><span>裁切</span></div></div><div class="mi"><b>theme-cover-1.jpg</b><span>2.4 MB</span></div></div>
+          <div class="mitem"><div class="cover c-autumn"><span class="chk"></span></div><div class="mi"><b>theme-cover-2.jpg</b><span>3.1 MB</span></div></div>
+          <div class="mitem"><div class="cover c-spring"><span class="chk"></span><div class="bd"><span>WEBP</span></div></div><div class="mi"><b>api-center.webp</b><span>640 KB</span></div></div>
+          <div class="mitem"><div class="cover c-navy"><span class="chk"></span><div class="bd"><span>裁切</span></div></div><div class="mi"><b>door-light.png</b><span>4.8 MB</span></div></div>
+          <div class="mitem"><div class="cover c-grey"><span class="chk"></span></div><div class="mi"><b>IMG_2041.jpg</b><span>5.6 MB</span></div></div>
+          <div class="mitem"><div class="cover c-winter" style="--cb:#3f5a8f"><span class="chk"></span></div><div class="mi"><b>IMG_2042.jpg</b><span>5.2 MB</span></div></div>
+          <div class="mitem"><div class="cover c-summer" style="--cb:#c40026"><span class="chk"></span><div class="bd"><span>WEBP</span></div></div><div class="mi"><b>note-0702-1.webp</b><span>412 KB</span></div></div>
+          <div class="mitem"><div class="cover c-autumn" style="--cb:#d99700"><span class="chk"></span><div class="bd"><span>WEBP</span></div></div><div class="mi"><b>note-0702-2.webp</b><span>388 KB</span></div></div>
+          <div class="mitem"><div class="cover c-spring" style="--cb:#00a844"><span class="chk"></span></div><div class="mi"><b>note-0702-3.jpg</b><span>2.9 MB</span></div></div>
+          <div class="mitem"><div class="cover c-grey" style="--cb:#7a8598"><span class="chk"></span></div><div class="mi"><b>note-0702-4.jpg</b><span>3.3 MB</span></div></div>
+          <div class="mitem"><div class="cover c-navy" style="--cb:#26365c"><span class="chk"></span><div class="bd"><span>裁切</span><span>WEBP</span></div></div><div class="mi"><b>avatar-2026.webp</b><span>96 KB</span></div></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:12px;color:var(--text-3)"><span>已选 1 · <a href="#" style="color:var(--text)">裁切</a> · <a href="#" style="color:var(--text)">压缩</a> · <a href="#" style="color:var(--text)">复制链接</a> · <a href="#" style="color:var(--accent-red)">删除</a></span><span class="mono">1 – 12 / 23</span></div>
+      </div>
+      <div style="display:grid;gap:16px;align-content:start">
+        <div class="card task"><div class="ch"><h3>图片质量优化</h3><span class="pill sch"><i></i>运行中</span></div>
+          <div class="cb">
+            <div class="row1"><b>压缩为 WebP · 质量 82</b><span>9 / 23 待处理</span></div>
+            <div class="bar"><i class="p" style="width:62%"></i></div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font:400 11px var(--mono);color:var(--text-3)"><span>62% · 已节省 18.4 MB</span><span>剩余约 40s</span></div>
+            <ul>
+              <li><span class="f">IMG_2041.jpg</span><span class="sz">5.6 MB → <b>612 KB</b></span><span class="sv">-89%</span></li>
+              <li><span class="f">door-light.png</span><span class="sz">4.8 MB → <b>540 KB</b></span><span class="sv">-88%</span></li>
+              <li><span class="f">note-0702-4.jpg</span><span class="sz">3.3 MB → <b>—</b></span><span class="run mono" style="font-size:11px">压缩中</span></li>
+              <li><span class="f">theme-cover-2.jpg</span><span class="sz">3.1 MB</span><span class="wait mono" style="font-size:11px">排队</span></li>
+              <li><span class="f">note-0702-3.jpg</span><span class="sz">2.9 MB</span><span class="wait mono" style="font-size:11px">排队</span></li>
+            </ul>
+            <div style="display:flex;gap:8px;margin-top:14px"><a class="btn sm" href="#">暂停</a><a class="btn sm btn-ghost" href="#">重新扫描</a><span class="t3 mono" style="margin-left:auto;font-size:11px;align-self:center">后台任务 · 轮询 2s</span></div>
+          </div>
+        </div>
+        <div class="card"><div class="ch"><h3>裁切 <small>hero-welcome.webp</small></h3><span class="t3" style="font-size:16px">×</span></div>
+          <div class="cb">
+            <div class="cropbox"><div class="cover c-winter"></div><div class="frame"><i></i><i></i><i></i><i></i></div></div>
+            <div class="ratios"><span class="on">16:9</span><span>4:3</span><span>3:2</span><span>1:1</span><span>自由</span></div>
+            <div style="display:flex;justify-content:space-between;font:400 11px var(--mono);color:var(--text-3)"><span>1920 × 1080 → 1600 × 900</span><span>另存为副本</span></div>
+            <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end"><a class="btn sm btn-ghost" href="#">取消</a><a class="btn sm btn-primary" href="#"><i></i>应用裁切</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main></div>
+</section>
+
+<!-- ===================================================== 06 关于管理 -->
+<section data-screen="about-admin">
+  <span class="screen-label">06 · 关于管理 ABOUT</span>
+  <div class="shell"><aside class="sb" data-active="about"></aside>
+  <main class="main">
+    <div class="ph"><div><h1>关于页</h1><p>模块化区块 · 拖拽排序 · 行内编辑 · 已启用 9 / 16 种</p></div><div class="acts"><a class="btn" href="#">预览关于页 ↗</a><a class="btn btn-primary" href="#"><i></i>保存排序</a></div></div>
+    <div class="grid" style="grid-template-columns:1fr 380px;gap:24px">
+      <div>
+        <div class="mlist">
+          <div class="mrow on"><span class="hd">⋮⋮</span><span class="n">01</span><b>身份卡<small>头像 / 名字 / tagline / 运行天数 / 格言</small></b><span class="sw on"></span><a class="btn sm btn-ghost" href="#">编辑中</a></div>
+          <div class="mrow"><span class="hd">⋮⋮</span><span class="n">02</span><b>统计<small>文章 4 · 随想 4 · 标签 5 · 字数</small></b><span class="sw on"></span><a class="btn sm btn-ghost" href="#">编辑</a></div>
+          <div class="mrow"><span class="hd">⋮⋮</span><span class="n">03</span><b>技术栈<small>Vue 3 / Vite / Go / SQLite / Markdown</small></b><span class="sw on"></span><a class="btn sm btn-ghost" href="#">编辑</a></div>
+          <div class="mrow drag"><span class="hd">⋮⋮</span><span class="n">04</span><b>GitHub 状态<small>热力图 + 最近提交 · @BeaconCat</small></b><span class="sw on"></span><a class="btn sm btn-ghost" href="#">编辑</a></div>
+          <div class="mrow"><span class="hd">⋮⋮</span><span class="n">05</span><b>社交链接<small>GitHub / Email / RSS</small></b><span class="sw on"></span><a class="btn sm btn-ghost" href="#">编辑</a></div>
+          <div class="mrow"><span class="hd">⋮⋮</span><span class="n">06</span><b>技能分组<small>创作 / 工具 / 兴趣</small></b><span class="sw on"></span><a class="btn sm btn-ghost" href="#">编辑</a></div>
+          <div class="mrow"><span class="hd">⋮⋮</span><span class="n">07</span><b>里程碑<small>3 项 · 2 已完成</small></b><span class="sw on"></span><a class="btn sm btn-ghost" href="#">编辑</a></div>
+          <div class="mrow"><span class="hd">⋮⋮</span><span class="n">08</span><b>Now<small>3 条正在做的事</small></b><span class="sw on"></span><a class="btn sm btn-ghost" href="#">编辑</a></div>
+          <div class="mrow"><span class="hd">⋮⋮</span><span class="n">09</span><b>语录<small>「记录本身，就是意义。」</small></b><span class="sw on"></span><a class="btn sm btn-ghost" href="#">编辑</a></div>
+          <div class="mrow" style="opacity:.6"><span class="hd">⋮⋮</span><span class="n">10</span><b>FAQ<small>已停用 · 2 个问答</small></b><span class="sw"></span><a class="btn sm btn-ghost" href="#">编辑</a></div>
+        </div>
+        <div class="ie" style="margin-top:18px"><h4>编辑 · 身份卡 <span>自动保存</span></h4>
+          <div class="grid g2">
+            <div class="fld"><label>显示名</label><div class="in sm"><input value="BeaconCat"></div></div>
+            <div class="fld"><label>Tagline</label><div class="in sm"><input value="开源个人博客引擎 · 独立开发者"></div></div>
+            <div class="fld"><label>格言</label><div class="in sm"><input value="记录本身，就是意义。"></div></div>
+            <div class="fld"><label>建站日期 <small>· 自动计算运行天数</small></label><div class="in sm"><input value="2026-01-01"></div></div>
+          </div>
+          <div class="fld" style="margin:0"><label style="display:flex;justify-content:space-between;align-items:center">头像使用站点 logo <span class="sw on"></span></label></div>
+          <div class="prev-id"><img src="../../logo.png" alt=""><div><b>BeaconCat</b><span>开源个人博客引擎 · 独立开发者 · 记录本身，就是意义。</span></div><div class="u"><b>266</b><span>DAYS</span></div></div>
+        </div>
+      </div>
+      <div class="card" style="align-self:start"><div class="ch"><h3>添加模块 <small>16 种</small></h3><span class="t3 mono">已用 9</span></div>
+        <div class="cb"><div class="picker">
+          <div class="used">身份卡<i>已添加</i></div><div class="used">统计<i>已添加</i></div><div class="used">技能<i>已添加</i></div><div class="used">里程碑<i>已添加</i></div>
+          <div class="used">GitHub<i>已添加</i></div><div class="used">社交<i>已添加</i></div><div class="used">技术栈<i>已添加</i></div><div class="used">语录<i>已添加</i></div>
+          <div>FAQ<i>问答折叠</i></div><div>画廊<i>图片网格</i></div><div class="used">Now<i>已添加</i></div><div>联系方式<i>表单</i></div>
+          <div>时间线<i>年份分组</i></div><div>书单<i>封面 + 评分</i></div><div>项目<i>卡片列表</i></div><div>Markdown<i>自由区块</i></div>
+        </div>
+        <p class="t3" style="font-size:12px;margin-top:14px;line-height:1.6">每种模块可添加一次；停用的模块保留数据但不在前台渲染。拖拽左侧手柄调整顺序，松手即保存。</p></div>
+      </div>
+    </div>
+  </main></div>
+</section>
+
+<!-- ===================================================== 07 设置 -->
+<section data-screen="settings">
+  <span class="screen-label">07 · 外观与站点设置 SETTINGS</span>
+  <div class="shell"><aside class="sb" data-active="settings"></aside>
+  <main class="main">
+    <div class="ph"><div><h1>外观与站点</h1><p>修改后自动保存 · 上次更改 今天 10:32</p></div><div class="acts"><span class="pill ok"><i></i>已保存</span></div></div>
+    <div class="set">
+      <nav class="subnav"><a class="on" href="#">站点</a><a href="#">加载</a><a href="#">主题预设</a><a href="#">首页 Hero</a><a href="#">时区</a><a href="#">GitHub</a><a href="#">备份</a><a href="#">账号密码</a></nav>
+      <div>
+        <div class="sec"><h2>站点</h2><p>标题、副标题与作者会出现在导航、RSS 与页面 title 中。</p>
+          <div class="fld row"><label>站点标题</label><div class="in sm"><input value="Myself"></div></div>
+          <div class="fld row"><label>副标题</label><div class="in sm"><input value="个人博客"></div></div>
+          <div class="fld row"><label>作者</label><div class="in sm"><input value="BeaconCat"></div></div>
+          <div class="fld row"><label>Tagline<small>关于页与 Hero 使用</small></label><div class="in sm"><input value="开源个人博客引擎"></div></div>
+          <div class="fld row"><label>Logo</label><div style="display:flex;gap:12px;align-items:center"><img src="../../logo.png" style="width:44px;height:44px;border-radius:10px" alt=""><a class="btn sm" href="#">更换</a><span class="t3 mono" style="font-size:11px">logo.png · 1024 × 1024</span></div></div>
+        </div>
+        <div class="sec"><h2>加载</h2><p>首屏进场与页面切换。</p>
+          <div class="fld row"><label>进场动画</label><div class="radio" style="max-width:360px"><span class="on">门开 · 光晕</span><span>淡入</span><span>关闭</span></div></div>
+          <div class="fld row"><label>路由过渡</label><div style="display:flex;align-items:center;gap:10px;padding-top:6px"><span class="sw on"></span><span class="t2" style="font-size:12.5px">模糊 + 位移 · 遵循 prefers-reduced-motion</span></div></div>
+        </div>
+        <div class="sec"><h2>主题预设 <span class="t3 mono" style="font-size:11px;font-weight:400">6 / 10</span></h2><p>每组仅需 primary 与 primaryDeep，整套明暗变量运行时派生。拖拽排序，第一组为默认。</p>
+          <div class="presets">
+            <div class="preset def"><div class="sw2"><i style="background:#ff0032"></i><i style="background:#b8001f"></i></div><span class="df">默认</span><span class="hd">⋮⋮</span><b>夏 · 炽红</b><span>#ff0032 / #b8001f</span></div>
+            <div class="preset"><div class="sw2"><i style="background:#0078ff"></i><i style="background:#0052c2"></i></div><span class="hd">⋮⋮</span><b>冬 · 霜蓝</b><span>#0078ff / #0052c2</span></div>
+            <div class="preset"><div class="sw2"><i style="background:#00c853"></i><i style="background:#00893a"></i></div><span class="hd">⋮⋮</span><b>春 · 新绿</b><span>#00c853 / #00893a</span></div>
+            <div class="preset"><div class="sw2"><i style="background:#ffb300"></i><i style="background:#b87d00"></i></div><span class="hd">⋮⋮</span><b>秋 · 暖阳</b><span>#ffb300 / #b87d00</span></div>
+            <div class="preset"><div class="sw2"><i style="background:#0fb5b5"></i><i style="background:#087a7a"></i></div><span class="hd">⋮⋮</span><b>青 · 海雾</b><span>#0fb5b5 / #087a7a</span></div>
+            <div class="preset"><div class="sw2"><i style="background:#ff6a00"></i><i style="background:#b34a00"></i></div><span class="hd">⋮⋮</span><b>橙 · 灯塔</b><span>#ff6a00 / #b34a00</span></div>
+            <div class="preset empty">+ 新增预设</div><div class="preset empty"></div><div class="preset empty"></div><div class="preset empty"></div>
+          </div>
+          <div class="fld row" style="margin-top:8px"><label>默认模式</label><div class="modes" style="max-width:360px;margin:0"><div class="m on"><i style="background:#fff"></i>浅色</div><div class="m"><i style="background:#070B14"></i>深色</div><div class="m"><i style="background:linear-gradient(90deg,#fff 50%,#070B14 50%)"></i>跟随系统</div></div></div>
+          <div class="fld row"><label>按季节自动切换<small>3 / 6 / 9 / 12 月切换色盘</small></label><div style="padding-top:6px"><span class="sw"></span></div></div>
+        </div>
+        <div class="sec"><h2>首页 Hero</h2><p>轮播规则。</p>
+          <div class="fld row"><label>内容来源</label><div class="radio" style="max-width:420px"><span class="on">置顶 + 最新</span><span>仅置顶</span><span>手动选择</span></div></div>
+          <div class="fld row"><label>每篇停留</label><div class="in sm" style="max-width:160px"><input value="10"><span class="t3 mono">秒</span></div></div>
+          <div class="fld row"><label>封面轮转</label><div class="in sm" style="max-width:160px"><input value="3.5"><span class="t3 mono">秒</span></div></div>
+          <div class="fld row"><label>文字进场</label><div class="radio" style="max-width:360px"><span class="on">随机模糊</span><span>逐字</span><span>整体淡入</span></div></div>
+        </div>
+        <div class="sec"><h2>时区</h2>
+          <div class="fld row"><label>站点时区<small>影响发布时间与定时发布</small></label><div class="in sm" style="max-width:360px"><select><option>Asia/Shanghai (UTC+8)</option></select></div></div>
+          <div class="fld row"><label>日期格式</label><div class="radio" style="max-width:360px"><span class="on">2026-07-01</span><span>2026年7月1日</span><span>Jul 1, 2026</span></div></div>
+        </div>
+        <div class="sec"><h2>GitHub</h2><p>用于关于页热力图与最近提交。</p>
+          <div class="fld row"><label>用户名</label><div class="in sm" style="max-width:360px"><span class="t3 mono">github.com/</span><input value="BeaconCat"></div></div>
+          <div class="fld row"><label>Token<small>只读 · 仅用于统计</small></label><div class="in sm" style="max-width:360px"><input value="ghp_••••••••••••••••••••3f9e"><span class="pill ok" style="font-size:11px"><i></i>有效</span></div></div>
+          <div class="fld row"><label>同步频率</label><div class="in sm" style="max-width:360px"><select><option>每 30 分钟</option></select></div></div>
+        </div>
+        <div class="sec"><h2>备份</h2>
+          <div class="fld row"><label>自动备份</label><div style="display:flex;gap:8px;align-items:center"><span class="sw on"></span><div class="in sm" style="width:160px"><select><option>每天 03:00</option></select></div><span class="t3" style="font-size:12px">保留最近 <b class="mono">7</b> 份</span></div></div>
+          <div class="fld row"><label>备份内容</label><div style="display:flex;gap:16px;padding-top:6px;font-size:12.5px"><span style="display:flex;gap:6px;align-items:center"><span class="chk on"></span>数据库</span><span style="display:flex;gap:6px;align-items:center"><span class="chk on"></span>素材</span><span style="display:flex;gap:6px;align-items:center"><span class="chk"></span>缩略图缓存</span></div></div>
+        </div>
+        <div class="sec"><h2>账号密码</h2>
+          <div class="fld row"><label>用户名</label><div class="in sm" style="max-width:360px"><input value="beaconcat"></div></div>
+          <div class="fld row"><label>当前密码</label><div class="in sm" style="max-width:360px"><input type="password" placeholder="输入当前密码"></div></div>
+          <div class="fld row"><label>新密码<small>至少 12 位</small></label><div style="display:grid;gap:8px;max-width:360px"><div class="in sm"><input type="password" placeholder="新密码"></div><div class="in sm"><input type="password" placeholder="再次输入"></div><div style="display:flex;gap:8px"><a class="btn sm btn-primary" href="#"><i></i>更新密码</a><a class="btn sm btn-ghost" href="#">注销所有会话</a></div></div></div>
+        </div>
+      </div>
+    </div>
+  </main></div>
+</section>
+
+<!-- ===================================================== 08 API 中心 -->
+<section data-screen="api">
+  <span class="screen-label">08 · API 中心 API CENTER</span>
+  <div class="shell"><aside class="sb" data-active="api"></aside>
+  <main class="main">
+    <div class="ph"><div><h1>API 中心</h1><p>让外部 AI 通过 X-Api-Key 认证的 REST 接口替你发布 · 前缀 /api/v1</p></div><div class="acts"><a class="btn" href="#">接口文档 ↗</a><a class="btn btn-primary" href="#"><i></i>创建 APIKey</a></div></div>
+    <div class="grid" style="grid-template-columns:1fr 420px;gap:24px;margin-bottom:24px">
+      <div class="card"><div class="ch"><h3>APIKey <small>3 个 · 1 已吊销</small></h3></div>
+        <table><thead><tr><th>名称</th><th>前缀</th><th>权限</th><th>最后使用</th><th>创建</th><th></th></tr></thead><tbody>
+          <tr><td><div class="tt">Claude 助手</div><div class="sub">投稿随想与草稿</div></td><td class="key">mk_live_<span class="mask">••••</span>7f2a</td><td><span class="tag">posts:write</span> <span class="tag">notes:write</span></td><td class="num">12 分钟前</td><td class="num">2026-07-04</td><td><div class="ra"><a class="btn sm btn-ghost btn-danger" href="#">吊销</a></div></td></tr>
+          <tr><td><div class="tt">Obsidian 同步</div><div class="sub">从本地笔记推送文章</div></td><td class="key">mk_live_<span class="mask">••••</span>c1d9</td><td><span class="tag">posts:write</span> <span class="tag">media:write</span></td><td class="num">3 天前</td><td class="num">2026-08-12</td><td><div class="ra"><a class="btn sm btn-ghost btn-danger" href="#">吊销</a></div></td></tr>
+          <tr style="opacity:.55"><td><div class="tt">测试 Key</div><div class="sub">已吊销 · 2026-09-01</div></td><td class="key">mk_test_<span class="mask">••••</span>08aa</td><td><span class="tag">read</span></td><td class="num">2026-08-30</td><td class="num">2026-07-10</td><td><span class="pill dft"><i></i>已吊销</span></td></tr>
+        </tbody></table>
+      </div>
+      <div class="modal"><div class="mh"><h3>已创建 · Claude 助手</h3><span>×</span></div>
+        <div class="mb">
+          <div class="fld"><label>APIKey <small>· 只显示这一次</small></label><div class="keybox">mk_live_8f3aQ2vLp9xN7bWc4eYt1RkH6mJd7f2a<a class="btn sm" href="#">复制</a></div></div>
+          <div class="warn"><i></i>请立即保存到你的 AI 助手配置中。关闭此窗口后无法再次查看完整 Key，只能吊销后重新创建。</div>
+          <div class="fld" style="margin-top:16px"><label>权限范围</label><div class="scopes"><span class="on"><span class="chk on"></span>posts:write</span><span class="on"><span class="chk on"></span>notes:write</span><span><span class="chk"></span>media:write</span><span><span class="chk"></span>read</span></div></div>
+          <div class="fld" style="margin:0"><label>过期</label><div class="in sm"><select><option>永不过期</option></select></div></div>
+        </div>
+        <div class="mf"><a class="btn btn-ghost" href="#">稍后</a><a class="btn btn-primary" href="#"><i></i>我已保存</a></div>
+      </div>
+    </div>
+    <div class="grid" style="grid-template-columns:420px 1fr;gap:24px;margin-bottom:24px">
+      <div class="card"><div class="ch"><h3>接口目录</h3><span class="t3 mono">7 个端点</span></div>
+        <div class="ep"><span class="m post">POST</span><div><code>/api/v1/posts</code><small>创建文章（Markdown 正文）</small></div><span class="tag">posts:write</span></div>
+        <div class="ep"><span class="m put">PUT</span><div><code>/api/v1/posts/{slug}</code><small>更新文章 · 可改状态</small></div><span class="tag">posts:write</span></div>
+        <div class="ep"><span class="m get">GET</span><div><code>/api/v1/posts</code><small>文章列表 · 分页 / 标签筛选</small></div><span class="tag">read</span></div>
+        <div class="ep"><span class="m post">POST</span><div><code>/api/v1/notes</code><small>创建随想 · 心情 / 配图 ≤ 9</small></div><span class="tag">notes:write</span></div>
+        <div class="ep"><span class="m del">DEL</span><div><code>/api/v1/notes/{id}</code><small>删除随想</small></div><span class="tag">notes:write</span></div>
+        <div class="ep"><span class="m post">POST</span><div><code>/api/v1/media</code><small>上传图片 · multipart</small></div><span class="tag">media:write</span></div>
+        <div class="ep"><span class="m get">GET</span><div><code>/api/v1/img/{from}/{to}/{label}</code><small>渐变占位封面 SVG</small></div><span class="tag">public</span></div>
+      </div>
+      <div class="card"><div class="ch"><h3>在线调试台</h3><div class="seg"><span class="on">Claude 助手</span><span>Obsidian 同步</span></div></div>
+        <div class="dbg">
+          <div>
+            <div class="url"><span class="m post">POST</span><div class="in sm" style="flex:1;font-family:var(--mono);font-size:12px"><input value="/api/v1/notes"></div><a class="btn sm btn-primary" href="#"><i></i>发送</a></div>
+            <div class="lab">HEADERS</div>
+            <div class="code"><span class="k">X-Api-Key</span>: mk_live_••••7f2a
+<span class="k">Content-Type</span>: application/json</div>
+            <div class="lab">BODY</div>
+            <div class="code">{
+  <span class="k">"content"</span>: <span class="s">"后台「API 中心」可以创建 APIKey，把发文托管给你的 AI 助手——内容统一走 Markdown。"</span>,
+  <span class="k">"mood"</span>: <span class="s">"API"</span>,
+  <span class="k">"pinned"</span>: <span class="n">true</span>
+}</div>
+          </div>
+          <div>
+            <div class="resp"><b>201 Created</b><span class="t3 mono" style="font-size:11px">38 ms · 412 B</span><span class="t3 mono" style="font-size:11px;margin-left:auto">2026-09-23 10:41:07</span></div>
+            <div class="code">{
+  <span class="k">"id"</span>: <span class="n">4</span>,
+  <span class="k">"mood"</span>: <span class="s">"API"</span>,
+  <span class="k">"pinned"</span>: <span class="n">true</span>,
+  <span class="k">"images"</span>: [],
+  <span class="k">"created_at"</span>: <span class="s">"2026-09-23T10:41:07+08:00"</span>,
+  <span class="k">"url"</span>: <span class="s">"/thoughts#4"</span>
+}</div>
+            <div class="lab">CURL</div>
+            <div class="code"><span class="c"># 复制到终端即可复现</span>
+curl -X POST https://myself.local/api/v1/notes \
+  -H <span class="s">"X-Api-Key: $MYSELF_KEY"</span> \
+  -d <span class="s">'{"content":"…","mood":"API"}'</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card"><div class="ch"><h3>调用日志 <small>最近 24 小时 · 38 次</small></h3><div style="display:flex;gap:8px;align-items:center"><span class="role">预留</span><div class="seg"><span class="on">全部</span><span>失败</span></div></div></div>
+      <table><thead><tr><th>时间</th><th>Key</th><th>方法</th><th>路径</th><th>状态</th><th>耗时</th><th>来源 IP</th></tr></thead><tbody>
+        <tr><td class="num">10:41:07</td><td class="key">mk_live_…7f2a</td><td><span class="m post">POST</span></td><td class="key">/api/v1/notes</td><td><span class="pill pub"><i></i>201</span></td><td class="num">38 ms</td><td class="num">203.0.113.24</td></tr>
+        <tr><td class="num">09:12:50</td><td class="key">mk_live_…7f2a</td><td><span class="m post">POST</span></td><td class="key">/api/v1/posts</td><td><span class="pill pub"><i></i>201</span></td><td class="num">61 ms</td><td class="num">203.0.113.24</td></tr>
+        <tr><td class="num">08:55:13</td><td class="key">mk_live_…c1d9</td><td><span class="m post">POST</span></td><td class="key">/api/v1/media</td><td><span class="pill pub"><i></i>201</span></td><td class="num">412 ms</td><td class="num">198.51.100.7</td></tr>
+        <tr><td class="num">08:55:02</td><td class="key">mk_live_…c1d9</td><td><span class="m put">PUT</span></td><td class="key">/api/v1/posts/theme-guide</td><td><span class="pill dft"><i></i>422</span></td><td class="num">9 ms</td><td class="num">198.51.100.7</td></tr>
+        <tr><td class="num">昨天 23:08</td><td class="key">mk_live_…7f2a</td><td><span class="m post">POST</span></td><td class="key">/api/v1/posts</td><td><span class="pill pub"><i></i>201</span></td><td class="num">54 ms</td><td class="num">203.0.113.24</td></tr>
+      </tbody></table>
+    </div>
+  </main></div>
+</section>
+
+<!-- ===================================================== 09 数据中心 -->
+<section data-screen="data">
+  <span class="screen-label">09 · 数据中心 DATA</span>
+  <div class="shell"><aside class="sb" data-active="data"></aside>
+  <main class="main">
+    <div class="ph"><div><h1>数据中心</h1><p>备份 · 恢复 · 导入导出 · 占用 272 MB</p></div><div class="acts"><a class="btn" href="#">下载最新备份</a><a class="btn btn-primary" href="#"><i></i>立即备份</a></div></div>
+    <div class="grid" style="grid-template-columns:1fr 380px;gap:24px">
+      <div>
+        <div class="card" style="margin-bottom:24px"><div class="ch"><h3>备份 <small>6 份 · 数据库 + 素材（-db 为仅数据库）· 保留最近 7 份</small></h3><span class="t3" style="font-size:12px">自动备份 <b class="mono" style="color:var(--text)">每天 03:00</b> · <a href="#" style="color:var(--text)">修改</a></span></div>
+          <table><thead><tr><th>文件</th><th>类型</th><th>大小</th><th>时间</th><th></th></tr></thead><tbody>
+            <tr><td class="key">myself-2026-09-23-0300.zip</td><td><span class="pill"><i></i>自动</span></td><td class="num">74.2 MB</td><td class="num">今天 03:00</td><td><div class="ra"><a class="btn sm btn-ghost" href="#">下载</a><a class="btn sm btn-ghost" href="#">恢复</a><a class="btn sm btn-ghost btn-danger" href="#">删除</a></div></td></tr>
+            <tr><td class="key">myself-2026-09-22-0300.zip</td><td><span class="pill"><i></i>自动</span></td><td class="num">74.0 MB</td><td class="num">昨天 03:00</td><td><div class="ra"><a class="btn sm btn-ghost" href="#">下载</a><a class="btn sm btn-ghost" href="#">恢复</a><a class="btn sm btn-ghost btn-danger" href="#">删除</a></div></td></tr>
+            <tr class="show"><td class="key">myself-2026-09-21-1418-manual.zip</td><td><span class="pill sch"><i></i>手动</span></td><td class="num">73.6 MB</td><td class="num">09-21 14:18</td><td><div class="ra"><a class="btn sm btn-ghost" href="#">下载</a><a class="btn sm btn-ghost" href="#">恢复</a><a class="btn sm btn-ghost btn-danger" href="#">删除</a></div></td></tr>
+            <tr><td class="key">myself-2026-09-21-0300.zip</td><td><span class="pill"><i></i>自动</span></td><td class="num">73.6 MB</td><td class="num">09-21 03:00</td><td><div class="ra"><a class="btn sm btn-ghost" href="#">下载</a><a class="btn sm btn-ghost" href="#">恢复</a><a class="btn sm btn-ghost btn-danger" href="#">删除</a></div></td></tr>
+            <tr><td class="key">myself-2026-09-20-0300.zip</td><td><span class="pill"><i></i>自动</span></td><td class="num">71.9 MB</td><td class="num">09-20 03:00</td><td><div class="ra"><a class="btn sm btn-ghost" href="#">下载</a><a class="btn sm btn-ghost" href="#">恢复</a><a class="btn sm btn-ghost btn-danger" href="#">删除</a></div></td></tr>
+            <tr><td class="key">myself-2026-09-19-0300-db.zip</td><td><span class="pill"><i></i>自动</span></td><td class="num">12.1 MB</td><td class="num">09-19 03:00</td><td><div class="ra"><a class="btn sm btn-ghost" href="#">下载</a><a class="btn sm btn-ghost" href="#">恢复</a><a class="btn sm btn-ghost btn-danger" href="#">删除</a></div></td></tr>
+          </tbody></table>
+        </div>
+        <div class="card"><div class="ch"><h3>导入导出</h3><span class="role">预留</span></div>
+          <div class="cb"><div class="ie2">
+            <div class="card"><div class="ch"><h3>导出</h3></div><div class="cb">
+              <div class="fld" style="margin:0 0 4px"><label>格式</label><div class="radio"><span class="on">Markdown 归档 (.zip)</span><span>JSON</span></div></div>
+              <div style="display:flex;gap:14px;font-size:12.5px;margin:8px 0 12px"><span style="display:flex;gap:6px;align-items:center"><span class="chk on"></span>文章</span><span style="display:flex;gap:6px;align-items:center"><span class="chk on"></span>随想</span><span style="display:flex;gap:6px;align-items:center"><span class="chk on"></span>素材</span><span style="display:flex;gap:6px;align-items:center"><span class="chk"></span>设置</span></div>
+              <a class="btn" href="#">生成并下载</a>
+              <p class="t3" style="font-size:11.5px;margin-top:10px">每篇文章导出为 <span class="mono">slug.md</span>，front-matter 保留标签、封面、日期。</p>
+            </div></div>
+            <div class="card"><div class="ch"><h3>导入</h3></div><div class="cb">
+              <div class="drop" style="margin:0 0 10px;padding:14px;flex-direction:column;text-align:center;gap:6px"><b style="font-size:12.5px">拖入 Myself 备份或 Markdown 归档</b><span style="font-size:11.5px">.zip · 支持 Hexo / Hugo front-matter</span></div>
+              <div class="fld" style="margin:0 0 10px"><label>冲突策略</label><div class="radio"><span class="on">跳过同 slug</span><span>覆盖</span></div></div>
+              <a class="btn" href="#">开始导入</a>
+            </div></div>
+          </div></div>
+        </div>
+      </div>
+      <div style="display:grid;gap:16px;align-content:start">
+        <div class="card"><div class="ch"><h3>存储占用</h3><span class="mono t3">272 MB</span></div><div class="cb">
+          <div class="usage"><i class="a" style="width:5%"></i><i class="b" style="width:68%"></i><i class="c" style="width:27%"></i></div>
+          <div class="legend" style="flex-direction:column;gap:8px"><span><i style="background:var(--text)"></i>数据库 <b style="margin-left:auto">12.4 MB</b></span><span><i style="background:var(--text-3)"></i>素材 · 23 个文件 <b style="margin-left:auto">186 MB</b></span><span><i style="background:var(--line-2)"></i>备份 · 6 份 <b style="margin-left:auto">74 MB</b></span></div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;color:var(--text-3)">缩略图缓存 38 MB 不计入 · <a href="#" style="color:var(--text)">清理缓存</a></div>
+        </div></div>
+        <div class="card"><div class="ch"><h3>自动备份</h3><span class="sw on"></span></div><div class="cb">
+          <div class="fld"><label>间隔</label><div class="in sm"><select><option>每天</option></select></div></div>
+          <div class="fld"><label>时间</label><div class="in sm"><input value="03:00" style="font-family:var(--mono)"></div></div>
+          <div class="fld" style="margin:0"><label>保留份数</label><div class="in sm"><input value="7" style="font-family:var(--mono)"></div><small>超出后自动删除最旧的自动备份，手动备份不受影响</small></div>
+        </div></div>
+        <div class="card"><div class="ch"><h3>数据库</h3><span class="pill ok"><i></i>健康</span></div>
+          <div class="kv"><div>引擎</div><div>SQLite · WAL</div><div>大小</div><div>12.4 MB</div><div>上次 VACUUM</div><div>09-19</div><div>完整性检查</div><div>通过</div></div>
+          <div style="padding:12px 18px 18px;display:flex;gap:8px"><a class="btn sm" href="#">VACUUM</a><a class="btn sm btn-ghost" href="#">完整性检查</a></div>
+        </div>
+      </div>
+    </div>
+  </main></div>
+</section>
+
+<!-- ===================================================== 10 评论与用户 -->
+<section data-screen="users">
+  <span class="screen-label">10 · 评论与用户 COMMENTS & USERS（P4 预留）</span>
+  <div class="shell"><aside class="sb" data-active="users"></aside>
+  <main class="main">
+    <div class="ph"><div><h1>评论与用户</h1><p>评论审核 · 用户管理 · P4 阶段功能，界面已就绪</p></div><div class="acts"><span class="role">预留</span><a class="btn" href="#">评论设置</a><a class="btn btn-primary" href="#"><i></i>邀请用户</a></div></div>
+    <div class="card" style="margin-bottom:24px"><div class="ch"><h3>评论 <small>共 7 条</small></h3><div class="tabs" style="margin:0;border:0"><span class="on">待审<small>2</small></span><span>已通过<small>4</small></span><span>垃圾<small>1</small></span></div></div>
+      <div class="crow pending"><span class="chk on"></span><span class="ava">LN</span><div><div class="who"><b>Lin</b><span>lin@example.com · 2026-07-05 10:22</span><span class="pill sch"><i></i>待审</span></div><p>「模式 × 色盘」这个正交的思路很清楚。想问一下：自定义十组主色时，浅色模式下的文字对比度是自动校验的吗？</p><div class="on">评论于 <b>《主题系统指南》</b> · 首次评论 · IP 203.0.113.8</div></div><div class="acts"><a class="btn sm" href="#">通过</a><a class="btn sm btn-ghost" href="#">回复</a><a class="btn sm btn-ghost btn-danger" href="#">拒绝</a></div></div>
+      <div class="crow pending"><span class="chk"></span><span class="ava">KY</span><div><div class="who"><b>Kay</b><span>kay@example.com · 2026-07-03 08:15</span><span class="pill sch"><i></i>待审</span></div><p>建议在表格里加一列「适合季节 / 月份」，方便按时间自动轮换主题。</p><div class="on">评论于 <b>《主题系统指南》</b> · 首次评论 · IP 198.51.100.3</div></div><div class="acts"><a class="btn sm" href="#">通过</a><a class="btn sm btn-ghost" href="#">回复</a><a class="btn sm btn-ghost btn-danger" href="#">拒绝</a></div></div>
+      <div class="crow"><span class="chk"></span><span class="ava">AC</span><div><div class="who"><b>阿澈</b><span>ache@example.com · 2026-07-04 23:51</span><span class="pill pub"><i></i>已通过</span></div><p>圆形蒙版扩散的切换很有仪式感，而且开了减少动态之后也能正常用，细节到位。</p><div class="on">评论于 <b>《主题系统指南》</b> · 3 条评论</div></div><div class="acts"><a class="btn sm btn-ghost" href="#">回复</a><a class="btn sm btn-ghost" href="#">隐藏</a></div></div>
+      <div class="crow"><span class="chk"></span><span class="ava"><img src="../../logo.png" alt=""></span><div><div class="who"><b>BeaconCat</b><span class="role admin">作者</span><span>2026-07-05 11:04</span><span class="pill pub"><i></i>已通过</span></div><p>是的，派生时会按 WCAG 对比度自动挑选 primary 或 primaryDeep 作为文字色；极端亮色（比如秋暖阳）在浅色模式下会自动落到 deep。</p><div class="on">回复 <b>Lin</b> · 《主题系统指南》</div></div><div class="acts"><a class="btn sm btn-ghost" href="#">编辑</a><a class="btn sm btn-ghost btn-danger" href="#">删除</a></div></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 18px;border-top:1px solid var(--line);font-size:12px;color:var(--text-3)"><span>已选 1 · <a href="#" style="color:var(--text)">批量通过</a> · <a href="#" style="color:var(--accent-red)">标记垃圾</a></span><span class="mono">1 – 4 / 7</span></div>
+    </div>
+    <div class="grid" style="grid-template-columns:1fr 320px;gap:24px">
+      <div class="card"><div class="ch"><h3>用户 <small>5 位</small></h3><div class="in sm" style="width:200px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input placeholder="搜索用户"></div></div>
+        <table><thead><tr><th>用户</th><th>角色</th><th>评论</th><th>最近活跃</th><th>状态</th><th></th></tr></thead><tbody>
+          <tr><td><div style="display:flex;gap:10px;align-items:center"><span class="ava"><img src="../../logo.png" alt=""></span><div><div class="tt">BeaconCat</div><div class="sub">owner@example.com</div></div></div></td><td><span class="role admin">管理员</span></td><td class="num">1</td><td class="num">刚刚</td><td><span class="pill ok"><i></i>正常</span></td><td><div class="ra"><a class="btn sm btn-ghost" href="#">编辑</a></div></td></tr>
+          <tr><td><div style="display:flex;gap:10px;align-items:center"><span class="ava">LN</span><div><div class="tt">Lin</div><div class="sub">lin@example.com</div></div></div></td><td><span class="role">访客</span></td><td class="num">1</td><td class="num">2026-07-05</td><td><span class="pill ok"><i></i>正常</span></td><td><div class="ra"><a class="btn sm btn-ghost" href="#">编辑</a><a class="btn sm btn-ghost btn-danger" href="#">封禁</a></div></td></tr>
+          <tr><td><div style="display:flex;gap:10px;align-items:center"><span class="ava">AC</span><div><div class="tt">阿澈</div><div class="sub">ache@example.com</div></div></div></td><td><span class="role">访客</span></td><td class="num">3</td><td class="num">2026-07-04</td><td><span class="pill ok"><i></i>正常</span></td><td><div class="ra"><a class="btn sm btn-ghost" href="#">编辑</a><a class="btn sm btn-ghost btn-danger" href="#">封禁</a></div></td></tr>
+          <tr><td><div style="display:flex;gap:10px;align-items:center"><span class="ava">KY</span><div><div class="tt">Kay</div><div class="sub">kay@example.com</div></div></div></td><td><span class="role">访客</span></td><td class="num">1</td><td class="num">2026-07-03</td><td><span class="pill sch"><i></i>待验证</span></td><td><div class="ra"><a class="btn sm btn-ghost" href="#">编辑</a><a class="btn sm btn-ghost btn-danger" href="#">封禁</a></div></td></tr>
+          <tr style="opacity:.55"><td><div style="display:flex;gap:10px;align-items:center"><span class="ava">SP</span><div><div class="tt">spam-bot-22</div><div class="sub">noreply@spam.example</div></div></div></td><td><span class="role">访客</span></td><td class="num">1</td><td class="num">2026-06-30</td><td><span class="pill dft"><i></i>已封禁</span></td><td><div class="ra"><a class="btn sm btn-ghost" href="#">解封</a></div></td></tr>
+        </tbody></table>
+      </div>
+      <div style="display:grid;gap:16px;align-content:start">
+        <div class="card"><div class="ch"><h3>评论设置</h3></div><div class="cb">
+          <div class="fld" style="margin:0 0 12px"><label style="display:flex;justify-content:space-between;align-items:center">开放评论 <span class="sw on"></span></label></div>
+          <div class="fld" style="margin:0 0 12px"><label style="display:flex;justify-content:space-between;align-items:center">首次评论需审核 <span class="sw on"></span></label></div>
+          <div class="fld" style="margin:0 0 12px"><label style="display:flex;justify-content:space-between;align-items:center">允许 Markdown <span class="sw on"></span></label></div>
+          <div class="fld" style="margin:0"><label style="display:flex;justify-content:space-between;align-items:center">邮件通知新评论 <span class="sw"></span></label></div>
+        </div></div>
+        <div class="card"><div class="ch"><h3>注册</h3></div><div class="cb">
+          <div class="fld"><label>方式</label><div class="radio"><span class="on">仅邀请</span><span>开放</span><span>关闭</span></div></div>
+          <div class="fld" style="margin:0"><label>邀请链接 <small>· 7 天有效</small></label><div class="in sm"><input value="myself.local/join/9Kq2…" style="font-family:var(--mono);font-size:11.5px"><a class="btn sm btn-ghost" href="#">复制</a></div></div>
+        </div></div>
+      </div>
+    </div>
+    <div class="toast"><i></i>已通过 Lin 的评论 · <a href="#" style="text-decoration:underline">撤销</a></div>
+  </main></div>
+</section>
+
+<script>
+if(location.hash==='#static')document.documentElement.classList.add('static');
+/* sidebar injection: one template, active item per screen */
+const tpl=document.getElementById('sbTpl');
+document.querySelectorAll('.sb').forEach(sb=>{sb.appendChild(tpl.content.cloneNode(true));const a=sb.querySelector('a[data-k="'+sb.dataset.active+'"]');if(a)a.classList.add('on');});
+function toggleMode(){const r=document.documentElement;r.dataset.mode=r.dataset.mode==='dark'?'light':'dark';}
+if(!document.documentElement.classList.contains('static')){
+  const io=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target)}}),{rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+}
+</script>
+</body>
+</html>
