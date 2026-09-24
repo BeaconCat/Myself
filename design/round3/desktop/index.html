@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN" data-mode="dark" data-palette="winter" data-accent="lift">
+<html lang="zh-CN" data-mode="dark" data-palette="winter" data-accent="blend">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -168,6 +168,23 @@
   --lift-shadow: none;
 }
 :root[data-accent='tint'] .sig-dot { opacity: 0 !important; }
+
+/* 默认：抬升 + 轻染 —— 抬升块保留形体（顶光 / 细阴影），面上掺一点主色。
+   深色：白 9% 抬升面 + 主色 14%；浅色：白底掺主色 7%，阴影也带主色色相。
+   导航不再挂信号点（形体 + 色调已足够说明位置）；chip 的圆点保留。 */
+:root[data-accent='blend'] {
+  --lift: color-mix(in oklab, var(--primary) 16%, rgb(255 255 255 / .08));
+  --lift-hi: color-mix(in oklab, var(--primary) 22%, rgb(255 255 255 / .1));
+  --lift-fg: var(--text);
+  --lift-shadow: inset 0 0 0 .5px color-mix(in oklab, var(--primary) 30%, rgb(255 255 255 / .08)), inset 0 1px 0 rgb(255 255 255 / .06);
+}
+:root[data-accent='blend'][data-mode='light'] {
+  --lift: color-mix(in oklab, var(--primary) 8%, #fff);
+  --lift-hi: color-mix(in oklab, var(--primary) 11%, #fff);
+  --lift-shadow: 0 0 0 .5px color-mix(in oklab, var(--primary) 22%, rgb(16 24 40 / .06)), 0 1px 2px rgb(16 24 40 / .08), 0 3px 8px -3px color-mix(in oklab, var(--primary) 26%, transparent);
+}
+:root[data-accent='blend'] .navcap .sig-dot,
+:root[data-accent='blend'] .mtab .capm .sig-dot { opacity: 0 !important; }
 
 @media (prefers-reduced-motion: reduce) {
   :root { --dur-fast: .01ms; --dur: .01ms; --dur-slow: .01ms; }
@@ -1200,7 +1217,7 @@ html.full .dt .dock { position: relative; bottom: auto; }
   <div class="grp" data-k="pal">
     <button data-v="spring"><i class="sw" style="--c:#00c853"></i> 春</button><button data-v="summer"><i class="sw" style="--c:#ff0032"></i> 夏</button><button data-v="autumn"><i class="sw" style="--c:#ffb300"></i> 秋</button><button data-v="winter"><i class="sw" style="--c:#0078ff"></i> 冬</button>
   </div>
-  <div class="grp" data-k="accent"><button data-v="lift">中性抬升</button><button data-v="tint">主色轻染</button></div>
+  <div class="grp" data-k="accent"><button data-v="blend">抬升＋轻染</button><button data-v="blend">抬升＋轻染</button><button data-v="blend">抬升＋轻染</button><button data-v="lift">中性抬升</button><button data-v="tint">主色轻染</button></div>
   <span class="sp"></span>
   <div class="grp" data-k="vw"><button data-v="1440">1440</button><button data-v="1280">1280</button><button data-v="1024">1024</button></div>
 </div>
@@ -1242,12 +1259,12 @@ html.full .dt .dock { position: relative; bottom: auto; }
       <div class="rise" style="--i:3">
         <div class="seg lift-track" data-seg="accent" style="--pad:3px">
           <span class="lift"></span>
-          <button data-v="lift">中性抬升</button><button data-v="tint">主色轻染</button>
+          <button data-v="blend">抬升＋轻染</button><button data-v="lift">中性抬升</button><button data-v="tint">主色轻染</button>
         </div>
       </div>
     </div>
     <div class="rules rise" style="--i:4">
-      <div><b><span>R1</span>选中 = 中性抬升</b><p>选中项是一块比容器略亮的中性面（深 = 文字色 10%，浅 = 白 + 1px 阴影），文字切满对比；块在项之间 morph。</p></div>
+      <div><b><span>R1</span>选中 = 抬升 + 轻染</b><p>选中项是一块比容器略亮的抬升面，面上掺主色（深 16%、浅 8%），描边与阴影也带主色色相；文字切满对比；块在项之间 morph。导航不挂信号点。</p></div>
       <div><b><span>R2</span>主色 = 一个信号</b><p>每组控件主色至多出现一次：3px 圆点、2px 线、或选中图标着色。链接 / 焦点环 / 进度 / 当前位置也属信号。</p></div>
       <div><b><span>R3</span>主按钮 = 实底</b><p>无渐变、无彩色外发光、无文字投影；体积靠 1px 顶部内高光 + 0.5px 描边 + 1–2px 中性紧阴影。hover 调明度，按下 .97。</p></div>
       <div><b><span>R4</span>对比自动计算</b><p>亮主色（春绿、秋黄）自动用深字；其余白字，底色向黑推到对比 ≥ 4.5。链接色同理推到对背景 ≥ 4.5。</p></div>
@@ -1268,7 +1285,7 @@ html.full .dt .dock { position: relative; bottom: auto; }
           <p class="note">霓虹感来自三件事叠加：纵向渐变、同色 24px 外发光、文字投影。秋黄主色下白字对比仅 1.9。</p>
         </div>
         <div class="board new">
-          <span class="lbl"><i></i>新系统 · 中性抬升 + 信号</span>
+          <span class="lbl"><i></i>新系统 · 抬升 + 轻染</span>
           <nav class="navcap lift-track demo-nav" data-lift="static" style="align-self:flex-start">
             <span class="lift"><i class="sig-dot"></i></span>
             <button class="it on">首页</button><button class="it">文章</button><button class="it">随想</button><button class="it">关于</button>
@@ -1277,7 +1294,7 @@ html.full .dt .dock { position: relative; bottom: auto; }
             <div class="seg lift-track" data-seg="demo1"><span class="lift"></span><button class="on"><svg class="i s"><use href="#i-bubble"/></svg>信息流</button><button><svg class="i s"><use href="#i-image"/></svg>媒体</button></div></div>
           <div class="chips" data-chips="demo"><button class="chip on">全部 <em>4</em></button><button class="chip">指南 <em>4</em></button><button class="chip">API <em>1</em></button></div>
           <div class="tags"><a class="tag" href="#">指南</a><a class="tag" href="#">API</a><a class="tag" href="#">主题</a></div>
-          <p class="note">主色只剩导航下的 3px 点、chip 前的 4px 点与主按钮实底。选中项靠明度差被看见，而不是靠颜色。</p>
+          <p class="note">选中块保留抬升的形体（顶光与细阴影），面上掺一点主色；导航不再挂信号点，chip 前的圆点与主按钮实底保留。选中靠形体与色调共同表达，而不是靠发光。</p>
         </div>
       </div>
       <div class="anat" style="margin-top:16px">
@@ -1787,7 +1804,7 @@ const S = {
   mode: qs.get('mode') || 'dark',
   pal: qs.get('pal') || 'winter',
   vw: +(qs.get('vw') || 1440),
-  accent: qs.get('accent') || 'lift',
+  accent: qs.get('accent') || 'blend',
   full: qs.get('full') === '1',
   still: qs.get('still') === '1' || qs.get('full') === '1',
 };
