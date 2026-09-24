@@ -1,0 +1,26 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>Myself · 第二轮设计</title>
+<style>
+body{margin:0;background:#0b0e14;color:#e8eaf0;font:15px/1.7 "Noto Sans SC",system-ui,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:64px 32px}
+h1{font:600 34px/1.2 "Noto Serif SC",serif;margin:0 0 8px}p.lead{color:#98a0b0;margin:0 0 40px}
+h2{font-size:13px;letter-spacing:.2em;color:#7d8596;font-weight:500;margin:40px 0 14px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.grid.two{grid-template-columns:repeat(2,1fr)}
+a.card{display:block;text-decoration:none;color:inherit;background:#121722;border:1px solid #1f2633;border-radius:14px;overflow:hidden;transition:transform .35s cubic-bezier(.2,.8,.3,1),border-color .2s}
+a.card:hover{transform:translateY(-3px);border-color:#0078ff}
+a.card img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top;background:#000}
+a.card div{padding:14px 16px}a.card b{display:block;font-size:16px}a.card span{color:#98a0b0;font-size:13px}
+</style></head><body><main>
+<h1>第二轮设计</h1><p class="lead">全部为可交互单文件原型，点卡片打开。截图在各目录 shots/ 下。</p>
+<h2>后台面板 · 三个方向</h2><div class="grid">
+<a class="card" href="admin-a-console/index.html"><img src="admin-a-console/shots/04-cmdk.png"><div><b>A · Console</b><span>深色石墨、键盘优先、⌘K 命令面板、右侧 Inspector</span></div></a>
+<a class="card" href="admin-b-studio/index.html"><img src="admin-b-studio/shots/01-today.png"><div><b>B · Studio</b><span>暖白工作室、「今天」首页、沉浸写作、推门发布动画</span></div></a>
+<a class="card" href="admin-c-spatial/index.html"><img src="admin-c-spatial/shots/01-overview.png"><div><b>C · Spatial</b><span>延续前台海军蓝玻璃、Dock 导航、可拖拽 Bento 小组件</span></div></a>
+</div>
+<h2>首页轮播动效 · 8 组编舞</h2><div class="grid two">
+<a class="card" href="hero-motion/index.html"><img src="hero-motion/shots/s8-40-dark.png"><div><b>Hero 动效实验室</b><span>8 组方案，带时间轴、慢放、深浅与减弱动效模拟</span></div></a>
+<a class="card" href="about-kit/index.html"><img src="about-kit/shots/hero-dark-autumn.png"><div><b>关于页组件库</b><span>27 个模块（重做 15、合并 1、新增 11），bento 12 栏，附 schema 与迁移表</span></div></a>
+</div>
+<h2>移动端 · 底栏 + 侧栏</h2><div class="grid two">
+<a class="card" href="mobile/index.html"><img src="mobile/shots/v1-all.png"><div><b>移动端原生式 UI</b><span>9 台手机：两种底栏、跟手抽屉、沉浸阅读、移动后台写作 sheet</span></div></a>
+<a class="card" href="mobile/index.html"><img src="mobile/shots/p6.png" style="object-position:center"><div><b>侧边抽屉</b><span>主页面后退堆叠，外观 / 标签 / 订阅 / 后台入口</span></div></a>
+</div></main></body></html>
