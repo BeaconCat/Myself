@@ -6,6 +6,8 @@ import AppLoading from './components/loading/AppLoading.vue';
 import RouteLoading from './components/loading/RouteLoading.vue';
 import AppModal from './components/ui/AppModal.vue';
 import { useLoadingStore } from './stores/loading';
+import { useDevice } from './composables/useDevice';
+import MobileShell from './components/mobile/MobileShell.vue';
 
 const loading = useLoadingStore();
 /** 路由加载时页面整体缩小 10%（模糊变暗由 RouteLoading 的遮罩层承担） */
@@ -16,6 +18,9 @@ const covered = computed(() => loading.bootOverlayVisible || loading.routeOverla
 /** 后台等 bare 页面不渲染前台导航 */
 const route = useRoute();
 const bare = computed(() => !!route.meta.bare);
+/** 移动端前台走独立外壳（底栏 + 抽屉），后台由 AdminRoot 自行切换 */
+const { isMobile } = useDevice();
+const mobileShell = computed(() => isMobile.value && !bare.value);
 
 /* 缩放原点锁定当前视口中心（元素比视口高时 50% 会落到视口外，表现为向下缩） */
 const originY = ref('50vh');
@@ -25,7 +30,8 @@ watch(shrunk, (on) => {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ shrunk, covered }" :style="{ transformOrigin: `50% ${originY}` }">
+  <MobileShell v-if="mobileShell" />
+  <div v-else class="app-shell" :class="{ shrunk, covered }" :style="{ transformOrigin: `50% ${originY}` }">
     <NavBar v-if="!bare" />
     <router-view v-slot="{ Component }">
       <transition name="page" mode="out-in">

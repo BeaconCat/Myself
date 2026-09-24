@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { api } from '../api';
+import type { CardChoreoId, TextChoreoId } from '../components/home/hero/choreo/types';
 
 /** 关于页可排序模块（data 结构由模块注册表约定） */
 export interface AboutModule {
@@ -31,6 +32,10 @@ export interface SiteConfig {
     intervalMs: number;
     count: number;
     pinnedRule: 'pinned-first' | 'ignore';
+    /** 左侧文字切换动效（独立于卡组，可自由搭配） */
+    textAnim: TextChoreoId;
+    /** 右侧卡组切换动效 */
+    cardAnim: CardChoreoId;
   };
   thoughts: { subtitle: string };
   covers: { expandMs: number };
@@ -72,7 +77,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
       { id: 'winter', name: '冬 · 霜蓝', primary: '#0078ff', primaryDeep: '#005fd6' },
     ],
   },
-  hero: { intervalMs: 3000, count: 4, pinnedRule: 'pinned-first' },
+  hero: { intervalMs: 3000, count: 4, pinnedRule: 'pinned-first', textAnim: 'lightscan', cardAnim: 'hinge' },
   thoughts: { subtitle: '碎片化的想法、心情与瞬间，短到装不下一篇文章。' },
   covers: { expandMs: 10000 },
   timezone: 'Asia/Shanghai',

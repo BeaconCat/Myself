@@ -1,48 +1,50 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory, type RouteComponent, type RouteRecordRaw } from 'vue-router';
 import { useLoadingStore } from '../stores/loading';
+
+import { adminChildren } from './admin';
+import { mobileAdminViews } from './mobile-admin';
+import { mobilePublicViews } from './mobile-public';
+
+type Lazy = () => Promise<RouteComponent>;
+
+/** 桌面组件 + 可选移动端组件 → 命名视图（default / mobile），移动端缺省回落桌面。 */
+function views(name: string, desktop: Lazy, mobileMap: Record<string, Lazy>) {
+  return { default: desktop, mobile: mobileMap[name] ?? desktop };
+}
+
+function page(path: string, name: string, desktop: Lazy): RouteRecordRaw {
+  return { path, name, components: views(name, desktop, mobilePublicViews) };
+}
 
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', name: 'home', component: () => import('../views/HomeView.vue') },
-    { path: '/articles', name: 'articles', component: () => import('../views/ArticlesView.vue') },
-    { path: '/articles/:slug', name: 'article', component: () => import('../views/ArticleView.vue') },
-    { path: '/thoughts', name: 'thoughts', component: () => import('../views/ThoughtsView.vue') },
+    page('/', 'home', () => import('../views/HomeView.vue')),
+    page('/articles', 'articles', () => import('../views/ArticlesView.vue')),
+    page('/articles/:slug', 'article', () => import('../views/ArticleView.vue')),
+    page('/thoughts', 'thoughts', () => import('../views/ThoughtsView.vue')),
+    page('/about', 'about', () => import('../views/AboutView.vue')),
     { path: '/archive', redirect: '/thoughts' },
-    { path: '/about', name: 'about', component: () => import('../views/AboutView.vue') },
     {
       path: '/admin/login',
       name: 'admin-login',
       component: () => import('../views/admin/AdminLoginView.vue'),
       meta: { bare: true },
     },
-    {
-      path: '/write/post',
-      component: () => import('../views/write/WritePostView.vue'),
-      meta: { admin: true, bare: true },
-    },
-    {
-      path: '/write/note',
-      component: () => import('../views/write/WriteNoteView.vue'),
-      meta: { admin: true, bare: true },
-    },
+    /* 旧写作入口兼容 */
+    { path: '/write/post', redirect: (to) => ({ path: '/admin/write/post', query: to.query }) },
+    { path: '/write/note', redirect: '/admin/write/note' },
     {
       path: '/admin',
-      component: () => import('../views/admin/AdminLayout.vue'),
+      component: () => import('../views/admin/AdminRoot.vue'),
       meta: { admin: true, bare: true },
-      children: [
-        { path: '', redirect: '/admin/posts' },
-        { path: 'posts', component: () => import('../views/admin/AdminPostsView.vue') },
-        { path: 'posts/:id', redirect: (to) => ({ path: '/write/post', query: { id: String(to.params.id) } }) },
-        { path: 'notes', component: () => import('../views/admin/AdminNotesView.vue') },
-        { path: 'media', component: () => import('../views/admin/AdminMediaView.vue') },
-        { path: 'about', component: () => import('../views/admin/AdminAboutView.vue') },
-        { path: 'apikeys', component: () => import('../views/admin/AdminApiKeysView.vue') },
-        { path: 'data', component: () => import('../views/admin/AdminDataView.vue') },
-        { path: 'quality', component: () => import('../views/admin/AdminQualityView.vue') },
-        { path: 'settings', component: () => import('../views/admin/AdminSettingsView.vue') },
-      ],
+      children: adminChildren.map((c) => ({
+        path: c.path,
+        name: c.name,
+        components: views(c.name, c.component, mobileAdminViews),
+      })),
     },
+    { path: '/admin/posts/:id', redirect: (to) => ({ path: '/admin/write/post', query: { id: String(to.params.id) } }) },
   ],
   scrollBehavior: () => ({ top: 0, behavior: 'smooth' }),
 });
