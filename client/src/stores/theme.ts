@@ -35,6 +35,15 @@ function apply(colors: PaletteColors, mode: Mode, paletteId: string): void {
   root.style.setProperty('--primary-deep', colors.primaryDeep);
   root.style.setProperty('--primary-rgb', colors.primaryRgb);
   root.style.setProperty('--glass', colors.glass);
+  root.style.setProperty('--solid', colors.solid);
+  root.style.setProperty('--on-solid', colors.onSolid);
+  root.style.setProperty('--ink', colors.ink);
+}
+
+/** 圆角基准（px，0–24）：tokens.scss 按比例派生 --r-xs…--r-xl 与兼容的 --radius / --radius-lg */
+export function applyRadius(base: number): void {
+  const v = Number.isFinite(base) ? Math.min(24, Math.max(0, base)) : 10;
+  document.documentElement.style.setProperty('--r-base', String(v));
 }
 
 /** 按月份取季节色盘 id */
@@ -82,6 +91,7 @@ export const useThemeStore = defineStore('theme', {
         : this.allPalettes[0]?.id ?? 'summer';
 
       apply(this.palette[this.mode], this.mode, this.paletteId);
+      applyRadius(useConfigStore().cfg.theme.radius ?? 10);
     },
     setMode(mode: Mode) {
       this.mode = mode;

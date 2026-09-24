@@ -6,7 +6,7 @@ import { api, thumbOf, type Note, type Post } from '../../api';
 import { useConfigStore } from '../../stores/config';
 import LargeTitlePage from '../../components/mobile/LargeTitlePage.vue';
 import CoverCarousel from '../../components/mobile/CoverCarousel.vue';
-import CoverArt from '../../components/mobile/CoverArt.vue';
+import CoverArt from '../../components/common/CoverArt.vue';
 import MIcon from '../../components/mobile/MIcon.vue';
 import { copyText, monthDay, shell, toast } from '../../components/mobile/shell';
 

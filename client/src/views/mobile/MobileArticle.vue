@@ -7,7 +7,7 @@ import { useI18n } from 'vue-i18n';
 import { api, type Post } from '../../api';
 import { useConfigStore } from '../../stores/config';
 import { renderWithToc, type TocItem } from '../../utils/markdown';
-import CoverArt from '../../components/mobile/CoverArt.vue';
+import CoverArt from '../../components/common/CoverArt.vue';
 import MIcon from '../../components/mobile/MIcon.vue';
 import BottomSheet from '../../components/mobile/BottomSheet.vue';
 import { copyText, monthDay, readMinutes, toast } from '../../components/mobile/shell';

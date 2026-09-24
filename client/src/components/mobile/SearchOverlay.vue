@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, type Note, type Post, type Tag } from '../../api';
-import CoverArt from './CoverArt.vue';
+import CoverArt from '../common/CoverArt.vue';
 import MIcon from './MIcon.vue';
 import { monthDay, shell } from './shell';
 

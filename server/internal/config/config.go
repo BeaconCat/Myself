@@ -27,6 +27,7 @@ const defaultJSON = `{
     "autoSwitch": "off",
     "allowUserPalette": true,
     "displayCount": 4,
+    "radius": 10,
     "presets": [
       { "id": "spring", "name": "春 · 新绿", "primary": "#00c853", "primaryDeep": "#00a344" },
       { "id": "summer", "name": "夏 · 炽红", "primary": "#ff0032", "primaryDeep": "#d40029" },
