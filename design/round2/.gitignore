@@ -1,0 +1,4 @@
+*.png
+!logo.png
+!reference/*.png
+shots/
