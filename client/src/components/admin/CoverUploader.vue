@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { adminApi } from '../../api';
+import { adminApi, thumbOf } from '../../api';
+import { useI18n } from 'vue-i18n';
+import '../../views/admin/studio/i18n';
+import SIcon from '../../views/admin/studio/SIcon.vue';
 
-/** 图片上传：点击 / 拖拽入框，最多 max 张，缩略图可移除、可拖拽排序；square = 方格拼图预览 */
+/**
+ * 图片上传宫格：点击 / 拖拽入框，最多 max 张；缩略图可移除、可拖拽排序。
+ * square = 方格预览（随想配图），否则 4:3（文章封面，第一张为主封面）。
+ */
 const props = withDefaults(
   defineProps<{ modelValue: string[]; max?: number; square?: boolean }>(),
   { max: 3, square: false },
 );
 const emit = defineEmits<{ 'update:modelValue': [value: string[]] }>();
+const { t } = useI18n();
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const dragging = ref(false);
@@ -43,11 +50,6 @@ function remove(url: string): void {
 
 /* 拖拽排序 */
 let dragIndex = -1;
-
-function onDragStart(i: number): void {
-  dragIndex = i;
-}
-
 function onDropTo(i: number): void {
   if (dragIndex < 0 || dragIndex === i) return;
   const list = [...props.modelValue];
@@ -64,19 +66,18 @@ function onDropTo(i: number): void {
       v-for="(url, i) in modelValue"
       :key="url"
       class="thumb"
+      :class="{ main: !square && i === 0 && max > 1 }"
       draggable="true"
-      @dragstart="onDragStart(i)"
+      @dragstart="dragIndex = i"
       @dragover.prevent
-      @drop="onDropTo(i)"
+      @drop.stop="onDropTo(i)"
     >
-      <img :src="url" alt="" />
-      <button type="button" class="remove" aria-label="移除" @click="remove(url)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-          <path d="M6 6l12 12M18 6L6 18" />
-        </svg>
+      <img :src="thumbOf(url)" alt="" draggable="false" />
+      <span v-if="!square && i === 0 && max > 1" class="tag">{{ t('studio.editor.cover') }}</span>
+      <button type="button" class="remove" :aria-label="t('studio.remove')" @click="remove(url)">
+        <SIcon name="x" :size="14" />
       </button>
     </div>
-
     <button
       v-if="modelValue.length < max"
       type="button"
@@ -87,103 +88,103 @@ function onDropTo(i: number): void {
       @dragleave="dragging = false"
       @drop.prevent="onDrop"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <path d="M12 5v14M5 12h14" />
-      </svg>
-      <span>{{ busy ? '上传中…' : '点击或拖拽上传' }}</span>
-      <i>{{ modelValue.length }}/{{ max }}</i>
+      <span v-if="busy" class="spin" />
+      <SIcon v-else name="upload" />
+      <i>{{ modelValue.length }} / {{ max }}</i>
     </button>
-
     <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="onPick" />
   </div>
 </template>
 
 <style scoped lang="scss">
 .covers {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.thumb,
+.drop {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+
+  .square & { aspect-ratio: 1; }
 }
 
 .thumb {
-  position: relative;
-  width: 168px;
-  aspect-ratio: 16 / 9;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid var(--border);
   cursor: grab;
-  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 1px var(--border);
+  animation: pop-in var(--dur) var(--ease-spring) both;
 
-  &:active { cursor: grabbing; }
-  &:hover { border-color: rgba(var(--primary-rgb), 0.5); }
+  img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+  &.main { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
+
+  .tag {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    padding: 1px 7px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: #fff;
+    background: rgba(10, 10, 14, 0.5);
+    backdrop-filter: blur(6px);
   }
+
+  &:hover .remove { opacity: 1; transform: none; }
 }
 
 .remove {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 24px;
-  height: 24px;
-  border: none;
+  top: 5px;
+  right: 5px;
+  width: 22px;
+  height: 22px;
+  border: 0;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
   display: grid;
   place-items: center;
+  background: rgba(10, 10, 14, 0.55);
+  color: #fff;
+  backdrop-filter: blur(6px);
   opacity: 0;
-  transition: opacity var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
-
-  svg { width: 12px; height: 12px; }
-
-  &:hover { transform: scale(1.15); background: rgba(255, 0, 50, 0.8); }
+  transform: scale(0.7);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-spring);
 }
 
-.thumb:hover .remove { opacity: 1; }
-
 .drop {
-  width: 168px;
-  aspect-ratio: 16 / 9;
-  border: 1.5px dashed var(--border);
-  border-radius: 10px;
-  background: var(--bg);
-  color: var(--text-2);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  font-size: 12px;
-  transition: all var(--dur-fast) var(--ease-out);
+  border: 0;
+  color: var(--text-2);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 1.5px var(--border) inset;
+  cursor: pointer;
+  transition: all var(--dur-fast);
 
-  svg { width: 20px; height: 20px; }
-  i { font-style: normal; font-size: 10.5px; opacity: 0.7; }
+  i { font: 500 11px ui-monospace, Consolas, monospace; font-style: normal; opacity: 0.7; }
 
-  &:hover, &.dragging {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: rgba(var(--primary-rgb), 0.05);
-    transform: scale(1.02);
-  }
-
-  &.busy { opacity: 0.6; pointer-events: none; }
+  &:hover, &.dragging { color: var(--primary); box-shadow: 0 0 0 1.5px var(--primary) inset; }
+  &.dragging { transform: scale(1.03); }
 }
 
-/* 方格拼图模式：随想配图，三列宫格预览可拖拽换位 */
-.covers.square {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-
-  .thumb, .drop {
-    width: 100%;
-    aspect-ratio: 1;
-  }
+.spin {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  animation: spin 0.8s linear infinite;
 }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.7); } }
 </style>

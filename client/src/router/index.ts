@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteComponent, type RouteRecordRaw } from 'vue-router';
 import { useLoadingStore } from '../stores/loading';
+import { MOBILE_QUERY } from '../composables/useDevice';
 
 import { adminChildren } from './admin';
 import { mobileAdminViews } from './mobile-admin';
@@ -28,7 +29,7 @@ export const router = createRouter({
     {
       path: '/admin/login',
       name: 'admin-login',
-      component: () => import('../views/admin/AdminLoginView.vue'),
+      component: () => import('../views/admin/AdminLoginRoot.vue'),
       meta: { bare: true },
     },
     /* 旧写作入口兼容 */
@@ -54,6 +55,8 @@ export const router = createRouter({
  * （组件加载/渲染全部发生在覆盖层背后），退场前最短展示 900ms。
  */
 const COVER_MS = 700;
+/** 移动端判定（与 useDevice 同一断点） */
+const isMobileNow = (): boolean => window.matchMedia(MOBILE_QUERY).matches;
 const MIN_SHOW_MS = 900;
 let shownAt = 0;
 
@@ -62,6 +65,8 @@ router.beforeEach(async (to, from) => {
   if (to.meta.admin && !localStorage.getItem('myself.token')) {
     return { path: '/admin/login' };
   }
+  // 移动端不播桌面路由覆盖层（页面切换由移动端外壳的推入/滑动动画与骨架屏承担）
+  if (isMobileNow()) return;
   // 首屏由 AppLoading 负责；后台子路由无 name，用 matched 判断是否已在站内
   if (!from.matched.length) return;
   // 控制中心内部标签页切换不播 loading
@@ -72,6 +77,7 @@ router.beforeEach(async (to, from) => {
 });
 
 router.afterEach((to, from) => {
+  if (isMobileNow()) return;
   if (!from.matched.length) return;
   if (to.meta.admin && from.meta.admin) return;
   const loading = useLoadingStore();

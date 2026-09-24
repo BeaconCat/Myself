@@ -1,0 +1,195 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useConfigStore } from '../../stores/config';
+import AboutModules from '../../about/AboutModules.vue';
+import LargeTitlePage from '../../components/mobile/LargeTitlePage.vue';
+import MIcon from '../../components/mobile/MIcon.vue';
+import { copyText, toast } from '../../components/mobile/shell';
+
+/**
+ * 移动端关于：身份区（头像 / 名字 / 格言大字，后半句主色）+ 模块流（复用 AboutModules，仅在容器上做窄屏适配）
+ * + 源代码 / RSS 入口。配置未就绪时显示同几何骨架。
+ */
+const { t } = useI18n();
+const config = useConfigStore();
+const about = computed(() => config.cfg.about);
+const avatar = computed(() => about.value.avatar || '/favicon-256.png');
+const handle = computed(() => config.cfg.github.username || 'myself');
+
+/** 格言按第一个中文逗号拆成两行，后半句用主色 */
+const motto = computed(() => {
+  const m = about.value.motto ?? '';
+  const i = m.search(/[，,]/);
+  return i > 0 ? [m.slice(0, i + 1), m.slice(i + 1)] : [m, ''];
+});
+
+async function share(): Promise<void> {
+  const ok = await copyText(window.location.href);
+  toast(ok ? t('mobile.linkCopied') : t('mobile.copyFailed'));
+}
+
+async function copyRss(): Promise<void> {
+  const ok = await copyText(`${window.location.origin}/feed`);
+  toast(ok ? t('mobile.rssCopied') : t('mobile.copyFailed'), ok ? '/feed' : '');
+}
+
+async function refresh(): Promise<void> {
+  await config.load();
+}
+</script>
+
+<template>
+  <LargeTitlePage :title="t('mobile.about.title')" :large="false" :refresh="refresh">
+    <template #right>
+      <button class="m-icbtn m-tap" :aria-label="t('mobile.share')" @click="share"><MIcon name="share" /></button>
+    </template>
+
+    <template #hero>
+      <Transition name="m-swap" mode="out-in">
+        <section v-if="!config.loaded" key="sk" class="ab-hero sk">
+          <span class="m-sk ab-av" />
+          <span class="m-sk m-sk-line" style="width: 52%; height: 30px; margin-top: 18px" />
+          <span class="m-sk m-sk-line" style="width: 36%; margin-top: 10px" />
+          <span class="m-sk m-sk-line" style="width: 70%; height: 24px; margin-top: 28px" />
+          <span class="m-sk m-sk-line" style="width: 50%; height: 24px; margin-top: 10px" />
+          <span class="m-sk m-sk-line" style="width: 92%; margin-top: 18px" />
+          <span class="m-sk m-sk-line" style="width: 80%; margin-top: 8px" />
+          <div class="m-sk sk-mod" />
+        </section>
+
+        <div v-else key="ok">
+          <section class="ab-hero">
+            <div class="beam" aria-hidden="true" />
+            <div class="ab-av m-in"><img :src="avatar" alt="" draggable="false" /></div>
+            <h1 class="ab-name m-in" style="--i: 1">{{ about.name }}</h1>
+            <div class="ab-handle m-in" style="--i: 2">@{{ handle }} · {{ about.tagline }}</div>
+            <p v-if="motto[0]" class="ab-quote m-in" style="--i: 3">
+              {{ motto[0] }}<br v-if="motto[1]" /><span>{{ motto[1] }}</span>
+            </p>
+            <p v-if="about.bio" class="ab-bio m-in" style="--i: 4">{{ about.bio }}</p>
+          </section>
+
+          <div class="mods m-in" style="--i: 5">
+            <AboutModules :modules="about.modules ?? []" />
+          </div>
+
+          <div class="m-list ab-list m-in" style="--i: 6">
+            <a class="m-li" href="https://github.com/BeaconCat/Myself" target="_blank" rel="noopener">
+              <span class="lic" style="--c: #24292f"><MIcon name="github" /></span>
+              <span>{{ t('mobile.about.source') }}</span><small>BeaconCat/Myself</small><MIcon name="chev" class="chev" />
+            </a>
+            <button class="m-li" @click="copyRss">
+              <span class="lic" style="--c: #ff7a1a"><MIcon name="rss" /></span>
+              <span>{{ t('mobile.rss') }}</span><small>/feed</small><MIcon name="chev" class="chev" />
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </template>
+  </LargeTitlePage>
+</template>
+
+<style scoped lang="scss">
+.ab-hero {
+  position: relative;
+  padding: 18px 20px 8px;
+
+  .beam {
+    position: absolute;
+    left: -40px;
+    right: -40px;
+    top: -160px;
+    height: 460px;
+    pointer-events: none;
+    background: radial-gradient(50% 44% at 26% 40%, color-mix(in oklab, var(--primary) 24%, transparent), transparent 70%);
+  }
+
+  &.sk .m-sk-line { display: block; }
+}
+
+.ab-av {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 26px;
+  overflow: hidden;
+  box-shadow: 0 18px 30px -14px color-mix(in oklab, var(--primary) 70%, black), 0 0 0 0.5px rgba(255, 255, 255, 0.14);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.ab-name {
+  position: relative;
+  margin-top: 18px;
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.ab-handle {
+  position: relative;
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--m-text-3);
+}
+
+.ab-quote {
+  position: relative;
+  margin-top: 26px;
+  font-family: var(--font-serif);
+  font-size: 26px;
+  line-height: 1.55;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+
+  span { color: var(--m-ink); }
+}
+
+.ab-bio {
+  position: relative;
+  margin-top: 12px;
+  font-size: 14.5px;
+  line-height: 1.8;
+  color: var(--text-2);
+}
+
+/* 模块流窄屏适配：只调容器与外壳间距，不改模块本身 */
+.mods {
+  padding: 18px 16px 0;
+  overflow-x: clip;
+
+  :deep(.ak) {
+    --ak-pad: 18px;
+    --ak-gap: 14px;
+    --ak-r-lg: 22px;
+  }
+
+  /* 列向 flex 中 flex-basis:0 在不定高卡片里会把模块体压扁，窄屏回到内容高度 */
+  :deep(.ak-m.card > .ak-body) { flex: 1 0 auto; }
+  :deep(.ak-m.card:hover) { transform: none; }
+  /* 身份由上方移动端原生身份区承担（移动原型设计），模块流里的桌面身份模块不重复显示 */
+  :deep(.ak-m.m-profile) { display: none; }
+}
+
+.ab-list {
+  margin: 22px 16px 0;
+
+  a.m-li {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+.sk-mod {
+  margin-top: 26px;
+  height: 180px;
+  border-radius: 24px;
+}
+</style>

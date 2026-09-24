@@ -1,289 +1,599 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../../stores/auth';
-import ThemeSwitcher from '../../components/layout/ThemeSwitcher.vue';
+import { useConfigStore } from '../../stores/config';
+import { useThemeStore } from '../../stores/theme';
+import './studio/i18n';
+import SIcon from './studio/SIcon.vue';
+import ToastHost from './studio/ToastHost.vue';
+import { refreshCounts, studio, themeTransition } from './studio/state';
+import '@fontsource/noto-serif-sc/400.css';
+import '@fontsource/noto-serif-sc/600.css';
 
+/**
+ * 桌面后台外壳 · Studio：浮动纸面侧栏 + 主区大纸面。
+ * 写文章（admin-write-post）进入沉浸模式：侧栏退场、纸面铺满。
+ */
 const { t } = useI18n();
+const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
-const drawerOpen = ref(false);
+const config = useConfigStore();
+const theme = useThemeStore();
 
-const menu = [
-  { to: '/admin/posts', key: 'admin.menuPosts' },
-  { to: '/admin/notes', key: 'admin.menuNotes' },
-  { to: '/admin/media', key: 'admin.menuMedia' },
-  { to: '/admin/about', key: 'admin.menuAbout' },
-  { to: '/admin/apikeys', key: 'admin.menuApi' },
-  { to: '/admin/data', key: 'admin.menuData' },
-  { to: '/admin/quality', key: 'admin.menuQuality' },
-  { to: '/admin/settings', key: 'admin.menuSettings' },
+interface NavItem {
+  name: string;
+  icon: string;
+  key: string;
+  count?: () => number;
+  hot?: boolean;
+}
+
+const GROUPS: { label?: string; items: NavItem[] }[] = [
+  {
+    items: [
+      { name: 'admin-today', icon: 'sun', key: 'today' },
+      { name: 'admin-posts', icon: 'doc', key: 'posts', count: () => studio.posts },
+      { name: 'admin-notes', icon: 'feather', key: 'notes', count: () => studio.notes },
+      { name: 'admin-media', icon: 'image', key: 'media' },
+      { name: 'admin-about', icon: 'user', key: 'about' },
+    ],
+  },
+  {
+    label: 'site',
+    items: [
+      { name: 'admin-appearance', icon: 'palette', key: 'appearance' },
+      { name: 'admin-settings', icon: 'settings', key: 'settings' },
+      { name: 'admin-apikeys', icon: 'key', key: 'apikeys' },
+      { name: 'admin-data', icon: 'archive', key: 'data' },
+    ],
+  },
+  {
+    label: 'readers',
+    items: [
+      { name: 'admin-comments', icon: 'message', key: 'comments' },
+      { name: 'admin-users', icon: 'users', key: 'users' },
+    ],
+  },
 ];
+
+/** 写作页归属到对应列表高亮 */
+const ALIAS: Record<string, string> = {
+  'admin-write-post': 'admin-posts',
+  'admin-write-note': 'admin-notes',
+};
+const active = computed(() => {
+  const n = String(route.name ?? '');
+  return ALIAS[n] ?? n;
+});
+const immersive = computed(() => route.name === 'admin-write-post');
+
+/* ===== 侧栏滑动指示块 ===== */
+const navEl = ref<HTMLElement | null>(null);
+const ind = ref({ y: 0, h: 38, show: false });
+
+function moveInd(): void {
+  const a = navEl.value?.querySelector<HTMLElement>(`a[data-name="${active.value}"]`);
+  if (!a) {
+    ind.value.show = false;
+    return;
+  }
+  ind.value = { y: a.offsetTop, h: a.offsetHeight, show: true };
+}
+watch(active, () => void nextTick(moveInd));
+
+/* ===== 主题：深浅 + 色盘（View Transition 圆形扩散） ===== */
+const palettes = computed(() =>
+  theme.allPalettes.map((p) => ({ id: p.id, color: p.light.primary, name: p.nameKey })),
+);
+
+function setMode(mode: 'light' | 'dark', e: MouseEvent): void {
+  if (theme.mode === mode) return;
+  themeTransition(e, () => theme.setMode(mode));
+}
+
+function setPalette(id: string, e: MouseEvent): void {
+  if (theme.paletteId === id) return;
+  themeTransition(e, () => theme.setPalette(id, true));
+}
+
+/* ===== 账号 ===== */
+const displayName = computed(() => config.cfg.about?.name || 'Myself');
+const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
 
 function logout(): void {
   auth.logout();
   void router.push('/admin/login');
 }
+
+/* ===== 滚动容器：换页回到顶部 ===== */
+const scroller = ref<HTMLElement | null>(null);
+function resetScroll(): void {
+  if (scroller.value) scroller.value.scrollTop = 0;
+}
+
+/* 键盘：N 写随想（不在输入状态时） */
+function onKey(e: KeyboardEvent): void {
+  const el = document.activeElement as HTMLElement | null;
+  const typing = !!el && (/INPUT|TEXTAREA|SELECT/.test(el.tagName) || el.isContentEditable);
+  if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'n' && !immersive.value) {
+    e.preventDefault();
+    if (route.name === 'admin-today') window.dispatchEvent(new CustomEvent('studio:compose'));
+    else void router.push({ name: 'admin-write-note' });
+  }
+}
+
+onMounted(() => {
+  document.documentElement.dataset.studio = '';
+  void refreshCounts();
+  void nextTick(moveInd);
+  void document.fonts?.ready.then(moveInd);
+  window.addEventListener('resize', moveInd);
+  window.addEventListener('keydown', onKey);
+});
+
+onBeforeUnmount(() => {
+  delete document.documentElement.dataset.studio;
+  window.removeEventListener('resize', moveInd);
+  window.removeEventListener('keydown', onKey);
+});
 </script>
 
 <template>
-  <div class="admin">
-    <!-- 移动端顶栏 -->
-    <header class="m-top">
-      <router-link to="/" class="brand">
+  <div class="studio app" :class="{ immersive }">
+    <aside class="side" :aria-hidden="immersive">
+      <router-link :to="{ name: 'admin-today' }" class="brand">
         <img src="/favicon-64.png" alt="" draggable="false" />
-        <span>Myself</span>
-      </router-link>
-      <button
-        class="hamburger"
-        :class="{ open: drawerOpen }"
-        aria-label="菜单"
-        @click="drawerOpen = !drawerOpen"
-      >
-        <span /><span /><span />
-      </button>
-    </header>
-
-    <!-- 移动端抽屉 -->
-    <transition name="drawer">
-      <aside v-if="drawerOpen" class="m-drawer">
-        <nav class="menu">
-          <router-link
-            v-for="m in menu"
-            :key="m.to"
-            :to="m.to"
-            class="menu-item"
-            active-class="on"
-            @click="drawerOpen = false"
-          >{{ t(m.key) }}</router-link>
-        </nav>
-        <div class="side-foot">
-          <ThemeSwitcher />
-          <button class="logout" @click="logout">{{ t('admin.logout') }}</button>
+        <div>
+          <b>{{ config.cfg.site.title || 'Myself' }}</b>
+          <small>{{ t('studio.brandSub') }}</small>
         </div>
-      </aside>
-    </transition>
-    <transition name="fade">
-      <div v-if="drawerOpen" class="m-mask" @click="drawerOpen = false" />
-    </transition>
-
-    <aside class="side">
-      <router-link to="/" class="brand">
-        <img src="/favicon-64.png" alt="" draggable="false" />
-        <span>Myself</span>
       </router-link>
 
-      <nav class="menu">
-        <router-link
-          v-for="m in menu"
-          :key="m.to"
-          :to="m.to"
-          class="menu-item"
-          active-class="on"
-        >{{ t(m.key) }}</router-link>
+      <router-link :to="{ name: 'admin-write-post' }" class="st-btn p write-btn">
+        <SIcon name="pen" :size="16" />{{ t('studio.nav.write') }}
+      </router-link>
+
+      <nav ref="navEl" class="nav">
+        <div class="nav-ind" :class="{ show: ind.show }" :style="{ transform: `translateY(${ind.y}px)`, height: `${ind.h}px` }" />
+        <template v-for="(g, gi) in GROUPS" :key="gi">
+          <div v-if="g.label" class="nav-label">{{ t(`studio.nav.${g.label}`) }}</div>
+          <router-link
+            v-for="item in g.items"
+            :key="item.name"
+            :to="{ name: item.name }"
+            :data-name="item.name"
+            :class="{ on: active === item.name }"
+          >
+            <SIcon :name="item.icon" />
+            <span>{{ t(`studio.nav.${item.key}`) }}</span>
+            <span v-if="item.count && item.count()" class="cnt mono">{{ item.count() }}</span>
+          </router-link>
+        </template>
       </nav>
 
       <div class="side-foot">
-        <ThemeSwitcher />
-        <button class="logout" @click="logout">{{ t('admin.logout') }}</button>
+        <div class="me">
+          <span class="avatar"><img :src="avatar" alt="" /></span>
+          <div class="who">
+            <b>{{ displayName }}</b>
+            <small>{{ t('studio.role') }}</small>
+          </div>
+          <a class="ext" href="/" target="_blank" rel="noopener" :title="t('studio.viewSite')">
+            <SIcon name="external" :size="16" />
+          </a>
+          <button type="button" class="ext" :title="t('studio.logout')" @click="logout">
+            <SIcon name="logout" :size="16" />
+          </button>
+        </div>
+        <div class="theme-row">
+          <div class="mode-tg" :class="{ dark: theme.mode === 'dark' }">
+            <span class="k" />
+            <button type="button" :class="{ on: theme.mode === 'light' }" :title="t('studio.light')" @click="setMode('light', $event)">
+              <SIcon name="sun" :size="16" />
+            </button>
+            <button type="button" :class="{ on: theme.mode === 'dark' }" :title="t('studio.dark')" @click="setMode('dark', $event)">
+              <SIcon name="moon" :size="16" />
+            </button>
+          </div>
+          <div class="seasons">
+            <button
+              v-for="p in palettes.slice(0, 5)"
+              :key="p.id"
+              type="button"
+              :class="{ on: theme.paletteId === p.id }"
+              :style="{ '--c': p.color }"
+              :title="p.name"
+              @click="setPalette(p.id, $event)"
+            ><i /></button>
+          </div>
+        </div>
       </div>
     </aside>
 
-    <main class="content">
-      <router-view v-slot="{ Component }">
-        <transition name="page" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
+    <main class="paper" :data-view="String(route.name ?? '')">
+      <div class="today-glow" :class="{ on: route.name === 'admin-today' }" />
+      <div ref="scroller" class="scroll">
+        <router-view v-slot="{ Component, route: r }">
+          <transition name="st-view" mode="out-in" @before-enter="resetScroll">
+            <component :is="Component" :key="String(r.name)" />
+          </transition>
+        </router-view>
+      </div>
     </main>
+
+    <ToastHost />
   </div>
 </template>
 
 <style scoped lang="scss">
-.admin {
+.app {
   display: grid;
-  grid-template-columns: 220px 1fr;
-  min-height: 100vh;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--desk-glow), var(--desk);
+  font-size: 15px;
+  line-height: 1.6;
+  transition:
+    grid-template-columns var(--dur-slow) var(--ease-out),
+    gap var(--dur-slow) var(--ease-out),
+    padding var(--dur-slow) var(--ease-out),
+    background-color var(--dur-slow) var(--ease-out);
+
+  &.immersive {
+    grid-template-columns: 0 minmax(0, 1fr);
+    gap: 0;
+    padding: 0;
+
+    .side {
+      opacity: 0;
+      transform: translateX(-24px) scale(0.98);
+      pointer-events: none;
+    }
+
+    .paper { border-radius: 0; box-shadow: none; }
+  }
 }
 
+/* ---------- 侧栏 ---------- */
 .side {
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  position: relative;
   display: flex;
   flex-direction: column;
-  padding: 22px 16px;
-  background:
-    radial-gradient(400px 200px at 0% 0%, rgba(var(--primary-rgb), 0.07), transparent 70%),
-    var(--surface);
-  border-right: 1px solid var(--border);
+  min-width: 0;
+  min-height: 0;
+  border-radius: var(--r);
+  background: var(--side);
+  box-shadow: var(--sh-side);
+  backdrop-filter: blur(20px) saturate(1.2);
+  padding: 18px 12px 12px;
+  overflow: hidden;
+  transition: opacity var(--dur) var(--ease-out), transform var(--dur-slow) var(--ease-out);
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px;
-  margin-bottom: 26px;
+  padding: 2px 8px 18px;
 
-  img { width: 30px; height: 30px; }
+  img {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px -4px rgba(10, 20, 40, 0.5);
+  }
 
-  span {
-    font-family: var(--font-serif);
-    font-weight: 700;
-    font-size: 18px;
+  b {
+    display: block;
+    font: 700 17px/1 var(--font-serif);
+    letter-spacing: 0.02em;
+  }
+
+  small {
+    display: block;
+    font-size: 11.5px;
+    color: var(--ink-3);
+    margin-top: 4px;
+    letter-spacing: 0.08em;
   }
 }
 
-.menu {
+.write-btn {
+  width: 100%;
+  height: 40px;
+  margin-bottom: 18px;
+  flex: none;
+}
+
+.nav {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  overflow: auto;
   flex: 1;
+  min-height: 0;
+  margin: 0 -4px;
+  padding: 0 4px;
+
+  a {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 11px;
+    color: var(--ink-2);
+    font-size: 14px;
+    flex: none;
+    transition: color var(--dur-fast), background var(--dur-fast);
+
+    .st-ic {
+      color: var(--ink-3);
+      transition: color var(--dur-fast), transform var(--dur) var(--ease-spring);
+    }
+
+    &:hover { color: var(--ink); }
+    &:hover:not(.on) { background: var(--hover); }
+    &:hover .st-ic { transform: translateY(-1px); }
+
+    &.on {
+      color: var(--ink);
+      font-weight: 500;
+
+      .st-ic { color: var(--primary-ink); }
+    }
+  }
+
+  .cnt {
+    margin-left: auto;
+    font-size: 11.5px;
+    color: var(--ink-3);
+    min-width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    padding: 0 6px;
+  }
 }
 
-.menu-item {
-  position: relative;
-  padding: 11px 14px 11px 18px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-2);
-  transition: all var(--dur-fast);
+.nav-ind {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 0;
+  border-radius: 11px;
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--line), 0 4px 12px -6px color-mix(in oklab, var(--tint) 34%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: transform var(--dur) var(--ease-spring), height var(--dur) var(--ease-spring), opacity var(--dur-fast);
 
-  /* 左缘主色指示条 */
-  &::before {
-    content: '';
-    position: absolute;
-    left: 6px;
-    top: 50%;
-    transform: translateY(-50%) scaleY(0);
-    width: 3px;
-    height: 18px;
-    border-radius: 3px;
-    background: linear-gradient(180deg, var(--primary), var(--primary-deep));
-    transition: transform var(--dur-fast) var(--ease-out);
-  }
+  &.show { opacity: 1; }
+}
 
-  &:hover { background: var(--surface-2); color: var(--text); transform: translateX(2px); }
+:root[data-mode='dark'] .nav-ind { background: var(--well-2); box-shadow: 0 0 0 1px var(--line-2); }
 
-  &.on {
-    background: rgba(var(--primary-rgb), 0.1);
-    color: var(--primary);
-
-    &::before { transform: translateY(-50%) scaleY(1); }
-  }
+.nav-label {
+  font-size: 11.5px;
+  color: var(--ink-4);
+  letter-spacing: 0.14em;
+  padding: 18px 12px 6px;
+  font-weight: 500;
+  flex: none;
 }
 
 .side-foot {
+  border-top: 1px solid var(--line);
+  margin: 10px -12px 0;
+  padding: 12px 12px 0;
+  flex: none;
+}
+
+.me {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: stretch;
-
-  :deep(.switcher) { justify-content: center; }
-}
-
-.logout {
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: none;
-  color: var(--text-2);
-  font-size: 13px;
-  font-weight: 600;
-  transition: all var(--dur-fast);
-
-  &:hover { border-color: var(--accent-red); color: var(--accent-red); }
-}
-
-.content {
-  padding: 34px 38px;
-  min-width: 0;
-}
-
-/* 移动端顶栏 + 抽屉（默认隐藏） */
-.m-top {
-  display: none;
-  position: sticky;
-  top: 0;
-  z-index: 90;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  background: var(--glass);
-  backdrop-filter: blur(14px) saturate(1.4);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  padding: 6px 4px 10px 6px;
 
-  .brand { margin-bottom: 0; padding: 0; }
-}
+  .who { min-width: 0; flex: 1; }
 
-.hamburger {
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 5px;
-
-  span {
+  b {
     display: block;
-    width: 20px;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--text);
-    transition: transform var(--dur) var(--ease-spring), opacity var(--dur-fast);
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  &.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-  &.open span:nth-child(2) { opacity: 0; }
-  &.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  small { font-size: 12px; color: var(--ink-3); }
 }
 
-.m-drawer {
-  display: none;
-  position: fixed;
-  top: 0;
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex: none;
+  overflow: hidden;
+  background: linear-gradient(140deg, #1b2a4a, #0b1220);
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--line-2);
+
+  img { width: 100%; height: 100%; object-fit: cover; display: block; }
+}
+
+.ext {
+  color: var(--ink-3);
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  flex: none;
+  transition: all var(--dur-fast);
+
+  &:hover { background: var(--hover); color: var(--ink); }
+}
+
+.theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 2px;
+}
+
+.mode-tg {
+  position: relative;
+  display: flex;
+  background: var(--well);
+  border-radius: 10px;
+  padding: 3px;
+  box-shadow: 0 0 0 1px var(--line) inset;
+
+  button {
+    position: relative;
+    z-index: 1;
+    width: 30px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    color: var(--ink-3);
+    border-radius: 8px;
+    transition: color var(--dur);
+
+    &.on { color: var(--ink); }
+  }
+
+  .k {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 30px;
+    height: 26px;
+    border-radius: 8px;
+    background: var(--paper);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--line);
+    transition: transform var(--dur) var(--ease-spring);
+  }
+
+  &.dark .k {
+    transform: translateX(30px);
+    background: var(--well-2);
+  }
+}
+
+.seasons {
+  display: flex;
+  gap: 2px;
+
+  button {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    position: relative;
+
+    i {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--c);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08) inset;
+      transition: transform var(--dur) var(--ease-spring);
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border-radius: 50%;
+      box-shadow: 0 0 0 1.5px var(--c);
+      opacity: 0;
+      transform: scale(0.6);
+      transition: all var(--dur) var(--ease-spring);
+    }
+
+    &:hover i { transform: scale(1.12); }
+
+    &.on {
+      &::after { opacity: 1; transform: scale(1); }
+      i { transform: scale(0.72); }
+    }
+  }
+}
+
+/* ---------- 纸面 ---------- */
+.paper {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border-radius: var(--r);
+  background: var(--paper);
+  box-shadow: var(--sh-paper);
+  overflow: hidden;
+  transition:
+    background-color var(--dur-slow) var(--ease-out),
+    border-radius var(--dur-slow) var(--ease-out),
+    box-shadow var(--dur-slow) var(--ease-out);
+}
+
+.scroll {
+  position: relative;
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* 「今天」右上角的窗光 */
+.today-glow {
+  position: absolute;
   right: 0;
-  bottom: 0;
-  width: min(78vw, 300px);
-  z-index: 99;
-  background: var(--surface);
-  border-left: 1px solid var(--border);
-  padding: 74px 18px 20px;
-  flex-direction: column;
-  gap: 20px;
+  top: 0;
+  width: 520px;
+  height: 420px;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 60% at 90% 0%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 70%),
+    radial-gradient(40% 40% at 100% 10%, color-mix(in oklab, var(--yellow) 12%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity var(--dur-slow);
+
+  &.on { opacity: 1; }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(118deg, transparent 0 44px, color-mix(in oklab, var(--yellow) 16%, transparent) 44px 78px);
+    mask: radial-gradient(75% 80% at 100% 0, #000, transparent 72%);
+    filter: blur(5px);
+  }
 }
 
-.m-mask {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 95;
-  background: rgba(0, 0, 0, 0.4);
-}
+:root[data-mode='dark'] .today-glow::after { opacity: 0.45; }
 
-.drawer-enter-active, .drawer-leave-active { transition: transform var(--dur) var(--ease-out); }
-.drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }
-.fade-enter-active, .fade-leave-active { transition: opacity var(--dur-fast); }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+/* ---------- 页面过渡：淡入 + 轻微上移 ---------- */
+.st-view-enter-active { animation: view-in var(--dur-slow) var(--ease-out) both; }
+.st-view-leave-active { animation: view-out 0.18s ease-in both; }
+
+@keyframes view-in { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } }
+@keyframes view-out { to { opacity: 0; transform: translateY(-6px); filter: blur(3px); } }
 
 @media (max-width: 860px) {
-  .admin { grid-template-columns: 1fr; }
-
+  .app { grid-template-columns: 1fr; }
   .side { display: none; }
-  .m-top { display: flex; }
-  .m-drawer { display: flex; }
-  .m-mask { display: block; }
-
-  .m-drawer .menu { flex: 1; }
-  .m-drawer .side-foot { align-items: stretch; }
-
-  .content { padding: 18px 14px 40px; }
 }
 </style>

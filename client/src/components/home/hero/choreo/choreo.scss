@@ -1,0 +1,217 @@
+/*
+ * Hero 编舞的光效层与临时元素（由编舞在运行时创建，非 scoped）。
+ * 全部默认透明，静止态不可见；前缀 hc- 避免与站点样式冲突。
+ */
+
+/* ===== 常驻光效层（HeroCarousel 内，z 与卡片 / 文字交错） ===== */
+.hero-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  > * {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* 溢光：在卡片之后（z 8 < 卡片 10+），从门缝向外扩散 */
+.hc-flare {
+  z-index: 8;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--primary) 55%, #fff 20%),
+    color-mix(in srgb, var(--primary) 18%, transparent) 55%,
+    transparent
+  );
+  filter: blur(10px);
+}
+
+/* 地面光扇：在文字之下（z 4 < 文字 5） */
+.hc-floor {
+  z-index: 4;
+  background: linear-gradient(
+    196deg,
+    rgba(235, 244, 255, 0.62) 0%,
+    color-mix(in srgb, var(--primary) 26%, transparent) 42%,
+    transparent 78%
+  );
+  clip-path: polygon(80% 0, 100% 0, 58% 100%, 0 100%);
+  filter: blur(10px);
+  transform-origin: 90% 0;
+}
+
+:root[data-mode='light'] .hc-floor {
+  background: linear-gradient(
+    196deg,
+    color-mix(in srgb, var(--primary) 40%, #fff) 0%,
+    color-mix(in srgb, var(--primary) 18%, transparent) 42%,
+    transparent 78%
+  );
+}
+
+/* 推拉暗角：压在一切之上 */
+.hc-vig {
+  z-index: 59;
+  inset: -2px;
+  border-radius: 24px;
+  background: radial-gradient(75% 75% at 60% 50%, transparent 40%, rgba(2, 5, 12, 0.72) 100%);
+}
+
+:root[data-mode='light'] .hc-vig {
+  background: radial-gradient(75% 75% at 60% 50%, transparent 40%, rgba(40, 60, 100, 0.22) 100%);
+}
+
+/* ===== 文字：行内扫光 / 发丝基线 ===== */
+.hc-glint-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hc-glint {
+  position: absolute;
+  top: 10%;
+  bottom: 8%;
+  left: 0;
+  width: 64px;
+  background: linear-gradient(
+    90deg,
+    transparent 20%,
+    color-mix(in srgb, var(--primary) 38%, transparent) 44%,
+    rgba(255, 255, 255, 0.7) 50%,
+    color-mix(in srgb, var(--primary) 38%, transparent) 56%,
+    transparent 80%
+  );
+  mix-blend-mode: screen;
+  filter: blur(2px);
+}
+
+:root[data-mode='light'] .hc-glint {
+  mix-blend-mode: multiply;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--primary) 35%, transparent) 42%,
+    var(--primary) 50%,
+    color-mix(in srgb, var(--primary) 35%, transparent) 58%,
+    transparent
+  );
+}
+
+.hc-baseline {
+  position: absolute;
+  height: 2px;
+  bottom: 0.1em;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 20%, transparent));
+  pointer-events: none;
+}
+
+/* ===== 卡片：光缝 ===== */
+.hc-slit-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  z-index: 3;
+}
+
+.hc-slit-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -1px;
+  width: 2px;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow:
+    0 0 10px 2px color-mix(in srgb, var(--primary) 80%, #fff),
+    0 0 36px 10px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+/* ===== 卡片：向外开的门扇（厚度 = 自由边侧面，背面暗化） ===== */
+.hc-leaf {
+  --leaf-t: 9px;
+  --leaf-r: var(--radius-lg, 18px);
+
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  z-index: 2;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.hc-leaf-l { left: 0; transform-origin: 0% 50%; }
+.hc-leaf-r { right: 0; transform-origin: 100% 50%; }
+
+.hc-leaf-face,
+.hc-leaf-back {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+}
+
+.hc-leaf-face { background: #050a14; }
+.hc-leaf-l .hc-leaf-face { border-radius: var(--leaf-r) 0 0 var(--leaf-r); }
+.hc-leaf-r .hc-leaf-face { border-radius: 0 var(--leaf-r) var(--leaf-r) 0; }
+
+/* 半幅画面：图层宽 200%，左扇取左半、右扇取右半 */
+.hc-leaf-pic {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 200%;
+}
+
+.hc-leaf-l .hc-leaf-pic { left: 0; }
+.hc-leaf-r .hc-leaf-pic { right: 0; }
+
+/* 转离光源时的明暗：靠门轴一侧更暗 */
+.hc-leaf-shade {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.hc-leaf-l .hc-leaf-shade { background: linear-gradient(90deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.35)); }
+.hc-leaf-r .hc-leaf-shade { background: linear-gradient(270deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.35)); }
+
+/* 自由边侧面：垂直于门扇、向后延伸 --leaf-t，门朝观者转出时显露 */
+.hc-leaf-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--leaf-t);
+  background: linear-gradient(180deg, #3a4660, #1a2233 55%, #0e1420);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.hc-leaf-l .hc-leaf-edge { left: 100%; transform-origin: 0% 50%; transform: rotateY(90deg); }
+.hc-leaf-r .hc-leaf-edge { right: 100%; transform-origin: 100% 50%; transform: rotateY(-90deg); }
+
+/* 背面：位于厚度之后，转过 90° 后可见，整体发暗 */
+.hc-leaf-back {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 30%),
+    linear-gradient(90deg, #1c2436, #0b101a);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.hc-leaf-l .hc-leaf-back {
+  transform: translateZ(calc(var(--leaf-t) * -1)) rotateY(180deg);
+  border-radius: 0 var(--leaf-r) var(--leaf-r) 0;
+}
+
+.hc-leaf-r .hc-leaf-back {
+  transform: translateZ(calc(var(--leaf-t) * -1)) rotateY(180deg);
+  border-radius: var(--leaf-r) 0 0 var(--leaf-r);
+}

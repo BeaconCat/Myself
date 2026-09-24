@@ -1,225 +1,318 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, type BackupInfo } from '../../api';
 import { useDialogStore } from '../../stores/dialog';
+import './studio/i18n';
+import SIcon from './studio/SIcon.vue';
+import StSeg from './studio/StSeg.vue';
+import StSwitch from './studio/StSwitch.vue';
+import { saveBlob } from './studio/state';
+import { toast } from './studio/toast';
+import { dateTimeText, formatSize, relTime } from './studio/format';
 
+/** 数据备份：立即备份（进度环）、备份记录（下载 / 删除）、自动备份间隔；导入导出为预留界面 */
 const { t } = useI18n();
+const dialog = useDialogStore();
 
 const backups = ref<BackupInfo[]>([]);
-const busy = ref(false);
+const loaded = ref(false);
+const running = ref(false);
+const progress = ref(0);
+const fresh = ref('');
 const autoHours = ref(0);
-const savedMsg = ref('');
+let timer = 0;
+
+const latest = computed(() => backups.value[0] ?? null);
 
 async function load(): Promise<void> {
-  backups.value = await adminApi.backups();
-  const cfg = await adminApi.settings() as { backup?: { autoHours?: number } };
-  autoHours.value = Number(cfg.backup?.autoHours) || 0;
+  try {
+    const [list, cfg] = await Promise.all([adminApi.backups(), adminApi.settings()]);
+    backups.value = [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    autoHours.value = Number((cfg as { backup?: { autoHours?: number } }).backup?.autoHours) || 0;
+  } catch {
+    toast(t('studio.loadFailed'), { icon: 'x' });
+  }
+  loaded.value = true;
 }
 
-async function create(): Promise<void> {
-  if (busy.value) return;
-  busy.value = true;
+/** 请求期间进度环缓慢逼近 90%，响应后补满 */
+async function backupNow(): Promise<void> {
+  if (running.value) return;
+  running.value = true;
+  progress.value = 0;
+  timer = window.setInterval(() => {
+    progress.value = Math.min(90, progress.value + Math.max(1, (90 - progress.value) * 0.08));
+  }, 120);
   try {
-    await adminApi.createBackup();
+    const { name } = await adminApi.createBackup();
+    window.clearInterval(timer);
+    progress.value = 100;
     await load();
+    fresh.value = name;
+    toast(t('studio.data.done'), { action: t('studio.data.download'), fn: () => void download(name) });
+  } catch {
+    toast(t('studio.data.failed'), { icon: 'x' });
   } finally {
-    busy.value = false;
+    window.clearInterval(timer);
+    window.setTimeout(() => (running.value = false), 400);
   }
 }
 
-async function download(backup: BackupInfo): Promise<void> {
-  const blob = await adminApi.downloadBackup(backup.name);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = backup.name;
-  a.click();
-  URL.revokeObjectURL(url);
+async function download(name: string): Promise<void> {
+  try {
+    saveBlob(await adminApi.downloadBackup(name), name);
+  } catch {
+    toast(t('studio.loadFailed'), { icon: 'x' });
+  }
 }
 
-async function remove(backup: BackupInfo): Promise<void> {
-  const ok = await useDialogStore().confirm({
-    title: t('admin.delete'),
-    message: t('admin.confirmDeleteBackup', { name: backup.name }),
+async function remove(b: BackupInfo): Promise<void> {
+  const ok = await dialog.confirm({
+    title: t('studio.data.deleteTitle'),
+    message: t('studio.data.deleteBody', { name: b.name }),
+    confirmText: t('studio.delete'),
     danger: true,
   });
   if (!ok) return;
-  await adminApi.deleteBackup(backup.name);
-  await load();
+  try {
+    await adminApi.deleteBackup(b.name);
+    backups.value = backups.value.filter((x) => x.name !== b.name);
+    toast(t('studio.deleted'), { icon: 'trash' });
+  } catch {
+    toast(t('studio.saveFailed'), { icon: 'x' });
+  }
 }
 
-async function saveAuto(): Promise<void> {
-  await adminApi.saveSettings({ backup: { autoHours: Math.max(0, autoHours.value) } });
-  savedMsg.value = t('admin.saved');
-  window.setTimeout(() => { savedMsg.value = ''; }, 2000);
+/* ===== 自动备份 ===== */
+const PRESETS = [6, 12, 24, 168];
+const autoOn = computed({
+  get: () => autoHours.value > 0,
+  set: (v: boolean) => void saveAuto(v ? 24 : 0),
+});
+const freq = computed({
+  get: () => (PRESETS.includes(autoHours.value) ? autoHours.value : 0),
+  set: (v: number) => void saveAuto(v),
+});
+
+async function saveAuto(h: number): Promise<void> {
+  const prev = autoHours.value;
+  autoHours.value = Math.max(0, h);
+  try {
+    await adminApi.saveSettings({ backup: { autoHours: autoHours.value } });
+    toast(autoHours.value ? t('studio.data.autoOn', { h: autoLabel(autoHours.value) }) : t('studio.data.autoOff'), { icon: 'clock' });
+  } catch {
+    autoHours.value = prev;
+    toast(t('studio.saveFailed'), { icon: 'x' });
+  }
 }
 
-function formatSize(bytes: number): string {
-  if (bytes > 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${Math.round(bytes / 1024)} KB`;
+function autoLabel(h: number): string {
+  if (h === 24) return t('studio.data.daily');
+  if (h === 168) return t('studio.data.weekly');
+  return t('studio.data.everyH', { n: h });
 }
 
 onMounted(load);
+onBeforeUnmount(() => window.clearInterval(timer));
 </script>
 
 <template>
-  <div>
-    <header class="head">
+  <section class="studio view">
+    <div class="st-vh">
       <div>
-        <h1 class="page-h">{{ t('admin.menuData') }}</h1>
-        <p class="hint">{{ t('admin.dataHint') }}</p>
+        <h1>{{ t('studio.data.title') }}</h1>
+        <p>{{ t('studio.data.desc') }}</p>
       </div>
-      <button class="btn primary" :disabled="busy" @click="create">
-        {{ busy ? t('admin.backingUp') : t('admin.backupNow') }}
-      </button>
-    </header>
-
-    <!-- 自动备份 -->
-    <div class="auto-card">
-      <label>
-        <span>{{ t('admin.autoBackup') }}</span>
-        <input v-model.number="autoHours" type="number" min="0" step="1" />
-      </label>
-      <button class="btn ghost" @click="saveAuto">{{ t('admin.save') }}</button>
-      <span v-if="savedMsg" class="msg">{{ savedMsg }}</span>
     </div>
 
-    <!-- 备份列表 -->
-    <table class="table">
-      <thead>
-        <tr>
-          <th>{{ t('admin.backupFile') }}</th>
-          <th>{{ t('admin.size') }}</th>
-          <th>{{ t('admin.colDate') }}</th>
-          <th />
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="backup in backups" :key="backup.name">
-          <td><code>{{ backup.name }}</code></td>
-          <td>{{ formatSize(backup.size) }}</td>
-          <td>{{ backup.createdAt.slice(0, 19).replace('T', ' ') }}</td>
-          <td class="ops">
-            <button class="op" @click="download(backup)">{{ t('admin.download') }}</button>
-            <button class="op danger" @click="remove(backup)">{{ t('admin.delete') }}</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="bk-hero st-rise">
+      <div class="ring" :style="{ '--p': running ? progress : latest ? 100 : 0 }">
+        <span v-if="running" class="mono">{{ Math.round(progress) }}%</span>
+        <SIcon v-else :name="latest ? 'check' : 'archive'" :size="30" />
+      </div>
+      <div>
+        <h2>{{ running ? t('studio.data.running') : latest ? t('studio.data.last', { when: relTime(latest.createdAt) }) : t('studio.data.none') }}</h2>
+        <p v-if="latest && !running" class="mono">{{ dateTimeText(latest.createdAt) }} · {{ formatSize(latest.size) }} · {{ autoHours ? t('studio.data.autoEvery', { h: autoLabel(autoHours) }) : t('studio.data.manualOnly') }}</p>
+        <p v-else-if="running">{{ t('studio.data.runningSub') }}</p>
+        <p v-else>{{ t('studio.data.noneSub') }}</p>
+      </div>
+      <button type="button" class="st-btn p lg" :disabled="running" @click="backupNow"><SIcon name="archive" :size="16" />{{ t('studio.data.now') }}</button>
+    </div>
 
-    <p v-if="!backups.length" class="empty">{{ t('admin.noBackups') }}</p>
-  </div>
+    <div class="bk-grid">
+      <div>
+        <div class="st-sec-t"><h2>{{ t('studio.data.records') }}</h2><span>{{ t('studio.data.recordsN', { n: backups.length }) }}</span></div>
+        <p v-if="loaded && !backups.length" class="empty">{{ t('studio.data.empty') }}</p>
+        <div class="bk-list">
+          <div v-for="(b, i) in backups" :key="b.name" class="r st-rise" :class="{ fresh: fresh === b.name }" :style="{ '--i': Math.min(i, 8) }">
+            <span class="fi"><SIcon name="archive" /></span>
+            <div class="nm"><b class="mono">{{ b.name }}</b><small>{{ dateTimeText(b.createdAt) }}</small></div>
+            <span class="num">{{ formatSize(b.size) }}</span>
+            <span class="ops">
+              <button type="button" class="st-ibtn" :title="t('studio.data.download')" @click="download(b.name)"><SIcon name="download" :size="16" /></button>
+              <button type="button" class="st-ibtn" :title="t('studio.delete')" @click="remove(b)"><SIcon name="trash" :size="16" /></button>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="st-sec-t"><h2>{{ t('studio.data.auto') }}</h2></div>
+        <div class="st-opt">
+          <div>{{ t('studio.data.autoSwitch') }}<small>{{ t('studio.data.autoSwitchSub') }}</small></div>
+          <StSwitch v-model="autoOn" />
+        </div>
+        <div class="st-opt" :class="{ dim: !autoOn }">
+          <div>{{ t('studio.data.freq') }}</div>
+          <StSeg
+            v-model="freq"
+            :options="[
+              { value: 6, label: '6h' },
+              { value: 12, label: '12h' },
+              { value: 24, label: t('studio.data.daily') },
+              { value: 168, label: t('studio.data.weekly') },
+            ]"
+          />
+        </div>
+        <div class="contents">
+          <div class="st-flabel">{{ t('studio.data.contains') }}</div>
+          <p><SIcon name="check" :size="14" />{{ t('studio.data.cDb') }}</p>
+          <p><SIcon name="check" :size="14" />{{ t('studio.data.cUploads') }}</p>
+          <p><SIcon name="check" :size="14" />{{ t('studio.data.cConfig') }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 迁移（预留） -->
+    <div class="migrate">
+      <div class="st-sec-t"><h2>{{ t('studio.data.migrate') }}</h2></div>
+      <div class="st-note-bar"><SIcon name="info" />{{ t('studio.data.migrateNote') }}</div>
+      <div class="mg">
+        <div class="mc">
+          <span class="ic"><SIcon name="upload" :size="20" /></span>
+          <div><b>{{ t('studio.data.restore') }}</b><small>{{ t('studio.data.restoreSub') }}</small></div>
+          <button type="button" class="st-btn g sm st-tip" :data-tip="t('studio.data.soonTip')" disabled>{{ t('studio.data.restoreBtn') }}</button>
+        </div>
+        <div class="mc">
+          <span class="ic"><SIcon name="markdown" :size="20" /></span>
+          <div><b>{{ t('studio.data.export') }}</b><small>{{ t('studio.data.exportSub') }}</small></div>
+          <button type="button" class="st-btn g sm st-tip" :data-tip="t('studio.data.soonTip')" disabled>{{ t('studio.data.exportBtn') }}</button>
+        </div>
+        <div class="mc">
+          <span class="ic"><SIcon name="layers" :size="20" /></span>
+          <div><b>{{ t('studio.data.import') }}</b><small>{{ t('studio.data.importSub') }}</small></div>
+          <button type="button" class="st-btn g sm st-tip" :data-tip="t('studio.data.soonTip')" disabled>{{ t('studio.data.importBtn') }}</button>
+        </div>
+      </div>
+    </div>
+  </section>
 </template>
 
 <style scoped lang="scss">
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 20px;
+.view {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 52px 64px 96px;
 }
 
-.page-h { font-size: 26px; margin-bottom: 6px; }
-.hint { font-size: 13px; color: var(--text-2); }
+.bk-hero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 28px;
+  align-items: center;
+  padding: 28px 30px;
+  border-radius: 20px;
+  background: var(--well);
+  margin-bottom: 44px;
 
-.btn {
-  padding: 10px 24px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  transition: all var(--dur-fast) var(--ease-out);
-
-  &.primary {
-    color: #fff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-    background: linear-gradient(180deg, var(--primary), var(--primary-deep));
-    box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.4);
-
-    &:hover:not(:disabled) { filter: brightness(1.08); }
-    &:disabled { opacity: 0.55; }
-  }
-
-  &.ghost {
-    background: var(--surface);
-    border-color: var(--border);
-    color: var(--text);
-
-    &:hover { border-color: var(--primary); color: var(--primary); }
-  }
+  h2 { font: 600 24px/1.3 var(--font-serif); margin: 0 0 6px; }
+  p { margin: 0; font-size: 13px; color: var(--ink-3); }
 }
 
-.auto-card {
-  display: flex;
-  align-items: flex-end;
+.ring {
+  --p: 0;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  position: relative;
+  color: var(--primary-ink);
+  background: conic-gradient(var(--primary) calc(var(--p) * 1%), var(--well-2) 0);
+
+  &::before { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: var(--well); }
+  > * { position: relative; }
+  .mono { font-size: 15px; font-weight: 500; color: var(--ink); }
+}
+
+.bk-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 48px;
+  margin-bottom: 56px;
+}
+
+.empty { font-size: 13.5px; color: var(--ink-3); }
+
+.bk-list .r {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 90px auto;
   gap: 14px;
-  padding: 16px 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-bottom: 20px;
+  align-items: center;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 12px;
+  transition: background var(--dur-fast);
 
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  &:hover { background: var(--well); }
+  &.fresh { animation: fresh 1.8s var(--ease-out); }
 
-    span { font-size: 12px; font-weight: 600; color: var(--text-2); }
-  }
-
-  input {
-    width: 120px;
-    padding: 9px 12px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    color: var(--text);
-    font-size: 14px;
-    outline: none;
-
-    &:focus { border-color: var(--primary); }
-  }
-
-  .msg { font-size: 13px; color: var(--primary); }
+  .fi { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; background: var(--well); color: var(--ink-2); }
+  .nm { min-width: 0; }
+  b { display: block; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  small { font-size: 12px; color: var(--ink-3); }
+  .num { font: 500 12px var(--font-mono); color: var(--ink-2); text-align: right; }
+  .ops { display: flex; gap: 2px; opacity: 0.55; transition: opacity var(--dur-fast); }
+  &:hover .ops { opacity: 1; }
 }
 
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
+@keyframes fresh { 0% { background: var(--primary-soft-2); } 100% { background: transparent; } }
 
-  th, td {
-    padding: 12px 16px;
-    text-align: left;
-    font-size: 14px;
-    border-bottom: 1px solid var(--border);
-  }
+.dim { opacity: 0.5; pointer-events: none; }
 
-  th { background: var(--surface-2); font-size: 12px; color: var(--text-2); }
-  code { font-family: Consolas, monospace; font-size: 13px; }
+.contents {
+  padding-top: 18px;
+
+  p { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13.5px; color: var(--ink-2); }
+  .st-ic { color: color-mix(in oklab, var(--green) 70%, var(--ink)); }
 }
 
-.ops { text-align: right; white-space: nowrap; }
+.migrate .st-note-bar { margin: 0 0 18px; }
 
-.op {
-  border: none;
-  background: none;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--primary);
-  margin-left: 12px;
-
-  &.danger { color: var(--accent-red); }
-  &:hover { opacity: 0.75; }
+.mg {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
 }
 
-.empty {
-  color: var(--text-2);
-  text-align: center;
-  padding: 48px 0;
+.mc {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 0 0 1px var(--line-2);
+
+  .ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--well); color: var(--ink-2); }
+  b { display: block; font: 600 15px var(--font-serif); margin-bottom: 4px; }
+  small { font-size: 12.5px; color: var(--ink-3); line-height: 1.6; }
+  .st-btn { align-self: flex-start; }
+}
+
+@media (max-width: 1180px) {
+  .view { padding: 40px 36px 80px; }
+  .bk-grid { grid-template-columns: 1fr; }
+  .mg { grid-template-columns: 1fr; }
 }
 </style>

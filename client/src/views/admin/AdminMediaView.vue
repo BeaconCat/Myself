@@ -1,417 +1,362 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { adminApi, type MediaItem } from '../../api';
-import { useDialogStore } from '../../stores/dialog';
+import { adminApi, api, type AdminPost, type MediaItem, type Note } from '../../api';
+import './studio/i18n';
+import SIcon from './studio/SIcon.vue';
+import StSeg from './studio/StSeg.vue';
+import DoorArt from './studio/DoorArt.vue';
+import MediaViewer from './studio/MediaViewer.vue';
+import QualityPanel from './studio/QualityPanel.vue';
+import { toast } from './studio/toast';
+import { formatSize, sizeParts } from './studio/format';
+import type { MediaRef } from './studio/types';
 
+/** 素材：瀑布流 + 拖放上传 + 大图查看/裁切；「图片优化」标签页负责扫描与后台压缩 */
 const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
 
+type Tab = 'library' | 'optimize';
+const tab = ref<Tab>(route.query.tab === 'optimize' ? 'optimize' : 'library');
 const items = ref<MediaItem[]>([]);
+const loaded = ref(false);
 const uploading = ref(false);
+const dragover = ref(false);
+const viewing = ref(-1);
+const compressible = ref<Set<string>>(new Set());
+const compressCount = ref(0);
+const refs = ref<Record<string, MediaRef[]>>({});
+const stamp = ref(Date.now());
 const fileInput = ref<HTMLInputElement | null>(null);
 
 async function load(): Promise<void> {
-  items.value = await adminApi.media();
+  try {
+    items.value = await adminApi.media();
+    stamp.value = Date.now();
+  } catch {
+    toast(t('studio.loadFailed'), { icon: 'x' });
+  }
+  loaded.value = true;
 }
 
-async function onFiles(e: Event): Promise<void> {
-  const input = e.target as HTMLInputElement;
-  if (!input.files?.length) return;
+/** 扫描引用：文章封面 + 随想配图 */
+async function loadRefs(): Promise<void> {
+  const map: Record<string, MediaRef[]> = {};
+  const add = (url: string, r: MediaRef) => (map[url] ??= []).push(r);
+  try {
+    const posts: AdminPost[] = await adminApi.posts();
+    posts.forEach((p) => p.covers.forEach((u) => add(u, { kind: 'post', id: p.id, title: p.title })));
+    const notes: Note[] = [];
+    for (let page = 1; page <= 10; page += 1) {
+      const res = await api.notes({ page, pageSize: 50 });
+      notes.push(...res.items);
+      if (page * 50 >= res.total) break;
+    }
+    notes.forEach((n) => n.images.forEach((u) => add(u, { kind: 'note', id: n.id, title: n.contentMd.slice(0, 28) || t('studio.nav.notes') })));
+  } catch { /* 引用信息缺失不影响素材浏览 */ }
+  refs.value = map;
+}
+
+async function loadQuality(): Promise<void> {
+  try {
+    const q = await adminApi.qualityScan();
+    compressible.value = new Set(q.filter((i) => i.compressible).map((i) => i.name));
+    compressCount.value = compressible.value.size;
+  } catch { /* 忽略 */ }
+}
+
+const stats = computed(() => {
+  const total = items.value.reduce((s, i) => s + i.size, 0);
+  let posts = 0;
+  let notes = 0;
+  for (const it of items.value) {
+    const r = refs.value[it.url] ?? [];
+    if (r.some((x) => x.kind === 'post')) posts += it.size;
+    else if (r.length) notes += it.size;
+  }
+  const other = Math.max(0, total - posts - notes);
+  const pct = (n: number) => (total ? `${(n / total) * 100}%` : '0%');
+  return { total, posts, notes, other, pct };
+});
+
+async function upload(files: File[]): Promise<void> {
+  const list = files.filter((f) => f.type.startsWith('image/'));
+  if (!list.length || uploading.value) return;
   uploading.value = true;
   try {
-    await adminApi.uploadMedia([...input.files]);
-    input.value = '';
+    const res = await adminApi.uploadMedia(list);
+    toast(t('studio.media.uploaded', { n: res.length }), { icon: 'upload' });
     await load();
+    void loadQuality();
+  } catch {
+    toast(t('studio.composer.uploadFailed'), { icon: 'x' });
   } finally {
     uploading.value = false;
   }
 }
 
-async function remove(item: MediaItem): Promise<void> {
-  const ok = await useDialogStore().confirm({
-    title: t('admin.delete'),
-    message: t('admin.confirmDeleteMedia', { name: item.name }),
-    danger: true,
-  });
-  if (!ok) return;
-  await adminApi.deleteMedia(item.name);
-  await load();
+function onPick(e: Event): void {
+  const input = e.target as HTMLInputElement;
+  if (input.files?.length) void upload([...input.files]);
+  input.value = '';
 }
 
-function formatSize(bytes: number): string {
-  if (bytes > 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${Math.round(bytes / 1024)} KB`;
+function onDragOver(e: DragEvent): void {
+  if (tab.value !== 'library' || !e.dataTransfer?.types.includes('Files')) return;
+  e.preventDefault();
+  dragover.value = true;
+}
+function onDragLeave(e: DragEvent): void {
+  if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) dragover.value = false;
+}
+function onDrop(e: DragEvent): void {
+  dragover.value = false;
+  if (!e.dataTransfer?.files.length) return;
+  e.preventDefault();
+  void upload([...e.dataTransfer.files]);
 }
 
-/* ===== 裁切弹窗 ===== */
-const cropping = ref<MediaItem | null>(null);
-const cropImg = ref<HTMLImageElement | null>(null);
-/** 显示坐标系下的框（渲染），提交时换算回原图像素 */
-const box = reactive({ x: 0, y: 0, w: 100, h: 100 });
-const natural = reactive({ w: 1, h: 1 });
-const display = reactive({ w: 1, h: 1 });
-const busyCrop = ref(false);
-
-const boxStyle = computed(() => ({
-  left: `${box.x}px`,
-  top: `${box.y}px`,
-  width: `${box.w}px`,
-  height: `${box.h}px`,
-}));
-
-const originalUrl = ref('');
-
-async function openCrop(item: MediaItem): Promise<void> {
-  let blob: Blob;
-  try {
-    blob = await adminApi.mediaOriginal(item.name);
-  } catch {
-    return;
-  }
-  URL.revokeObjectURL(originalUrl.value);
-  originalUrl.value = URL.createObjectURL(blob);
-  cropping.value = item;
+function onChanged(): void {
+  void load();
+  void loadQuality();
 }
 
-function onCropImgLoad(): void {
-  const el = cropImg.value;
-  const item = cropping.value;
-  if (!el || !item) return;
-  natural.w = el.naturalWidth;
-  natural.h = el.naturalHeight;
-  display.w = el.clientWidth;
-  display.h = el.clientHeight;
-  const scale = display.w / natural.w;
-  if (item.crop) {
-    // 调出上次裁切框
-    box.x = item.crop.left * scale;
-    box.y = item.crop.top * scale;
-    box.w = item.crop.width * scale;
-    box.h = item.crop.height * scale;
-  } else {
-    box.x = display.w * 0.1;
-    box.y = display.h * 0.1;
-    box.w = display.w * 0.8;
-    box.h = display.h * 0.8;
-  }
+function openRef(r: MediaRef): void {
+  viewing.value = -1;
+  if (r.kind === 'post') void router.push({ name: 'admin-write-post', query: { id: String(r.id) } });
+  else void router.push({ name: 'admin-write-note', query: { id: String(r.id) } });
 }
 
-/* 拖动/缩放框 */
-type DragKind = 'move' | 'nw' | 'ne' | 'sw' | 'se';
-let drag: { kind: DragKind; startX: number; startY: number; snapshot: typeof box } | null = null;
-
-function startDrag(e: PointerEvent, kind: DragKind): void {
-  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  drag = { kind, startX: e.clientX, startY: e.clientY, snapshot: { ...box } };
+function setTab(v: Tab): void {
+  tab.value = v;
+  void router.replace({ query: v === 'optimize' ? { tab: v } : {} });
 }
 
-function onDrag(e: PointerEvent): void {
-  if (!drag) return;
-  const dx = e.clientX - drag.startX;
-  const dy = e.clientY - drag.startY;
-  const s = drag.snapshot;
-  const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
-  const MIN = 24;
-
-  if (drag.kind === 'move') {
-    box.x = clamp(s.x + dx, 0, display.w - s.w);
-    box.y = clamp(s.y + dy, 0, display.h - s.h);
-    return;
-  }
-  if (drag.kind.includes('w')) {
-    const right = s.x + s.w;
-    box.x = clamp(s.x + dx, 0, right - MIN);
-    box.w = right - box.x;
-  }
-  if (drag.kind.includes('e')) {
-    box.w = clamp(s.w + dx, MIN, display.w - s.x);
-  }
-  if (drag.kind.includes('n')) {
-    const bottom = s.y + s.h;
-    box.y = clamp(s.y + dy, 0, bottom - MIN);
-    box.h = bottom - box.y;
-  }
-  if (drag.kind.includes('s')) {
-    box.h = clamp(s.h + dy, MIN, display.h - s.y);
-  }
-}
-
-function endDrag(): void {
-  drag = null;
-}
-
-async function confirmCrop(): Promise<void> {
-  const item = cropping.value;
-  if (!item || busyCrop.value) return;
-  busyCrop.value = true;
-  try {
-    const scale = natural.w / display.w;
-    await adminApi.cropMedia(item.name, {
-      left: Math.round(box.x * scale),
-      top: Math.round(box.y * scale),
-      width: Math.round(box.w * scale),
-      height: Math.round(box.h * scale),
-    });
-    cropping.value = null;
-    await load();
-  } finally {
-    busyCrop.value = false;
-  }
-}
-
-onMounted(load);
+onMounted(() => {
+  void load();
+  void loadRefs();
+  void loadQuality();
+});
 </script>
 
 <template>
-  <div>
-    <header class="head">
+  <section class="studio view" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
+    <div class="st-vh">
       <div>
-        <h1 class="page-h">{{ t('admin.menuMedia') }}</h1>
-        <p class="hint">{{ t('admin.mediaHint') }}</p>
+        <h1>{{ t('studio.media.title') }}</h1>
+        <p>{{ tab === 'library' ? t('studio.media.desc') : t('studio.media.qDesc') }}</p>
       </div>
-      <button class="btn primary" :disabled="uploading" @click="fileInput?.click()">
-        {{ uploading ? t('admin.uploading') : t('admin.upload') }}
-      </button>
-      <input
-        ref="fileInput"
-        type="file"
-        accept=".png,.jpg,.jpeg,.webp,.gif"
-        multiple
-        hidden
-        @change="onFiles"
-      />
-    </header>
-
-    <!-- 素材网格 -->
-    <div class="grid">
-      <div v-for="item in items" :key="item.name" class="cell">
-        <!-- size 随裁切变化，作缓存戳保证裁完即时生效 -->
-        <img :src="`${item.thumb}?v=${item.size}`" loading="lazy" alt="" />
-        <div class="cell-bar">
-          <span class="size">{{ formatSize(item.size) }}</span>
-          <span v-if="item.crop" class="badge">{{ t('admin.cropped') }}</span>
-        </div>
-        <div class="cell-ops">
-          <button @click="openCrop(item)">{{ item.crop ? t('admin.recrop') : t('admin.crop') }}</button>
-          <button class="danger" @click="remove(item)">{{ t('admin.delete') }}</button>
-        </div>
+      <div class="act">
+        <StSeg
+          :model-value="tab"
+          :options="[
+            { value: 'library', label: t('studio.media.tabLibrary') },
+            { value: 'optimize', label: t('studio.media.tabOptimize'), count: compressCount || undefined },
+          ]"
+          @update:model-value="setTab"
+        />
+        <button v-if="tab === 'library'" type="button" class="st-btn p" :disabled="uploading" @click="fileInput?.click()">
+          <SIcon name="upload" :size="16" />{{ uploading ? t('studio.media.uploading') : t('studio.media.upload') }}
+        </button>
       </div>
     </div>
 
-    <p v-if="!items.length" class="empty">{{ t('admin.mediaEmpty') }}</p>
-
-    <!-- 裁切弹窗：始终基于原图 + 上次裁切框 -->
-    <Teleport to="body">
-      <div v-if="cropping" class="crop-mask" @click.self="cropping = null">
-        <div class="crop-modal">
-          <h2>{{ t('admin.cropTitle') }}</h2>
-          <div class="crop-stage">
-            <img
-              ref="cropImg"
-              :src="originalUrl"
-              alt=""
-              draggable="false"
-              @load="onCropImgLoad"
-            />
-            <div
-              class="crop-box"
-              :style="boxStyle"
-              @pointerdown.self="startDrag($event, 'move')"
-              @pointermove="onDrag"
-              @pointerup="endDrag"
-              @pointercancel="endDrag"
-            >
-              <span
-                v-for="corner in (['nw', 'ne', 'sw', 'se'] as const)"
-                :key="corner"
-                class="handle"
-                :class="corner"
-                @pointerdown.stop="startDrag($event, corner)"
-                @pointermove="onDrag"
-                @pointerup="endDrag"
-              />
-            </div>
+    <template v-if="tab === 'library'">
+      <div class="stats-row">
+        <div class="stat"><b class="mono">{{ items.length }}</b><small>{{ t('studio.media.statCount') }}</small></div>
+        <div class="stat"><b class="mono">{{ sizeParts(stats.total)[0] }}<span class="u">{{ sizeParts(stats.total)[1] }}</span></b><small>{{ t('studio.media.statSize') }}</small></div>
+        <div class="usage">
+          <div class="ub">
+            <i :style="{ width: stats.pct(stats.posts), background: 'var(--primary)' }" />
+            <i :style="{ width: stats.pct(stats.notes), background: 'color-mix(in oklab, var(--primary) 45%, var(--well-2))' }" />
+            <i :style="{ width: stats.pct(stats.other), background: 'var(--line-3)' }" />
           </div>
-          <div class="crop-actions">
-            <button class="btn ghost" @click="cropping = null">{{ t('admin.cancel') }}</button>
-            <button class="btn primary" :disabled="busyCrop" @click="confirmCrop">
-              {{ t('admin.applyCrop') }}
+          <div class="lg">
+            <span><i class="st-dot" style="--c: var(--primary)" />{{ t('studio.media.lgPosts', { size: formatSize(stats.posts) }) }}</span>
+            <span><i class="st-dot" style="--c: color-mix(in oklab, var(--primary) 45%, var(--well-2))" />{{ t('studio.media.lgNotes', { size: formatSize(stats.notes) }) }}</span>
+            <span><i class="st-dot" style="--c: var(--line-3)" />{{ t('studio.media.lgOther', { size: formatSize(stats.other) }) }}</span>
+            <button v-if="compressCount" type="button" class="zip-link" @click="setTab('optimize')">
+              <i class="st-dot" style="--c: var(--yellow)" />{{ t('studio.media.lgZip', { n: compressCount }) }}
             </button>
           </div>
         </div>
       </div>
-    </Teleport>
-  </div>
+
+      <div v-if="loaded && !items.length" class="st-empty">
+        <DoorArt />
+        <h4>{{ t('studio.media.empty') }}</h4>
+        <p>{{ t('studio.media.emptySub') }}</p>
+        <button type="button" class="st-btn p" @click="fileInput?.click()"><SIcon name="upload" :size="16" />{{ t('studio.media.upload') }}</button>
+      </div>
+
+      <div class="masonry">
+        <button
+          v-for="(it, i) in items"
+          :key="it.name"
+          type="button"
+          class="mtile st-rise"
+          :style="{ '--i': i % 8 }"
+          @click="viewing = i"
+        >
+          <img :src="`${it.thumb}?v=${it.size}-${stamp}`" alt="" loading="lazy" />
+          <span v-if="compressible.has(it.name)" class="zip">{{ t('studio.media.compressible') }}</span>
+          <span v-else-if="it.crop" class="zip cut">{{ t('studio.media.croppedTag') }}</span>
+          <span class="cap"><span class="nm">{{ it.name }}</span><span class="mono">{{ formatSize(it.size) }}</span></span>
+        </button>
+      </div>
+    </template>
+
+    <QualityPanel v-else @done="onChanged" @count="compressCount = $event" />
+
+    <Transition name="veil">
+      <div v-if="dragover" class="veil"><SIcon name="upload" :size="28" /><span>{{ t('studio.media.dropVeil') }}</span></div>
+    </Transition>
+
+    <MediaViewer v-model:index="viewing" :items="items" :refs="refs" :compressible="compressible" @changed="onChanged" @open="openRef" />
+    <input ref="fileInput" type="file" accept=".png,.jpg,.jpeg,.webp,.gif" multiple hidden @change="onPick" />
+  </section>
 </template>
 
 <style scoped lang="scss">
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 22px;
-}
-
-.page-h { font-size: 26px; margin-bottom: 6px; }
-.hint { font-size: 13px; color: var(--text-2); }
-
-.btn {
-  padding: 10px 24px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  transition: all var(--dur-fast) var(--ease-out);
-
-  &.primary {
-    color: #fff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-    background: linear-gradient(180deg, var(--primary), var(--primary-deep));
-    box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.4);
-
-    &:hover:not(:disabled) { filter: brightness(1.08); }
-    &:disabled { opacity: 0.55; }
-  }
-
-  &.ghost {
-    background: var(--surface);
-    border-color: var(--border);
-    color: var(--text);
-
-    &:hover { border-color: var(--primary); color: var(--primary); }
-  }
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 14px;
-}
-
-.cell {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-
-  img {
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    object-fit: cover;
-    display: block;
-    background: var(--surface-2);
-  }
-}
-
-.cell-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 10px 0;
-  font-size: 11px;
-  color: var(--text-2);
-
-  .badge {
-    padding: 1px 8px;
-    border-radius: 999px;
-    background: rgba(var(--primary-rgb), 0.1);
-    color: var(--primary);
-    font-weight: 600;
-  }
-}
-
-.cell-ops {
-  display: flex;
-  gap: 4px;
-  padding: 6px;
-
-  button {
-    flex: 1;
-    border: none;
-    background: none;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--primary);
-    padding: 6px 0;
-    border-radius: 8px;
-    transition: background var(--dur-fast);
-
-    &:hover { background: var(--surface-2); }
-    &.danger { color: var(--accent-red); }
-  }
-}
-
-.empty {
-  color: var(--text-2);
-  text-align: center;
-  padding: 60px 0;
-}
-
-/* ===== 裁切弹窗 ===== */
-/* 遮罩只轻微衬底：真正的"变暗"只发生在裁切框外的图片区域（box-shadow 蒙版） */
-.crop-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 9000;
-  background: rgba(8, 8, 12, 0.18);
-  backdrop-filter: blur(6px);
-  display: grid;
-  place-items: center;
-  padding: 24px;
-}
-
-.crop-modal {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 22px;
-  max-width: min(880px, 94vw);
-
-  h2 { font-size: 18px; margin-bottom: 14px; }
-}
-
-.crop-stage {
+.view {
   position: relative;
-  user-select: none;
-  overflow: hidden; /* 裁掉 box-shadow 蒙版溢出弹窗的部分 */
-  width: fit-content;
+  max-width: 1120px;
+  min-height: 100%;
   margin: 0 auto;
+  padding: 52px 64px 96px;
+}
 
-  img {
-    display: block;
-    max-width: 100%;
-    max-height: 62vh;
+.stats-row {
+  display: flex;
+  gap: 40px;
+  margin: -8px 0 30px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--line);
+}
+
+.stat {
+  b { display: block; font-size: 26px; line-height: 1.1; font-weight: 500; letter-spacing: -0.03em; }
+  small { font-size: 12.5px; color: var(--ink-3); }
+  .u { font: 400 14px var(--font-sans); color: var(--ink-3); margin-left: 3px; letter-spacing: 0; }
+}
+
+.usage {
+  flex: 1;
+  align-self: center;
+
+  .ub {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--well-2);
+    margin: 8px 0 8px;
+
+    i { height: 100%; transition: width var(--dur-slow) var(--ease-out); }
+  }
+
+  .lg {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--ink-3);
+
+    span, button { display: inline-flex; align-items: center; gap: 5px; }
+  }
+
+  .zip-link {
+    color: color-mix(in oklab, var(--yellow) 50%, var(--ink));
+    transition: gap var(--dur) var(--ease-spring);
+
+    &:hover { gap: 8px; }
   }
 }
 
-.crop-box {
-  position: absolute;
-  border: 2px solid var(--primary);
-  /* 未选区域变暗（只作用于图片范围，stage overflow 裁掉溢出） */
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
-  cursor: move;
-  touch-action: none;
+.masonry {
+  columns: 4 200px;
+  column-gap: 14px;
 }
 
-.handle {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  background: var(--primary);
-  border: 2px solid #fff;
-  border-radius: 50%;
-  touch-action: none;
+.mtile {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0 0 14px;
+  break-inside: avoid;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: zoom-in;
+  background: var(--well-2);
+  transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur);
 
-  &.nw { left: -8px; top: -8px; cursor: nwse-resize; }
-  &.ne { right: -8px; top: -8px; cursor: nesw-resize; }
-  &.sw { left: -8px; bottom: -8px; cursor: nesw-resize; }
-  &.se { right: -8px; bottom: -8px; cursor: nwse-resize; }
+  img { display: block; width: 100%; height: auto; min-height: 80px; }
+
+  &:hover { transform: translateY(-3px) scale(1.01); box-shadow: var(--sh-card-hover); }
+
+  .cap {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 26px 12px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 10px;
+    font-size: 12px;
+    color: #fff;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+    opacity: 0;
+    transform: translateY(6px);
+    transition: all var(--dur) var(--ease-out);
+    text-align: left;
+
+    .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mono { font-size: 11px; opacity: 0.8; flex: none; }
+  }
+
+  &:hover .cap { opacity: 1; transform: none; }
+
+  .zip {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 11px;
+    font: 500 11px/22px var(--font-sans);
+    background: rgba(255, 179, 0, 0.92);
+    color: #1e1c19;
+
+    &.cut { background: rgba(255, 255, 255, 0.88); }
+  }
 }
 
-.crop-actions {
+.veil {
+  position: fixed;
+  inset: 14px 14px 14px 276px;
+  z-index: 30;
+  border-radius: var(--r);
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 12px;
-  margin-top: 16px;
+  font: 500 17px var(--font-serif);
+  color: var(--primary-ink);
+  background: color-mix(in oklab, var(--primary-soft) 88%, transparent);
+  border: 1.5px dashed var(--primary);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+.veil-enter-active, .veil-leave-active { transition: opacity var(--dur-fast); }
+.veil-enter-from, .veil-leave-to { opacity: 0; }
+
+@media (max-width: 1180px) {
+  .view { padding: 40px 36px 80px; }
 }
 </style>

@@ -1,21 +1,28 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import type { AboutModule } from '../../../stores/config';
+import type { FaqData } from '../../../about/types';
+import EdList from './EdList.vue';
+import { useModuleData } from './useModuleData';
 
-/** 问答 FAQ：问题 + 多行回答 */
-defineProps<{ mod: AboutModule }>();
+/** 问答：问题 + 回答（支持 `行内代码`）；是否同时只展开一条 */
+const props = defineProps<{ mod: AboutModule }>();
+const d = useModuleData<FaqData>(() => props.mod);
 const { t } = useI18n();
 </script>
 
 <template>
-  <div v-for="(item, ii) in mod.data.items" :key="ii" class="faq-line">
-    <input v-model="item.q" class="a-input" type="text" :placeholder="t('admin.faqQ')" />
-    <textarea v-model="item.a" class="a-input" rows="2" :placeholder="t('admin.faqA')" />
-    <button class="op danger" @click="mod.data.items.splice(ii, 1)">{{ t('admin.delete') }}</button>
+  <div class="ed">
+    <label class="check"><input v-model="d.single" type="checkbox" />{{ t('aboutKit.ed.single') }}</label>
+    <EdList v-slot="{ item }" :items="d.items" :make="() => ({ q: '', a: '' })">
+      <input v-model="item.q" class="a-input q" type="text" :placeholder="t('aboutKit.ed.question')" />
+      <textarea v-model="item.a" class="a-input" rows="2" :placeholder="t('aboutKit.ed.answer')" />
+    </EdList>
   </div>
-  <button class="a-btn ghost sm" @click="mod.data.items.push({ q: '', a: '' })">{{ t('admin.addItem') }}</button>
 </template>
 
 <style scoped lang="scss">
 @use './module-editor';
+
+.q { font-weight: 600; }
 </style>

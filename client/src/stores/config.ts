@@ -1,11 +1,19 @@
 import { defineStore } from 'pinia';
 import { api } from '../api';
 import type { CardChoreoId, TextChoreoId } from '../components/home/hero/choreo/types';
+import DEFAULT_ABOUT_MODULES from '../about/default-modules.json';
 
-/** 关于页可排序模块（data 结构由模块注册表约定） */
+/**
+ * 关于页可排序模块（data 结构由模块注册表约定，见 about/types.ts）。
+ * span：1|2|3 = 12 栏 bento 中占 4/8/12 栏；variant：模块变体；title：覆盖默认标题；hidden：前台不渲染。
+ */
 export interface AboutModule {
   id: string;
   type: string;
+  span?: 1 | 2 | 3;
+  variant?: string;
+  title?: string;
+  hidden?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
 }
@@ -97,7 +105,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
     skills: ['写作', '摄影', '编程'],
     foundedAt: '2026-01-01',
     motto: '记录本身，就是意义。',
-    modules: [],
+    modules: DEFAULT_ABOUT_MODULES as AboutModule[],
   },
 };
 

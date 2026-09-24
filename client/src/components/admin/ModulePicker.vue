@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { MODULE_REGISTRY } from '../../about/registry';
+import { MODULE_GROUPS, MODULE_REGISTRY } from '../../about/registry';
 import ModulePreview from './modules/ModulePreview.vue';
 
-/** 添加模块弹窗：搜索 + 多选 + 预览卡 */
+/**
+ * 添加模块弹窗：搜索 + 按分组（身份 / 数据 / 经历 / 喜好 / 工具 / 互动）排列 + 多选 + 迷你预览。
+ * 可选 existing：当前已有模块类型（profile 只允许一个，已存在时置灰）。
+ */
+const props = defineProps<{ existing?: string[] }>();
 const emit = defineEmits<{ close: []; add: [types: string[]] }>();
 
+const SINGLE = new Set(['profile']);
 const keyword = ref('');
 const selected = ref<Set<string>>(new Set());
 
@@ -13,11 +18,18 @@ const filtered = computed(() => {
   const kw = keyword.value.trim().toLowerCase();
   if (!kw) return MODULE_REGISTRY;
   return MODULE_REGISTRY.filter(
-    (m) => m.name.toLowerCase().includes(kw) || m.desc.toLowerCase().includes(kw),
+    (m) => m.name.toLowerCase().includes(kw) || m.desc.toLowerCase().includes(kw) || m.type.includes(kw),
   );
 });
 
+const groups = computed(() =>
+  MODULE_GROUPS.map((g) => ({ name: g, items: filtered.value.filter((m) => m.group === g) })).filter((g) => g.items.length),
+);
+
+const blocked = (type: string) => SINGLE.has(type) && !!props.existing?.includes(type);
+
 function toggle(type: string): void {
+  if (blocked(type)) return;
   const next = new Set(selected.value);
   if (next.has(type)) next.delete(type);
   else next.add(type);
@@ -28,6 +40,8 @@ function confirm(): void {
   if (!selected.value.size) return;
   emit('add', [...selected.value]);
 }
+
+const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
 </script>
 
 <template>
@@ -50,35 +64,45 @@ function confirm(): void {
           </button>
         </header>
 
-        <div class="p-grid">
-          <button
-            v-for="m in filtered"
-            :key="m.type"
-            class="p-card"
-            :class="{ on: selected.has(m.type) }"
-            @click="toggle(m.type)"
-          >
-            <div class="p-top">
-              <span class="p-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path :d="m.icon" />
-                </svg>
-              </span>
-              <div class="p-meta">
-                <strong>{{ m.name }}</strong>
-                <span>{{ m.desc }}</span>
-              </div>
-              <span class="p-check" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M5 13l4 4 10-10" />
-                </svg>
-              </span>
+        <div class="p-body">
+          <section v-for="g in groups" :key="g.name" class="p-group">
+            <h4>{{ g.name }}<small>{{ g.items.length }}</small></h4>
+            <div class="p-grid">
+              <button
+                v-for="m in g.items"
+                :key="m.type"
+                class="p-card"
+                :class="{ on: selected.has(m.type), off: blocked(m.type) }"
+                :disabled="blocked(m.type)"
+                @click="toggle(m.type)"
+              >
+                <div class="p-top">
+                  <span class="p-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path :d="m.icon" />
+                    </svg>
+                  </span>
+                  <div class="p-meta">
+                    <strong>{{ m.name }}<em>{{ m.type }}</em></strong>
+                    <span>{{ m.desc }}</span>
+                  </div>
+                  <span class="p-check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M5 13l4 4 10-10" />
+                    </svg>
+                  </span>
+                </div>
+                <!-- 模块迷你预览 -->
+                <div class="p-preview">
+                  <ModulePreview :type="m.type" />
+                </div>
+                <div class="p-spans">
+                  <span v-for="s in m.spans" :key="s" :class="{ def: s === m.defaultSpan }"><i :style="{ width: `${(SPAN_COLS[s] / 12) * 100}%` }" /></span>
+                  <small>{{ m.variants.map((v) => v.label).join(' / ') }}</small>
+                </div>
+              </button>
             </div>
-            <!-- 模块真实迷你预览 -->
-            <div class="p-preview">
-              <ModulePreview :type="m.type" />
-            </div>
-          </button>
+          </section>
         </div>
 
         <footer class="p-foot">
@@ -110,7 +134,7 @@ function confirm(): void {
 @keyframes mask-in { from { opacity: 0; } }
 
 .picker {
-  width: min(760px, 100%);
+  width: min(860px, 100%);
   max-height: 84vh;
   display: flex;
   flex-direction: column;
@@ -178,12 +202,33 @@ function confirm(): void {
   &:hover { color: var(--accent-red); transform: rotate(90deg); }
 }
 
+.p-body {
+  padding: 6px 20px 18px;
+  overflow-y: auto;
+}
+
+.p-group {
+  h4 {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 12px 0 8px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--text-2);
+    background: var(--surface);
+
+    small { font-weight: 400; opacity: 0.7; }
+  }
+}
+
 .p-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
-  padding: 18px 20px;
-  overflow-y: auto;
 }
 
 @media (max-width: 640px) {
@@ -237,7 +282,8 @@ function confirm(): void {
   flex: 1;
   min-width: 0;
 
-  strong { display: block; font-size: 14px; }
+  strong { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
+  em { font-style: normal; font-weight: 400; font-size: 11px; font-family: ui-monospace, Consolas, monospace; color: var(--text-2); opacity: 0.8; }
 
   span {
     display: block;
@@ -264,13 +310,26 @@ function confirm(): void {
   svg { width: 11px; height: 11px; }
 }
 
+.p-card.off { opacity: 0.45; cursor: not-allowed; &:hover { transform: none; border-color: var(--border); } }
+
+.p-spans {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  span { position: relative; width: 22px; height: 6px; border-radius: 2px; background: color-mix(in oklab, var(--text) 10%, transparent); overflow: hidden; }
+  span i { position: absolute; inset: 0 auto 0 0; background: color-mix(in oklab, var(--text) 35%, transparent); }
+  span.def i { background: var(--primary); }
+  small { margin-left: auto; font-size: 11px; color: var(--text-2); }
+}
+
 /* 真实迷你预览（各模块样式见 modules/ModulePreview.vue） */
 .p-preview {
   padding: 12px;
   border-radius: 8px;
   background: var(--surface);
   border: 1px solid var(--border);
-  min-height: 64px;
+  min-height: 78px;
   display: flex;
   align-items: center;
   pointer-events: none;

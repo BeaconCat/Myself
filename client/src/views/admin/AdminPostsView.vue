@@ -1,218 +1,434 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { adminApi, type AdminPost } from '../../api';
+import { adminApi, thumbOf, type AdminPost } from '../../api';
 import { useDialogStore } from '../../stores/dialog';
+import './studio/i18n';
+import SIcon from './studio/SIcon.vue';
+import StSeg from './studio/StSeg.vue';
+import PopMenu from './studio/PopMenu.vue';
+import LightCover from './studio/LightCover.vue';
+import DoorArt from './studio/DoorArt.vue';
+import { refreshCounts } from './studio/state';
+import { toast } from './studio/toast';
+import { dateText, relTime } from './studio/format';
+import type { MenuItem } from './studio/types';
 
+/** 文章：网格 / 列表，状态筛选，搜索，置顶，删除 */
 const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
+const dialog = useDialogStore();
+
+type Filter = 'all' | 'published' | 'draft' | 'pinned';
+type Layout = 'grid' | 'list';
+
+const LAYOUT_KEY = 'myself.studio.postsLayout';
 const posts = ref<AdminPost[]>([]);
+const loaded = ref(false);
+const filter = ref<Filter>(['published', 'draft', 'pinned'].includes(String(route.query.status)) ? (route.query.status as Filter) : 'all');
+const query = ref('');
+const layout = ref<Layout>((() => {
+  try {
+    return localStorage.getItem(LAYOUT_KEY) === 'list' ? 'list' : 'grid';
+  } catch {
+    return 'grid';
+  }
+})());
+watch(layout, (v) => {
+  try {
+    localStorage.setItem(LAYOUT_KEY, v);
+  } catch { /* 忽略 */ }
+});
+watch(filter, (v) => void router.replace({ query: v === 'all' ? {} : { status: v } }));
 
 async function load(): Promise<void> {
-  posts.value = await adminApi.posts();
+  try {
+    posts.value = await adminApi.posts();
+  } catch {
+    toast(t('studio.loadFailed'), { icon: 'x' });
+  }
+  loaded.value = true;
 }
 
-async function remove(post: AdminPost): Promise<void> {
-  const ok = await useDialogStore().confirm({
-    title: t('admin.delete'),
-    message: t('admin.confirmDeletePost', { title: post.title }),
+const counts = computed(() => ({
+  all: posts.value.length,
+  published: posts.value.filter((p) => p.status === 'published').length,
+  draft: posts.value.filter((p) => p.status === 'draft').length,
+  pinned: posts.value.filter((p) => p.pinned).length,
+}));
+
+const list = computed(() => {
+  const q = query.value.trim().toLowerCase();
+  return posts.value.filter((p) => {
+    if (filter.value === 'pinned' ? !p.pinned : filter.value !== 'all' && p.status !== filter.value) return false;
+    if (!q) return true;
+    return `${p.title} ${p.excerpt} ${p.tags.join(' ')} ${p.slug}`.toLowerCase().includes(q);
+  });
+});
+
+const FILTERS: Filter[] = ['all', 'published', 'draft', 'pinned'];
+
+function edit(p: AdminPost): void {
+  void router.push({ name: 'admin-write-post', query: { id: String(p.id) } });
+}
+
+async function togglePin(p: AdminPost): Promise<void> {
+  try {
+    const full = await adminApi.post(p.id);
+    await adminApi.updatePost(p.id, {
+      slug: full.slug,
+      title: full.title,
+      excerpt: full.excerpt,
+      contentMd: full.contentMd ?? '',
+      covers: full.covers,
+      tags: full.tags,
+      status: full.status,
+      pinned: !full.pinned,
+    });
+    p.pinned = !full.pinned;
+    toast(p.pinned ? t('studio.pinned') : t('studio.unpinned'), { icon: 'pin' });
+  } catch {
+    toast(t('studio.saveFailed'), { icon: 'x' });
+  }
+}
+
+async function remove(p: AdminPost): Promise<void> {
+  const ok = await dialog.confirm({
+    title: t('studio.posts.deleteTitle', { title: p.title || t('studio.untitled') }),
+    message: t('studio.posts.deleteBody'),
+    confirmText: t('studio.delete'),
     danger: true,
   });
   if (!ok) return;
-  await adminApi.deletePost(post.id);
-  await load();
+  try {
+    await adminApi.deletePost(p.id);
+    posts.value = posts.value.filter((x) => x.id !== p.id);
+    toast(t('studio.deleted'), { icon: 'trash' });
+    void refreshCounts();
+  } catch {
+    toast(t('studio.saveFailed'), { icon: 'x' });
+  }
 }
 
-onMounted(load);
+function menu(p: AdminPost): MenuItem[] {
+  const items: MenuItem[] = [
+    { icon: 'pen', label: t('studio.edit'), run: () => edit(p) },
+    { icon: 'pin', label: p.pinned ? t('studio.unpin') : t('studio.pin'), run: () => void togglePin(p) },
+  ];
+  if (p.status === 'published') {
+    items.push({ icon: 'external', label: t('studio.posts.openSite'), run: () => window.open(`/articles/${encodeURIComponent(p.slug)}`, '_blank') });
+  }
+  items.push({ icon: 'trash', label: t('studio.delete'), danger: true, divider: true, run: () => void remove(p) });
+  return items;
+}
+
+/* 键盘：/ 聚焦搜索 */
+const searchEl = ref<HTMLInputElement | null>(null);
+function onKey(e: KeyboardEvent): void {
+  const el = document.activeElement as HTMLElement | null;
+  if (el && (/INPUT|TEXTAREA|SELECT/.test(el.tagName) || el.isContentEditable)) return;
+  if (e.key === '/') {
+    e.preventDefault();
+    searchEl.value?.focus();
+  }
+}
+
+onMounted(() => {
+  void load();
+  window.addEventListener('keydown', onKey);
+});
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <template>
-  <div>
-    <header class="a-head">
+  <section class="studio view">
+    <div class="st-vh">
       <div>
-        <h1>{{ t('admin.menuPosts') }}</h1>
-        <p>{{ t('admin.postsHint') }}</p>
+        <h1>{{ t('studio.posts.title') }}</h1>
+        <p>{{ t('studio.posts.desc') }}</p>
       </div>
-      <router-link to="/write/post" class="a-btn primary">{{ t('admin.newPost') }}</router-link>
-    </header>
+      <div class="act">
+        <router-link class="st-btn p" :to="{ name: 'admin-write-post' }"><SIcon name="plus" :size="16" />{{ t('studio.posts.new') }}</router-link>
+      </div>
+    </div>
 
-    <!-- 卡片网格（同随想管理风格），有封面则封面置顶 -->
-    <div class="post-grid">
-      <article v-for="post in posts" :key="post.id" class="post-card a-card">
-        <router-link :to="{ path: '/write/post', query: { id: String(post.id) } }" class="cover-wrap">
-          <img v-if="post.covers[0]" class="cover" :src="post.covers[0]" loading="lazy" alt="" />
-          <div v-else class="cover placeholder">
-            <span>{{ post.title.slice(0, 1) }}</span>
-          </div>
-          <span class="status" :class="post.status">
-            {{ post.status === 'draft' ? t('admin.draft') : t('admin.published') }}
-          </span>
-          <span v-if="post.pinned" class="pin-badge">{{ t('admin.pinned') }}</span>
-        </router-link>
+    <div class="toolbar">
+      <div class="chips">
+        <button v-for="f in FILTERS" :key="f" type="button" class="st-chip" :class="{ on: filter === f }" @click="filter = f">
+          {{ t(`studio.posts.f.${f}`) }}<span class="n">{{ counts[f] }}</span>
+        </button>
+      </div>
+      <span class="sp" />
+      <label class="st-field search">
+        <SIcon name="search" :size="16" />
+        <input ref="searchEl" v-model="query" :placeholder="t('studio.posts.search')" />
+        <kbd class="st-kbd">/</kbd>
+      </label>
+      <StSeg
+        v-model="layout"
+        icon-only
+        :options="[
+          { value: 'grid', icon: 'grid', title: t('studio.posts.grid') },
+          { value: 'list', icon: 'list', title: t('studio.posts.list') },
+        ]"
+      />
+    </div>
 
-        <div class="body">
-          <h3>{{ post.title }}</h3>
-          <p class="excerpt">{{ post.excerpt }}</p>
-          <div class="tags">
-            <span v-for="tag in post.tags" :key="tag">{{ tag }}</span>
+    <div v-if="loaded && !list.length" class="st-empty">
+      <DoorArt />
+      <h4>{{ query ? t('studio.posts.emptyQuery', { q: query }) : t('studio.posts.empty') }}</h4>
+      <p>{{ t('studio.posts.emptySub') }}</p>
+      <router-link class="st-btn p" :to="{ name: 'admin-write-post' }"><SIcon name="pen" :size="16" />{{ t('studio.posts.writeOne') }}</router-link>
+    </div>
+
+    <div v-else-if="layout === 'grid'" :key="`g-${filter}`" class="pgrid">
+      <article
+        v-for="(p, i) in list"
+        :key="p.id"
+        class="pcard st-rise"
+        :style="{ '--i': Math.min(i, 12) }"
+        @click="edit(p)"
+      >
+        <LightCover class="pcv" :src="p.covers[0] ? thumbOf(p.covers[0]) : ''" :seed="p.slug">
+          <span class="st-badge glass" :class="`st-${p.status}`"><i class="st-dot" />{{ t(`studio.status.${p.status}`) }}</span>
+          <span v-if="p.pinned" class="pin" :title="t('studio.pinned')"><SIcon name="pin" :size="15" /></span>
+        </LightCover>
+        <div class="bd">
+          <h3>{{ p.title || t('studio.untitled') }}</h3>
+          <p>{{ p.excerpt || t('studio.posts.noExcerpt') }}</p>
+          <div class="meta">
+            <span v-for="tag in p.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
+            <span class="mono">{{ dateText(p.createdAt) }}</span>
+            <span class="sp" />
           </div>
-          <footer class="foot">
-            <time>{{ post.createdAt.slice(0, 10) }}</time>
-            <span class="spacer" />
-            <router-link class="op" :to="{ path: '/write/post', query: { id: String(post.id) } }">{{ t('admin.edit') }}</router-link>
-            <button class="op danger" @click="remove(post)">{{ t('admin.delete') }}</button>
-          </footer>
+        </div>
+        <div class="more" @click.stop>
+          <PopMenu :items="menu(p)" />
         </div>
       </article>
     </div>
 
-    <p v-if="!posts.length" class="empty">{{ t('admin.postsEmpty') }}</p>
-  </div>
+    <div v-else :key="`l-${filter}`" class="plist">
+      <div class="plist-h">
+        <span />
+        <span>{{ t('studio.posts.colTitle') }}</span>
+        <span>{{ t('studio.posts.colTags') }}</span>
+        <span>{{ t('studio.posts.colStatus') }}</span>
+        <span>{{ t('studio.posts.colCreated') }}</span>
+        <span>{{ t('studio.posts.colUpdated') }}</span>
+        <span />
+      </div>
+      <div
+        v-for="(p, i) in list"
+        :key="p.id"
+        class="prow st-rise"
+        :style="{ '--i': Math.min(i, 12) }"
+        @click="edit(p)"
+      >
+        <LightCover class="rcv" :src="p.covers[0] ? thumbOf(p.covers[0]) : ''" :seed="p.slug" />
+        <div class="tt">
+          <h3><SIcon v-if="p.pinned" name="pin" :size="14" class="pin-i" />{{ p.title || t('studio.untitled') }}</h3>
+          <small>/{{ p.slug }}</small>
+        </div>
+        <span class="tags"><span v-for="tag in p.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span></span>
+        <span><span class="st-badge" :class="`st-${p.status}`"><i class="st-dot" />{{ t(`studio.status.${p.status}`) }}</span></span>
+        <span class="num">{{ dateText(p.createdAt) }}</span>
+        <span class="num">{{ relTime(p.updatedAt || p.createdAt) }}</span>
+        <span @click.stop><PopMenu :items="menu(p)" /></span>
+      </div>
+    </div>
+  </section>
 </template>
 
 <style scoped lang="scss">
-.post-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
+.view {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 52px 64px 96px;
 }
 
-.post-card {
-  padding: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur), border-color var(--dur-fast);
-
-  &:hover {
-    transform: scale(1.015);
-    box-shadow: 0 10px 30px -12px rgba(var(--primary-rgb), 0.25);
-    border-color: rgba(var(--primary-rgb), 0.35);
-  }
-}
-
-.cover-wrap {
-  position: relative;
-  display: block;
-}
-
-.cover {
-  width: 100%;
-  aspect-ratio: 21 / 9;
-  object-fit: cover;
-  display: block;
-  background: var(--surface-2);
-
-  &.placeholder {
-    display: grid;
-    place-items: center;
-    background:
-      radial-gradient(300px 120px at 30% 0%, rgba(var(--primary-rgb), 0.16), transparent 70%),
-      var(--surface-2);
-
-    span {
-      font-family: var(--font-serif);
-      font-size: 34px;
-      font-weight: 700;
-      background: var(--grad-title);
-      background-clip: text;
-      -webkit-background-clip: text;
-      color: transparent;
-    }
-  }
-}
-
-.pin-badge {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 999px;
-  backdrop-filter: blur(8px);
-  background: rgba(255, 179, 0, 0.28);
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-}
-
-.status {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 999px;
-  backdrop-filter: blur(8px);
-
-  &.published { background: rgba(var(--primary-rgb), 0.2); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
-  &.draft { background: rgba(0, 0, 0, 0.4); color: #fff; }
-}
-
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px 12px;
-  flex: 1;
-
-  h3 {
-    font-size: 16.5px;
-    line-height: 1.5;
-  }
-}
-
-.excerpt {
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--text-2);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-
-  span {
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 9px;
-    border-radius: 999px;
-    background: rgba(var(--primary-rgb), 0.1);
-    color: var(--primary);
-  }
-}
-
-.foot {
+.toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: auto;
-  padding-top: 8px;
+  gap: 8px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .sp { flex: 1; }
+
+  .search {
+    width: 240px;
+    min-height: 34px;
+
+    input { height: 32px; }
+  }
+}
+
+.pgrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px 18px;
+}
+
+.pcard {
+  position: relative;
+  border-radius: 18px;
+  padding: 8px;
+  cursor: pointer;
+  transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease-out), background var(--dur-fast);
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--sh-card-hover);
+    background: var(--paper);
+  }
+
+  .pcv {
+    aspect-ratio: 16 / 10;
+    border-radius: 12px;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.28) 48%, transparent 62%);
+      transform: translateX(-110%);
+      transition: transform 1s var(--ease-out);
+    }
+
+    :deep(img) { transition: transform 1.2s var(--ease-out); }
+  }
+
+  &:hover .pcv::after { transform: translateX(110%); }
+  &:hover .pcv :deep(img) { transform: scale(1.04); }
+
+  .st-badge { position: absolute; left: 12px; top: 12px; z-index: 3; }
+
+  .pin {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    z-index: 3;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.92);
+    color: #1e1c19;
+  }
+
+  .bd { padding: 14px 6px 6px; }
+
+  h3 { font: 600 17.5px/1.5 var(--font-serif); margin: 0 0 6px; }
+
+  p {
+    margin: 0 0 12px;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--ink-3);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 44px;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    color: var(--ink-3);
+    min-height: 30px;
+
+    .mono { font-size: 11.5px; }
+    .sp { flex: 1; }
+  }
+
+  .more {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    opacity: 0;
+    transition: opacity var(--dur-fast);
+  }
+
+  &:hover .more, .more:focus-within { opacity: 1; }
+}
+
+.tag {
+  color: var(--ink-2);
+  white-space: nowrap;
+
+  &::before { content: '#'; color: var(--ink-4); margin-right: 2px; }
+}
+
+$cols: 84px minmax(0, 1fr) 140px 90px 96px 88px 36px;
+
+.plist { display: flex; flex-direction: column; }
+
+.plist-h {
+  display: grid;
+  grid-template-columns: $cols;
+  gap: 18px;
+  padding: 0 12px 10px;
   font-size: 12px;
-  color: var(--text-2);
+  color: var(--ink-4);
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
 
-  .spacer { flex: 1; }
+  span:nth-child(5), span:nth-child(6) { text-align: right; }
 }
 
-.op {
-  border: none;
-  background: none;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--primary);
+.prow {
+  display: grid;
+  grid-template-columns: $cols;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background var(--dur-fast);
 
-  &.danger { color: var(--accent-red); }
-  &:hover { opacity: 0.75; }
+  &:hover { background: var(--well); }
+
+  .rcv { height: 52px; border-radius: 9px; }
+  .tt { min-width: 0; }
+
+  h3 {
+    font: 600 15.5px/1.4 var(--font-serif);
+    margin: 0 0 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pin-i { color: var(--primary-ink); }
+
+  small {
+    font: 12px var(--font-mono);
+    color: var(--ink-3);
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tags { display: flex; gap: 8px; font-size: 12.5px; overflow: hidden; }
+  .num { font: 500 12px var(--font-mono); color: var(--ink-3); text-align: right; }
 }
 
-.empty {
-  color: var(--text-2);
-  text-align: center;
-  padding: 60px 0;
+@media (max-width: 1180px) {
+  .view { padding: 40px 36px 80px; }
+  .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

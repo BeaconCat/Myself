@@ -1,0 +1,389 @@
+/*
+ * 移动端前台共享样式（仅在 html.m-shell 下生效，桌面完全不受影响）
+ * ---------------------------------------------------------------------
+ * Token：在站点色盘变量（--bg / --surface / --text / --primary …）之上，
+ * 用 color-mix 运行时派生移动端层级色（elev / fill / line / glass / ink / soft / glow），
+ * 与 themes/derive.ts 的「只给主色，其余派生」思路一致。
+ * 动效：沿用全站 motion tokens，另加 iOS sheet 近似曲线 --m-ease-sheet（无过冲）
+ * 与抽屉曲线 --m-ease-drawer（轻微过冲）。
+ */
+
+/* 抽屉进度 / 详情推入进度：注册为可插值数值，transition 直接作用于它们（非继承，避免整树重算） */
+@property --m-dp { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --m-push { syntax: '<number>'; inherits: false; initial-value: 0; }
+
+html.m-shell {
+  --m-safe-t: env(safe-area-inset-top, 0px);
+  --m-safe-b: env(safe-area-inset-bottom, 0px);
+  --m-nav-row: 44px;
+  --m-nav-h: calc(var(--m-safe-t) + 52px);
+  --m-ease-sheet: cubic-bezier(0.22, 1, 0.36, 1);
+  --m-ease-drawer: cubic-bezier(0.2, 0.9, 0.25, 1.04);
+  --m-font-mono: ui-monospace, 'SF Mono', Menlo, 'JetBrains Mono', Consolas, 'DejaVu Sans Mono', monospace;
+  --m-r-sm: 12px;
+  --m-r-md: 16px;
+  --m-r-lg: 22px;
+  --m-r-xl: 30px;
+
+  --m-bg: var(--bg);
+  --m-ink: color-mix(in oklab, var(--primary) 72%, white);
+  --m-soft: color-mix(in oklab, var(--primary) 16%, transparent);
+  --m-glow: color-mix(in oklab, var(--primary) 50%, transparent);
+
+  /* 深色（默认） */
+  --m-elev: color-mix(in oklab, var(--surface) 96%, white);
+  --m-elev-2: color-mix(in oklab, var(--surface-2) 95%, white);
+  --m-fill: color-mix(in oklab, var(--text) 8%, transparent);
+  --m-fill-2: color-mix(in oklab, var(--text) 14%, transparent);
+  --m-line: color-mix(in oklab, var(--text) 12%, transparent);
+  --m-line-2: color-mix(in oklab, var(--text) 21%, transparent);
+  --m-text-3: color-mix(in oklab, var(--text-2) 74%, var(--bg));
+  --m-glass: color-mix(in oklab, var(--surface) 70%, transparent);
+  --m-glass-2: color-mix(in oklab, var(--bg) 80%, transparent);
+  --m-glass-line: rgba(255, 255, 255, 0.1);
+  --m-glass-hi: rgba(255, 255, 255, 0.07);
+  --m-drawer-bg: color-mix(in oklab, var(--bg) 62%, black);
+  --m-scrim: rgba(0, 3, 10, 0.55);
+  --m-shadow: 0 18px 40px -16px rgba(0, 4, 14, 0.8);
+  --m-bar-shadow: 0 16px 34px -14px rgba(0, 4, 16, 0.7), 0 2px 6px -2px rgba(0, 4, 16, 0.3);
+  --m-code-bg: color-mix(in oklab, var(--bg) 66%, black);
+
+  overflow: hidden;
+  height: 100%;
+  overscroll-behavior: none;
+  scrollbar-gutter: auto;
+
+  body {
+    overflow: hidden;
+    height: 100%;
+    min-height: 0;
+    overscroll-behavior: none;
+    background: var(--m-drawer-bg);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* 桌面首屏 loading 在移动端由 MobileSplash 接管 */
+  .boot { display: none !important; }
+}
+
+html.m-shell[data-mode='light'] {
+  --m-ink: color-mix(in oklab, var(--primary) 78%, black);
+  --m-soft: color-mix(in oklab, var(--primary) 13%, transparent);
+  --m-glow: color-mix(in oklab, var(--primary) 42%, transparent);
+  --m-elev: #ffffff;
+  --m-elev-2: color-mix(in oklab, var(--bg) 40%, white);
+  --m-fill: color-mix(in oklab, var(--text) 4.5%, transparent);
+  --m-fill-2: color-mix(in oklab, var(--text) 8%, transparent);
+  --m-line: color-mix(in oklab, var(--text) 9%, transparent);
+  --m-line-2: color-mix(in oklab, var(--text) 15%, transparent);
+  --m-text-3: color-mix(in oklab, var(--text-2) 68%, var(--bg));
+  --m-glass: rgba(255, 255, 255, 0.78);
+  --m-glass-2: color-mix(in oklab, var(--bg) 84%, transparent);
+  --m-glass-line: rgba(11, 18, 32, 0.08);
+  --m-glass-hi: rgba(255, 255, 255, 0.9);
+  --m-drawer-bg: color-mix(in oklab, var(--bg) 86%, #52607a);
+  --m-scrim: rgba(8, 14, 28, 0.28);
+  --m-shadow: 0 18px 40px -18px rgba(30, 50, 90, 0.3);
+  --m-bar-shadow: 0 16px 30px -14px rgba(20, 40, 90, 0.35), 0 2px 6px -2px rgba(20, 40, 90, 0.12);
+  --m-code-bg: color-mix(in oklab, var(--surface-2) 70%, var(--bg));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.m-shell {
+    --dur-fast: 0.01ms;
+    --dur: 0.01ms;
+    --dur-slow: 0.01ms;
+  }
+}
+
+/* ========== 通用原子 ========== */
+:where(.m-root, .m-layer) {
+  font-family: var(--font-sans);
+  color: var(--text);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+
+  /* 零特异性重置：组件自己的类选择器总能覆盖 */
+  :where(button) {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    outline: none;
+    padding: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :where(svg) { display: block; }
+}
+
+/* 按压反馈：全站统一 scale(.96) + 回弹 */
+.m-tap {
+  transition:
+    transform var(--dur-fast) var(--ease-spring),
+    background-color var(--dur-fast),
+    opacity var(--dur-fast);
+
+  &:active {
+    transform: scale(0.96);
+    transition-duration: 0.08s;
+  }
+}
+
+.m-glass {
+  background: var(--m-glass);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  box-shadow: inset 0 0 0 0.5px var(--m-glass-line), inset 0 1px 0 var(--m-glass-hi);
+}
+
+.m-icbtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  background: var(--m-fill);
+  flex: none;
+
+  .m-ic { width: 20px; height: 20px; }
+}
+
+.m-avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.14);
+  background: #060b16;
+}
+
+/* 骨架屏：与最终布局同几何，shimmer 扫光（不转圈） */
+.m-sk {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--m-fill-2);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in oklab, var(--text) 9%, transparent) 50%,
+      transparent 80%
+    );
+    animation: m-shimmer 1.35s var(--ease-out) infinite;
+  }
+}
+
+.m-sk-line {
+  height: 12px;
+  border-radius: 6px;
+}
+
+@keyframes m-shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* 数据到达：逐项错峰淡入（--i 为序号） */
+.m-in {
+  animation: m-rise 0.55s var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+@keyframes m-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* 骨架 ↔ 内容交接 */
+.m-swap-enter-active { transition: opacity 0.3s var(--ease-out); }
+.m-swap-leave-active { transition: opacity 0.16s ease; }
+.m-swap-enter-from,
+.m-swap-leave-to { opacity: 0; }
+
+/* 横向滚动条隐藏 */
+.m-hscroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+
+  &::-webkit-scrollbar { display: none; }
+}
+
+/* 心情 / 标签小字 */
+.m-mood {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--m-ink);
+
+  &::before {
+    content: '#';
+    opacity: 0.6;
+    margin-right: 1px;
+  }
+}
+
+.m-tagp {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--m-soft);
+  color: var(--m-ink);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+/* 文章行：列表 / 首页 / 搜索共用 */
+.m-arow {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  text-align: left;
+  border-radius: 18px;
+
+  & + &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 16px;
+    right: 16px;
+    height: 0.5px;
+    background: var(--m-line);
+  }
+
+  &:active { background: var(--m-fill); }
+
+  .rt { flex: 1; min-width: 0; }
+
+  .meta {
+    font-size: 12px;
+    color: var(--m-text-3);
+    margin-bottom: 4px;
+
+    em {
+      font-style: normal;
+      color: var(--m-ink);
+      font-weight: 500;
+    }
+  }
+
+  b {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .ex {
+    display: block;
+    font-size: 13px;
+    color: var(--text-2);
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .thumb {
+    position: relative;
+    width: 68px;
+    height: 68px;
+    border-radius: 16px;
+    overflow: hidden;
+    flex: none;
+    box-shadow: 0 0 0 0.5px var(--m-line);
+  }
+}
+
+/* 分组列表（设置式） */
+.m-list {
+  border-radius: 18px;
+  background: var(--m-fill);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 0.5px var(--m-line);
+}
+
+.m-li {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 0 14px;
+  height: 52px;
+  text-align: left;
+  font-size: 15px;
+
+  & + &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 55px;
+    right: 0;
+    height: 0.5px;
+    background: var(--m-line-2);
+  }
+
+  .lic {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: var(--c, var(--primary));
+    flex: none;
+
+    .m-ic { width: 17px; height: 17px; stroke-width: 1.7; }
+  }
+
+  > span { flex: 1; }
+
+  small {
+    font-size: 13px;
+    color: var(--m-text-3);
+  }
+
+  .chev {
+    color: var(--m-text-3);
+    width: 16px;
+    height: 16px;
+  }
+
+  &:active { background: var(--m-fill-2); }
+}
+
+/* 空状态 / 列表到底 */
+.m-empty {
+  padding: 60px 30px;
+  text-align: center;
+  color: var(--m-text-3);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.m-end {
+  padding: 26px 0 8px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--m-text-3);
+  letter-spacing: 0.1em;
+}

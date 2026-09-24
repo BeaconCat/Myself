@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { HeroPhase } from './types';
+import CoverArt, { coverKindOf } from './CoverArt.vue';
+import { EASE } from './choreo/engine';
+import { F, makeGeom, tf } from './choreo/geom';
+import type { CardEl, CardEls } from './choreo/types';
+import { prefersReducedMotion } from './useHeroChoreo';
 
 interface Rect {
   left: number;
@@ -15,8 +19,6 @@ interface Flight {
   mode: 'toCenter' | 'center' | 'toHome';
   style: Record<string, string>;
   homeRect: Rect;
-  /** 家位的 3D 姿态（相册角 + 槽位偏移缩放），起降两端 1:1 */
-  homeTransform: string;
   /**
    * 已离地：teleport 移动节点会重置该帧的 CSS 过渡（样式瞬变），
    * 光效等类驱动的缓动要等下一帧此标记置位后才触发
@@ -24,17 +26,22 @@ interface Flight {
   lifted: boolean;
 }
 
-const props = defineProps<{
-  /** 头图（≤3 张） */
+const props = withDefaults(defineProps<{
+  /** 头图（≤3 张）；`css:<kind>` 或无图占位渲染为 CSS 光影封面 */
   covers: string[];
   /** 前排卡序号（由父级轮播状态机持有） */
   photoIndex: number;
-  /** 条目序号：作 key 重建相册，触发入场动画 */
-  itemIndex: number;
-  phase: HeroPhase;
+  /** 条目序号（编舞采集用） */
+  idx: number;
   /** 图片 alt */
   title: string;
-}>();
+  /** 离场层：压在新卡组之上（同槽位 +5），不接事件 */
+  leaving?: boolean;
+  /** 切换进行中：暂不接手势 */
+  busy?: boolean;
+  /** 组内轮转动画倍速 */
+  speed?: number;
+}>(), { leaving: false, busy: false, speed: 1 });
 
 const emit = defineEmits<{
   /** 相册轮转：点击后排卡 / lightbox 切换 / 关闭落地后归位 */
@@ -48,11 +55,102 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const zoneEl = ref<HTMLElement | null>(null);
+const albumEl = ref<HTMLElement | null>(null);
+const bgEl = ref<HTMLElement | null>(null);
+const cardEls: (HTMLElement | null)[] = [];
+
+const kinds = computed(() => props.covers.map(coverKindOf));
+
+/* ===== 几何：随相册实际宽度 / 断点等比缩放 ===== */
+const albumW = ref(540);
+const mobile = ref(false);
+const geo = computed(() => makeGeom(albumW.value, mobile.value));
+
+let ro: ResizeObserver | null = null;
+const mq = window.matchMedia('(max-width: 900px)');
+
+function measure(): void {
+  mobile.value = mq.matches;
+  if (zoneEl.value) albumW.value = zoneEl.value.offsetWidth || albumW.value;
+}
+
+/** 相册卡位置：0 前排，1 右上后排，2 左下后排 */
+function slotOf(i: number, photo = props.photoIndex): number {
+  const len = props.covers.length;
+  return (i - photo + len) % len;
+}
+
+function restStyle(i: number): Record<string, string> {
+  const s = slotOf(i);
+  return {
+    transform: geo.value.T(s),
+    filter: F(geo.value.bright(s)),
+    zIndex: String(geo.value.restZ(s) + (props.leaving ? 5 : 0)),
+  };
+}
+
+/* ===== 组内轮转：前卡退到最后（带一次下沉），其余晋升一位 ===== */
+const rot: Record<number, Animation | undefined> = {};
+
+watch(() => props.photoIndex, (now, before) => {
+  const len = props.covers.length;
+  if (len < 2 || props.leaving || prefersReducedMotion()) return;
+  const g = geo.value;
+  for (let i = 0; i < len; i++) {
+    const el = cardEls[i];
+    if (!el || flights[i]) continue;
+    const from = slotOf(i, before);
+    const to = slotOf(i, now);
+    if (from === to) continue;
+    rot[i]?.cancel();
+    const leavingFront = from === 0;
+    const kf: Keyframe[] = leavingFront
+      ? [
+        { transform: g.T(0), filter: F(1) },
+        { transform: g.T(0, { dx: -40 * g.k, dy: 20 * g.k, ds: 0.9 }), filter: F(0.8), offset: 0.35 },
+        { transform: g.T(to), filter: F(g.bright(to)) },
+      ]
+      : [
+        { transform: g.T(from), filter: F(g.bright(from)) },
+        { transform: g.T(to), filter: F(g.bright(to)) },
+      ];
+    const a = el.animate(kf, { duration: 800, easing: leavingFront ? EASE.expoOut : EASE.spring });
+    a.playbackRate = props.speed;
+    rot[i] = a;
+  }
+});
+
+function stopRotation(i: number): void {
+  rot[i]?.cancel();
+  delete rot[i];
+}
+
+/* ===== 编舞采集 ===== */
+function els(): CardEls {
+  const cards: CardEl[] = props.covers
+    .map((_, i) => {
+      const el = cardEls[i]!;
+      const sheet = el.firstElementChild as HTMLElement;
+      const slot = slotOf(i);
+      return { el, sheet, cv: sheet.firstElementChild as HTMLElement, slot, b: geo.value.bright(slot) };
+    })
+    .sort((a, b) => a.slot - b.slot);
+  // 编舞接管前先停掉组内轮转，避免两套动画叠加
+  Object.keys(rot).forEach((k) => stopRotation(Number(k)));
+  return {
+    ...geo.value,
+    root: zoneEl.value!,
+    album: albumEl.value!,
+    bg: bgEl.value!,
+    cards,
+    front: cards[0],
+    backs: cards.slice(1),
+    idx: props.idx,
+  };
+}
 
 /* ===== Lightbox（原卡节点 teleport 飞行） ===== */
 const flights = reactive<Record<number, Flight>>({});
-/** 刚归位的卡：一帧内禁 transition，防槽位变换回弹 */
-const noTrans = reactive<Record<number, boolean>>({});
 const expandedIndex = ref<number | null>(null);
 const lightboxOn = ref(false);
 const lbClosing = ref(false);
@@ -78,25 +176,13 @@ function setLightbox(on: boolean): void {
   emit('update:lightbox', on);
 }
 
-/** 相册卡位置：0 前排，1 右上后排，2 左下后排 */
-function slotOf(i: number): number {
-  const len = props.covers.length;
-  return (i - props.photoIndex + len) % len;
-}
-
-/* ===== Lightbox 飞行 ===== */
-
-/** 相册的 3D 姿态：飞行起降时保持同角度，避免瞬间拍平 */
-function deckPose(): string {
-  const angle = window.matchMedia('(max-width: 900px)').matches ? -10 : -15;
-  return `perspective(1300px) rotateY(${angle}deg)`;
-}
-
-/** 相册态阴影：起飞帧与落地帧使用，和槽位卡完全一致 */
+/** 相册态阴影：起飞帧与落地帧使用，和静止卡的外观层完全一致 */
 const DECK_SHADOW = 'var(--shadow), 0 30px 70px -20px rgba(var(--primary-rgb), 0.35)';
 const CENTER_SHADOW = '0 30px 80px -20px rgba(0, 0, 0, 0.55)';
+/** 中央态：规范函数表的恒等形式，与槽位变换逐函数插值 */
+const CENTER_TF = tf({});
 
-function rectStyle(r: Rect): Record<string, string> {
+function rectStyle(r: Rect, slot: number): Record<string, string> {
   return {
     left: `${r.left}px`,
     top: `${r.top}px`,
@@ -104,77 +190,58 @@ function rectStyle(r: Rect): Record<string, string> {
     height: `${r.height}px`,
     borderRadius: 'var(--radius-lg)',
     boxShadow: DECK_SHADOW,
+    filter: F(geo.value.bright(slot)),
   };
 }
 
-/** 槽位复合变换：等价于卡在相册中的 3D 姿态 */
-function slotTransform(slot: number): string {
-  const pose = deckPose();
-  if (slot === 1) return `${pose} translate3d(76px, -46px, -90px) scale(0.8)`;
-  if (slot === 2) return `${pose} translate3d(-140px, 96px, -90px) scale(0.74)`;
-  // 前排卡左移补偿 rotateY 透视右推
-  return `${pose} translate3d(-18px, 0, 0) scale(0.86)`;
-}
-
-/**
- * 家位 = 未旋转的 album-zone 布局盒（真实 4:3，不用投影包围盒——
- * 那个比例被透视压过，落地时裁切比例对不上）。姿态由 homeTransform 补。
- */
-function captureHome(i: number): { rect: Rect; transform: string } | null {
-  // album-zone 自身无变换：其布局盒 = album 的真实布局盒。
-  // 不能用 album 的 getBoundingClientRect——rotateY 透视投影会把中心推向右侧，
-  // 起飞/落地按偏移中心定位就会向右错位并在归位交接帧闪跳。
+/** 家位 = 未变换的相册布局盒（真实 4:3，不用投影包围盒），姿态由槽位变换补 */
+function homeRect(): Rect | null {
   const zone = zoneEl.value;
   if (!zone) return null;
   const r = zone.getBoundingClientRect();
-  return {
-    rect: { left: r.left, top: r.top, width: r.width, height: r.width * 0.75 },
-    transform: slotTransform(slotOf(i)),
-  };
+  return { left: r.left, top: r.top, width: r.width, height: r.width * 0.75 };
 }
 
-/** 按图片自然比例计算中央目标框 */
-function centerStyle(src: string): Promise<Record<string, string>> {
+/** 按图片自然比例计算中央目标框（CSS 光影封面按 4:3） */
+function centerStyle(i: number): Promise<Record<string, string>> {
+  const fit = (w0: number, h0: number): Record<string, string> => {
+    const maxW = document.documentElement.clientWidth * 0.86;
+    const maxH = window.innerHeight * 0.8;
+    const ratio = Math.min(maxW / w0, maxH / h0);
+    const w = w0 * ratio;
+    const h = h0 * ratio;
+    return {
+      left: `${(document.documentElement.clientWidth - w) / 2}px`,
+      top: `${(window.innerHeight - h) / 2}px`,
+      width: `${w}px`,
+      height: `${h}px`,
+      borderRadius: '0px',
+      filter: F(1),
+    };
+  };
+  if (kinds.value[i]) return Promise.resolve(fit(4, 3));
   return new Promise((resolve) => {
     const probe = new Image();
-    probe.onload = () => {
-      const maxW = document.documentElement.clientWidth * 0.86;
-      const maxH = window.innerHeight * 0.8;
-      const ratio = Math.min(maxW / probe.naturalWidth, maxH / probe.naturalHeight);
-      const w = probe.naturalWidth * ratio;
-      const h = probe.naturalHeight * ratio;
-      resolve({
-        left: `${(document.documentElement.clientWidth - w) / 2}px`,
-        top: `${(window.innerHeight - h) / 2}px`,
-        width: `${w}px`,
-        height: `${h}px`,
-        borderRadius: '0px',
-      });
-    };
-    probe.onerror = () => resolve({
-      left: `${document.documentElement.clientWidth * 0.15}px`,
-      top: `${window.innerHeight * 0.15}px`,
-      width: `${document.documentElement.clientWidth * 0.7}px`,
-      height: `${window.innerHeight * 0.7}px`,
-      borderRadius: '0px',
-    });
-    probe.src = src;
+    probe.onload = () => resolve(fit(probe.naturalWidth, probe.naturalHeight));
+    probe.onerror = () => resolve(fit(4, 3));
+    probe.src = props.covers[i];
   });
 }
 
 /** 原卡起飞：记录家位 → teleport（inline 定格原位）→ 下一帧飞向中央 */
 async function launch(i: number): Promise<void> {
-  const home = captureHome(i);
+  const home = homeRect();
   if (!home || flights[i]) return;
+  stopRotation(i);
+  const slot = slotOf(i);
   flights[i] = {
     mode: 'toCenter',
-    homeRect: home.rect,
-    homeTransform: home.transform,
+    homeRect: home,
     lifted: false,
     // 起飞帧保持家位 3D 姿态，飞行中转正
-    style: { ...rectStyle(home.rect), transform: home.transform, transition: 'none' },
+    style: { ...rectStyle(home, slot), transform: geo.value.T(slot), transition: 'none' },
   };
-  const target = await centerStyle(props.covers[i]);
+  const target = await centerStyle(i);
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const flight = flights[i];
@@ -182,7 +249,7 @@ async function launch(i: number): Promise<void> {
       flight.lifted = true;
       flight.style = {
         ...target,
-        transform: 'perspective(1300px) rotateY(0deg)',
+        transform: CENTER_TF,
         boxShadow: CENTER_SHADOW,
         transition: `all ${FLY_MS}ms ${FLY_EASE}`,
       };
@@ -194,22 +261,19 @@ async function launch(i: number): Promise<void> {
   });
 }
 
-/** 原卡回家：飞回家位 → 落地删除 flight（teleport 关闭，节点归位相册） */
+/** 原卡回家：按当前槽位飞回（组内顺序可能已在 lightbox 中变化）→ 落地删除 flight */
 function sendHome(i: number): void {
   const flight = flights[i];
   if (!flight || flight.mode === 'toHome') return;
   flight.mode = 'toHome';
+  const slot = slotOf(i);
   flight.style = {
-    ...rectStyle(flight.homeRect),
-    // 归途中转回家位姿态（含槽位偏移缩放），裁切比例与角度同步复原
-    transform: flight.homeTransform,
+    ...rectStyle(flight.homeRect, slot),
+    transform: geo.value.T(slot),
     transition: `all ${FLY_MS}ms ${FLY_EASE}`,
   };
   window.setTimeout(() => {
     delete flights[i];
-    // 归位首帧禁过渡：否则节点回相册后从无变换滑向槽位变换，会肉眼卡一下
-    noTrans[i] = true;
-    window.setTimeout(() => { delete noTrans[i]; }, 80);
   }, FLY_MS + 20);
 }
 
@@ -246,37 +310,33 @@ async function lbGo(delta: number): Promise<void> {
   };
   window.setTimeout(() => {
     delete flights[from];
-    noTrans[from] = true;
-    window.setTimeout(() => { delete noTrans[from]; }, 80);
   }, SWAP_MS + 10);
 
+  // 新卡：先占位（阻止背景轮转动画作用到它），再在中央淡入
+  const home = homeRect();
+  if (!home) return;
+  stopRotation(to);
+  flights[to] = {
+    mode: 'toCenter',
+    homeRect: home,
+    lifted: true,
+    style: { ...rectStyle(home, 0), opacity: '0', transition: 'none' },
+  };
   // 背景牌组同步轮转：新卡的家位变为前排
   setPhotoIndex(to);
   expandedIndex.value = to;
-
-  // 新卡：直接在中央淡入（不从槽位飞入）
-  const home = captureHome(to);
-  if (!home) return;
-  const target = await centerStyle(props.covers[to]);
-  flights[to] = {
-    mode: 'toCenter',
-    homeRect: home.rect,
-    homeTransform: home.transform,
-    lifted: true,
-    style: { ...target, boxShadow: CENTER_SHADOW, opacity: '0', transition: 'none' },
-  };
+  const target = await centerStyle(to);
+  const flight = flights[to];
+  if (!flight) return;
+  flight.style = { ...target, transform: CENTER_TF, boxShadow: CENTER_SHADOW, opacity: '0', transition: 'none' };
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      const flight = flights[to];
-      if (!flight || flight.mode !== 'toCenter') return;
-      flight.style = {
-        ...flight.style,
-        opacity: '1',
-        transition: `opacity ${SWAP_MS}ms ease`,
-      };
+      const f = flights[to];
+      if (!f || f.mode !== 'toCenter') return;
+      f.style = { ...f.style, opacity: '1', transition: `opacity ${SWAP_MS}ms ease` };
       window.setTimeout(() => {
-        const f = flights[to];
-        if (f && f.mode === 'toCenter') f.mode = 'center';
+        const g = flights[to];
+        if (g && g.mode === 'toCenter') g.mode = 'center';
       }, SWAP_MS);
     });
   });
@@ -343,7 +403,7 @@ function onPointerDown(e: PointerEvent): void {
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (pointers.size === 1) {
     lastPt = { x: e.clientX, y: e.clientY };
-    // 即时拖动：按下即可平移（指南文案仍写长按，直接拖同样响应）
+    // 即时拖动：按下即可平移
     panReady = true;
     dragging.value = true;
   } else if (pointers.size === 2) {
@@ -401,16 +461,14 @@ function onBackdropTap(e: MouseEvent): void {
  * Lightbox 期间不动 overflow（滚动条消失会引发布局横移，干扰飞行定位），
  * 改为事件级锁滚动：滚轮已 preventDefault，这里拦截滚动类按键。
  */
-const SCROLL_KEYS = new Set([
-  ' ', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown',
-]);
+const SCROLL_KEYS = new Set([' ', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown']);
 
 function onKey(e: KeyboardEvent): void {
   if (!lightboxOn.value) return;
   if (SCROLL_KEYS.has(e.key)) e.preventDefault();
   if (e.key === 'Escape') closeLightbox();
-  if (e.key === 'ArrowLeft') lbGo(-1);
-  if (e.key === 'ArrowRight') lbGo(1);
+  if (e.key === 'ArrowLeft') void lbGo(-1);
+  if (e.key === 'ArrowRight') void lbGo(1);
 }
 
 function activateCard(i: number): void {
@@ -420,9 +478,8 @@ function activateCard(i: number): void {
 }
 
 /**
- * 强化点击穿透：相册态卡片全部 pointer-events: none，
- * 手势统一落在未变换的 album-zone 上，再按槽位前后顺序用
- * 投影矩形手动解析命中目标——彻底绕开 3D 命中测试的不稳定。
+ * 点击穿透：相册态卡片全部 pointer-events: none，手势统一落在未变换的 album-zone 上，
+ * 再按槽位前后顺序用投影矩形手动解析命中目标——绕开 3D 命中测试的不稳定。
  */
 let tap: { x: number; y: number; t: number } | null = null;
 
@@ -430,10 +487,7 @@ function resolveCardAt(x: number, y: number): number | null {
   const len = props.covers.length;
   for (let slot = 0; slot < len; slot++) {
     const i = (props.photoIndex + slot) % len;
-    const src = props.covers[i];
-    const el = zoneEl.value?.querySelector<HTMLElement>(
-      `.album-card[data-src="${CSS.escape(src)}"]`,
-    );
+    const el = cardEls[i];
     if (!el) continue;
     const r = el.getBoundingClientRect();
     if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return i;
@@ -443,8 +497,7 @@ function resolveCardAt(x: number, y: number): number | null {
 
 function onZoneDown(e: PointerEvent): void {
   // 切换按钮有自己的 click：zone 手势必须无视，否则一次点击双触发
-  // （tap 解析命中外扩的后排卡 + 按钮 click 各走一步，3 张时 +2 ≡ -1 表现为倒退）
-  if ((e.target as HTMLElement).closest('.step')) {
+  if ((e.target as HTMLElement).closest('.step') || props.busy || props.leaving) {
     tap = null;
     return;
   }
@@ -464,28 +517,47 @@ function onZoneUp(e: PointerEvent): void {
 }
 
 onMounted(() => {
+  measure();
+  ro = new ResizeObserver(measure);
+  if (zoneEl.value) ro.observe(zoneEl.value);
+  mq.addEventListener('change', measure);
   window.addEventListener('keydown', onKey);
   window.addEventListener('wheel', onWheel, { passive: false });
 });
 
 onBeforeUnmount(() => {
+  ro?.disconnect();
+  mq.removeEventListener('change', measure);
   window.removeEventListener('keydown', onKey);
   window.removeEventListener('wheel', onWheel);
+  Object.values(rot).forEach((a) => a?.cancel());
 });
+
+defineExpose({ els });
 </script>
 
 <template>
-  <!-- 未旋转的定位层：phase 挂根节点驱动入退场动画；按钮在旋转容器外，不受透视挤压 -->
-  <div ref="zoneEl" class="album-zone" :class="phase" @pointerdown="onZoneDown" @pointerup="onZoneUp">
-    <div :key="itemIndex" class="album">
+  <!-- 未变换的定位层：手势解析、切换按钮都在这里，不受 3D 透视挤压 -->
+  <div
+    ref="zoneEl"
+    class="album-zone"
+    :class="{ leaving, busy }"
+    :aria-hidden="leaving ? 'true' : undefined"
+    @pointerdown="onZoneDown"
+    @pointerup="onZoneUp"
+  >
+    <div ref="bgEl" class="deck-ambient" />
+    <div ref="albumEl" class="album">
       <!-- teleport 开启时原节点整体搬到 body 飞行 -->
       <Teleport
         v-for="(cover, i) in covers"
-        :key="cover"
+        :key="`${i}-${cover}`"
         to="body"
         :disabled="!flights[i]"
       >
+        <!-- 变换层（槽位 3D 姿态 / 层级）> 外观层（圆角裁切、开合）> 画面层 -->
         <div
+          :ref="(el) => { cardEls[i] = el as HTMLElement | null; }"
           class="album-card"
           :class="flights[i]
             ? ['fly', {
@@ -494,25 +566,29 @@ onBeforeUnmount(() => {
               homing: flights[i].mode === 'toHome',
               dragging,
             }]
-            : [`slot-${slotOf(i)}`, { 'no-trans': noTrans[i] }]"
-          :data-src="cover"
+            : null"
           :style="flights[i]
             ? [flights[i].style, flights[i].mode === 'center' ? zoomStyle : {}]
-            : { '--stagger': slotOf(i) * 0.1 + 's' }"
+            : restStyle(i)"
           @pointerdown="flights[i]?.mode === 'center' && onPointerDown($event)"
           @pointermove="onPointerMove"
           @pointerup="onPointerUp"
           @pointercancel="onPointerUp"
         >
-          <img :src="cover" :alt="title" draggable="false" />
-          <!-- 光照层跟卡走：飞行/中央态同样保留 -->
-          <div class="card-glow" />
+          <div class="sheet">
+            <div class="cv">
+              <CoverArt v-if="kinds[i]" :kind="kinds[i]!" />
+              <img v-else :src="cover" :alt="title" draggable="false" />
+            </div>
+            <!-- 光照层跟卡走：飞行/中央态同样保留 -->
+            <div class="card-glow" />
+          </div>
         </div>
       </Teleport>
     </div>
 
     <!-- 悬停左右切换 -->
-    <template v-if="covers.length > 1">
+    <template v-if="covers.length > 1 && !leaving">
       <button class="step prev" aria-label="上一张" @click.stop="emit('step', -1)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
       </button>
@@ -549,12 +625,13 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
-/* 未旋转的定位层：切换按钮挂这里，不受 3D 透视影响 */
+/*
+ * 未变换的定位层。注意：这里及祖先都不能建立层叠上下文（不设 perspective / transform / z-index），
+ * 卡片 z-index 需要与文字层、光效层、缩略导航在 Hero 内交错。
+ */
 .album-zone {
   position: relative;
-  /* 大屏自适应放大：宽屏时右半区不空 */
-  width: min(100%, clamp(430px, 36vw, 580px));
-  perspective: 1300px;
+  width: 100%;
   /* 光标定在容器级：3D 命中测试在层叠卡片间跳动时指针形态不变 */
   cursor: pointer;
 
@@ -565,31 +642,55 @@ onBeforeUnmount(() => {
     inset: -24px -80px;
     z-index: -1;
   }
+
+  &.leaving,
+  &.busy { pointer-events: none; }
+
+  &.leaving::after { display: none; }
 }
+
+/* 卡组环境光（编舞驱动其明灭） */
+.deck-ambient {
+  position: absolute;
+  inset: -22% -26%;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(var(--primary-rgb), 0.16), rgba(var(--primary-rgb), 0.05) 55%, transparent 78%);
+}
+
+:root[data-mode='light'] .deck-ambient { opacity: 0.75; }
 
 .album {
   position: relative;
   width: 100%;
   aspect-ratio: 4 / 3;
-  transform-style: preserve-3d;
-  transform: rotateY(-15deg);
 }
 
+/* 变换层：槽位姿态由 inline style（规范变换函数表）给出 */
 .album-card {
   position: absolute;
   inset: 0;
   border-radius: var(--radius-lg);
-  overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: var(--shadow), 0 30px 70px -20px rgba(var(--primary-rgb), 0.35);
-  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
   /* 相册态不接事件：手势统一由 album-zone 解析（3D 命中不稳定） */
   pointer-events: none;
-  transition:
-    transform 0.7s var(--ease-out),
-    opacity 0.7s var(--ease-out),
-    filter 0.7s ease;
+}
+
+/* 外观层：圆角裁切 + 阴影；开合 / 裁切类编舞作用在这一层 */
+.sheet {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: #050a14;
+  box-shadow: var(--shadow), 0 30px 70px -20px rgba(var(--primary-rgb), 0.35);
+  outline: 1px solid rgba(255, 255, 255, 0.07);
+  outline-offset: -1px;
+}
+
+/* 画面层：镜头回收 / 反向视差作用在这一层 */
+.cv {
+  position: absolute;
+  inset: 0;
 
   img {
     width: 100%;
@@ -600,93 +701,25 @@ onBeforeUnmount(() => {
   }
 }
 
-/* 飞行态：原节点 teleport 到 body，fixed 定位 + inline 样式驱动 */
+/* 飞行态：原节点 teleport 到 body，fixed 定位 + inline 样式驱动（阴影 / 圆角挪到变换层） */
 .album-card.fly {
   position: fixed;
   inset: auto;
   z-index: 9600;
   pointer-events: auto;
-  /* 边框/阴影沿用相册卡并由 inline style 过渡，飞行两端 1:1 对齐 */
-  filter: none;
   opacity: 1;
   will-change: left, top, width, height, transform;
   touch-action: none;
 
+  .sheet {
+    border-radius: inherit;
+    box-shadow: none;
+    outline-color: transparent;
+    transition: outline-color 0.3s ease;
+  }
+
   &.settled { cursor: grab; }
   &.dragging { cursor: grabbing; }
-}
-
-/* 归位首帧禁过渡 */
-.album-card.no-trans {
-  transition: none;
-}
-
-.slot-0 {
-  /* 左移补偿 rotateY 透视把视觉中心推向右侧 */
-  transform: translate3d(-18px, 0, 0) scale(0.86);
-  opacity: 1;
-  z-index: 3;
-  filter: none;
-  cursor: pointer;
-}
-.slot-1 {
-  transform: translate3d(76px, -46px, -90px) scale(0.8);
-  opacity: 0.85;
-  z-index: 2;
-  filter: brightness(0.8);
-  cursor: pointer;
-}
-.slot-2 {
-  transform: translate3d(-140px, 96px, -90px) scale(0.74);
-  opacity: 0.85;
-  z-index: 1;
-  filter: brightness(0.72);
-  cursor: pointer;
-}
-
-/* 入场（无弹性；透明度前 25% 拉满，凭空出现） */
-.album-zone.enter .album-card:not(.fly) {
-  animation-duration: 0.75s;
-  animation-timing-function: var(--ease-out);
-  animation-fill-mode: both;
-  animation-delay: var(--stagger);
-}
-.album-zone.enter .slot-0 { animation-name: enter-top; }
-.album-zone.enter .slot-1 { animation-name: enter-right; }
-.album-zone.enter .slot-2 { animation-name: enter-left; }
-
-@keyframes enter-top {
-  from { opacity: 0; transform: translate3d(0, -70%, 40px) rotateX(48deg) scale(0.8); }
-  25% { opacity: 1; }
-}
-/* 后排卡绕 Y 轴翻正 */
-@keyframes enter-right {
-  from { opacity: 0; transform: translate3d(85%, -46px, -120px) rotateY(-62deg) scale(0.72); }
-  25% { opacity: 0.85; }
-}
-@keyframes enter-left {
-  from { opacity: 0; transform: translate3d(-85%, 72px, -120px) rotateY(62deg) scale(0.7); }
-  25% { opacity: 0.85; }
-}
-
-/* 出场：30% 时间透明，瞬隐 */
-.album-zone.out .album-card:not(.fly) {
-  animation-duration: 0.85s;
-  animation-timing-function: var(--ease-out);
-  animation-fill-mode: both;
-  animation-delay: calc(var(--stagger) * 0.4);
-}
-.album-zone.out .slot-0 { animation-name: leave-down; }
-.album-zone.out .slot-1,
-.album-zone.out .slot-2 { animation-name: leave-up; }
-
-@keyframes leave-down {
-  40% { opacity: 0; }
-  to { opacity: 0; transform: translate3d(0, 65%, 0) rotateX(-42deg) scale(0.82); }
-}
-@keyframes leave-up {
-  40% { opacity: 0; }
-  to { opacity: 0; transform: translate3d(0, -65%, -90px) rotateX(38deg) scale(0.7); }
 }
 
 .card-glow {
@@ -694,8 +727,8 @@ onBeforeUnmount(() => {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.14) 48%, transparent 62%),
-    linear-gradient(180deg, transparent 60%, rgba(var(--primary-rgb), 0.18));
+    linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.12) 48%, transparent 62%),
+    linear-gradient(180deg, transparent 60%, rgba(var(--primary-rgb), 0.16));
   transition: opacity 0.55s ease;
 }
 
@@ -708,7 +741,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 10;
+  z-index: 40;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -739,21 +772,7 @@ onBeforeUnmount(() => {
   pointer-events: auto;
 }
 
-/* 移动端：相册两侧预留探出空间，杜绝右缘溢出 */
 @media (max-width: 900px) {
-  /* 相册收窄居中：两侧各留 ~46px 给后排卡探出与切换钮 */
-  .album-zone {
-    width: min(100% - 92px, 300px);
-    margin-inline: auto;
-  }
-
-  .album { transform: rotateY(-10deg); }
-
-  /* 后排卡明显错位（探出量 ≤ 预留空间） */
-  .slot-0 { transform: translate3d(-8px, 0, 0) scale(0.86); }
-  .slot-1 { transform: translate3d(44px, -26px, -60px) scale(0.8); }
-  .slot-2 { transform: translate3d(-68px, 54px, -60px) scale(0.74); }
-
   .step {
     opacity: 1;
     pointer-events: auto;
