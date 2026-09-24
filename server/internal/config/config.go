@@ -34,7 +34,7 @@ const defaultJSON = `{
       { "id": "winter", "name": "冬 · 霜蓝", "primary": "#0078ff", "primaryDeep": "#005fd6" }
     ]
   },
-  "hero": { "intervalMs": 3000, "count": 4, "pinnedRule": "pinned-first" },
+  "hero": { "intervalMs": 3000, "count": 4, "pinnedRule": "pinned-first", "textAnim": "lightscan", "cardAnim": "hinge" },
   "thoughts": { "subtitle": "碎片化的想法、心情与瞬间，短到装不下一篇文章。" },
   "covers": { "expandMs": 10000 },
   "timezone": "Asia/Shanghai",
