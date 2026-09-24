@@ -1,68 +1,121 @@
-/* 关于页模块行内编辑器共享样式（各 Editor*.vue 的 scoped 样式中 @use 引入） */
+/* 关于页模块编辑器共享样式（各 Editor*.vue 的 scoped 样式中 @use 引入）。输入框/按钮沿用后台 .a-input / .a-btn */
 
-.hint { font-size: 13px; color: var(--text-2); }
+.ed {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hint { font-size: 12.5px; line-height: 1.6; color: var(--text-2); }
+
+.grid2, .grid3, .grid4 {
+  display: grid;
+  gap: 10px 12px;
+}
+
+.grid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.span2 { grid-column: span 2; }
+.span-all { grid-column: 1 / -1; }
+
+label, .fld {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+
+  > span:first-child {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+}
+
+.a-input { width: 100%; min-width: 0; }
 
 .line {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.faq-line {
-  display: flex;
-  flex-direction: column;
   gap: 8px;
-  padding-bottom: 10px;
-  border-bottom: 1px dashed var(--border);
-
-  .op { align-self: flex-end; }
+  min-width: 0;
 }
 
-.w-narrow { width: 130px; flex-shrink: 0; }
-.w-num { width: 74px; flex-shrink: 0; }
 .flex-in { flex: 1; min-width: 0; }
+.w-narrow { width: 120px; flex-shrink: 0; }
+.w-num { width: 76px; flex-shrink: 0; }
 
-.range { flex: 1; accent-color: var(--primary); }
+.range { flex: 1; min-width: 60px; accent-color: var(--primary); }
 
 .color-in {
-  width: 38px;
-  height: 30px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: none;
+  width: 36px;
+  height: 34px;
+  flex-shrink: 0;
   padding: 0;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.op {
-  border: none;
+  border: 1px solid var(--border);
+  border-radius: 9px;
   background: none;
+  cursor: pointer;
+}
+
+.check {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--primary);
-  flex-shrink: 0;
+  color: var(--text);
+  cursor: pointer;
 
-  &.danger { color: var(--accent-red); }
-  &:hover { opacity: 0.75; }
+  input { width: 16px; height: 16px; accent-color: var(--primary); }
 }
 
-.a-btn.sm { padding: 7px 16px; font-size: 12.5px; align-self: flex-start; }
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--text) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--text) 8%, transparent);
 
-.row2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  button {
+    padding: 4px 11px;
+    border: 0;
+    border-radius: 7px;
+    background: none;
+    font-size: 12.5px;
+    color: var(--text-2);
+    transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
+
+    &:hover:not(:disabled) { color: var(--text); }
+    &:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    &.on {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 2px rgb(0 0 0 / 0.12), inset 0 0 0 1px color-mix(in oklab, var(--text) 12%, transparent);
+    }
+  }
 }
 
-label {
+.sub-title {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-2);
 
-  span { font-size: 12px; font-weight: 600; color: var(--text-2); }
+  &::after { content: ''; flex: 1; height: 1px; background: color-mix(in oklab, var(--text) 9%, transparent); }
 }
+
+.a-btn.sm { align-self: flex-start; padding: 7px 14px; height: auto; font-size: 12.5px; }
 
 @media (max-width: 720px) {
-  .row2 { grid-template-columns: 1fr; }
+  .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
+  .span2 { grid-column: auto; }
 }

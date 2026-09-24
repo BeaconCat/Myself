@@ -1,25 +1,33 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import type { AboutModule } from '../../../stores/config';
+import type { SocialsData } from '../../../about/types';
+import { SOCIAL_ICONS } from '../../../about/icons';
+import EdList from './EdList.vue';
+import { useModuleData } from './useModuleData';
 
-/** 社交链接：名称 + URL + 图标类型 */
-defineProps<{ mod: AboutModule }>();
+/** 社交：名称 / handle / URL / 图标 / 主入口 */
+const props = defineProps<{ mod: AboutModule }>();
+const d = useModuleData<SocialsData>(() => props.mod);
 const { t } = useI18n();
 </script>
 
 <template>
-  <div v-for="(item, ii) in mod.data.items" :key="ii" class="line">
-    <input v-model="item.name" class="a-input w-narrow" type="text" :placeholder="t('admin.socialName')" />
-    <input v-model="item.url" class="a-input flex-in" type="text" placeholder="https://…" />
-    <select v-model="item.icon" class="a-input w-narrow">
-      <option value="github">GitHub</option>
-      <option value="mail">Mail</option>
-      <option value="rss">RSS</option>
-      <option value="link">Link</option>
-    </select>
-    <button class="op danger" @click="mod.data.items.splice(ii, 1)">{{ t('admin.delete') }}</button>
+  <div class="ed">
+    <EdList v-slot="{ item }" :items="d.items" :make="() => ({ name: '', handle: '', url: '', icon: 'link' })">
+      <div class="grid4">
+        <input v-model="item.name" class="a-input" type="text" :placeholder="t('aboutKit.ed.linkName')" />
+        <input v-model="item.handle" class="a-input" type="text" :placeholder="t('aboutKit.ed.handle')" />
+        <input v-model="item.url" class="a-input" type="text" placeholder="https://…" />
+        <div class="line">
+          <select v-model="item.icon" class="a-input flex-in">
+            <option v-for="ic in SOCIAL_ICONS" :key="ic" :value="ic">{{ ic }}</option>
+          </select>
+          <label class="check"><input v-model="item.primary" type="checkbox" />{{ t('aboutKit.ed.primary') }}</label>
+        </div>
+      </div>
+    </EdList>
   </div>
-  <button class="a-btn ghost sm" @click="mod.data.items.push({ name: '', url: '', icon: 'link' })">{{ t('admin.addItem') }}</button>
 </template>
 
 <style scoped lang="scss">

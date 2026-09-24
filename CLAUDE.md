@@ -13,7 +13,10 @@
   （`stores/dialog.ts` + `components/ui/AppModal.vue`，带灵动进出场动画）
 - 字体：思源黑体（UI/正文）+ 思源宋体（标题/文章），离线 woff2 打包
 - i18n：vue-i18n，当前仅 zh-CN（`i18n/locales/zh-CN.ts`）；多语言暂缓，新增文案一律走字典不写死
-- 响应式：PC 顶部毛玻璃胶囊导航；移动端悬浮顶栏 + 汉堡侧栏
+- 桌面：顶部毛玻璃胶囊导航。移动端（≤767px）不是响应式缩放，而是独立外壳：前台 `components/mobile/MobileShell.vue`（悬浮玻璃胶囊底栏 + 跟手侧滑抽屉 + iOS 式 push/返回手势 + 骨架屏），后台 `views/mobile/admin/`（贴底底栏 + 中央「+」写作）；路由用命名视图 `mobile`，映射在 `router/mobile-public.ts` / `router/mobile-admin.ts`
+- 后台：Studio 设计（`views/admin/`，token 在 `styles/admin.scss` 的 `.studio` 作用域，底色/纸面随主题色 3–8% 交叠）；子路由契约 `router/admin.ts`（name 稳定）
+- 首页 Hero：文字动效与卡组动效为两个独立注册表（`components/home/hero/choreo/{text,card}`），配置 `hero.textAnim` / `hero.cardAnim` 自由搭配，后台「外观」页用 `HeroMixer.vue` 实时预览
+- 关于页：模块化组件库（`about/`，26 种模块，12 栏 bento，`span/variant/title/hidden`），旧配置经 `about/migrate.ts` 读取时迁移；默认模块唯一来源 `about/default-modules.json`
 
 ## 主题系统
 - 两层：`mode`（light/dark）×`palette`（季节色盘）
@@ -28,8 +31,7 @@
 - 统一 motion tokens：时长 `--dur-fast:.2s / --dur:.35s / --dur-slow:.6s`，
   缓动 `--ease-out:cubic-bezier(.2,.8,.3,1)`、回弹 `--ease-spring:cubic-bezier(.2,.8,.3,1.2)`
 - 尊重 `prefers-reduced-motion`
-- 首页 Hero 轮播：左侧大标题+简介（文字随机模糊切入/飞出），右侧封面卡 3D 飞入飞出，
-  组内多卡数秒轮转，每 10 秒切换一组内容
+- 首页 Hero 轮播：左文右卡，切换编舞见上文注册表；组内多卡数秒轮转
 
 ## 后端规范
 - RESTful API，前缀 `/api/v1`

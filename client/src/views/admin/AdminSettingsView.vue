@@ -1,159 +1,289 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi } from '../../api';
-import { useConfigStore, type SiteConfig } from '../../stores/config';
-import { useThemeStore } from '../../stores/theme';
-import SectionSite from './settings/SectionSite.vue';
-import SectionLoading from './settings/SectionLoading.vue';
-import SectionTheme from './settings/SectionTheme.vue';
-import SectionHero from './settings/SectionHero.vue';
-import SectionTimezone from './settings/SectionTimezone.vue';
+import { FALLBACK_CONFIG, useConfigStore, type SiteConfig } from '../../stores/config';
+import { useDialogStore } from '../../stores/dialog';
+import './studio/i18n';
+import SIcon from './studio/SIcon.vue';
+import { toast } from './studio/toast';
 import SectionGithub from './settings/SectionGithub.vue';
-import SectionUsers from './settings/SectionUsers.vue';
+import SectionAccount from './settings/SectionAccount.vue';
 
-/** 设置页外壳：加载 / 保存 cfg，各分区组件直接编辑同一 reactive 对象 */
+/** 设置：站点 / 加载文案 / 随想与封面 / 时区 / GitHub / 账号。左侧锚点导航随滚动高亮 */
 const { t } = useI18n();
-const configStore = useConfigStore();
+const config = useConfigStore();
+const dialog = useDialogStore();
 
-const cfg = reactive<SiteConfig>(JSON.parse(JSON.stringify(configStore.cfg)));
-const message = ref('');
+const cfg = reactive<SiteConfig>(JSON.parse(JSON.stringify(config.cfg)));
+const snapshot = ref('');
+const loaded = ref(false);
 const busy = ref(false);
 
-/** 锚点子导航 */
-const SECTIONS = [
-  { id: 'sec-platform', key: 'admin.secPlatform' },
-  { id: 'sec-loading', key: 'admin.secLoading' },
-  { id: 'sec-theme', key: 'admin.secTheme' },
-  { id: 'sec-hero', key: 'admin.secHero' },
-  { id: 'sec-timezone', key: 'admin.secTimezone' },
-  { id: 'sec-github', key: 'admin.secGithub' },
-  { id: 'sec-users', key: 'admin.secUsers' },
+/** 只比较本页负责的字段 */
+const mine = () => JSON.stringify([cfg.site, cfg.loading, cfg.thoughts, cfg.covers, cfg.timezone, cfg.github]);
+const dirty = computed(() => loaded.value && mine() !== snapshot.value);
+
+const SECTIONS = ['site', 'loading', 'content', 'timezone', 'github', 'account'] as const;
+const current = ref<string>('site');
+
+const TIMEZONES = [
+  'Asia/Shanghai', 'Asia/Hong_Kong', 'Asia/Taipei', 'Asia/Tokyo', 'Asia/Singapore',
+  'UTC', 'Europe/London', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles',
 ];
 
 async function load(): Promise<void> {
-  const remote = await adminApi.settings() as unknown as SiteConfig;
-  Object.assign(cfg, JSON.parse(JSON.stringify(remote)));
+  try {
+    const remote = (await adminApi.settings()) as unknown as SiteConfig;
+    Object.assign(cfg, JSON.parse(JSON.stringify(remote)));
+    cfg.github = { ...FALLBACK_CONFIG.github, ...(remote.github ?? {}) };
+    cfg.github.stats = { ...FALLBACK_CONFIG.github.stats, ...(remote.github?.stats ?? {}) };
+  } catch {
+    toast(t('studio.loadFailed'), { icon: 'x' });
+  }
+  await nextTick();
+  snapshot.value = mine();
+  loaded.value = true;
 }
 
 async function save(): Promise<void> {
   if (busy.value) return;
   busy.value = true;
-  message.value = '';
   try {
-    cfg.theme.displayCount = Math.min(4, Math.max(1, cfg.theme.displayCount));
-    await adminApi.saveSettings(cfg as unknown as Record<string, unknown>);
-    await configStore.load();
-    useThemeStore().init();
-    message.value = t('admin.saved');
+    await adminApi.saveSettings(JSON.parse(JSON.stringify({
+      site: cfg.site,
+      loading: cfg.loading,
+      thoughts: cfg.thoughts,
+      covers: cfg.covers,
+      timezone: cfg.timezone,
+      github: cfg.github,
+    })));
+    snapshot.value = mine();
+    await config.load();
+    toast(t('studio.settings.saved'));
   } catch {
-    message.value = t('admin.saveFailed');
+    toast(t('studio.saveFailed'), { icon: 'x' });
   } finally {
     busy.value = false;
   }
 }
 
-onMounted(load);
+const expandSec = computed({
+  get: () => (cfg.covers.expandMs / 1000).toFixed(1).replace(/\.0$/, ''),
+  set: (v: string) => (cfg.covers.expandMs = Math.max(1500, Math.round(Number(v) * 1000) || 10000)),
+});
+
+/* ===== 锚点导航 ===== */
+const root = ref<HTMLElement | null>(null);
+let io: IntersectionObserver | null = null;
+
+function jump(id: string): void {
+  current.value = id;
+  root.value?.querySelector(`#set-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+onBeforeRouteLeave(async () => {
+  if (!dirty.value) return true;
+  return dialog.confirm({
+    title: t('studio.settings.leaveTitle'),
+    message: t('studio.appearance.leaveBody'),
+    confirmText: t('studio.write.leave'),
+    danger: true,
+  });
+});
+
+function onKey(e: KeyboardEvent): void {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    void save();
+  }
+}
+
+onMounted(() => {
+  void load();
+  window.addEventListener('keydown', onKey);
+  io = new IntersectionObserver(
+    (entries) => {
+      const hit = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (hit) current.value = hit.target.id.replace('set-', '');
+    },
+    { rootMargin: '-20% 0px -60% 0px' },
+  );
+  void nextTick(() => root.value?.querySelectorAll('.sec').forEach((el) => io?.observe(el)));
+});
+onBeforeUnmount(() => {
+  io?.disconnect();
+  window.removeEventListener('keydown', onKey);
+});
 </script>
 
 <template>
-  <div class="settings">
-    <header class="head">
-      <h1 class="page-h">{{ t('admin.menuSettings') }}</h1>
-      <div class="actions">
-        <span v-if="message" class="msg">{{ message }}</span>
-        <button class="btn primary" :disabled="busy" @click="save">{{ t('admin.saveAll') }}</button>
+  <section ref="root" class="studio view">
+    <div class="st-vh">
+      <div>
+        <h1>{{ t('studio.settings.title') }}</h1>
+        <p>{{ t('studio.settings.desc') }}</p>
       </div>
-    </header>
+      <div class="act">
+        <button type="button" class="st-btn" :class="dirty ? 'p' : 'g'" :disabled="busy || !dirty" @click="save">
+          <SIcon name="check" :size="16" />{{ dirty ? t('studio.save') : t('studio.saved') }}
+        </button>
+      </div>
+    </div>
 
-    <!-- 锚点子导航 -->
-    <nav class="subnav">
-      <a v-for="s in SECTIONS" :key="s.id" :href="`#${s.id}`">{{ t(s.key) }}</a>
-    </nav>
+    <div class="layout">
+      <nav class="sub">
+        <button v-for="s in SECTIONS" :key="s" type="button" :class="{ on: current === s }" @click="jump(s)">
+          {{ t(`studio.settings.nav.${s}`) }}
+        </button>
+      </nav>
 
-    <SectionSite :cfg="cfg" />
-    <SectionLoading :cfg="cfg" />
-    <SectionTheme :cfg="cfg" />
-    <SectionHero :cfg="cfg" />
-    <SectionTimezone :cfg="cfg" />
-    <SectionGithub :cfg="cfg" />
-    <SectionUsers />
-  </div>
+      <div class="secs">
+        <section id="set-site" class="sec st-rise" style="--i: 0">
+          <h2>{{ t('studio.settings.nav.site') }}</h2>
+          <div class="st-opt">
+            <div>{{ t('studio.settings.siteTitle') }}<small>{{ t('studio.settings.siteTitleSub') }}</small></div>
+            <label class="st-field w320"><input v-model="cfg.site.title" /></label>
+          </div>
+          <div class="st-opt">
+            <div>{{ t('studio.settings.siteSubtitle') }}<small>{{ t('studio.settings.siteSubtitleSub') }}</small></div>
+            <label class="st-field w320"><input v-model="cfg.site.subtitle" /></label>
+          </div>
+          <div class="st-opt">
+            <div>{{ t('studio.settings.listEnd') }}<small>{{ t('studio.settings.listEndSub') }}</small></div>
+            <label class="st-field w320"><input v-model="cfg.site.listEndText" /></label>
+          </div>
+        </section>
+
+        <section id="set-loading" class="sec st-rise" style="--i: 1">
+          <h2>{{ t('studio.settings.nav.loading') }}</h2>
+          <div class="st-opt">
+            <div>{{ t('studio.settings.bootText') }}<small>{{ t('studio.settings.bootTextSub') }}</small></div>
+            <label class="st-field w320"><input v-model="cfg.loading.bootText" /></label>
+          </div>
+          <div class="st-opt">
+            <div>{{ t('studio.settings.routeText') }}<small>{{ t('studio.settings.routeTextSub') }}</small></div>
+            <label class="st-field w320"><input v-model="cfg.loading.routeText" /></label>
+          </div>
+        </section>
+
+        <section id="set-content" class="sec st-rise" style="--i: 2">
+          <h2>{{ t('studio.settings.nav.content') }}</h2>
+          <div class="st-opt">
+            <div>{{ t('studio.settings.thoughtsSub') }}<small>{{ t('studio.settings.thoughtsSubSub') }}</small></div>
+            <label class="st-field w420"><input v-model="cfg.thoughts.subtitle" /></label>
+          </div>
+          <div class="st-opt">
+            <div>{{ t('studio.settings.coverMs') }}<small>{{ t('studio.settings.coverMsSub') }}</small></div>
+            <label class="st-field w140"><input v-model="expandSec" type="number" min="1.5" step="0.5" /><span class="suffix">{{ t('studio.settings.seconds') }}</span></label>
+          </div>
+        </section>
+
+        <section id="set-timezone" class="sec st-rise" style="--i: 3">
+          <h2>{{ t('studio.settings.nav.timezone') }}</h2>
+          <div class="st-opt">
+            <div>{{ t('studio.settings.tz') }}<small>{{ t('studio.settings.tzSub') }}</small></div>
+            <label class="st-field w260 sel">
+              <SIcon name="globe" :size="16" />
+              <select v-model="cfg.timezone"><option v-for="tz in TIMEZONES" :key="tz" :value="tz">{{ tz }}</option></select>
+              <SIcon name="chevronD" :size="14" />
+            </label>
+          </div>
+        </section>
+
+        <section id="set-github" class="sec st-rise" style="--i: 4">
+          <h2>{{ t('studio.settings.nav.github') }}</h2>
+          <SectionGithub :cfg="cfg" />
+        </section>
+
+        <section id="set-account" class="sec st-rise" style="--i: 5">
+          <h2>{{ t('studio.settings.nav.account') }}</h2>
+          <p class="sec-desc">{{ t('studio.settings.accountDesc') }}</p>
+          <SectionAccount />
+        </section>
+      </div>
+    </div>
+  </section>
 </template>
 
 <style scoped lang="scss">
-.settings {
-  max-width: 860px;
+.view {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 52px 64px 96px;
 }
 
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 22px;
+.layout {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
 }
 
-.page-h { font-size: 26px; }
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.msg {
-  font-size: 13px;
-  color: var(--primary);
-}
-
-/* 锚点子导航 */
-.subnav {
+.sub {
   position: sticky;
-  top: 0;
-  z-index: 10;
+  top: 24px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 12px;
-  margin-bottom: 16px;
-  border-radius: var(--radius);
-  background: var(--glass);
-  backdrop-filter: blur(14px) saturate(1.4);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  border: 1px solid var(--border);
+  flex-direction: column;
+  gap: 2px;
 
-  a {
-    font-size: 12.5px;
-    font-weight: 600;
-    padding: 6px 14px;
-    border-radius: 999px;
-    color: var(--text-2);
+  button {
+    position: relative;
+    text-align: left;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    color: var(--ink-3);
     transition: all var(--dur-fast);
 
-    &:hover {
-      background: rgba(var(--primary-rgb), 0.1);
-      color: var(--primary);
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 3px;
+      height: 14px;
+      margin-top: -7px;
+      border-radius: 2px;
+      background: var(--primary);
+      transform: scaleY(0);
+      transition: transform var(--dur) var(--ease-spring);
     }
+
+    &:hover { color: var(--ink); background: var(--hover); }
+    &.on { color: var(--ink); font-weight: 500; }
+    &.on::before { transform: scaleY(1); }
   }
 }
 
-/* 头部保存按钮（分区内按钮样式见 settings-shared.scss） */
-.btn {
-  padding: 10px 24px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  transition: all var(--dur-fast) var(--ease-out);
+.sec {
+  scroll-margin-top: 24px;
+  padding-bottom: 36px;
+  margin-bottom: 36px;
+  border-bottom: 1px solid var(--line);
 
-  &.primary {
-    color: #fff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-    background: linear-gradient(180deg, var(--primary), var(--primary-deep));
-    box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.4);
+  &:last-child { border-bottom: 0; }
 
-    &:hover:not(:disabled) { filter: brightness(1.08); }
-    &:disabled { opacity: 0.55; }
-  }
+  h2 { font: 600 18px/1.3 var(--font-serif); margin: 0 0 6px; }
+  .sec-desc { font-size: 13px; color: var(--ink-3); margin: 0 0 14px; }
+}
+
+.w140 { width: 140px; }
+.w260 { width: 260px; }
+.w320 { width: 320px; }
+.w420 { width: 420px; }
+
+.sel {
+  position: relative;
+
+  select { padding-right: 4px; }
+}
+
+@media (max-width: 1180px) {
+  .view { padding: 40px 36px 80px; }
+  .layout { grid-template-columns: 1fr; }
+  .sub { display: none; }
 }
 </style>

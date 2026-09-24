@@ -1,260 +1,161 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { adminApi, api } from '../../api';
-import CoverUploader from '../../components/admin/CoverUploader.vue';
-import RichEditor from '../../components/admin/RichEditor.vue';
+import { api, type Note } from '../../api';
+import '../admin/studio/i18n';
+import SIcon from '../admin/studio/SIcon.vue';
+import NoteComposer from '../admin/studio/NoteComposer.vue';
+import { refreshCounts } from '../admin/studio/state';
+import { toast } from '../admin/studio/toast';
+import { dateTimeText } from '../admin/studio/format';
 
-/** 沉浸式写随想：居中卡片，自增高文本 + 拼图配图（拖拽排位）+ 心情 + 置顶 */
+/** 写随想：复用「今天」页的输入框，独立成页（?id= 为编辑） */
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
+const note = ref<Note | null>(null);
+const missing = ref(false);
+const composer = ref<InstanceType<typeof NoteComposer> | null>(null);
 const id = computed(() => {
-  const raw = route.query.id;
-  const n = typeof raw === 'string' && raw ? Number(raw) : NaN;
-  return Number.isFinite(n) ? n : null;
+  const n = Number(route.query.id);
+  return route.query.id && Number.isFinite(n) ? n : null;
 });
 
-const contentMd = ref('');
-const mood = ref('');
-const images = ref<string[]>([]);
-const pinned = ref(false);
-const message = ref('');
-const busy = ref(false);
+/** 公开流分页查找目标随想（后台与前台同源） */
+async function find(target: number): Promise<Note | null> {
+  for (let page = 1; page <= 20; page += 1) {
+    const res = await api.notes({ page, pageSize: 50 });
+    const hit = res.items.find((n) => n.id === target);
+    if (hit) return hit;
+    if (page * 50 >= res.total) break;
+  }
+  return null;
+}
 
-async function publish(): Promise<void> {
-  if (busy.value || !contentMd.value.trim()) return;
-  busy.value = true;
-  message.value = '';
+async function load(): Promise<void> {
+  missing.value = false;
+  note.value = null;
+  if (id.value === null) {
+    composer.value?.focus();
+    return;
+  }
   try {
-    const body = {
-      contentMd: contentMd.value,
-      mood: mood.value,
-      images: images.value,
-      pinned: pinned.value,
-    };
-    if (id.value === null) {
-      await adminApi.createNote(body);
-      message.value = t('write.notePublished');
-      contentMd.value = '';
-      mood.value = '';
-      images.value = [];
-      pinned.value = false;
-    } else {
-      await adminApi.updateNote(id.value, body);
-      message.value = t('admin.saved');
-    }
+    note.value = await find(id.value);
+    missing.value = !note.value;
   } catch {
-    message.value = t('admin.saveFailed');
-  } finally {
-    busy.value = false;
+    missing.value = true;
   }
 }
+watch(id, () => void load());
 
-function goBack(): void {
-  void router.push(id.value === null ? '/thoughts' : '/admin/notes');
+function onPublished(): void {
+  toast(t('studio.composer.published'), { action: t('studio.view'), fn: () => void router.push({ name: 'admin-notes' }) });
+  void refreshCounts();
 }
 
-onMounted(async () => {
-  if (id.value !== null) {
-    // 编辑：从公开流取该条（后台列表数据源一致）
-    const list = await api.notes({ pageSize: 50 });
-    const note = list.items.find((n) => n.id === id.value);
-    if (note) {
-      contentMd.value = note.contentMd;
-      mood.value = note.mood;
-      images.value = [...note.images];
-      pinned.value = note.pinned;
-    }
-  }
-});
+function onSaved(): void {
+  void router.push({ name: 'admin-notes' });
+}
+
+onMounted(() => void load());
 </script>
 
 <template>
-  <div class="note-page">
-    <header class="bar">
-      <button class="back" :title="t('write.back')" @click="goBack">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 12H5M11 6l-6 6 6 6" />
-        </svg>
-      </button>
-      <span class="bar-title">{{ id === null ? t('write.newNote') : t('write.editNote') }}</span>
-      <span v-if="message" class="msg">{{ message }}</span>
-    </header>
-
-    <main class="stage">
-      <div class="card">
-        <!-- 轻量所见即所得（底层仍存 Markdown） -->
-        <RichEditor v-model="contentMd" lite :placeholder="t('admin.notePlaceholder')" />
-
-        <!-- 配图拼图：宫格预览 + 拖拽换位 -->
-        <CoverUploader v-model="images" :max="9" square />
-
-        <footer class="foot">
-          <input
-            v-model="mood"
-            class="mood a-input"
-            type="text"
-            :placeholder="t('admin.moodPlaceholder')"
-          />
-          <label class="pin">
-            <input v-model="pinned" type="checkbox" />
-            <i class="track" aria-hidden="true" />
-            <span>{{ t('admin.pinned') }}</span>
-          </label>
-          <button class="a-btn primary send" :disabled="busy || !contentMd.trim()" @click="publish">
-            {{ id === null ? t('admin.publishNote') : t('admin.saveNote') }}
-          </button>
-        </footer>
+  <section class="studio view">
+    <router-link class="st-link back" :to="{ name: 'admin-notes' }"><SIcon name="arrowL" :size="16" />{{ t('studio.writeNote.back') }}</router-link>
+    <div class="st-vh">
+      <div>
+        <h1>{{ id === null ? t('studio.writeNote.title') : t('studio.writeNote.editTitle') }}</h1>
+        <p v-if="note">{{ t('studio.writeNote.editSub', { when: dateTimeText(note.createdAt) }) }}</p>
+        <p v-else>{{ t('studio.writeNote.desc') }}</p>
       </div>
+    </div>
 
-      <p class="tip">{{ t('write.noteTip') }}</p>
-    </main>
-  </div>
+    <div class="grid">
+      <div class="st-rise">
+        <p v-if="missing" class="missing">{{ t('studio.writeNote.missing') }}</p>
+        <NoteComposer
+          v-else
+          ref="composer"
+          always-open
+          :note="note"
+          :placeholder="t('studio.composer.placeholderAlt')"
+          @published="onPublished"
+          @saved="onSaved"
+        />
+      </div>
+      <aside class="tips st-rise" style="--i: 2">
+        <h3>{{ t('studio.writeNote.tipsTitle') }}</h3>
+        <ul>
+          <li><kbd class="st-kbd">Ctrl</kbd><kbd class="st-kbd">Enter</kbd><span>{{ t('studio.writeNote.tipPublish') }}</span></li>
+          <li><kbd class="st-kbd">Esc</kbd><span>{{ t('studio.writeNote.tipEsc') }}</span></li>
+          <li><kbd class="st-kbd">N</kbd><span>{{ t('studio.writeNote.tipN') }}</span></li>
+        </ul>
+        <p>{{ t('studio.writeNote.tipMd') }}</p>
+        <p>{{ t('studio.writeNote.tipImg') }}</p>
+      </aside>
+    </div>
+  </section>
 </template>
 
 <style scoped lang="scss">
-.note-page {
-  min-height: 100vh;
-  background:
-    radial-gradient(600px 280px at 15% -5%, rgba(var(--primary-rgb), 0.07), transparent 65%),
-    radial-gradient(500px 260px at 90% 105%, rgba(var(--primary-rgb), 0.05), transparent 65%),
-    var(--bg);
-}
-
-.bar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 18px;
-  background: var(--glass);
-  backdrop-filter: blur(14px) saturate(1.4);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  border-bottom: 1px solid var(--border);
-}
-
-.back {
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--text);
-  display: grid;
-  place-items: center;
-  transition: all var(--dur-fast) var(--ease-out);
-
-  svg { width: 17px; height: 17px; }
-  &:hover { border-color: var(--primary); color: var(--primary); transform: scale(1.08); }
-}
-
-.bar-title { font-size: 14px; font-weight: 700; }
-.msg { font-size: 12.5px; color: var(--primary); }
-
-.stage {
-  max-width: 620px;
+.view {
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 46px 18px 80px;
+  padding: 40px 64px 96px;
 }
 
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 24px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
+.back { margin-bottom: 20px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 48px;
+  align-items: start;
 }
 
-.note-input {
-  width: 100%;
-  min-height: 140px;
-  border: none;
-  outline: none;
-  background: none;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 16.5px;
-  line-height: 1.9;
-  resize: none;
-  overflow: hidden;
-
-  &::placeholder { color: var(--text-2); opacity: 0.6; }
-}
-
-.foot {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
-}
-
-.mood { flex: 1; min-width: 0; }
-
-/* 置顶滑轨 */
-.pin {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  flex-shrink: 0;
-
-  input { display: none; }
-
-  .track {
-    width: 36px;
-    height: 20px;
-    border-radius: 999px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    position: relative;
-    transition: all var(--dur-fast);
-
-    &::after {
-      content: '';
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: var(--text-2);
-      transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast);
-    }
-  }
-
-  input:checked + .track {
-    background: rgba(var(--primary-rgb), 0.25);
-    border-color: rgba(var(--primary-rgb), 0.5);
-
-    &::after { transform: translateX(16px); background: var(--primary); }
-  }
-
-  span { font-size: 13px; font-weight: 600; color: var(--text-2); }
-}
-
-.send { flex-shrink: 0; }
-
-.tip {
+.missing {
+  padding: 40px;
+  border-radius: 18px;
+  background: var(--well);
+  color: var(--ink-3);
   text-align: center;
-  margin-top: 18px;
-  font-size: 12.5px;
-  color: var(--text-2);
 }
 
-@media (max-width: 560px) {
-  .stage { padding: 22px 12px 60px; }
-  .card { padding: 16px; }
+.tips {
+  padding: 22px;
+  border-radius: 18px;
+  background: var(--well);
+  font-size: 13px;
+  color: var(--ink-3);
+  line-height: 1.7;
 
-  .foot { flex-wrap: wrap; }
-  .mood { width: 100%; flex: none; }
+  h3 { font: 600 16px var(--font-serif); color: var(--ink); margin: 0 0 14px; }
+
+  ul {
+    list-style: none;
+    margin: 0 0 14px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    span { margin-left: 8px; }
+  }
+
+  p { margin: 0 0 8px; }
+}
+
+@media (max-width: 1180px) {
+  .view { padding: 32px 36px 80px; }
+  .grid { grid-template-columns: 1fr; }
 }
 </style>

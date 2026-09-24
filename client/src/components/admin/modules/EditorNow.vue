@@ -1,22 +1,53 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import type { AboutModule } from '../../../stores/config';
+import type { NowData } from '../../../about/types';
+import EdList from './EdList.vue';
+import { useModuleData } from './useModuleData';
 
-/** 正在做：每行一条 */
-defineProps<{ mod: AboutModule }>();
+/** 此刻：更新日期 + 每条 类别 / 内容 / 注释 / 进度（可空） */
+const props = defineProps<{ mod: AboutModule }>();
+const d = useModuleData<NowData>(() => props.mod);
 const { t } = useI18n();
+const KINDS = ['在做', '在学', '在读', '在玩', '在听', '在写'];
 
-function parseLines(text: string): string[] {
-  return text.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+function touch(): void {
+  // eslint-disable-next-line vue/no-mutating-props
+  d.value.updatedAt = new Date().toISOString().slice(0, 10);
 }
 </script>
 
 <template>
-  <textarea
-    class="a-input"
-    rows="4"
-    :value="mod.data.items.join('\n')"
-    :placeholder="t('admin.nowPlaceholder')"
-    @change="mod.data.items = parseLines(($event.target as HTMLTextAreaElement).value)"
-  />
+  <div class="ed">
+    <div class="line">
+      <label class="flex-in"><span>{{ t('aboutKit.ed.updatedAt') }}</span><input v-model="d.updatedAt" class="a-input" type="date" /></label>
+      <button type="button" class="a-btn ghost sm today" @click="touch">{{ t('aboutKit.ed.today') }}</button>
+    </div>
+    <datalist id="ak-now-kinds"><option v-for="k in KINDS" :key="k" :value="k" /></datalist>
+    <EdList v-slot="{ item }" :items="d.items" :make="() => ({ kind: '在做', text: '', note: '' })">
+      <div class="line">
+        <input v-model="item.kind" class="a-input w-num" type="text" list="ak-now-kinds" />
+        <input v-model="item.text" class="a-input flex-in" type="text" :placeholder="t('aboutKit.ed.text')" />
+      </div>
+      <div class="line">
+        <input v-model="item.note" class="a-input flex-in" type="text" :placeholder="t('aboutKit.ed.note')" />
+        <input
+          class="a-input w-num"
+          type="number"
+          min="0"
+          max="100"
+          :value="item.progress ?? ''"
+          :placeholder="t('aboutKit.ed.progress')"
+          @change="item.progress = ($event.target as HTMLInputElement).value === '' ? null : Number(($event.target as HTMLInputElement).value)"
+        />
+      </div>
+    </EdList>
+  </div>
 </template>
+
+<style scoped lang="scss">
+@use './module-editor';
+
+.line { align-items: flex-end; }
+.today { margin-bottom: 1px; }
+</style>

@@ -3,182 +3,173 @@ import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi } from '../../../api';
 import type { SiteConfig } from '../../../stores/config';
-import { formatDateTime } from '../../../utils/date';
+import '../studio/i18n';
+import SIcon from '../studio/SIcon.vue';
+import StSeg from '../studio/StSeg.vue';
+import StSwitch from '../studio/StSwitch.vue';
+import { dateTimeText } from '../studio/format';
 
-/** GitHub：账号 / 模式 / 手动数据 + 同步面板（立即同步、数据预览、同步日志） */
+/** GitHub：账号 / 数据模式 / 手动数据 + 同步面板（立即同步、数据预览、同步日志） */
 defineProps<{ cfg: SiteConfig }>();
 const { t } = useI18n();
 
-/** ISO 时间按站点时区显示 */
-function logTime(iso: string): string {
-  try {
-    return formatDateTime(iso.replace('T', ' ').replace('Z', '').slice(0, 19)).slice(5);
-  } catch {
-    return iso.slice(5, 16);
-  }
-}
-
 interface SyncLogEntry { at: string; ok: boolean; message: string }
-const ghLog = ref<SyncLogEntry[]>([]);
-const ghPreview = ref<{ stats?: Record<string, number>; fetchedAt?: string } | null>(null);
-const ghSyncing = ref(false);
-const ghMsg = ref('');
+const log = ref<SyncLogEntry[]>([]);
+const preview = ref<{ stats?: Record<string, number>; fetchedAt?: string } | null>(null);
+const syncing = ref(false);
+const msg = ref<{ ok: boolean; text: string } | null>(null);
 
-async function loadGhLog(): Promise<void> {
+async function loadLog(): Promise<void> {
   try {
     const data = await adminApi.githubLog();
-    ghLog.value = data.log;
-    ghPreview.value = data.preview as typeof ghPreview.value;
+    log.value = data.log;
+    preview.value = data.preview as typeof preview.value;
   } catch { /* 忽略 */ }
 }
 
-async function syncNow(): Promise<void> {
-  if (ghSyncing.value) return;
-  ghSyncing.value = true;
-  ghMsg.value = '';
+async function sync(): Promise<void> {
+  if (syncing.value) return;
+  syncing.value = true;
+  msg.value = null;
   try {
     await adminApi.githubSync();
-    ghMsg.value = t('admin.ghSyncOk');
+    msg.value = { ok: true, text: t('studio.settings.ghSyncOk') };
   } catch {
-    ghMsg.value = t('admin.ghSyncFail');
+    msg.value = { ok: false, text: t('studio.settings.ghSyncFail') };
   } finally {
-    ghSyncing.value = false;
-    await loadGhLog();
+    syncing.value = false;
+    await loadLog();
   }
 }
 
-onMounted(loadGhLog);
+onMounted(loadLog);
 </script>
 
 <template>
-  <section id="sec-github" class="card">
-    <h2>{{ t('admin.secGithub') }}</h2>
-    <div class="row3">
-      <label><span>{{ t('admin.ghUser') }}</span><input v-model="cfg.github.username" type="text" /></label>
-      <label>
-        <span>{{ t('admin.ghMode') }}</span>
-        <select v-model="cfg.github.mode">
-          <option value="manual">{{ t('admin.ghManual') }}</option>
-          <option value="api">{{ t('admin.ghApi') }}</option>
-        </select>
-      </label>
-      <label><span>{{ t('admin.ghRefresh') }}</span><input v-model.number="cfg.github.refreshMinutes" type="number" min="1" /></label>
+  <div class="gh">
+    <div class="st-opt">
+      <div>{{ t('studio.settings.ghUser') }}<small>{{ t('studio.settings.ghUserSub') }}</small></div>
+      <label class="st-field w260"><span class="suffix">github.com/</span><input v-model="cfg.github.username" spellcheck="false" /></label>
     </div>
-    <label v-if="cfg.github.mode === 'api'">
-      <span>{{ t('admin.ghToken') }}</span>
-      <input v-model="cfg.github.token" type="password" autocomplete="off" placeholder="ghp_…（可留空走匿名公开接口）" />
-    </label>
-    <div v-if="cfg.github.mode === 'api'" class="row2" style="margin-top: 14px">
-      <label>
-        <span>{{ t('admin.ghProxy') }}</span>
-        <input v-model="cfg.github.proxy" type="text" placeholder="http://127.0.0.1:7890（留空读 HTTPS_PROXY）" />
-      </label>
-      <label class="switch" style="align-self: end">
-        <input v-model="cfg.github.insecureTls" type="checkbox" />
-        <i class="track" aria-hidden="true" />
-        <span>{{ t('admin.ghInsecure') }}</span>
-      </label>
-    </div>
-    <div v-if="cfg.github.mode === 'manual'" class="row3" style="margin-top: 14px">
-      <label><span>{{ t('admin.ghRepos') }}</span><input v-model.number="cfg.github.stats.repos" type="number" /></label>
-      <label><span>Stars</span><input v-model.number="cfg.github.stats.stars" type="number" /></label>
-      <label><span>{{ t('admin.ghFollowers') }}</span><input v-model.number="cfg.github.stats.followers" type="number" /></label>
-    </div>
-    <div v-if="cfg.github.mode === 'manual'" class="row3">
-      <label><span>{{ t('admin.ghCommits') }}</span><input v-model.number="cfg.github.stats.commits" type="number" /></label>
+    <div class="st-opt">
+      <div>{{ t('studio.settings.ghMode') }}<small>{{ cfg.github.mode === 'api' ? t('studio.settings.ghApiSub') : t('studio.settings.ghManualSub') }}</small></div>
+      <StSeg
+        v-model="cfg.github.mode"
+        :options="[
+          { value: 'api', label: t('studio.settings.ghApi') },
+          { value: 'manual', label: t('studio.settings.ghManual') },
+        ]"
+      />
     </div>
 
-    <!-- 同步面板：立即同步 / 数据预览 / 同步日志 -->
-    <div v-if="cfg.github.mode === 'api'" class="gh-panel">
-      <div class="gh-actions">
-        <button class="btn primary" :disabled="ghSyncing" @click="syncNow">
-          {{ ghSyncing ? t('admin.ghSyncing') : t('admin.ghSyncNow') }}
-        </button>
-        <span v-if="ghMsg" class="msg">{{ ghMsg }}</span>
+    <template v-if="cfg.github.mode === 'api'">
+      <div class="st-opt">
+        <div>{{ t('studio.settings.ghToken') }}<small>{{ t('studio.settings.ghTokenSub') }}</small></div>
+        <label class="st-field w260 mono-in"><input v-model="cfg.github.token" type="password" autocomplete="off" placeholder="ghp_…" /></label>
+      </div>
+      <div class="st-opt">
+        <div>{{ t('studio.settings.ghRefresh') }}</div>
+        <label class="st-field w140"><input v-model.number="cfg.github.refreshMinutes" type="number" min="1" /><span class="suffix">{{ t('studio.settings.minutes') }}</span></label>
+      </div>
+      <div class="st-opt">
+        <div>{{ t('studio.settings.ghProxy') }}<small>{{ t('studio.settings.ghProxySub') }}</small></div>
+        <label class="st-field w260 mono-in"><input v-model="cfg.github.proxy" placeholder="http://127.0.0.1:7890" /></label>
+      </div>
+      <div class="st-opt">
+        <div>{{ t('studio.settings.ghInsecure') }}<small>{{ t('studio.settings.ghInsecureSub') }}</small></div>
+        <StSwitch v-model="cfg.github.insecureTls" />
       </div>
 
-      <div v-if="ghPreview?.stats" class="gh-preview">
-        <div class="gp"><strong>{{ ghPreview.stats.repos }}</strong><span>{{ t('admin.ghRepos') }}</span></div>
-        <div class="gp"><strong>{{ ghPreview.stats.stars }}</strong><span>Stars</span></div>
-        <div class="gp"><strong>{{ ghPreview.stats.followers }}</strong><span>{{ t('admin.ghFollowers') }}</span></div>
-        <div class="gp"><strong>{{ ghPreview.stats.commits }}</strong><span>{{ t('admin.ghCommits') }}</span></div>
+      <div class="panel">
+        <div class="ph">
+          <div class="stats">
+            <div v-for="k in ['repos', 'stars', 'followers', 'commits']" :key="k" class="s">
+              <b class="mono">{{ preview?.stats?.[k] ?? '—' }}</b>
+              <small>{{ t(`studio.settings.gh_${k}`) }}</small>
+            </div>
+          </div>
+          <button type="button" class="st-btn g" :disabled="syncing" @click="sync">
+            <SIcon name="refresh" :size="16" :class="{ spin: syncing }" />{{ syncing ? t('studio.settings.ghSyncing') : t('studio.settings.ghSync') }}
+          </button>
+        </div>
+        <p v-if="msg" class="msg" :class="{ err: !msg.ok }">{{ msg.text }}</p>
+        <ul v-if="log.length" class="log">
+          <li v-for="(e, i) in log.slice(0, 8)" :key="i" :class="{ err: !e.ok }">
+            <i class="st-dot" /><time class="mono">{{ dateTimeText(e.at).slice(5) }}</time><span>{{ e.message }}</span>
+          </li>
+        </ul>
+        <p v-else class="empty">{{ t('studio.settings.ghNoLog') }}</p>
       </div>
+    </template>
 
-      <ul v-if="ghLog.length" class="gh-log">
-        <li v-for="(entry, i) in ghLog" :key="i" :class="{ err: !entry.ok }">
-          <time>{{ logTime(entry.at) }}</time>
-          <span>{{ entry.message }}</span>
-        </li>
-      </ul>
-      <p v-else class="hint">{{ t('admin.ghNoLog') }}</p>
-    </div>
-  </section>
+    <template v-else>
+      <div class="manual">
+        <label v-for="k in (['repos', 'stars', 'followers', 'commits'] as const)" :key="k">
+          <span class="st-flabel">{{ t(`studio.settings.gh_${k}`) }}</span>
+          <span class="st-field"><input v-model.number="cfg.github.stats[k]" type="number" min="0" /></span>
+        </label>
+      </div>
+    </template>
+  </div>
 </template>
 
 <style scoped lang="scss">
-@use './settings-shared';
+.w260 { width: 260px; }
+.w140 { width: 140px; }
 
-/* GitHub 同步面板 */
-.gh-panel {
+.panel {
   margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px dashed var(--border);
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--well);
 }
 
-.gh-actions {
+.ph { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+
+.stats {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 28px;
+
+  b { display: block; font-size: 22px; font-weight: 500; line-height: 1.2; letter-spacing: -0.02em; }
+  small { font-size: 12px; color: var(--ink-3); }
 }
 
-.gh-preview {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-bottom: 14px;
-}
+.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.gp {
-  text-align: center;
-  padding: 12px 6px;
-  border-radius: 10px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+.msg { margin: 12px 0 0; font-size: 13px; color: color-mix(in oklab, var(--green) 70%, var(--ink)); &.err { color: var(--red); } }
 
-  strong {
-    display: block;
-    font-family: var(--font-serif);
-    font-size: 20px;
-    background: var(--grad-title);
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-  }
-
-  span { font-size: 11px; color: var(--text-2); }
-}
-
-.gh-log {
+.log {
   list-style: none;
-  max-height: 180px;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
+  margin: 14px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 
   li {
-    display: flex;
-    gap: 12px;
-    padding: 8px 12px;
+    display: grid;
+    grid-template-columns: 8px 92px 1fr;
+    gap: 10px;
+    align-items: center;
     font-size: 12.5px;
-    border-bottom: 1px solid var(--border);
+    color: var(--ink-2);
 
-    time { color: var(--text-2); flex-shrink: 0; font-variant-numeric: tabular-nums; }
-    span { color: var(--text); }
-
-    &.err span { color: var(--accent-red); }
-    &:last-child { border-bottom: none; }
+    .st-dot { --c: var(--green); }
+    &.err .st-dot { --c: var(--red); }
+    &.err span { color: var(--red); }
+    time { font-size: 11.5px; color: var(--ink-3); }
+    span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   }
+}
+
+.empty { margin: 12px 0 0; font-size: 12.5px; color: var(--ink-3); }
+
+.manual {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding-top: 14px;
 }
 </style>

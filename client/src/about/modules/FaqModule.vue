@@ -1,72 +1,111 @@
 <script setup lang="ts">
-import type { AboutModule } from '../../stores/config';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import type { FaqData } from '../types';
+import type { ModProps } from './props';
+import ModHead from '../parts/ModHead.vue';
 
-/** 问答 FAQ：展开态由分发器统一持有（全页同一时刻仅展开一条） */
-defineProps<{ mod: AboutModule }>();
-const open = defineModel<string>('open', { required: true });
+/** 问答（faq）：手风琴 —— grid-template-rows 0fr→1fr 高度动画，加号旋转为减号；single 时同时只展开一条 */
+const props = defineProps<ModProps>();
+const d = computed(() => props.mod.data as FaqData);
+const { t } = useI18n();
+const open = ref<Set<number>>(new Set([0]));
+
+function toggle(i: number): void {
+  const next = new Set(d.value.single ? [] : open.value);
+  if (open.value.has(i)) next.delete(i);
+  else next.add(i);
+  open.value = next;
+}
+
+/** 回答支持 `行内代码` */
+const parts = (a: string) => a.split('`').map((text, i) => ({ text, code: i % 2 === 1 }));
 </script>
 
 <template>
-  <h2 class="block-title">问答</h2>
-  <div class="faq">
-    <div
-      v-for="(f, i) in mod.data.items"
-      :key="i"
-      class="faq-item card-box"
-      :class="{ open: open === `${mod.id}-${i}` }"
-    >
-      <button class="faq-q" @click="open = open === `${mod.id}-${i}` ? '' : `${mod.id}-${i}`">
-        <span>{{ f.q }}</span>
-        <i aria-hidden="true">+</i>
-      </button>
-      <p class="faq-a">{{ f.a }}</p>
-    </div>
-  </div>
+  <ModHead :title="title">{{ t('aboutKit.faq.count', { n: d.items.length }) }}</ModHead>
+  <ul class="fq">
+    <li v-for="(it, i) in d.items" :key="i" :class="{ open: open.has(i) }">
+      <button :aria-expanded="open.has(i)" @click="toggle(i)">{{ it.q }}<span class="pm" /></button>
+      <div class="ans">
+        <div>
+          <p><template v-for="(s, k) in parts(it.a)" :key="k"><code v-if="s.code">{{ s.text }}</code><template v-else>{{ s.text }}</template></template></p>
+        </div>
+      </div>
+    </li>
+  </ul>
 </template>
 
 <style scoped lang="scss">
-@use './shared';
+.fq { list-style: none; }
 
-.faq { display: flex; flex-direction: column; gap: 10px; }
+.fq li { border-top: 1px solid var(--ak-line); }
+.fq li:first-child { border-top: 0; }
 
-.faq-item {
-  padding: 0;
-  overflow: hidden;
+.fq button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 0;
+  text-align: left;
+  font: 700 15.5px/1.5 var(--font-serif);
+  transition: color var(--dur-fast);
 
-  .faq-q {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    padding: 15px 20px;
-    border: none;
-    background: none;
-    color: var(--text);
-    font-size: 14.5px;
-    font-weight: 600;
-    text-align: left;
+  &:hover { color: var(--ak-ink); }
+}
 
-    i {
-      font-style: normal;
-      font-size: 18px;
-      color: var(--primary);
-      transition: transform var(--dur-fast) var(--ease-spring);
-    }
+.fq li:first-child button { padding-top: 0; }
+
+.pm {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid var(--ak-line-2);
+  transition: background var(--dur) var(--ease-out), border-color var(--dur), color var(--dur), transform var(--dur) var(--ease-out);
+
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 10px;
+    height: 1.5px;
+    margin: -0.75px 0 0 -5px;
+    border-radius: 1px;
+    background: currentColor;
+    transition: transform var(--dur) var(--ease-spring);
   }
 
-  .faq-a {
-    max-height: 0;
-    overflow: hidden;
-    padding: 0 20px;
+  &::after { transform: rotate(90deg); }
+}
+
+.fq li.open .pm { background: var(--primary); border-color: transparent; color: var(--ak-on-primary, #fff); transform: rotate(180deg); }
+.fq li.open .pm::after { transform: rotate(0); }
+
+.ans {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-slow) var(--ease-out);
+
+  > div { overflow: hidden; }
+
+  p {
+    padding: 0 44px 18px 0;
     font-size: 14px;
-    line-height: 1.8;
+    line-height: 1.85;
     color: var(--text-2);
-    transition: max-height var(--dur) var(--ease-out), padding var(--dur) ease;
-  }
-
-  &.open {
-    .faq-q i { transform: rotate(45deg); }
-    .faq-a { max-height: 300px; padding: 0 20px 16px; }
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
   }
 }
+
+.fq li.open .ans { grid-template-rows: 1fr; }
+.fq li.open .ans p { opacity: 1; transform: none; transition-delay: 0.1s; }
+
+code { padding: 1px 6px; border-radius: 5px; font: 500 12.5px var(--ak-mono); background: var(--ak-sunken); border: 1px solid var(--ak-line); }
 </style>

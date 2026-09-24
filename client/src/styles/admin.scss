@@ -1,37 +1,826 @@
-/* 后台通用视觉：卡片 / 按钮 / 输入 / 页头 */
+/*
+ * 后台视觉 · Studio
+ * ------------------------------------------------------------------
+ * 两层纸：桌面（--desk）上浮一张工作台纸（--paper），侧栏是另一张更轻的纸片（--side）。
+ * 所有底色 / 纸面 / 阴影都与当前主题色 --primary 以 3–8% 交叠（color-mix oklab），
+ * 冬蓝 → 浅蓝调、春绿 → 浅绿调；深色模式为主色调的「夜间工作室」。
+ * Token 全部挂在 .studio 作用域，前台不受影响；浮层（Teleport 到 body）同样挂 .studio。
+ * 宋体只用于内容（标题、正文、问候、引述），黑体只用于界面。
+ */
 
-.a-head {
+/* ============================== Tokens ============================== */
+.studio {
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r: 18px;
+  --r-lg: 24px;
+  --r-pill: 999px;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, Menlo, monospace;
+  --ease-bounce: cubic-bezier(0.3, 1.4, 0.5, 1);
+
+  --red: var(--accent-red, #ff0032);
+  --yellow: var(--accent-yellow, #ffb300);
+  --blue: var(--accent-blue, #0078ff);
+  --green: #00c853;
+
+  /* 阴影色 = 主色 × 暖棕：换色盘时阴影也跟着变温度 */
+  --tint: color-mix(in oklab, var(--primary) 32%, #4d3a22);
+
+  /* light：主色 3–8% 交叠的工作室 */
+  --desk: color-mix(in oklab, var(--primary) 7%, #f1f1ee);
+  --desk-glow: radial-gradient(1200px 700px at 85% -10%, color-mix(in oklab, var(--primary) 10%, transparent), transparent 60%);
+  --paper: color-mix(in oklab, var(--primary) 3%, #fff);
+  --side: color-mix(in oklab, color-mix(in oklab, var(--primary) 6%, #fff) 64%, transparent);
+  --well: color-mix(in oklab, var(--primary) 5%, #f3f2ef);
+  --well-2: color-mix(in oklab, var(--primary) 8%, #e9e7e2);
+  --hover: color-mix(in oklab, var(--tint) 7%, transparent);
+  --press: color-mix(in oklab, var(--tint) 12%, transparent);
+  --ink: color-mix(in oklab, var(--primary) 4%, #1d1c1a);
+  --ink-2: color-mix(in oklab, var(--primary) 6%, #53504a);
+  --ink-3: color-mix(in oklab, var(--primary) 7%, #8a867e);
+  --ink-4: color-mix(in oklab, var(--primary) 7%, #bab6ae);
+  --line: color-mix(in oklab, var(--tint) 11%, transparent);
+  --line-2: color-mix(in oklab, var(--tint) 18%, transparent);
+  --line-3: color-mix(in oklab, var(--tint) 28%, transparent);
+  --primary-soft: color-mix(in oklab, var(--primary) 10%, var(--paper));
+  --primary-soft-2: color-mix(in oklab, var(--primary) 17%, var(--paper));
+  --primary-ring: color-mix(in oklab, var(--primary) 30%, transparent);
+  --primary-ink: var(--primary-deep);
+  --on-primary: #fff;
+
+  --sh-paper:
+    0 0 0 1px color-mix(in oklab, var(--tint) 8%, transparent),
+    0 1px 2px color-mix(in oklab, var(--tint) 10%, transparent),
+    0 12px 28px -12px color-mix(in oklab, var(--tint) 18%, transparent),
+    0 40px 80px -30px color-mix(in oklab, var(--tint) 24%, transparent);
+  --sh-side:
+    0 0 0 1px color-mix(in oklab, var(--tint) 7%, transparent),
+    0 8px 24px -14px color-mix(in oklab, var(--tint) 22%, transparent);
+  --sh-pop:
+    0 0 0 1px color-mix(in oklab, var(--tint) 9%, transparent),
+    0 2px 6px color-mix(in oklab, var(--tint) 9%, transparent),
+    0 24px 60px -16px color-mix(in oklab, var(--tint) 34%, transparent);
+  --sh-card-hover:
+    0 0 0 1px color-mix(in oklab, var(--tint) 8%, transparent),
+    0 18px 40px -18px color-mix(in oklab, var(--tint) 36%, transparent);
+  --sh-btn:
+    0 1px 0 rgba(255, 255, 255, 0.28) inset,
+    0 8px 18px -8px color-mix(in oklab, var(--primary) 70%, transparent);
+
+  --toast-bg: var(--ink);
+  --toast-ink: var(--paper);
+  --code-bg: color-mix(in oklab, var(--primary) 4%, #1a1a1e);
+  --scrim: color-mix(in oklab, var(--tint) 30%, rgba(20, 16, 10, 0.12));
+
+  /* 让复用的公共组件（关于线编辑器等）也落在 Studio 纸面上 */
+  --surface: var(--paper);
+  --surface-2: var(--well);
+  --text: var(--ink);
+  --text-2: var(--ink-3);
+  --border: var(--line-2);
+  --bg: var(--well);
+
+  color: var(--ink);
+  font-family: var(--font-sans);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-mode='dark'] .studio {
+  --tint: #000;
+  --desk: color-mix(in oklab, var(--primary) 6%, #111114);
+  --desk-glow: radial-gradient(1200px 700px at 85% -10%, color-mix(in oklab, var(--primary) 12%, transparent), transparent 60%);
+  --paper: color-mix(in oklab, var(--primary) 5%, #1a1a1f);
+  --side: color-mix(in oklab, color-mix(in oklab, var(--primary) 6%, #1c1c21) 60%, transparent);
+  --well: color-mix(in oklab, var(--primary) 6%, #232329);
+  --well-2: color-mix(in oklab, var(--primary) 8%, #2b2b32);
+  --hover: color-mix(in oklab, color-mix(in oklab, var(--primary) 25%, #fff6e8) 6%, transparent);
+  --press: color-mix(in oklab, color-mix(in oklab, var(--primary) 25%, #fff6e8) 10%, transparent);
+  --ink: color-mix(in oklab, var(--primary) 4%, #ecE9e3);
+  --ink-2: color-mix(in oklab, var(--primary) 6%, #b3aea5);
+  --ink-3: color-mix(in oklab, var(--primary) 8%, #817c74);
+  --ink-4: color-mix(in oklab, var(--primary) 8%, #56524d);
+  --line: color-mix(in oklab, color-mix(in oklab, var(--primary) 20%, #fff6e8) 7%, transparent);
+  --line-2: color-mix(in oklab, color-mix(in oklab, var(--primary) 20%, #fff6e8) 11%, transparent);
+  --line-3: color-mix(in oklab, color-mix(in oklab, var(--primary) 20%, #fff6e8) 18%, transparent);
+  --primary-soft: color-mix(in oklab, var(--primary) 14%, var(--paper));
+  --primary-soft-2: color-mix(in oklab, var(--primary) 22%, var(--paper));
+  --primary-ink: color-mix(in oklab, var(--primary) 70%, #fff);
+  --sh-paper:
+    0 0 0 1px var(--line),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 30px 80px -24px rgba(0, 0, 0, 0.7),
+    0 0 120px -40px color-mix(in oklab, var(--primary) 26%, transparent);
+  --sh-side: 0 0 0 1px var(--line), 0 16px 40px -20px rgba(0, 0, 0, 0.6);
+  --sh-pop: 0 0 0 1px var(--line-2), 0 24px 60px -12px rgba(0, 0, 0, 0.7);
+  --sh-card-hover: 0 0 0 1px var(--line-2), 0 18px 40px -16px rgba(0, 0, 0, 0.7);
+  --code-bg: color-mix(in oklab, var(--primary) 4%, #131317);
+  --scrim: rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+/* 主色可读墨色 / 按钮前景：按主色明度自动选择（相对颜色语法），不支持时回落 deep / 白 */
+@supports (color: oklch(from red l c h)) {
+  .studio {
+    --primary-ink: oklch(from var(--primary-deep) min(l, 0.5) c h);
+    --on-primary: oklch(from var(--primary) clamp(0, calc((0.68 - l) * 1000), 1) 0 0);
+  }
+
+  :root[data-mode='dark'] .studio {
+    --primary-ink: oklch(from var(--primary) max(l, 0.78) calc(c * 0.9) h);
+  }
+}
+
+/* ============================== Base ============================== */
+.studio {
+  ::selection { background: var(--primary-soft-2); }
+
+  .serif { font-family: var(--font-serif); }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 10px;
+  }
+
+  /* 输入类控件由外层容器的 focus-within 光圈表达焦点 */
+  :is(input, textarea, select, [contenteditable]):focus-visible { outline: none; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-2);
+    border-radius: 10px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+}
+
+/* 元素重置：零特异性，保证 .st-* 原子类可覆盖 */
+:where(.studio) :where(button) { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+:where(.studio) :where(input, textarea, select) { font: inherit; color: inherit; }
+:where(.studio) :where(a) { color: inherit; text-decoration: none; }
+
+.st-kbd {
+  display: inline-block;
+  font: 500 11px/1 var(--font-mono);
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: var(--well);
+  color: var(--ink-3);
+  box-shadow: 0 0 0 1px var(--line) inset, 0 1px 0 var(--line-2);
+}
+
+/* 视图头 */
+.st-vh {
   display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 24px;
+  margin-bottom: 36px;
 
   h1 {
-    font-size: 26px;
-    background: var(--grad-title);
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    width: fit-content;
+    font: 600 30px/1.25 var(--font-serif);
+    margin: 0;
+    letter-spacing: 0.01em;
   }
 
   p {
-    font-size: 13px;
-    color: var(--text-2);
-    margin-top: 6px;
+    margin: 8px 0 0;
+    color: var(--ink-3);
+    font-size: 14px;
+  }
+
+  .act {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 }
 
-/* 后台页面主标题统一渐变 */
-.page-h {
-  background: var(--grad-title);
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  width: fit-content;
+/* 区块标题 */
+.st-sec-t {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+
+  h2 {
+    font: 600 18px/1.3 var(--font-serif);
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+
+  > span { font-size: 12.5px; color: var(--ink-3); }
 }
 
+.st-link {
+  font-size: 13px;
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: color var(--dur-fast), gap var(--dur) var(--ease-spring);
+
+  &:hover { color: var(--primary-ink); gap: 8px; }
+}
+
+/* 入场：逐项上浮 */
+.st-rise {
+  animation: st-rise var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 55ms + 60ms);
+}
+
+@keyframes st-rise {
+  from { opacity: 0; transform: translateY(12px); }
+}
+
+/* ============================== Controls ============================== */
+.st-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 11px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-spring),
+    background var(--dur-fast),
+    box-shadow var(--dur-fast),
+    color var(--dur-fast),
+    opacity var(--dur-fast);
+
+  &:active:not(:disabled) { transform: scale(0.97); }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.p {
+    background: var(--primary);
+    color: var(--on-primary);
+    box-shadow: var(--sh-btn);
+
+    &:hover:not(:disabled) {
+      background: color-mix(in oklab, var(--primary) 86%, var(--primary-deep));
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.28) inset,
+        0 12px 24px -10px color-mix(in oklab, var(--primary) 80%, transparent);
+    }
+  }
+
+  &.g {
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: 0 0 0 1px var(--line-2) inset, 0 1px 2px var(--line);
+
+    &:hover:not(:disabled) { background: var(--well); }
+  }
+
+  &.q {
+    color: var(--ink-2);
+
+    &:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
+  }
+
+  &.danger {
+    background: var(--red);
+    color: #fff;
+    box-shadow: 0 8px 18px -8px rgba(255, 0, 50, 0.6);
+  }
+
+  &.w {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+
+    &:hover { background: rgba(255, 255, 255, 0.18); }
+  }
+
+  &.sm { height: 30px; padding: 0 12px; font-size: 13px; border-radius: 9px; gap: 6px; }
+  &.lg { height: 44px; padding: 0 22px; font-size: 15px; border-radius: 13px; }
+}
+
+.st-ibtn {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 10px;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+
+  &:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
+  &:active:not(:disabled) { transform: scale(0.92); }
+  &.on { color: var(--primary-ink); background: var(--primary-soft); }
+  &.ring { box-shadow: 0 0 0 1px var(--line-2) inset; }
+
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+.st-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 11px;
+  background: var(--well);
+  box-shadow: 0 0 0 1px var(--line) inset;
+  color: var(--ink-3);
+  transition: box-shadow var(--dur-fast), background var(--dur-fast);
+
+  &:focus-within {
+    background: var(--paper);
+    box-shadow: 0 0 0 1px var(--primary) inset, 0 0 0 4px var(--primary-ring);
+  }
+
+  input, textarea, select {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: none;
+    color: var(--ink);
+    font-size: 14px;
+    height: 36px;
+
+    &::placeholder { color: var(--ink-4); }
+  }
+
+  select { cursor: pointer; appearance: none; }
+
+  &.ta {
+    align-items: flex-start;
+    padding: 10px 12px;
+
+    textarea { resize: vertical; line-height: 1.7; height: auto; }
+  }
+
+  &.mono-in input, &.mono-in textarea { font-family: var(--font-mono); font-size: 13px; }
+
+  .suffix { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+}
+
+.st-flabel {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin: 0 0 8px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.st-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  font-size: 13px;
+  color: var(--ink-2);
+  box-shadow: 0 0 0 1px var(--line-2) inset;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+
+  &:hover { background: var(--hover); color: var(--ink); }
+  &:active { transform: scale(0.96); }
+
+  &.on {
+    background: var(--ink);
+    color: var(--paper);
+    box-shadow: none;
+  }
+
+  .n { font: 500 11.5px var(--font-mono); opacity: 0.6; }
+}
+
+.st-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c, var(--ink-3));
+  flex: none;
+  display: inline-block;
+}
+
+.st-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px 0 9px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--well);
+  color: var(--ink-2);
+
+  .st-dot { width: 6px; height: 6px; }
+
+  &.glass {
+    background: rgba(12, 14, 20, 0.42);
+    color: #fff;
+    backdrop-filter: blur(10px) saturate(1.4);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+  }
+}
+
+.st-published { --c: var(--green); }
+.st-draft { --c: var(--ink-4); }
+.st-badge.glass.st-draft { --c: #c9c4ba; }
+.st-scheduled { --c: var(--yellow); }
+
+/* 复选框 */
+.st-ck {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1.5px var(--line-3) inset;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+
+  svg {
+    width: 12px;
+    height: 12px;
+    stroke: var(--on-primary);
+    stroke-width: 2.2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 20;
+    stroke-dashoffset: 20;
+    transition: stroke-dashoffset var(--dur) var(--ease-out) 0.05s;
+  }
+
+  &.on {
+    background: var(--primary);
+    box-shadow: 0 0 0 1.5px var(--primary) inset;
+    animation: st-pop var(--dur) var(--ease-spring);
+
+    svg { stroke-dashoffset: 0; }
+  }
+}
+
+@keyframes st-pop { 50% { transform: scale(0.86); } }
+
+.st-ckrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--ink-2);
+  user-select: none;
+}
+
+/* 设置行 */
+.st-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+
+  &:last-child { border-bottom: 0; }
+
+  small {
+    display: block;
+    font-size: 12.5px;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+}
+
+.st-stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--well);
+  border-radius: 10px;
+  padding: 3px;
+  box-shadow: 0 0 0 1px var(--line) inset;
+
+  button {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    display: grid;
+    place-items: center;
+    color: var(--ink-2);
+
+    &:hover:not(:disabled) { background: var(--paper); }
+    &:disabled { opacity: 0.35; cursor: not-allowed; }
+  }
+
+  span {
+    min-width: 34px;
+    text-align: center;
+    font: 500 13px var(--font-mono);
+  }
+}
+
+/* 空状态 */
+.st-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 64px 20px;
+  color: var(--ink-3);
+
+  h4 {
+    font: 600 18px/1.5 var(--font-serif);
+    color: var(--ink);
+    margin: 18px 0 6px;
+  }
+
+  p { margin: 0 0 18px; font-size: 14px; }
+}
+
+/* 预留功能说明条：克制、正式 */
+.st-note-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: -12px 0 32px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  background: var(--primary-soft);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--primary) 18%, transparent) inset;
+
+  .st-ic { color: var(--primary-ink); flex: none; }
+}
+
+/* 禁用态 tooltip */
+.st-tip {
+  position: relative;
+
+  &::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translate(-50%, 4px);
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--toast-bg);
+    color: var(--toast-ink);
+    font: 500 12px/1.4 var(--font-sans);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: all var(--dur-fast) var(--ease-out);
+    z-index: 20;
+  }
+
+  &:hover::after { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* 表格 */
+.st-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+
+  th {
+    text-align: left;
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--ink-4);
+    letter-spacing: 0.06em;
+    padding: 0 12px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  td {
+    padding: 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+
+  tr:hover td { background: var(--well); }
+  tr td:first-child { border-radius: 12px 0 0 12px; }
+  tr td:last-child { border-radius: 0 12px 12px 0; }
+}
+
+/* 浮层遮罩 + 模态纸 */
+.st-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.st-modal {
+  width: min(440px, calc(100vw - 32px));
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: var(--sh-pop);
+  padding: 26px;
+  color: var(--ink);
+
+  h3 { font: 600 20px/1.4 var(--font-serif); margin: 0 0 8px; }
+  > p { margin: 0 0 22px; color: var(--ink-2); font-size: 14px; line-height: 1.75; }
+
+  .ft {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .mi {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 16px;
+    background: var(--primary-soft);
+    color: var(--primary-ink);
+
+    &.ok {
+      background: color-mix(in oklab, var(--green) 14%, var(--paper));
+      color: color-mix(in oklab, var(--green) 70%, var(--ink));
+    }
+  }
+}
+
+:root[data-mode='dark'] .st-modal { background: var(--well); }
+
+.st-modal-enter-active { transition: opacity var(--dur) var(--ease-out); }
+.st-modal-leave-active { transition: opacity 0.22s ease-in; }
+.st-modal-enter-active .st-modal { transition: transform var(--dur-slow) var(--ease-spring), opacity var(--dur) var(--ease-out); }
+.st-modal-leave-active .st-modal { transition: transform 0.22s ease-in, opacity 0.22s ease-in; }
+
+.st-modal-enter-from,
+.st-modal-leave-to {
+  opacity: 0;
+
+  .st-modal { transform: translateY(14px) scale(0.94); opacity: 0; }
+}
+
+/* 下拉菜单 */
+.st-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 172px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: var(--sh-pop);
+  transform-origin: top right;
+  animation: st-menu-in var(--dur) var(--ease-spring);
+
+  button {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 9px;
+    font-size: 13.5px;
+    color: var(--ink-2);
+    text-align: left;
+
+    &:hover { background: var(--hover); color: var(--ink); }
+    &.d { color: var(--red); }
+  }
+
+  hr { border: 0; height: 1px; background: var(--line); margin: 5px 4px; }
+}
+
+:root[data-mode='dark'] .st-menu { background: var(--well-2); }
+
+@keyframes st-menu-in { from { opacity: 0; transform: scale(0.92) translateY(-4px); } }
+
+/* 线性图标 */
+.st-ic {
+  flex: none;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 主题切换圆形扩散（仅 Studio 触发时启用） */
+html.st-vt::view-transition-old(root),
+html.st-vt::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* 全局确认框（stores/dialog）在 Studio 内的换肤 */
+html[data-studio] .modal-mask {
+  background: color-mix(in oklab, color-mix(in oklab, var(--primary) 30%, #4d3a22) 30%, rgba(20, 16, 10, 0.12));
+  backdrop-filter: blur(6px);
+
+  .modal {
+    border-radius: 22px;
+    border: 0;
+    padding: 26px;
+    background: color-mix(in oklab, var(--primary) 3%, #fff);
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--primary) 8%, rgba(60, 45, 20, 0.08)),
+      0 24px 60px -16px color-mix(in oklab, var(--primary) 20%, rgba(60, 45, 20, 0.35));
+  }
+
+  .m-title { font: 600 20px/1.4 var(--font-serif); margin-bottom: 8px; }
+  .m-msg { color: color-mix(in oklab, var(--primary) 6%, #53504a); }
+
+  .m-btn {
+    height: 36px;
+    padding: 0 18px;
+    border-radius: 11px;
+    font-weight: 500;
+    text-shadow: none;
+
+    &.ghost {
+      border: 0;
+      background: transparent;
+      box-shadow: 0 0 0 1px color-mix(in oklab, var(--primary) 12%, rgba(60, 45, 20, 0.16)) inset;
+      color: inherit;
+
+      &:hover { color: inherit; background: rgba(60, 45, 20, 0.05); }
+    }
+
+    &.primary {
+      background: var(--primary);
+      box-shadow: 0 8px 18px -8px color-mix(in oklab, var(--primary) 70%, transparent);
+
+      &:hover { transform: none; filter: brightness(1.05); }
+
+      &.danger { background: var(--accent-red); box-shadow: 0 8px 18px -8px rgba(255, 0, 50, 0.6); }
+    }
+  }
+
+  .m-input {
+    border-radius: 11px;
+    border-color: transparent;
+    background: color-mix(in oklab, var(--primary) 5%, #f3f2ef);
+  }
+}
+
+html[data-studio][data-mode='dark'] .modal-mask {
+  background: rgba(0, 0, 0, 0.5);
+
+  .modal {
+    background: color-mix(in oklab, var(--primary) 6%, #232329);
+    box-shadow: 0 0 0 1px rgba(255, 246, 232, 0.1), 0 24px 60px -12px rgba(0, 0, 0, 0.7);
+  }
+
+  .m-msg { color: #b3aea5; }
+  .m-btn.ghost { box-shadow: 0 0 0 1px rgba(255, 246, 232, 0.14) inset; }
+  .m-input { background: color-mix(in oklab, var(--primary) 8%, #2b2b32); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio,
+  .studio *,
+  .studio *::before,
+  .studio *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================== 旧版通用类（公共编辑器仍在使用） ============================== */
 .a-card {
   padding: 20px 22px;
   background: var(--surface);
@@ -72,10 +861,7 @@
     background: linear-gradient(180deg, var(--primary), var(--primary-deep));
     box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.4);
 
-    &:hover:not(:disabled) {
-      filter: brightness(1.08);
-      transform: scale(1.03);
-    }
+    &:hover:not(:disabled) { filter: brightness(1.08); transform: scale(1.03); }
   }
 
   &.ghost {
@@ -83,14 +869,62 @@
     border-color: var(--border);
     color: var(--text);
 
-    &:hover:not(:disabled) {
-      border-color: var(--primary);
-      color: var(--primary);
+    &:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+  }
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+}
+
+/* Studio 内：旧类落到 Studio 视觉 */
+.studio {
+  .a-input {
+    border-radius: 11px;
+    border-color: transparent;
+    background: var(--well);
+    box-shadow: 0 0 0 1px var(--line) inset;
+
+    &:focus {
+      background: var(--paper);
+      box-shadow: 0 0 0 1px var(--primary) inset, 0 0 0 4px var(--primary-ring);
     }
   }
 
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
+  .a-card {
+    border: 0;
+    border-radius: 16px;
+    box-shadow: 0 0 0 1px var(--line-2);
+  }
+
+  .a-btn {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-weight: 500;
+    text-shadow: none;
+
+    &.primary {
+      background: var(--primary);
+      color: var(--on-primary);
+      box-shadow: var(--sh-btn);
+
+      &:hover:not(:disabled) { transform: none; filter: none; background: color-mix(in oklab, var(--primary) 86%, var(--primary-deep)); }
+    }
+
+    &.ghost {
+      border: 0;
+      background: var(--paper);
+      box-shadow: 0 0 0 1px var(--line-2) inset;
+
+      &:hover:not(:disabled) { background: var(--well); color: var(--ink); }
+    }
   }
 }
+
+
+/* Studio 期间页面本身不滚动（滚动发生在纸面内） */
+html[data-studio] {
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+
+html[data-studio] body { overflow: hidden; }

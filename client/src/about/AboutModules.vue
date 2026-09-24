@@ -1,67 +1,251 @@
 <script setup lang="ts">
-import { computed, ref, type Component } from 'vue';
-import type { AboutModule } from '../stores/config';
-import { metaOf } from './registry';
-import StatsModule from './modules/StatsModule.vue';
-import MottoModule from './modules/MottoModule.vue';
-import SkillsModule from './modules/SkillsModule.vue';
-import SkillbarsModule from './modules/SkillbarsModule.vue';
-import LanguagesModule from './modules/LanguagesModule.vue';
-import MilestonesModule from './modules/MilestonesModule.vue';
-import GalleryModule from './modules/GalleryModule.vue';
-import QuotesModule from './modules/QuotesModule.vue';
-import DevicesModule from './modules/DevicesModule.vue';
-import FavoritesModule from './modules/FavoritesModule.vue';
-import FaqModule from './modules/FaqModule.vue';
-import NowModule from './modules/NowModule.vue';
-import GithubModule from './modules/GithubModule.vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type Component } from 'vue';
+import type { AboutModule, SiteConfig } from '../stores/config';
+import { useThemeStore } from '../stores/theme';
+import { metaOf, spanOf, titleOf, variantOf } from './registry';
+import { migrateModules } from './migrate';
+import { kitToast } from './toast';
+import KitIcon from './parts/KitIcon.vue';
+import ProfileModule from './modules/ProfileModule.vue';
+import ChapterModule from './modules/ChapterModule.vue';
+import StatusModule from './modules/StatusModule.vue';
 import SocialsModule from './modules/SocialsModule.vue';
-import StackModule from './modules/StackModule.vue';
 import ContactModule from './modules/ContactModule.vue';
+import StatsModule from './modules/StatsModule.vue';
+import GithubModule from './modules/GithubModule.vue';
+import LanguagesModule from './modules/LanguagesModule.vue';
+import SkillbarsModule from './modules/SkillbarsModule.vue';
+import YearModule from './modules/YearModule.vue';
+import NowModule from './modules/NowModule.vue';
+import MilestonesModule from './modules/MilestonesModule.vue';
+import ProjectsModule from './modules/ProjectsModule.vue';
+import PrinciplesModule from './modules/PrinciplesModule.vue';
+import BookshelfModule from './modules/BookshelfModule.vue';
+import ListeningModule from './modules/ListeningModule.vue';
+import QuotesModule from './modules/QuotesModule.vue';
+import MottoModule from './modules/MottoModule.vue';
+import GalleryModule from './modules/GalleryModule.vue';
+import PlacesModule from './modules/PlacesModule.vue';
+import FavoritesModule from './modules/FavoritesModule.vue';
+import SkillsModule from './modules/SkillsModule.vue';
+import StackModule from './modules/StackModule.vue';
+import UsesModule from './modules/UsesModule.vue';
+import FaqModule from './modules/FaqModule.vue';
+import GuestbookModule from './modules/GuestbookModule.vue';
+import './kit.scss';
 
-/** 关于页模块分发器：按配置顺序渲染全部模块，type → 渲染组件 */
-const props = defineProps<{ modules: AboutModule[] }>();
+/**
+ * 关于页模块分发器（about-kit v2）：
+ * 1. migrateModules 归一旧 schema（并在缺 profile 时用旧顶层字段合成身份区）；
+ * 2. 以 chapter 为界切分成若干 12 栏 bento 段落（段内 dense 回填，段间不串位）；
+ * 3. 统一外壳（卡片 / 开放排版）、IO reveal + stagger、指针跟随高光、共享 tooltip 与轻提示。
+ */
+const props = defineProps<{
+  modules: AboutModule[];
+  about?: Partial<Pick<SiteConfig['about'], 'avatar' | 'name' | 'tagline' | 'bio' | 'motto'>>;
+}>();
 
 const COMPONENTS: Record<string, Component> = {
-  stats: StatsModule,
-  motto: MottoModule,
-  skills: SkillsModule,
-  skillbars: SkillbarsModule,
-  languages: LanguagesModule,
-  milestones: MilestonesModule,
-  gallery: GalleryModule,
-  quotes: QuotesModule,
-  devices: DevicesModule,
-  favorites: FavoritesModule,
-  faq: FaqModule,
-  now: NowModule,
-  github: GithubModule,
+  profile: ProfileModule,
+  chapter: ChapterModule,
+  status: StatusModule,
   socials: SocialsModule,
-  stack: StackModule,
   contact: ContactModule,
+  stats: StatsModule,
+  github: GithubModule,
+  languages: LanguagesModule,
+  skillbars: SkillbarsModule,
+  year: YearModule,
+  now: NowModule,
+  milestones: MilestonesModule,
+  projects: ProjectsModule,
+  principles: PrinciplesModule,
+  bookshelf: BookshelfModule,
+  listening: ListeningModule,
+  quotes: QuotesModule,
+  motto: MottoModule,
+  gallery: GalleryModule,
+  places: PlacesModule,
+  favorites: FavoritesModule,
+  skills: SkillsModule,
+  stack: StackModule,
+  uses: UsesModule,
+  faq: FaqModule,
+  guestbook: GuestbookModule,
 };
 
-const known = computed(() => props.modules.filter((m) => metaOf(m.type) && COMPONENTS[m.type]));
+interface Item {
+  mod: AboutModule;
+  span: 1 | 2 | 3;
+  variant: string;
+  title: string;
+  chrome: boolean;
+  no?: string;
+}
 
-/* faq 展开（全页共享：同一时刻仅一条展开） */
-const openFaq = ref<string>('');
+const sections = computed<Item[][]>(() => {
+  const list = migrateModules(props.modules, props.about).filter((m) => !m.hidden && COMPONENTS[m.type] && metaOf(m.type));
+  const out: Item[][] = [[]];
+  let chapter = 0;
+  for (const mod of list) {
+    const variant = variantOf(mod);
+    const item: Item = {
+      mod,
+      span: spanOf(mod),
+      variant,
+      title: titleOf(mod),
+      chrome: metaOf(mod.type)!.chrome(variant),
+    };
+    if (mod.type === 'chapter') {
+      chapter += 1;
+      item.no = String(chapter).padStart(2, '0');
+      if (out[out.length - 1].length) out.push([]);
+    }
+    out[out.length - 1].push(item);
+  }
+  return out.filter((s) => s.length);
+});
+
+/* ---------- 主色可读性：亮主色（如秋黄）文字需更深，按钮字用深色 ---------- */
+const theme = useThemeStore();
+const inkStyle = computed(() => {
+  const hex = (theme.palette?.light.primary ?? '#0078ff').replace('#', '');
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const light = theme.mode === 'light';
+  const mix = light ? (lum > 0.6 ? 52 : lum > 0.45 ? 62 : 74) : (lum < 0.3 ? 70 : 82);
+  return { '--ak-ink-mix': `${mix}%`, '--ak-on-primary': lum > 0.6 ? '#1a1300' : '#fff' };
+});
+
+/* ---------- reveal：进入视口依次添加 .in（同一批 80ms 错开） ---------- */
+const root = ref<HTMLElement | null>(null);
+let io: IntersectionObserver | null = null;
+const reduce = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function observe(): void {
+  if (!root.value || !io) return;
+  root.value.querySelectorAll<HTMLElement>('.rv:not(.in):not([data-obs])').forEach((el) => {
+    el.dataset.obs = '1';
+    io!.observe(el);
+  });
+}
+
+onMounted(() => {
+  io = new IntersectionObserver((entries) => {
+    let k = 0;
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      const el = e.target as HTMLElement;
+      el.style.setProperty('--d', reduce() ? '0ms' : `${k++ * 80}ms`);
+      el.classList.add('in');
+      io?.unobserve(el);
+    }
+  }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+  observe();
+});
+
+watch(sections, () => nextTick(observe));
+
+onBeforeUnmount(() => io?.disconnect());
+
+/* ---------- 指针跟随高光 ---------- */
+function onPointerMove(e: PointerEvent): void {
+  const card = (e.target as HTMLElement).closest?.('.ak-m.card') as HTMLElement | null;
+  if (!card) return;
+  const r = card.getBoundingClientRect();
+  card.style.setProperty('--mx', `${e.clientX - r.left}px`);
+  card.style.setProperty('--my', `${e.clientY - r.top}px`);
+}
+
+/* ---------- 共享 tooltip：任意 [data-tip] 元素 ---------- */
+const tip = reactive({ on: false, text: '', x: 0, y: 0 });
+function onPointerOver(e: PointerEvent): void {
+  const el = (e.target as HTMLElement).closest?.('[data-tip]') as HTMLElement | null;
+  if (!el) { tip.on = false; return; }
+  const r = el.getBoundingClientRect();
+  tip.text = el.dataset.tip ?? '';
+  tip.x = r.left + r.width / 2;
+  tip.y = r.top;
+  tip.on = true;
+}
 </script>
 
 <template>
-  <div class="mods">
-    <section
-      v-for="mod in known"
-      :key="mod.id"
-      v-reveal
-      class="mod"
-      :class="`mod-${mod.type}`"
-    >
-      <FaqModule v-if="mod.type === 'faq'" v-model:open="openFaq" :mod="mod" />
-      <component :is="COMPONENTS[mod.type]" v-else :mod="mod" />
-    </section>
+  <div
+    ref="root"
+    class="ak"
+    :style="inkStyle"
+    @pointermove.passive="onPointerMove"
+    @pointerover.passive="onPointerOver"
+    @pointerleave="tip.on = false"
+  >
+    <div v-for="(sec, si) in sections" :key="si" class="ak-sec">
+      <section
+        v-for="it in sec"
+        :key="it.mod.id"
+        class="ak-m rv"
+        :class="[`m-${it.mod.type}`, { card: it.chrome }]"
+        :data-span="it.span"
+        :data-type="it.mod.type"
+      >
+        <div class="ak-body">
+          <component
+            :is="COMPONENTS[it.mod.type]"
+            :mod="it.mod"
+            :variant="it.variant"
+            :span="it.span"
+            :title="it.title"
+            :no="it.no"
+          />
+        </div>
+      </section>
+    </div>
+
+    <div class="ak-tip" :class="{ on: tip.on }" :style="{ left: `${tip.x}px`, top: `${tip.y}px` }">{{ tip.text }}</div>
+    <div class="ak-toast" :class="{ on: kitToast.on }" role="status"><KitIcon name="ok" :size="15" />{{ kitToast.text }}</div>
   </div>
 </template>
 
 <style scoped lang="scss">
-.mod { margin-bottom: 56px; }
+.ak { position: relative; }
+
+.ak-sec + .ak-sec { margin-top: var(--ak-gap); }
+
+.ak-tip {
+  position: fixed;
+  z-index: 90;
+  padding: 6px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  font: 500 11.5px var(--ak-mono);
+  color: var(--bg);
+  background: var(--text);
+  opacity: 0;
+  transform: translate(-50%, -120%) translateY(4px);
+  transition: opacity 0.15s, transform 0.15s;
+
+  &.on { opacity: 1; transform: translate(-50%, -120%); }
+}
+
+.ak-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 90px;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--bg);
+  background: var(--text);
+  opacity: 0;
+  translate: -50% 20px;
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease-spring), translate 0.4s var(--ease-spring);
+
+  &.on { opacity: 1; translate: -50% 0; }
+}
 </style>

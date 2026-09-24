@@ -1,0 +1,292 @@
+/* =====================================================================
+   移动后台 tokens（.ma-root 作用域）
+   - 底色 / 纸面 / 线 / 文字三级：由全局 --primary 轻度交叠（3–8%），跟色盘走
+   - --ink：主色在当前底上的可读版本（深色提亮 / 浅色压暗）
+   - --soft / --glow：主色 16% 软底 / 50% 辉光
+   - --ease-sheet：iOS sheet 近似（无过冲）；--ease-spring-2：带回弹的 detent 落位
+   - 安全区：--safe-t / --safe-b 取 env()，演示环境下给最小值
+   ===================================================================== */
+
+.ma-root {
+  --ease-sheet: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-bounce: cubic-bezier(0.2, 0.9, 0.3, 1.12);
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+  --safe-t: max(env(safe-area-inset-top), 10px);
+  --safe-b: max(env(safe-area-inset-bottom), 8px);
+  --nav-row: 44px;
+  --tab-h: 54px;
+  --soft: color-mix(in oklab, var(--primary) 16%, transparent);
+  --glow: color-mix(in oklab, var(--primary) 50%, transparent);
+  --good: #1fb85a;
+  --warn: #d99a00;
+
+  color-scheme: dark;
+  --bg: color-mix(in oklab, var(--primary) 6%, #0a1020);
+  --bg-deep: color-mix(in oklab, var(--primary) 5%, #03070f);
+  --elev: color-mix(in oklab, var(--primary) 7%, #10192b);
+  --elev-2: color-mix(in oklab, var(--primary) 8%, #172238);
+  --sheet: color-mix(in oklab, var(--primary) 7%, #0f1727);
+  --fill: rgba(150, 172, 212, 0.08);
+  --fill-2: rgba(150, 172, 212, 0.14);
+  --line: rgba(150, 172, 212, 0.13);
+  --line-2: rgba(150, 172, 212, 0.22);
+  --text: #eaf0fa;
+  --text-2: #a2afc5;
+  --text-3: #6a7891;
+  --glass: color-mix(in oklab, var(--bg) 62%, transparent);
+  --glass-2: color-mix(in oklab, var(--bg) 86%, transparent);
+  --glass-line: rgba(255, 255, 255, 0.1);
+  --glass-hi: rgba(255, 255, 255, 0.07);
+  --scrim: rgba(0, 3, 10, 0.55);
+  --shadow: 0 18px 40px -16px rgba(0, 4, 14, 0.85);
+  --ink: color-mix(in oklab, var(--primary) 72%, white);
+  --cut: color-mix(in oklab, var(--primary) 5%, #0e1626);
+}
+
+:root[data-mode='light'] .ma-root {
+  color-scheme: light;
+  --bg: color-mix(in oklab, var(--primary) 4%, #f3f5f9);
+  --bg-deep: color-mix(in oklab, var(--primary) 6%, #d9dfe8);
+  --elev: #ffffff;
+  --elev-2: color-mix(in oklab, var(--primary) 3%, #f8f9fc);
+  --sheet: #ffffff;
+  --fill: rgba(11, 18, 32, 0.045);
+  --fill-2: rgba(11, 18, 32, 0.08);
+  --line: rgba(11, 18, 32, 0.085);
+  --line-2: rgba(11, 18, 32, 0.15);
+  --text: #0b1220;
+  --text-2: #4a576e;
+  --text-3: #8994a7;
+  --glass: rgba(255, 255, 255, 0.78);
+  --glass-2: color-mix(in oklab, var(--bg) 86%, transparent);
+  --glass-line: rgba(11, 18, 32, 0.08);
+  --glass-hi: rgba(255, 255, 255, 0.9);
+  --scrim: rgba(8, 14, 28, 0.28);
+  --shadow: 0 18px 40px -18px rgba(30, 50, 90, 0.3);
+  --ink: color-mix(in oklab, var(--primary) 78%, black);
+  --cut: #f4f6fa;
+  --good: #12a150;
+  --warn: #b37f00;
+}
+
+.ma-root {
+  font-family: var(--font-sans);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+
+  button,
+  input,
+  textarea {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    outline: none;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  /* 统一按压反馈：scale(.96) + 回弹 */
+  .tap {
+    transition:
+      transform var(--dur-fast) var(--ease-spring),
+      background-color var(--dur-fast),
+      opacity var(--dur-fast);
+
+    &:active {
+      transform: scale(0.96);
+      transition-duration: 0.08s;
+    }
+  }
+
+  .glass {
+    background: var(--glass);
+    backdrop-filter: blur(22px) saturate(180%);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    box-shadow: inset 0 0 0 0.5px var(--glass-line), inset 0 1px 0 var(--glass-hi);
+  }
+
+  .icbtn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: var(--text);
+    background: var(--fill);
+    flex: none;
+  }
+
+  .txtbtn {
+    font-size: 16px;
+    color: var(--ink);
+    padding: 6px 4px;
+  }
+
+  .pill-btn {
+    height: 34px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--on-primary);
+    background: var(--primary);
+    box-shadow: 0 8px 18px -8px var(--glow);
+    transition: opacity var(--dur), transform var(--dur-fast) var(--ease-spring);
+
+    &:disabled {
+      opacity: 0.35;
+      box-shadow: none;
+    }
+  }
+
+  /* 分组列表（iOS inset grouped） */
+  .ma-list {
+    border-radius: 18px;
+    background: var(--elev);
+    overflow: hidden;
+    box-shadow: inset 0 0 0 0.5px var(--line);
+  }
+
+  .ma-li {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 0 14px;
+    min-height: 52px;
+    text-align: left;
+    font-size: 15px;
+    color: var(--text);
+
+    & + .ma-li::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 55px;
+      right: 0;
+      height: 0.5px;
+      background: var(--line-2);
+    }
+
+    &:active {
+      background: var(--fill-2);
+    }
+
+    .lic {
+      width: 29px;
+      height: 29px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--c, var(--primary));
+      flex: none;
+    }
+
+    .lt {
+      flex: 1;
+      min-width: 0;
+    }
+
+    small {
+      font-size: 13px;
+      color: var(--text-3);
+    }
+
+    .chev {
+      color: var(--text-3);
+    }
+  }
+
+  .sec-h {
+    display: flex;
+    align-items: baseline;
+    padding: 0 20px;
+    margin: 30px 0 10px;
+
+    h2 {
+      font-family: var(--font-serif);
+      font-size: 21px;
+      font-weight: 700;
+    }
+
+    .more {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 14px;
+      color: var(--ink);
+    }
+  }
+
+  .st {
+    padding: 1px 7px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+
+    &.pub { background: color-mix(in oklab, var(--good) 14%, transparent); color: var(--good); }
+    &.dr { background: rgba(255, 179, 0, 0.15); color: var(--warn); }
+    &.pin { background: var(--soft); color: var(--ink); }
+  }
+
+  .chip {
+    flex: none;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--text-2);
+    background: var(--fill);
+    box-shadow: inset 0 0 0 0.5px var(--line);
+    transition: background var(--dur) var(--ease-out), color var(--dur), box-shadow var(--dur);
+
+    &.on {
+      background: var(--soft);
+      color: var(--ink);
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 40%, transparent);
+    }
+  }
+
+  .ma-field {
+    display: block;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: var(--fill);
+    box-shadow: inset 0 0 0 0.5px var(--line);
+    font-size: 16px;
+    color: var(--text);
+    caret-color: var(--primary);
+    transition: box-shadow var(--dur-fast), background var(--dur-fast);
+
+    &::placeholder {
+      color: var(--text-3);
+    }
+
+    &:focus {
+      background: var(--fill-2);
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 55%, transparent);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ma-root *,
+  .ma-root *::before,
+  .ma-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

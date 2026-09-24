@@ -5,447 +5,574 @@ import { adminApi, type ApiKeyInfo } from '../../api';
 import { readToken } from '../../stores/auth';
 import { useDialogStore } from '../../stores/dialog';
 import { API_CATALOG, buildAgentPrompt, type Endpoint } from './apiCatalog';
+import './studio/i18n';
+import SIcon from './studio/SIcon.vue';
+import StSeg from './studio/StSeg.vue';
+import StModal from './studio/StModal.vue';
+import PopMenu from './studio/PopMenu.vue';
+import DoorArt from './studio/DoorArt.vue';
+import { copyText, saveBlob } from './studio/state';
+import { toast } from './studio/toast';
+import { dateText, relTime } from './studio/format';
+import type { MenuItem } from './studio/types';
 
+/** API 中心：Key 管理（明文只显示一次）、快速上手、接口目录与调试台、Agent 提示词、调用日志 */
 const { t } = useI18n();
+const dialog = useDialogStore();
 
-/* ===== Key 管理 ===== */
 const keys = ref<ApiKeyInfo[]>([]);
-const name = ref('');
-const busy = ref(false);
-/** 本会话内创建的 Key 明文（服务端只存哈希，仅此处可用于调试/提示词） */
-const sessionKeys = ref<{ name: string; key: string }[]>([]);
+const loaded = ref(false);
+/** 本会话创建的明文 Key（服务端只存哈希）：用于调试台与提示词 */
+const sessionKeys = ref<{ id: number; name: string; key: string }[]>([]);
 
 async function load(): Promise<void> {
-  keys.value = await adminApi.apiKeys();
+  try {
+    keys.value = await adminApi.apiKeys();
+  } catch {
+    toast(t('studio.loadFailed'), { icon: 'x' });
+  }
+  loaded.value = true;
+}
+
+/* ===== 新建 ===== */
+const createOpen = ref(false);
+const newName = ref('');
+const created = ref<{ name: string; key: string } | null>(null);
+const creating = ref(false);
+
+function openCreate(): void {
+  newName.value = '';
+  created.value = null;
+  createOpen.value = true;
 }
 
 async function create(): Promise<void> {
-  if (busy.value || !name.value.trim()) return;
-  busy.value = true;
+  if (creating.value || !newName.value.trim()) return;
+  creating.value = true;
   try {
-    const created = await adminApi.createApiKey(name.value.trim());
-    sessionKeys.value.unshift({ name: created.name, key: created.key });
-    selectedKey.value = created.key;
-    name.value = '';
+    const res = await adminApi.createApiKey(newName.value.trim());
+    created.value = { name: res.name, key: res.key };
+    sessionKeys.value.unshift({ id: res.id, name: res.name, key: res.key });
+    testerKey.value = res.key;
     await load();
+  } catch {
+    toast(t('studio.saveFailed'), { icon: 'x' });
   } finally {
-    busy.value = false;
+    creating.value = false;
   }
 }
 
-async function revoke(key: ApiKeyInfo): Promise<void> {
-  const ok = await useDialogStore().confirm({
-    title: t('admin.revoke'),
-    message: t('admin.confirmRevokeKey', { name: key.name }),
+async function copy(text: string, msg = t('studio.copied')): Promise<void> {
+  if (await copyText(text)) toast(msg, { icon: 'copy' });
+}
+
+async function revoke(k: ApiKeyInfo): Promise<void> {
+  const ok = await dialog.confirm({
+    title: t('studio.api.revokeTitle', { name: k.name }),
+    message: t('studio.api.revokeBody'),
+    confirmText: t('studio.api.revoke'),
     danger: true,
   });
   if (!ok) return;
-  await adminApi.deleteApiKey(key.id);
-  await load();
+  try {
+    await adminApi.deleteApiKey(k.id);
+    sessionKeys.value = sessionKeys.value.filter((s) => s.id !== k.id);
+    keys.value = keys.value.filter((x) => x.id !== k.id);
+    toast(t('studio.api.revoked'), { icon: 'key' });
+  } catch {
+    toast(t('studio.saveFailed'), { icon: 'x' });
+  }
 }
+
+function keyMenu(k: ApiKeyInfo): MenuItem[] {
+  return [
+    { icon: 'copy', label: t('studio.api.copyPrefix'), run: () => void copy(k.prefix) },
+    { icon: 'trash', label: t('studio.api.revoke'), danger: true, divider: true, run: () => void revoke(k) },
+  ];
+}
+
+/* ===== 快速上手 ===== */
+const lang = ref<'curl' | 'js'>('curl');
+const origin = window.location.origin;
+const sampleKey = computed(() => sessionKeys.value[0]?.key ?? '<YOUR_API_KEY>');
+const code = computed(() =>
+  lang.value === 'curl'
+    ? [
+      `# ${t('studio.api.codeCurl')}`,
+      `curl -X POST ${origin}/api/v1/ext/posts \\`,
+      `  -H "X-Api-Key: ${sampleKey.value}" \\`,
+      '  -H "Content-Type: application/json" \\',
+      `  -d '{"slug":"weekly-notes","title":"${t('studio.api.codeTitle')}","contentMd":"## ${t('studio.api.codeBody')}","tags":["API"],"status":"draft"}'`,
+    ].join('\n')
+    : [
+      `// ${t('studio.api.codeJs')}`,
+      `await fetch("${origin}/api/v1/ext/notes", {`,
+      '  method: "POST",',
+      `  headers: { "X-Api-Key": process.env.MYSELF_KEY, "Content-Type": "application/json" },`,
+      `  body: JSON.stringify({ contentMd: "${t('studio.api.codeNote')}", mood: "AI", images: [] }),`,
+      '});',
+    ].join('\n'),
+);
 
 /* ===== 调试台 ===== */
 const openId = ref('');
 const reqPath = ref('');
 const reqBody = ref('');
-const respText = ref('');
-const respStatus = ref<number | null>(null);
+const resp = ref<{ status: number; text: string; ms: number } | null>(null);
 const testing = ref(false);
-const selectedKey = ref('');
+const testerKey = ref('');
 const manualKey = ref('');
+const effectiveKey = computed(() => manualKey.value.trim() || testerKey.value);
+const catGroup = ref(1);
 
-const effectiveKey = computed(() => manualKey.value.trim() || selectedKey.value);
-
-function endpointId(e: Endpoint): string {
-  return `${e.method} ${e.path}`;
-}
+const epId = (e: Endpoint) => `${e.method} ${e.path}`;
 
 function toggle(e: Endpoint): void {
-  const id = endpointId(e);
+  const id = epId(e);
   if (openId.value === id) {
     openId.value = '';
     return;
   }
   openId.value = id;
   let path = e.path;
-  for (const [param, value] of Object.entries(e.sample ?? {})) {
-    path = path.replace(param, value);
-  }
+  for (const [k, v] of Object.entries(e.sample ?? {})) path = path.replace(k, v);
   reqPath.value = path;
   reqBody.value = e.sampleBody ?? '';
-  respText.value = '';
-  respStatus.value = null;
+  resp.value = null;
 }
 
 async function send(e: Endpoint): Promise<void> {
   if (testing.value) return;
   testing.value = true;
-  respText.value = '';
-  respStatus.value = null;
+  resp.value = null;
+  const t0 = performance.now();
   try {
     const headers: Record<string, string> = {};
     if (e.auth === 'jwt') headers.Authorization = `Bearer ${readToken()}`;
     if (e.auth === 'apikey') headers['X-Api-Key'] = effectiveKey.value;
     const hasBody = ['POST', 'PUT'].includes(e.method) && reqBody.value.trim();
     if (hasBody) headers['Content-Type'] = 'application/json';
-    const res = await fetch(reqPath.value, {
-      method: e.method,
-      headers,
-      body: hasBody ? reqBody.value : undefined,
-    });
-    respStatus.value = res.status;
-    const text = await res.text();
+    const res = await fetch(reqPath.value, { method: e.method, headers, body: hasBody ? reqBody.value : undefined });
+    const raw = await res.text();
+    let text = raw.slice(0, 6000);
     try {
-      respText.value = JSON.stringify(JSON.parse(text), null, 2);
-    } catch {
-      respText.value = text.slice(0, 4000);
-    }
+      text = JSON.stringify(JSON.parse(raw), null, 2);
+    } catch { /* 非 JSON 原样显示 */ }
+    resp.value = { status: res.status, text, ms: Math.round(performance.now() - t0) };
   } catch (err) {
-    respText.value = String(err);
+    resp.value = { status: 0, text: String(err), ms: Math.round(performance.now() - t0) };
   } finally {
     testing.value = false;
   }
 }
 
-/* ===== Agent 提示词 ===== */
-const prompt = computed(() =>
-  buildAgentPrompt(window.location.origin, effectiveKey.value),
-);
-
-async function copyText(text: string): Promise<void> {
-  await navigator.clipboard.writeText(text);
-}
-
-async function copyPrompt(): Promise<void> {
-  await copyText(prompt.value);
-}
-
+/* ===== 提示词 ===== */
+const prompt = computed(() => buildAgentPrompt(origin, effectiveKey.value));
 function downloadPrompt(): void {
-  const blob = new Blob([prompt.value], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'Myself Prompt.txt';
-  a.click();
-  URL.revokeObjectURL(url);
+  saveBlob(new Blob([prompt.value], { type: 'text/plain;charset=utf-8' }), 'Myself Prompt.txt');
 }
+
+/* ===== 调用日志（预留：示例数据） ===== */
+const LOG_SAMPLE = [
+  { at: '09-23 15:42', key: 'Claude 写作助手', m: 'POST', p: '/api/v1/ext/posts', s: 201, ms: 84 },
+  { at: '09-23 15:41', key: 'Claude 写作助手', m: 'GET', p: '/api/v1/ext/posts?status=all', s: 200, ms: 22 },
+  { at: '09-22 09:00', key: '周报机器人', m: 'POST', p: '/api/v1/ext/notes', s: 201, ms: 41 },
+  { at: '09-20 21:13', key: '旧的测试 Key', m: 'PUT', p: '/api/v1/ext/posts/7', s: 401, ms: 6 },
+];
 
 onMounted(load);
 </script>
 
 <template>
-  <div>
-    <header class="a-head">
+  <section class="studio view">
+    <div class="st-vh">
       <div>
-        <h1>{{ t('admin.menuApi') }}</h1>
-        <p>{{ t('admin.apiHint') }}</p>
+        <h1>{{ t('studio.api.title') }}</h1>
+        <p>{{ t('studio.api.descPre') }}<span class="mono hk">X-Api-Key</span>{{ t('studio.api.descPost') }}</p>
       </div>
-    </header>
-
-    <!-- Key 管理 -->
-    <section class="a-card block">
-      <h2 class="sec-h">{{ t('admin.keySection') }}</h2>
-      <div class="create-bar">
-        <input v-model="name" class="a-input" type="text" :placeholder="t('admin.keyNamePlaceholder')" @keyup.enter="create" />
-        <button class="a-btn primary" :disabled="busy || !name.trim()" @click="create">{{ t('admin.createKey') }}</button>
+      <div class="act">
+        <button type="button" class="st-btn p" @click="openCreate"><SIcon name="plus" :size="16" />{{ t('studio.api.new') }}</button>
       </div>
+    </div>
 
-      <div v-for="sk in sessionKeys" :key="sk.key" class="fresh">
-        <span class="fresh-name">{{ sk.name }}</span>
-        <code>{{ sk.key }}</code>
-        <button class="op" @click="copyText(sk.key)">{{ t('admin.copy') }}</button>
+    <div v-if="loaded && !keys.length" class="st-empty keys-empty">
+      <DoorArt />
+      <h4>{{ t('studio.api.empty') }}</h4>
+      <p>{{ t('studio.api.emptySub') }}</p>
+    </div>
+
+    <div class="keys">
+      <div v-for="(k, i) in keys" :key="k.id" class="key st-rise" :style="{ '--i': i }">
+        <span class="ki"><SIcon name="key" :size="20" /></span>
+        <div class="kn">
+          <h4>{{ k.name }}</h4>
+          <div class="kv2">
+            <span class="mono">{{ k.prefix }}…</span>
+            <button type="button" :title="t('studio.api.copyPrefix')" @click="copy(k.prefix)"><SIcon name="copy" :size="14" /></button>
+            <span v-if="sessionKeys.some((s) => s.id === k.id)" class="fresh">{{ t('studio.api.thisSession') }}</span>
+          </div>
+          <div class="scopes"><span>{{ t('studio.api.scopePosts') }}</span><span>{{ t('studio.api.scopeNotes') }}</span></div>
+        </div>
+        <div class="lu">
+          {{ k.lastUsedAt ? relTime(k.lastUsedAt) : t('studio.api.never') }}
+          <small>{{ t('studio.api.lastUsed') }}</small>
+        </div>
+        <div class="lu">
+          <span class="mono">{{ dateText(k.createdAt) }}</span>
+          <small>{{ t('studio.api.createdAt') }}</small>
+        </div>
+        <PopMenu :items="keyMenu(k)" />
       </div>
+    </div>
 
-      <table class="k-table">
-        <thead>
-          <tr><th>{{ t('admin.keyName') }}</th><th>{{ t('admin.keyPrefix') }}</th><th>{{ t('admin.keyLastUsed') }}</th><th /></tr>
-        </thead>
-        <tbody>
-          <tr v-for="key in keys" :key="key.id">
-            <td>{{ key.name }}</td>
-            <td><code>{{ key.prefix }}…</code></td>
-            <td>{{ key.lastUsedAt ?? t('admin.neverUsed') }}</td>
-            <td class="ops"><button class="op danger" @click="revoke(key)">{{ t('admin.revoke') }}</button></td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+    <div class="api-grid">
+      <div>
+        <div class="st-sec-t">
+          <h2>{{ t('studio.api.quick') }}</h2>
+          <StSeg v-model="lang" :options="[{ value: 'curl', label: 'cURL' }, { value: 'js', label: 'JavaScript' }]" />
+        </div>
+        <pre class="code"><code>{{ code }}</code><button type="button" class="st-ibtn cp" :title="t('studio.copy')" @click="copy(code)"><SIcon name="copy" :size="16" /></button></pre>
+      </div>
+      <div>
+        <div class="st-sec-t"><h2>{{ t('studio.api.endpoints') }}</h2></div>
+        <div class="endp">
+          <div v-for="e in API_CATALOG[1].endpoints" :key="epId(e)"><em :class="e.method.toLowerCase()">{{ e.method }}</em><span>{{ e.path.split('?')[0] }}</span></div>
+        </div>
+        <p class="note">{{ t('studio.api.draftNote') }}</p>
+      </div>
+    </div>
 
-    <!-- 调试身份 -->
-    <section class="a-card block">
-      <h2 class="sec-h">{{ t('admin.testerAuth') }}</h2>
-      <div class="auth-bar">
-        <label>
-          <span>{{ t('admin.pickSessionKey') }}</span>
-          <select v-model="selectedKey" class="a-input">
-            <option value="">{{ t('admin.noSessionKey') }}</option>
-            <option v-for="sk in sessionKeys" :key="sk.key" :value="sk.key">{{ sk.name }}</option>
+    <!-- 调试台 -->
+    <div class="tester">
+      <div class="st-sec-t">
+        <h2>{{ t('studio.api.tester') }}</h2>
+        <StSeg v-model="catGroup" :options="API_CATALOG.map((_g, i) => ({ value: i, label: t(`studio.api.group${i}`) }))" />
+      </div>
+      <div class="auth">
+        <label class="st-field sel">
+          <SIcon name="key" :size="16" />
+          <select v-model="testerKey">
+            <option value="">{{ t('studio.api.noSessionKey') }}</option>
+            <option v-for="s in sessionKeys" :key="s.id" :value="s.key">{{ s.name }}</option>
           </select>
         </label>
-        <label>
-          <span>{{ t('admin.manualKey') }}</span>
-          <input v-model="manualKey" class="a-input" type="text" placeholder="myk_…" />
-        </label>
+        <label class="st-field mono-in"><input v-model="manualKey" :placeholder="t('studio.api.manualKey')" spellcheck="false" /></label>
+        <small>{{ t('studio.api.testerTip') }}</small>
       </div>
-      <p class="tip">{{ t('admin.testerTip') }}</p>
-    </section>
-
-    <!-- 接口目录 + 调试台 -->
-    <section v-for="group in API_CATALOG" :key="group.title" class="block">
-      <h2 class="grp-h">{{ group.title }}</h2>
-      <div class="ep-list">
-        <div v-for="e in group.endpoints" :key="endpointId(e)" class="ep a-card" :class="{ open: openId === endpointId(e) }">
-          <button class="ep-row" @click="toggle(e)">
-            <span class="method" :class="e.method.toLowerCase()">{{ e.method }}</span>
-            <code class="path">{{ e.path }}</code>
-            <span class="desc">{{ e.desc }}</span>
-            <span class="auth-tag" :class="e.auth">{{ e.auth === 'none' ? t('admin.authNone') : e.auth === 'jwt' ? 'JWT' : 'APIKey' }}</span>
+      <div class="eps">
+        <div v-for="e in API_CATALOG[catGroup].endpoints" :key="epId(e)" class="ep" :class="{ open: openId === epId(e) }">
+          <button type="button" class="ep-row" @click="toggle(e)">
+            <em :class="e.method.toLowerCase()">{{ e.method }}</em>
+            <code>{{ e.path }}</code>
+            <span class="d">{{ e.desc }}</span>
+            <span class="au" :class="e.auth">{{ e.auth === 'none' ? t('studio.api.authNone') : e.auth === 'jwt' ? 'JWT' : 'APIKey' }}</span>
+            <SIcon name="chevronD" :size="14" class="chev" />
           </button>
-
-          <div v-if="openId === endpointId(e)" class="tester">
-            <label class="t-row">
-              <span>URL</span>
-              <input v-model="reqPath" class="a-input" type="text" />
-            </label>
-            <label v-if="['POST', 'PUT'].includes(e.method)" class="t-row">
-              <span>Body</span>
-              <textarea v-model="reqBody" class="a-input mono" rows="6" />
-            </label>
-            <div class="t-actions">
-              <button class="a-btn primary" :disabled="testing" @click="send(e)">
-                {{ testing ? t('admin.sending') : t('admin.sendRequest') }}
-              </button>
-              <span v-if="respStatus !== null" class="status" :class="{ ok: respStatus < 400 }">HTTP {{ respStatus }}</span>
+          <div v-if="openId === epId(e)" class="ep-body">
+            <label class="st-field mono-in"><span class="suffix">URL</span><input v-model="reqPath" spellcheck="false" /></label>
+            <label v-if="['POST', 'PUT'].includes(e.method)" class="st-field ta mono-in"><textarea v-model="reqBody" rows="6" spellcheck="false" /></label>
+            <div class="send">
+              <button type="button" class="st-btn p sm" :disabled="testing" @click="send(e)"><SIcon name="play" :size="14" />{{ testing ? t('studio.api.sending') : t('studio.api.send') }}</button>
+              <span v-if="resp" class="status" :class="{ ok: resp.status > 0 && resp.status < 400 }"><i class="st-dot" />HTTP {{ resp.status }} · {{ resp.ms }} ms</span>
             </div>
-            <pre v-if="respText" class="resp">{{ respText }}</pre>
+            <pre v-if="resp" class="code resp"><code>{{ resp.text }}</code></pre>
           </div>
         </div>
       </div>
-    </section>
+    </div>
 
     <!-- Agent 提示词 -->
-    <section class="a-card block">
-      <h2 class="sec-h">{{ t('admin.promptTitle') }}</h2>
-      <p class="tip">{{ t('admin.promptHint') }}</p>
-      <pre class="prompt">{{ prompt }}</pre>
-      <div class="t-actions">
-        <button class="a-btn ghost" @click="copyPrompt">{{ t('admin.copy') }}</button>
-        <button class="a-btn primary" @click="downloadPrompt">{{ t('admin.downloadPrompt') }}</button>
+    <div class="prompt-sec">
+      <div class="st-sec-t">
+        <h2>{{ t('studio.api.prompt') }}</h2>
+        <span class="acts">
+          <button type="button" class="st-btn g sm" @click="copy(prompt)"><SIcon name="copy" :size="14" />{{ t('studio.copy') }}</button>
+          <button type="button" class="st-btn g sm" @click="downloadPrompt"><SIcon name="download" :size="14" />{{ t('studio.api.download') }}</button>
+        </span>
       </div>
-    </section>
-  </div>
+      <p class="note">{{ t('studio.api.promptHint') }}</p>
+      <pre class="prompt"><code>{{ prompt }}</code></pre>
+    </div>
+
+    <!-- 调用日志（预留） -->
+    <div class="log-sec">
+      <div class="st-sec-t"><h2>{{ t('studio.api.logs') }}</h2></div>
+      <div class="st-note-bar"><SIcon name="info" />{{ t('studio.api.logsNote') }}</div>
+      <table class="st-table sample">
+        <thead><tr><th>{{ t('studio.api.lTime') }}</th><th>Key</th><th>{{ t('studio.api.lReq') }}</th><th>{{ t('studio.api.lStatus') }}</th><th>{{ t('studio.api.lMs') }}</th></tr></thead>
+        <tbody>
+          <tr v-for="(l, i) in LOG_SAMPLE" :key="i">
+            <td class="mono">{{ l.at }}</td>
+            <td>{{ l.key }}</td>
+            <td><span class="m" :class="l.m.toLowerCase()">{{ l.m }}</span><span class="mono p">{{ l.p }}</span></td>
+            <td><span class="sc" :class="{ bad: l.s >= 400 }">{{ l.s }}</span></td>
+            <td class="mono">{{ l.ms }} ms</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <StModal :open="createOpen" @close="createOpen = false">
+      <template v-if="!created">
+        <div class="mi"><SIcon name="key" :size="22" /></div>
+        <h3>{{ t('studio.api.newTitle') }}</h3>
+        <p>{{ t('studio.api.newDesc') }}</p>
+        <div class="st-flabel">{{ t('studio.api.name') }}</div>
+        <label class="st-field"><input v-model="newName" :placeholder="t('studio.api.namePh')" @keydown.enter="create" /></label>
+        <div class="ft">
+          <button type="button" class="st-btn g" @click="createOpen = false">{{ t('studio.cancel') }}</button>
+          <button type="button" class="st-btn p" :disabled="creating || !newName.trim()" @click="create">{{ t('studio.api.create') }}</button>
+        </div>
+      </template>
+      <template v-else>
+        <div class="mi ok"><SIcon name="check" :size="22" /></div>
+        <h3>{{ t('studio.api.createdTitle', { name: created.name }) }}</h3>
+        <p>{{ t('studio.api.createdDesc') }}</p>
+        <div class="newkey"><span class="mono">{{ created.key }}</span><button type="button" class="st-ibtn" :title="t('studio.copy')" @click="copy(created.key)"><SIcon name="copy" :size="16" /></button></div>
+        <div class="warnline"><SIcon name="lock" :size="16" />{{ t('studio.api.onlyOnce') }}</div>
+        <div class="ft">
+          <button type="button" class="st-btn p" @click="createOpen = false">{{ t('studio.api.savedIt') }}</button>
+        </div>
+      </template>
+    </StModal>
+  </section>
 </template>
 
 <style scoped lang="scss">
-.block { margin-bottom: 22px; }
-
-.sec-h {
-  font-size: 16px;
-  margin-bottom: 14px;
-  padding-left: 12px;
-  border-left: 4px solid var(--primary);
+.view {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 52px 64px 96px;
 }
 
-.grp-h {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-2);
-  margin: 26px 0 10px;
-}
+.hk { font-size: 13px; padding: 1px 6px; border-radius: 6px; background: var(--well); margin: 0 3px; }
 
-.create-bar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
+.keys { display: flex; flex-direction: column; gap: 12px; margin-bottom: 48px; }
+.keys-empty { padding: 32px 0 40px; }
 
-  input { flex: 1; max-width: 340px; }
-}
-
-.fresh {
-  display: flex;
+.key {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 140px 120px auto;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 10px 14px;
-  margin-bottom: 10px;
-  border: 1px solid rgba(var(--primary-rgb), 0.4);
-  background: rgba(var(--primary-rgb), 0.06);
-  border-radius: 10px;
+  gap: 18px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  box-shadow: 0 0 0 1px var(--line-2);
+  transition: box-shadow var(--dur);
 
-  .fresh-name { font-size: 13px; font-weight: 700; color: var(--primary); }
+  &:hover { box-shadow: 0 0 0 1px var(--line-3), var(--sh-card-hover); }
 
-  code {
-    font-family: Consolas, monospace;
-    font-size: 12.5px;
-    word-break: break-all;
-  }
-}
+  .ki { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary-ink); }
+  .kn { min-width: 0; }
+  h4 { margin: 0 0 4px; font: 600 15.5px var(--font-serif); }
 
-.k-table {
-  width: 100%;
-  border-collapse: collapse;
-
-  th, td {
-    padding: 10px 12px;
-    text-align: left;
-    font-size: 13.5px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  th { font-size: 12px; color: var(--text-2); }
-  code { font-family: Consolas, monospace; font-size: 12.5px; }
-}
-
-.ops { text-align: right; }
-
-.op {
-  border: none;
-  background: none;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--primary);
-
-  &.danger { color: var(--accent-red); }
-  &:hover { opacity: 0.75; }
-}
-
-.auth-bar {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-
-  label {
+  .kv2 {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 240px;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--ink-3);
 
-    span { font-size: 12px; font-weight: 600; color: var(--text-2); }
+    button { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; color: var(--ink-3); }
+    button:hover { background: var(--hover); color: var(--ink); }
+
+    .fresh { font-size: 11px; padding: 1px 7px; border-radius: 6px; background: color-mix(in oklab, var(--green) 14%, var(--paper)); color: color-mix(in oklab, var(--green) 70%, var(--ink)); }
   }
+
+  .scopes { display: flex; gap: 5px; margin-top: 8px; }
+  .scopes span { font-size: 11.5px; padding: 2px 8px; border-radius: 6px; background: var(--well); color: var(--ink-2); }
+
+  .lu { font-size: 13px; }
+  .lu small { display: block; font-size: 11.5px; color: var(--ink-3); margin-top: 3px; }
 }
 
-.tip { font-size: 12.5px; color: var(--text-2); margin-top: 10px; }
+.code {
+  position: relative;
+  margin: 0;
+  border-radius: 16px;
+  background: var(--code-bg);
+  color: #d9d6cf;
+  padding: 20px 22px;
+  font: 13px/1.9 var(--font-mono);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
 
-/* 接口条目 */
-.ep-list {
+  code { font: inherit; background: none; padding: 0; color: inherit; }
+
+  .cp { position: absolute; right: 12px; top: 12px; color: #aaa; background: rgba(255, 255, 255, 0.06); }
+  .cp:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+}
+
+.api-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 40px;
+  margin-bottom: 56px;
+}
+
+em {
+  font-style: normal;
+  font-weight: 600;
+  font-size: 10.5px;
+  width: 48px;
+  flex: none;
+  text-align: center;
+  padding: 2px 0;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+
+  &.post { background: color-mix(in oklab, var(--green) 16%, var(--paper)); color: color-mix(in oklab, var(--green) 70%, var(--ink)); }
+  &.get { background: color-mix(in oklab, var(--blue) 14%, var(--paper)); color: color-mix(in oklab, var(--blue) 70%, var(--ink)); }
+  &.put { background: color-mix(in oklab, var(--yellow) 18%, var(--paper)); color: color-mix(in oklab, var(--yellow) 50%, var(--ink)); }
+  &.delete { background: color-mix(in oklab, var(--red) 12%, var(--paper)); color: color-mix(in oklab, var(--red) 70%, var(--ink)); }
+}
+
+.endp {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+
+  div { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font: 12.5px var(--font-mono); color: var(--ink-2); }
 }
+
+.note { font-size: 12.5px; color: var(--ink-3); line-height: 1.7; margin: 14px 0 0; }
+
+.tester { margin-bottom: 56px; }
+
+.auth {
+  display: grid;
+  grid-template-columns: 220px 280px 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+
+  small { font-size: 12px; color: var(--ink-3); line-height: 1.5; }
+}
+
+.eps { display: flex; flex-direction: column; gap: 6px; }
 
 .ep {
-  padding: 0;
-  overflow: hidden;
-  transition: border-color var(--dur-fast);
+  border-radius: 14px;
+  transition: background var(--dur-fast), box-shadow var(--dur-fast);
 
-  &.open { border-color: rgba(var(--primary-rgb), 0.45); }
+  &.open { background: var(--well); }
+
+  .ep-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 14px;
+    text-align: left;
+
+    &:hover { background: var(--well); }
+
+    code { font: 12.5px var(--font-mono); color: var(--ink); white-space: nowrap; }
+    .d { flex: 1; min-width: 0; font-size: 13px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .au {
+      font-size: 11px;
+      padding: 1px 7px;
+      border-radius: 6px;
+      background: var(--well-2);
+      color: var(--ink-3);
+
+      &.apikey { background: var(--primary-soft-2); color: var(--primary-ink); }
+    }
+
+    .chev { color: var(--ink-4); transition: transform var(--dur) var(--ease-spring); }
+  }
+
+  &.open .chev { transform: rotate(180deg); }
+
+  .ep-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 12px 14px;
+    animation: body-in var(--dur) var(--ease-out);
+
+    .st-field { background: var(--paper); }
+  }
+
+  .send { display: flex; align-items: center; gap: 12px; }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 12px var(--font-mono);
+    color: var(--red);
+
+    .st-dot { --c: var(--red); }
+    &.ok { color: color-mix(in oklab, var(--green) 70%, var(--ink)); .st-dot { --c: var(--green); } }
+  }
+
+  .resp { max-height: 320px; font-size: 12px; line-height: 1.7; }
 }
 
-.ep-row {
+@keyframes body-in { from { opacity: 0; transform: translateY(-4px); } }
+
+.prompt-sec { margin-bottom: 56px; }
+.prompt-sec .acts { display: flex; gap: 8px; }
+
+.prompt {
+  margin: 14px 0 0;
+  max-height: 280px;
+  overflow: auto;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--well);
+  font: 12.5px/1.8 var(--font-mono);
+  color: var(--ink-2);
+  white-space: pre-wrap;
+
+  code { font: inherit; background: none; padding: 0; }
+}
+
+.log-sec .st-note-bar { margin: 0 0 18px; }
+
+.sample {
+  opacity: 0.72;
+
+  .m { font: 600 10.5px var(--font-mono); margin-right: 8px; color: var(--ink-3); }
+  .p { font-size: 12px; color: var(--ink-2); }
+  .sc { font: 500 12px var(--font-mono); color: color-mix(in oklab, var(--green) 70%, var(--ink)); }
+  .sc.bad { color: var(--red); }
+  td.mono { font-size: 12px; color: var(--ink-3); }
+}
+
+.newkey {
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 12px 16px;
-  border: none;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-  transition: background var(--dur-fast);
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--code-bg);
+  color: #e9e6df;
+  font-size: 13px;
+  word-break: break-all;
 
-  &:hover { background: rgba(var(--primary-rgb), 0.04); }
+  .mono { flex: 1; }
+  .st-ibtn { color: #bbb; }
+  .st-ibtn:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
 }
 
-.method {
-  font-size: 11px;
-  font-weight: 800;
-  padding: 3px 10px;
-  border-radius: 6px;
-  width: 58px;
-  text-align: center;
-  flex-shrink: 0;
-
-  &.get { background: rgba(0, 120, 255, 0.14); color: var(--accent-blue); }
-  &.post { background: rgba(0, 200, 83, 0.14); color: #00a344; }
-  &.put { background: rgba(255, 179, 0, 0.16); color: #c78800; }
-  &.delete { background: rgba(255, 0, 50, 0.12); color: var(--accent-red); }
-}
-
-.path {
-  font-family: Consolas, monospace;
-  font-size: 12.5px;
-  color: var(--text);
-  flex-shrink: 0;
-}
-
-.desc {
-  font-size: 12.5px;
-  color: var(--text-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-}
-
-.auth-tag {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  flex-shrink: 0;
-
-  &.none { background: var(--surface-2); color: var(--text-2); }
-  &.jwt { background: rgba(0, 120, 255, 0.12); color: var(--accent-blue); }
-  &.apikey { background: rgba(var(--primary-rgb), 0.12); color: var(--primary); }
-}
-
-/* 调试台 */
-.tester {
-  padding: 14px 16px 16px;
-  border-top: 1px dashed var(--border);
+.warnline {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.t-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-
-  span { font-size: 11px; font-weight: 700; color: var(--text-2); }
-}
-
-.mono { font-family: Consolas, monospace; font-size: 13px; }
-
-.t-actions {
-  display: flex;
+  gap: 8px;
   align-items: center;
-  gap: 12px;
+  font-size: 12.5px;
+  color: color-mix(in oklab, var(--yellow) 55%, var(--ink));
   margin-top: 10px;
 }
 
-.status {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent-red);
-
-  &.ok { color: #00a344; }
+@media (max-width: 1180px) {
+  .view { padding: 40px 36px 80px; }
+  .api-grid { grid-template-columns: 1fr; }
+  .auth { grid-template-columns: 1fr 1fr; }
+  .auth small { grid-column: 1 / -1; }
 }
-
-.resp, .prompt {
-  padding: 14px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-family: Consolas, monospace;
-  font-size: 12.5px;
-  line-height: 1.7;
-  max-height: 320px;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.prompt { max-height: 420px; margin-top: 10px; }
 </style>

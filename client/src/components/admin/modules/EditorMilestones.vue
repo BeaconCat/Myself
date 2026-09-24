@@ -1,19 +1,28 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import type { AboutModule } from '../../../stores/config';
+import type { MilestonesData } from '../../../about/types';
+import EdList from './EdList.vue';
+import { useModuleData } from './useModuleData';
 
-/** 历程时间线：年份 + 描述 */
-defineProps<{ mod: AboutModule }>();
+/** 历程：日期（2026.07）/ 标题 / 描述 / 点亮 */
+const props = defineProps<{ mod: AboutModule }>();
+const d = useModuleData<MilestonesData>(() => props.mod);
 const { t } = useI18n();
 </script>
 
 <template>
-  <div v-for="(item, ii) in mod.data.items" :key="ii" class="line">
-    <input v-model="item.year" class="a-input w-narrow" type="text" :placeholder="t('admin.msYear')" />
-    <input v-model="item.text" class="a-input flex-in" type="text" :placeholder="t('admin.msText')" />
-    <button class="op danger" @click="mod.data.items.splice(ii, 1)">{{ t('admin.delete') }}</button>
+  <div class="ed">
+    <p class="hint">{{ t('aboutKit.ed.milestonesHint') }}</p>
+    <EdList v-slot="{ item }" :items="d.items" :make="() => ({ date: '', title: '', text: '' })">
+      <div class="line">
+        <input v-model="item.date" class="a-input w-narrow" type="text" placeholder="2026.07" />
+        <input v-model="item.title" class="a-input flex-in" type="text" :placeholder="t('aboutKit.ed.title')" />
+        <label class="check"><input v-model="item.now" type="checkbox" />{{ t('aboutKit.ed.lit') }}</label>
+      </div>
+      <input v-model="item.text" class="a-input" type="text" :placeholder="t('aboutKit.ed.note')" />
+    </EdList>
   </div>
-  <button class="a-btn ghost sm" @click="mod.data.items.push({ year: '', text: '' })">{{ t('admin.addItem') }}</button>
 </template>
 
 <style scoped lang="scss">
