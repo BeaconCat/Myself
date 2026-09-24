@@ -35,6 +35,8 @@ export interface SiteConfig {
     allowUserPalette: boolean;
     displayCount: number;
     presets: ThemePreset[];
+    /** 全局圆角基准（px，0–24，默认 10）；前台、移动端、后台共用 */
+    radius: number;
   };
   hero: {
     intervalMs: number;
@@ -78,6 +80,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
     autoSwitch: 'off',
     allowUserPalette: true,
     displayCount: 4,
+    radius: 10,
     presets: [
       { id: 'spring', name: '春 · 新绿', primary: '#00c853', primaryDeep: '#00a344' },
       { id: 'summer', name: '夏 · 炽红', primary: '#ff0032', primaryDeep: '#d40029' },

@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, type Post, type Tag } from '../../api';
 import LargeTitlePage from '../../components/mobile/LargeTitlePage.vue';
-import CoverArt from '../../components/mobile/CoverArt.vue';
+import CoverArt from '../../components/common/CoverArt.vue';
 import MIcon from '../../components/mobile/MIcon.vue';
 import { monthDay, openSearch } from '../../components/mobile/shell';
 

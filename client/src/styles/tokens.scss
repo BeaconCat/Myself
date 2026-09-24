@@ -16,10 +16,79 @@
   --ease-out: cubic-bezier(0.2, 0.8, 0.3, 1);
   --ease-spring: cubic-bezier(0.2, 0.8, 0.3, 1.2);
 
-  /* 圆角/阴影 */
-  --radius: 14px;
-  --radius-lg: 18px;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  --ease-sheet: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* 圆角：由后台 theme.radius 写入 --r-base（px 数值，默认 10），其余按比例派生 */
+  --r-base: 10;
+  --r-xs: calc(var(--r-base) * 0.45px);
+  --r-sm: calc(var(--r-base) * 0.75px);
+  --r-md: calc(var(--r-base) * 1px);
+  --r-lg: calc(var(--r-base) * 1.4px);
+  --r-xl: calc(var(--r-base) * 2px);
+  --r-pill: 999px;
+  /* 兼容旧变量（已随 --r-base 缩小） */
+  --radius: var(--r-md);
+  --radius-lg: var(--r-lg);
+
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* ======================================================================
+   强调系统（第三轮）：选中 = 抬升 + 轻染；主按钮 = 实底；主色只做信号；
+   发光只属于品牌封面。--solid / --on-solid / --ink 由 JS 按对比度派生。
+   ====================================================================== */
+:root {
+  --solid: var(--primary);
+  --on-solid: #fff;
+  --ink: var(--primary);
+
+  --text-3: color-mix(in oklab, var(--text-2) 70%, var(--bg));
+  --line: color-mix(in oklab, var(--text) 8%, transparent);
+  --line-2: color-mix(in oklab, var(--text) 13%, transparent);
+  --fill: color-mix(in oklab, var(--text) 4%, transparent);
+  --fill-2: color-mix(in oklab, var(--text) 7%, transparent);
+  --fill-3: color-mix(in oklab, var(--text) 10%, transparent);
+  --elev: #fff;
+
+  /* 选中块：白底掺 8% 主色 + 带主色色相的细阴影 */
+  --lift: color-mix(in oklab, var(--primary) 8%, #fff);
+  --lift-hi: color-mix(in oklab, var(--primary) 11%, #fff);
+  --lift-fg: var(--text);
+  --lift-shadow: 0 0 0 0.5px color-mix(in oklab, var(--primary) 22%, rgb(16 24 40 / 0.06)),
+    0 1px 2px rgb(16 24 40 / 0.08), 0 3px 8px -3px color-mix(in oklab, var(--primary) 26%, transparent);
+  --tint: color-mix(in oklab, var(--primary) 12%, transparent);
+
+  --solid-hover: color-mix(in oklab, var(--solid) 90%, black);
+  --btn-shadow: inset 0 1px 0 rgb(255 255 255 / 0.2), 0 0 0 0.5px rgb(16 24 40 / 0.14), 0 1px 2px rgb(16 24 40 / 0.18);
+  --shadow-card: 0 0 0 0.5px var(--line), 0 1px 2px rgb(16 24 40 / 0.05), 0 18px 40px -26px rgb(16 24 40 / 0.28);
+  --shadow-card-hover: 0 0 0 0.5px var(--line-2), 0 2px 4px rgb(16 24 40 / 0.06), 0 28px 56px -28px rgb(16 24 40 / 0.36);
+  --shadow-pop: 0 0 0 0.5px rgb(16 24 40 / 0.08), 0 24px 64px -24px rgb(16 24 40 / 0.3), 0 4px 12px -4px rgb(16 24 40 / 0.08);
+  --focus: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink);
+  --scrim: rgb(20 28 44 / 0.22);
+}
+
+:root[data-mode='dark'] {
+  --line: color-mix(in oklab, var(--text) 10%, transparent);
+  --line-2: color-mix(in oklab, var(--text) 17%, transparent);
+  --fill: color-mix(in oklab, var(--text) 5%, transparent);
+  --fill-2: color-mix(in oklab, var(--text) 9%, transparent);
+  --fill-3: color-mix(in oklab, var(--text) 13%, transparent);
+  --elev: color-mix(in oklab, var(--surface) 97%, white);
+
+  /* 白 8% 抬升面 + 主色 16%，内描边带主色色相 */
+  --lift: color-mix(in oklab, var(--primary) 16%, rgb(255 255 255 / 0.08));
+  --lift-hi: color-mix(in oklab, var(--primary) 22%, rgb(255 255 255 / 0.1));
+  --lift-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--primary) 30%, rgb(255 255 255 / 0.08)),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --tint: color-mix(in oklab, var(--primary) 16%, transparent);
+
+  --solid-hover: color-mix(in oklab, var(--solid) 88%, white);
+  --btn-shadow: inset 0 1px 0 rgb(255 255 255 / 0.16), 0 0 0 0.5px rgb(0 0 0 / 0.35), 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-card: 0 0 0 0.5px var(--line), 0 1px 2px rgb(0 0 0 / 0.25), 0 18px 40px -24px rgb(0 0 0 / 0.7);
+  --shadow-card-hover: 0 0 0 0.5px var(--line-2), 0 2px 4px rgb(0 0 0 / 0.25), 0 28px 56px -26px rgb(0 0 0 / 0.85);
+  --shadow-pop: 0 0 0 0.5px rgb(255 255 255 / 0.09), 0 24px 64px -20px rgb(0 0 0 / 0.75), 0 4px 12px -4px rgb(0 0 0 / 0.4);
+  --scrim: rgb(2 6 14 / 0.5);
 }
 
 /* 标题强调渐变（上→下）：浅色 = 深主题色→更深；深色 = 亮主题色→更亮 */

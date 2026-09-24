@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import type { Post } from '../../api';
-import CoverArt from './CoverArt.vue';
+import CoverArt from '../common/CoverArt.vue';
 import { attachDrag, clamp, rubber } from './gesture';
 
 /**
