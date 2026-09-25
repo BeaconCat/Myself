@@ -54,13 +54,3 @@ export function toSlug(title: string): string {
 }
 
 export const SLUG_RE = /^[a-z0-9-]{1,80}$/;
-
-/** 按亮度决定主色上的文字颜色（秋季黄等浅主色用深字） */
-export function onColor(hex: string): string {
-  const v = hex.replace('#', '');
-  if (v.length < 6) return '#fff';
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) / 255);
-  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return L > 0.45 ? '#141414' : '#ffffff';
-}

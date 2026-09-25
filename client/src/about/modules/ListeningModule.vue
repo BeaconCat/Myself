@@ -92,7 +92,7 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
     position: absolute;
     inset: 33%;
     border-radius: 50%;
-    background: radial-gradient(circle, var(--bg) 0 8%, transparent 9%), radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--primary) 60%, white), var(--primary) 50%, var(--primary-deep));
+    background: radial-gradient(circle, var(--bg) 0 8%, transparent 9%), var(--primary);
 
     &::after { content: ''; position: absolute; inset: 18%; border-radius: 50%; border: 1px solid rgb(255 255 255 / 0.25); }
   }
@@ -120,7 +120,7 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
     top: 4px;
     width: 3px;
     height: calc(var(--s) * 0.58);
-    border-radius: 2px;
+    border-radius: var(--r-pill);
     background: linear-gradient(var(--text-2), var(--ak-text-3));
     transform-origin: top center;
     transform: rotate(8deg);
@@ -146,7 +146,7 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
   font: 400 11px var(--ak-mono);
   color: var(--ak-text-3);
 
-  .tr { position: relative; flex: 1; height: 3px; border-radius: 3px; background: var(--ak-sunken); }
+  .tr { position: relative; flex: 1; height: 3px; border-radius: var(--r-pill); background: var(--fill-2); }
 
   i {
     position: absolute;
@@ -155,7 +155,7 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
     bottom: 0;
     width: var(--w, 30%);
     border-radius: inherit;
-    background: var(--primary);
+    background: var(--ink);
     transition: width 1s linear;
 
     &::after {
@@ -168,7 +168,7 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
       margin-top: -4.5px;
       border-radius: 50%;
       background: var(--text);
-      box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.3);
+      box-shadow: 0 0 0 3px var(--fill-3);
     }
   }
 }
@@ -183,15 +183,17 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
     place-items: center;
     width: 34px;
     height: 34px;
-    border-radius: 10px;
+    border-radius: var(--r-pill);
     color: var(--text-2);
-    transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+    transition: background-color var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
 
-    &:hover { background: var(--ak-sunken); color: var(--text); }
+    &:hover { background: var(--fill-2); color: var(--text); }
+    &:active { transform: scale(0.94); }
   }
 
-  .pp { background: var(--text); color: var(--bg); }
-  .pp:hover { background: var(--text); color: var(--bg); transform: scale(1.06); }
+  /* 播放 / 暂停 = 主按钮实底 */
+  .pp { background: var(--solid); color: var(--on-solid); box-shadow: var(--btn-shadow); }
+  .pp:hover { background: var(--solid-hover); color: var(--on-solid); }
 }
 
 .ls-recent {
@@ -210,7 +212,7 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
     &:last-child { border-bottom: 0; }
   }
 
-  .cv { display: block; width: 28px; height: 28px; overflow: hidden; border-radius: 6px; }
+  .cv { display: block; width: 28px; height: 28px; overflow: hidden; border-radius: var(--r-xs); }
   .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nm small { margin-left: 6px; color: var(--ak-text-3); }
   time { font: 400 11px var(--ak-mono); color: var(--ak-text-3); }

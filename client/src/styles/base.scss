@@ -41,10 +41,16 @@ button {
 }
 
 ::selection {
-  background: rgba(var(--primary-rgb), 0.25);
+  background: color-mix(in oklab, var(--primary) 28%, transparent);
 }
 
-/* 幕布机制：loading 覆盖期间暂停页面内全部 CSS 动画，揭幕后从头继续播 */
+/* 默认焦点环：仅键盘聚焦显示，--ink 信号色；零特异性，组件可用 box-shadow: var(--focus) 覆盖 */
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* 首屏幕布：AppLoading 在屏上期间暂停页面内全部 CSS 动画，揭幕后从头继续播 */
 .app-shell.covered *,
 .app-shell.covered *::before,
 .app-shell.covered *::after {
@@ -70,6 +76,9 @@ html:not(.vt-contract)::view-transition-new(root) {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
   }
 }

@@ -321,11 +321,11 @@ defineExpose({
 .hero {
   position: relative;
   isolation: isolate;
-  min-height: 62vh;
+  /* 高度随内容：外层（HomeView）给出 min(78vh, 720px) 的舞台高度并垂直居中 */
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
   align-items: center;
-  gap: 48px;
+  gap: 56px;
   /* 展示区禁选中：双击（退出 lightbox 等）不再拉出文字选区 */
   user-select: none;
 
@@ -372,14 +372,13 @@ defineExpose({
   > * { grid-area: 1 / 1; }
 }
 
-/* 暗角覆盖到外层背景壳的留白 */
-.hero-fx :deep(.hc-vig) { inset: -36px -56px; }
+/* 暗角略外扩，盖住舞台四周 */
+.hero-fx :deep(.hc-vig) { inset: -40px -32px; }
 
 @media (max-width: 900px) {
   .hero {
     grid-template-columns: 1fr;
     gap: 26px;
-    min-height: auto;
   }
 
   /* 相册收窄居中：两侧各留 ~46px 给后排卡探出与切换钮 */

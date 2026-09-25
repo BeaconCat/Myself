@@ -223,16 +223,16 @@ async function logout(): Promise<void> {
   gap: 14px;
   margin: 4px 16px 0;
   padding: 16px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, var(--soft), transparent 65%), var(--elev);
-  box-shadow: inset 0 0 0 0.5px var(--line), var(--shadow);
+  border-radius: var(--r-xl);
+  background: var(--elev);
+  box-shadow: var(--shadow-card);
 
   .av {
     width: 58px;
     height: 58px;
-    border-radius: 18px;
+    border-radius: var(--r-lg);
     object-fit: cover;
-    box-shadow: 0 8px 18px -8px var(--glow), 0 0 0 0.5px var(--line-2);
+    box-shadow: 0 0 0 0.5px var(--line-2);
   }
 
   .who { flex: 1; min-width: 0; }
@@ -258,7 +258,7 @@ async function logout(): Promise<void> {
 .appear {
   margin: 0 16px;
   padding: 14px;
-  border-radius: 22px;
+  border-radius: var(--r-xl);
   background: var(--elev);
   box-shadow: inset 0 0 0 0.5px var(--line);
 }
@@ -268,7 +268,7 @@ async function logout(): Promise<void> {
   display: grid;
   grid-template-columns: 1fr 1fr;
   padding: 3px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: var(--fill);
   box-shadow: inset 0 0 0 0.5px var(--line);
 
@@ -282,12 +282,16 @@ async function logout(): Promise<void> {
     gap: 7px;
     font-size: 14px;
     color: var(--text-2);
-    border-radius: 11px;
+    border-radius: calc(var(--r-md) - 3px);
     transition: color var(--dur) var(--ease-out);
 
+    :deep(.ma-ic) { transition: color var(--dur); }
+
     &.on {
-      color: var(--text);
+      color: var(--lift-fg);
       font-weight: 500;
+
+      :deep(.ma-ic) { color: var(--ink); }
     }
   }
 
@@ -297,17 +301,12 @@ async function logout(): Promise<void> {
     bottom: 3px;
     left: 3px;
     width: calc(50% - 3px);
-    border-radius: 11px;
-    background: var(--elev-2);
-    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.35), inset 0 0 0 0.5px var(--line);
+    border-radius: calc(var(--r-md) - 3px);
+    background: var(--lift);
+    box-shadow: var(--lift-shadow);
     transform: translateX(calc(var(--i, 0) * 100%));
-    transition: transform var(--dur) var(--ease-spring);
+    transition: transform var(--dur) var(--ease-spring), background-color var(--dur), box-shadow var(--dur);
   }
-}
-
-:root[data-mode='light'] .seg2 .th {
-  background: #fff;
-  box-shadow: 0 2px 8px -2px rgba(20, 40, 80, 0.2);
 }
 
 .pals {
@@ -330,20 +329,16 @@ async function logout(): Promise<void> {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: radial-gradient(
-      circle at 35% 30%,
-      color-mix(in oklab, var(--c) 70%, white),
-      var(--c) 55%,
-      color-mix(in oklab, var(--c) 70%, black)
-    );
-    box-shadow: 0 8px 18px -8px var(--c);
+    background: var(--c);
+    box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.12);
 
+    /* 选中：外侧 1.5px 细环（--text） */
     &::after {
       content: '';
       position: absolute;
-      inset: -5px;
+      inset: -4.5px;
       border-radius: 50%;
-      box-shadow: 0 0 0 2px var(--c);
+      box-shadow: 0 0 0 1.5px var(--text);
       opacity: 0;
       transform: scale(0.8);
       transition: all var(--dur) var(--ease-spring);
@@ -397,7 +392,7 @@ async function logout(): Promise<void> {
 .backup {
   transition: box-shadow 0.6s;
 
-  &.flash { box-shadow: inset 0 0 0 1.5px var(--primary); }
+  &.flash { box-shadow: inset 0 0 0 1.5px var(--ink); }
 
   .lt {
     display: flex;
@@ -417,14 +412,15 @@ async function logout(): Promise<void> {
   border-radius: 999px;
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--ink);
-  background: var(--soft);
+  color: var(--on-solid);
+  background: var(--solid);
+  box-shadow: var(--btn-shadow);
 
   &:disabled { opacity: 0.7; }
 
   .bk-ring {
-    --ring-bg: color-mix(in oklab, var(--primary) 25%, transparent);
-    --ring-fg: var(--primary);
+    --ring-bg: color-mix(in oklab, var(--on-solid) 30%, transparent);
+    --ring-fg: var(--on-solid);
   }
 }
 

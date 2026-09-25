@@ -267,7 +267,7 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
               :style="{ '--c': m.c }"
               @click="pickMood(m.name)"
             ><i class="st-dot" />{{ m.name }}</button>
-            <button v-if="customMood" type="button" class="mood on" style="--c: var(--primary)" @click="mood = ''">
+            <button v-if="customMood" type="button" class="mood on" style="--c: var(--ink)" @click="mood = ''">
               <i class="st-dot" />{{ customMood }}
             </button>
           </div>
@@ -326,20 +326,20 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
 <style scoped lang="scss">
 .cmp {
   position: relative;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   background: var(--paper);
   box-shadow: 0 0 0 1px var(--line-2), 0 1px 2px var(--line);
   transition: box-shadow var(--dur) var(--ease-out), transform var(--dur) var(--ease-spring);
 
   &:hover:not(.open) {
-    box-shadow: 0 0 0 1px var(--line-3), 0 10px 30px -18px color-mix(in oklab, var(--tint) 44%, transparent);
+    box-shadow: 0 0 0 1px var(--line-3), 0 10px 30px -18px color-mix(in oklab, var(--st-shade) 44%, transparent);
   }
 
   &.open {
     box-shadow:
-      0 0 0 1px color-mix(in oklab, var(--primary) 40%, var(--line-2)),
-      0 0 0 5px var(--primary-ring),
-      0 30px 60px -30px color-mix(in oklab, var(--tint) 48%, transparent);
+      0 0 0 1px color-mix(in oklab, var(--ink) 55%, transparent),
+      0 0 0 3px color-mix(in oklab, var(--ink) 16%, transparent),
+      0 30px 60px -30px color-mix(in oklab, var(--st-shade) 48%, transparent);
   }
 
   &.shake { animation: shake 0.4s var(--ease-out); }
@@ -364,13 +364,13 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
     background: none;
     resize: none;
     font: 400 18px/1.75 var(--font-serif);
-    color: var(--ink);
+    color: var(--st-ink);
     min-height: 32px;
     height: 32px;
     padding: 1px 0;
     transition: height var(--dur) var(--ease-out);
 
-    &::placeholder { color: var(--ink-4); }
+    &::placeholder { color: var(--st-ink-4); }
   }
 }
 
@@ -427,7 +427,7 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
   padding: 0 12px 0 10px;
   border-radius: var(--r-pill);
   font-size: 13px;
-  color: var(--ink-2);
+  color: var(--st-ink-2);
   box-shadow: 0 0 0 1px var(--line-2) inset;
   transition: all var(--dur) var(--ease-spring);
 
@@ -436,12 +436,14 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
 
   .st-dot { transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur); }
 
+  /* 选中：抬升 + 轻染；心情圆点保留自身颜色作为唯一信号 */
   &.on {
-    background: color-mix(in oklab, var(--c) 12%, var(--paper));
-    box-shadow: 0 0 0 1px color-mix(in oklab, var(--c) 40%, transparent) inset;
-    color: var(--ink);
+    background: var(--lift);
+    box-shadow: var(--lift-shadow);
+    color: var(--lift-fg);
+    font-weight: 500;
 
-    .st-dot { transform: scale(1.3); box-shadow: 0 0 0 3px color-mix(in oklab, var(--c) 25%, transparent); }
+    .st-dot { transform: scale(1.3); }
   }
 }
 
@@ -458,7 +460,7 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
   .t {
     position: relative;
     aspect-ratio: 1;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     overflow: hidden;
     cursor: grab;
     background: var(--well-2);
@@ -503,15 +505,15 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
 
   .add {
     aspect-ratio: 1;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     display: grid;
     place-items: center;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     box-shadow: 0 0 0 1.5px var(--line-2) inset;
     background: repeating-linear-gradient(45deg, transparent 0 6px, var(--hover) 6px 7px);
     transition: all var(--dur-fast);
 
-    &:hover { color: var(--primary-ink); box-shadow: 0 0 0 1.5px var(--primary) inset; }
+    &:hover { color: var(--ink); box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--ink) 55%, transparent) inset; }
   }
 }
 
@@ -525,30 +527,30 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
   gap: 14px;
   width: 100%;
   padding: 14px 16px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   margin-bottom: 14px;
-  color: var(--ink-3);
+  color: var(--st-ink-3);
   font-size: 13px;
   line-height: 1.6;
   text-align: left;
   box-shadow: 0 0 0 1.5px var(--line-2) inset;
   transition: all var(--dur-fast);
 
-  &:hover { background: var(--hover); color: var(--ink-2); }
+  &:hover { background: var(--hover); color: var(--st-ink-2); }
 
   .di {
     width: 36px;
     height: 36px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     display: grid;
     place-items: center;
     background: var(--well);
-    color: var(--ink-2);
+    color: var(--st-ink-2);
     flex: none;
   }
 
-  b { color: var(--ink); font-weight: 500; }
-  small { font-size: 12px; color: var(--ink-4); }
+  b { color: var(--st-ink); font-weight: 500; }
+  small { font-size: 12px; color: var(--st-ink-4); }
 }
 
 .cmp-bar {
@@ -559,7 +561,7 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
   border-top: 1px solid var(--line);
 
   .sp { flex: 1; }
-  .cnt { font-size: 12px; color: var(--ink-4); }
+  .cnt { font-size: 12px; color: var(--st-ink-4); }
 
   .keys {
     display: flex;
@@ -572,13 +574,13 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
 .drop-veil {
   position: absolute;
   inset: 6px;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   display: grid;
   place-items: center;
   font: 500 15px var(--font-serif);
-  color: var(--primary-ink);
-  background: color-mix(in oklab, var(--primary-soft) 85%, transparent);
-  border: 1.5px dashed var(--primary);
+  color: var(--ink);
+  background: color-mix(in oklab, var(--paper) 80%, transparent);
+  border: 1.5px dashed color-mix(in oklab, var(--ink) 60%, transparent);
   backdrop-filter: blur(3px);
   pointer-events: none;
   animation: fade-in var(--dur-fast) both;

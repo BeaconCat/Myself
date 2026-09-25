@@ -6,7 +6,8 @@ import { shell, TAB_ORDER, type TabName } from './shell';
 
 /**
  * V1 悬浮玻璃胶囊底栏：四个 tab + 独立搜索圆钮。
- * 选中胶囊 morph：前缘先走（快）、后缘跟上（慢 + 延迟），形成拉伸的液滴感；
+ * 选中胶囊 = 抬升 + 轻染（--lift / --lift-shadow / --lift-fg），不挂信号点；
+ * morph：前缘先走（快）、后缘跟上（慢 + 延迟），形成拉伸的液滴感；
  * 页面下滑时收缩为纯图标，上滑恢复；详情推入时整体下沉隐藏。
  */
 const props = defineProps<{ active: TabName }>();
@@ -86,13 +87,13 @@ watch(index, (now, before) => {
   border-radius: 999px;
   left: calc(var(--pad) + (100% - 2 * var(--pad)) * var(--i) / var(--n));
   right: calc(var(--pad) + (100% - 2 * var(--pad)) * (var(--n) - 1 - var(--i)) / var(--n));
-  background: linear-gradient(180deg, color-mix(in oklab, var(--primary) 86%, white), var(--primary) 50%, var(--primary-deep));
-  box-shadow: 0 8px 18px -6px var(--m-glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: left 0.46s var(--ease-spring) 0.05s, right 0.3s var(--ease-out);
+  background: var(--lift);
+  box-shadow: var(--lift-shadow);
+  transition: left 0.46s var(--ease-spring) 0.05s, right 0.3s var(--ease-out), background-color var(--dur), box-shadow var(--dur);
 }
 
 .cap.to-l .pill {
-  transition: left 0.3s var(--ease-out), right 0.46s var(--ease-spring) 0.05s;
+  transition: left 0.3s var(--ease-out), right 0.46s var(--ease-spring) 0.05s, background-color var(--dur), box-shadow var(--dur);
 }
 
 .it {
@@ -105,7 +106,8 @@ watch(index, (now, before) => {
   gap: 3px;
   border-radius: 999px;
   color: var(--text-2);
-  --cut: var(--bg);
+  /* 镂空细节描边色 ≈ 抬升块的不透明近似 */
+  --cut: var(--lift);
   transition: color var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
 
   &:active { transform: scale(0.92); }
@@ -120,8 +122,7 @@ watch(index, (now, before) => {
   }
 
   &.on {
-    color: var(--m-on-primary, #fff);
-    --cut: var(--primary);
+    color: var(--lift-fg);
 
     :deep(.m-ic .f) { fill: currentColor; }
     :deep(.m-ic .d) { stroke: var(--cut); }
@@ -135,6 +136,10 @@ watch(index, (now, before) => {
   25% { transform: scale(0.78) translateY(1px); }
   60% { transform: scale(1.14) translateY(-2px); }
   100% { transform: none; }
+}
+
+html.m-shell[data-mode='dark'] .it {
+  --cut: color-mix(in oklab, var(--primary) 16%, color-mix(in oklab, var(--surface) 88%, white));
 }
 
 .search {

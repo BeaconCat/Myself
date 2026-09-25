@@ -174,12 +174,12 @@ defineExpose({
 
 <style scoped lang="scss">
 .rich {
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   background: var(--surface);
   box-shadow: 0 0 0 1px var(--border);
   overflow: hidden;
 
-  &:focus-within { box-shadow: 0 0 0 1px var(--primary); }
+  &:focus-within { box-shadow: 0 0 0 1px color-mix(in oklab, var(--ink) 70%, transparent), 0 0 0 3px color-mix(in oklab, var(--ink) 18%, transparent); }
 
   &.bare {
     border-radius: 0;
@@ -208,14 +208,14 @@ defineExpose({
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--r-xs);
   background: none;
   color: var(--text-2);
   cursor: pointer;
   transition: all var(--dur-fast);
 
   &:hover { background: var(--surface); color: var(--text); }
-  &.on { background: rgba(var(--primary-rgb), 0.14); color: var(--primary); }
+  &.on { background: var(--lift); box-shadow: var(--lift-shadow); color: var(--lift-fg); }
 }
 
 .divider {
@@ -229,7 +229,7 @@ defineExpose({
   box-shadow: none;
   background: none;
 
-  .toolbar { border-radius: 10px; border: 1px solid var(--border); margin-bottom: 4px; }
+  .toolbar { border-radius: var(--r-sm); border: 1px solid var(--border); margin-bottom: 4px; }
   .content :deep(.ProseMirror) { min-height: 140px; padding: 12px 4px; font-size: 16px; }
 }
 
@@ -259,7 +259,7 @@ defineExpose({
       align-items: flex-start;
 
       > label { margin-top: 0.35em; }
-      input[type='checkbox'] { accent-color: var(--primary); }
+      input[type='checkbox'] { accent-color: var(--solid); }
       > div { flex: 1; }
 
       &[data-checked='true'] > div { color: var(--text-2); text-decoration: line-through; }
@@ -271,13 +271,13 @@ defineExpose({
     font-size: 0.86em;
     background: var(--surface-2);
     padding: 2px 6px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
   }
 
   pre {
     background: var(--code-bg, #1b1a1f);
     color: #e6e3dc;
-    border-radius: 12px;
+    border-radius: var(--r-sm);
     padding: 16px 18px;
     overflow-x: auto;
     font-size: 14px;
@@ -298,7 +298,7 @@ defineExpose({
       content: '';
       position: absolute;
       inset: 0;
-      background: rgba(var(--primary-rgb), 0.12);
+      background: var(--tint);
       pointer-events: none;
     }
 
@@ -308,25 +308,25 @@ defineExpose({
       top: 0;
       bottom: 0;
       width: 4px;
-      background: var(--primary);
+      background: var(--ink);
       cursor: col-resize;
     }
   }
 
   img {
     max-width: 100%;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
 
-    &.ProseMirror-selectednode { outline: 2px solid var(--primary); outline-offset: 2px; }
+    &.ProseMirror-selectednode { outline: 2px solid var(--ink); outline-offset: 2px; }
   }
 
   hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
 
-  a { color: var(--primary-ink, var(--primary)); text-decoration: underline; text-underline-offset: 3px; }
+  a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
   p.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
-    color: var(--ink-4, var(--text-2));
+    color: var(--st-ink-4, var(--text-2));
     float: left;
     height: 0;
     pointer-events: none;
@@ -340,11 +340,11 @@ defineExpose({
   h3 { font-size: 18px; }
 
   blockquote {
-    border-left: 3px solid rgba(var(--primary-rgb), 0.5);
+    border-left: 3px solid var(--line-2);
     padding: 6px 14px;
     color: var(--text-2);
     background: var(--surface-2);
-    border-radius: 0 8px 8px 0;
+    border-radius: 0 var(--r-xs) var(--r-xs) 0;
   }
 }
 </style>

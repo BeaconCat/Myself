@@ -29,6 +29,15 @@ function setFocus(axis: 'x' | 'y', v: number): void {
   d.value.portrait.focus = `${f.x}% ${f.y}%`;
 }
 
+/** 圆角：未配置（undefined）= 跟随全局 --r-xl；取消勾选时以 28px 起调 */
+const radiusAuto = computed<boolean>({
+  get: () => typeof d.value.portrait.radius !== 'number',
+  set: (auto) => {
+    if (auto) delete d.value.portrait.radius;
+    else d.value.portrait.radius = 28;
+  },
+});
+
 const FADES = ['left', 'bottom', 'none'] as const;
 const previewMask = computed(() => ({
   left: 'linear-gradient(to right, transparent, rgb(0 0 0 / 0.3) 17%, rgb(0 0 0 / 0.88) 35%, #000 42%)',
@@ -65,10 +74,13 @@ const previewMask = computed(() => ({
             <button v-for="f in FADES" :key="f" type="button" :class="{ on: d.portrait.fade === f }" @click="d.portrait.fade = f">{{ t(`aboutKit.ed.fade_${f}`) }}</button>
           </div>
         </div>
-        <label>
-          <span>{{ t('aboutKit.ed.radius') }} · {{ d.portrait.radius }}px</span>
-          <input v-model.number="d.portrait.radius" class="range" type="range" min="0" max="80" />
-        </label>
+        <div class="fld">
+          <span>{{ t('aboutKit.ed.radius') }}<template v-if="!radiusAuto"> · {{ d.portrait.radius }}px</template></span>
+          <div class="line">
+            <label class="check"><input v-model="radiusAuto" type="checkbox" />{{ t('aboutKit.ed.radiusAuto') }}</label>
+            <input v-if="!radiusAuto" v-model.number="d.portrait.radius" class="range" type="range" min="0" max="80" />
+          </div>
+        </div>
         <div class="grid2">
           <label><span>{{ t('aboutKit.ed.focusX') }} · {{ focus.x }}%</span><input class="range" type="range" min="0" max="100" :value="focus.x" @input="setFocus('x', Number(($event.target as HTMLInputElement).value))" /></label>
           <label><span>{{ t('aboutKit.ed.focusY') }} · {{ focus.y }}%</span><input class="range" type="range" min="0" max="100" :value="focus.y" @input="setFocus('y', Number(($event.target as HTMLInputElement).value))" /></label>
@@ -77,7 +89,7 @@ const previewMask = computed(() => ({
       <figure class="pt-preview" :class="{ logo: !d.portrait.src }">
         <span
           class="pt-frame"
-          :style="{ borderRadius: `${d.portrait.radius}px`, maskImage: previewMask, WebkitMaskImage: previewMask }"
+          :style="{ borderRadius: radiusAuto ? 'var(--r-xl)' : `${d.portrait.radius}px`, maskImage: previewMask, WebkitMaskImage: previewMask }"
         >
           <img :src="d.portrait.src || '/favicon-256.png'" alt="" :style="{ objectPosition: d.portrait.focus || '50% 40%' }" />
         </span>
@@ -111,9 +123,9 @@ const previewMask = computed(() => ({
 .pt-preview {
   margin: 0;
   padding: 14px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: var(--bg);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--text) 8%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
 
   figcaption { margin-top: 8px; font-size: 11.5px; text-align: center; color: var(--text-2); }
 }
@@ -128,6 +140,7 @@ const previewMask = computed(() => ({
   img { width: 100%; height: 100%; display: block; object-fit: cover; }
 }
 
+/* 品牌光影例外：logo 占位底部的主色门缝光，与前台身份区一致 */
 .pt-preview.logo .pt-frame {
   background: radial-gradient(60% 50% at 58% 62%, rgba(var(--primary-rgb), 0.28), transparent 70%), radial-gradient(120% 90% at 60% 40%, #0b1528, #050b17 70%);
 

@@ -12,10 +12,10 @@ const uid = `dg-${Math.random().toString(36).slice(2, 8)}`;
       </linearGradient>
     </defs>
     <path class="beam" d="M38 70 L58 70 L80 92 L16 92Z" :fill="`url(#${uid})`" />
-    <rect x="30" y="14" width="36" height="56" rx="4" stroke="var(--ink-4)" stroke-width="1.5" />
+    <rect x="30" y="14" width="36" height="56" rx="4" stroke="var(--st-ink-4)" stroke-width="1.5" />
     <path d="M48 14v56" stroke="var(--line-3)" stroke-width="1.5" />
     <rect class="slit" x="44" y="18" width="8" height="52" fill="var(--primary)" opacity=".18" />
-    <path d="M20 70h56" stroke="var(--ink-4)" stroke-width="1.5" stroke-linecap="round" />
+    <path d="M20 70h56" stroke="var(--st-ink-4)" stroke-width="1.5" stroke-linecap="round" />
   </svg>
 </template>
 

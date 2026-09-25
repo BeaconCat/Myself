@@ -37,7 +37,7 @@ watch(
   width: 124px;
   height: 36px;
   margin-left: -62px;
-  border-radius: 20px;
+  border-radius: 999px;
   background: #000;
   display: flex;
   align-items: center;
@@ -61,7 +61,7 @@ watch(
     width: min(300px, calc(100vw - 48px));
     margin-left: calc(min(300px, calc(100vw - 48px)) / -2);
     height: 44px;
-    border-radius: 24px;
+    border-radius: 999px;
     opacity: 1;
     transform: none;
     transition-delay: 0s;
@@ -74,8 +74,8 @@ watch(
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--primary);
-  color: var(--m-on-primary, #fff);
+  background: var(--solid);
+  color: var(--on-solid);
   flex: none;
   opacity: 0;
   transform: scale(0.4);

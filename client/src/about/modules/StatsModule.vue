@@ -108,14 +108,14 @@ onMounted(async () => {
   font-size: 12.5px;
   color: var(--ak-text-3);
 
-  .bar { flex: 1; height: 4px; border-radius: 4px; background: var(--ak-sunken); overflow: hidden; }
+  .bar { flex: 1; height: 4px; border-radius: var(--r-pill); background: var(--fill-2); overflow: hidden; }
 
   .bar i {
     display: block;
     height: 100%;
     width: 0;
     border-radius: inherit;
-    background: linear-gradient(90deg, rgba(var(--primary-rgb), 0.3), var(--primary));
+    background: var(--ink);
     transition: width 1.6s 0.3s var(--ease-out);
   }
 }

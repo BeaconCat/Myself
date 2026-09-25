@@ -25,7 +25,9 @@ export function useNotesFeed(sentinel: Readonly<Ref<HTMLElement | null>>) {
   function applyQuickRange(days: number): void {
     const end = new Date();
     const start = new Date(Date.now() - (days - 1) * 864e5);
-    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const p2 = (n: number) => String(n).padStart(2, '0');
+    /* 本地日期（toISOString 是 UTC，东八区凌晨会差一天） */
+    const fmt = (d: Date) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
     dateFrom.value = fmt(start);
     dateTo.value = fmt(end);
     void reload();
@@ -34,6 +36,13 @@ export function useNotesFeed(sentinel: Readonly<Ref<HTMLElement | null>>) {
   function clearDate(): void {
     dateFrom.value = '';
     dateTo.value = '';
+    void reload();
+  }
+
+  /** 指定起止日期（YYYY-MM-DD，含首尾；from = to 即单日） */
+  function setRange(from: string, to: string): void {
+    dateFrom.value = from <= to ? from : to;
+    dateTo.value = from <= to ? to : from;
     void reload();
   }
 
@@ -48,15 +57,25 @@ export function useNotesFeed(sentinel: Readonly<Ref<HTMLElement | null>>) {
     };
   }
 
+  /** 请求序号：快速连续筛选时只采纳最后一次的结果 */
+  let seq = 0;
+  /** 至少完成过一次加载（首屏骨架判断用） */
+  const loadedOnce = ref(false);
+
   async function reload(): Promise<void> {
+    const my = ++seq;
     loading.value = true;
     try {
       const res = await api.notes(queryParams(1));
+      if (my !== seq) return;
       notes.value = res.items;
       total.value = res.total;
       page.value = 1;
     } finally {
-      loading.value = false;
+      if (my === seq) {
+        loading.value = false;
+        loadedOnce.value = true;
+      }
     }
   }
 
@@ -66,8 +85,10 @@ export function useNotesFeed(sentinel: Readonly<Ref<HTMLElement | null>>) {
   async function loadMore(): Promise<void> {
     if (loadingMore.value || loading.value || !hasMore.value) return;
     loadingMore.value = true;
+    const my = seq;
     try {
       const res = await api.notes(queryParams(page.value + 1));
+      if (my !== seq) return;
       notes.value = [...notes.value, ...res.items];
       total.value = res.total;
       page.value += 1;
@@ -123,10 +144,59 @@ export function useNotesFeed(sentinel: Readonly<Ref<HTMLElement | null>>) {
     hasMore,
     dateFrom,
     dateTo,
+    loadedOnce,
     reload,
     switchTab,
     onSearch,
     applyQuickRange,
     clearDate,
+    setRange,
   };
+}
+
+/**
+ * 随想索引（桌面右栏 / 日期弹层）：按月取当月全部随想，并入「有随想的日子」集合；
+ * 另统计心情计数。心情统计取最近 200 条（个人站量级足够，免去专用聚合接口）。
+ */
+export function useNotesIndex() {
+  const days = ref(new Set<string>());
+  const moods = ref<{ name: string; count: number }[]>([]);
+  const loaded = new Set<string>();
+
+  /** 取某月（YYYY-MM）全部随想的日期并入 days；已取过的月份跳过 */
+  async function loadMonth(ym: string): Promise<void> {
+    if (loaded.has(ym)) return;
+    loaded.add(ym);
+    const [y, m] = ym.split('-').map(Number);
+    const last = new Date(y, m, 0).getDate();
+    const found: string[] = [];
+    for (let page = 1; page <= 6; page++) {
+      const res = await api
+        .notes({ page, pageSize: 50, from: `${ym}-01`, to: `${ym}-${String(last).padStart(2, '0')}` })
+        .catch(() => null);
+      if (!res) {
+        loaded.delete(ym);
+        break;
+      }
+      res.items.forEach((n) => found.push(n.createdAt.slice(0, 10)));
+      if (page * 50 >= res.total) break;
+    }
+    if (found.length) days.value = new Set([...days.value, ...found]);
+  }
+
+  async function loadMoods(): Promise<void> {
+    const counts = new Map<string, number>();
+    for (let page = 1; page <= 4; page++) {
+      const res = await api.notes({ page, pageSize: 50 }).catch(() => null);
+      if (!res) break;
+      res.items.forEach((n) => {
+        const k = n.mood.trim();
+        if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
+      });
+      if (page * 50 >= res.total) break;
+    }
+    moods.value = [...counts].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  }
+
+  return { days, moods, loadMonth, loadMoods };
 }

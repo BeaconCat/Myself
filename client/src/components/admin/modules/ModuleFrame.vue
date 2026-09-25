@@ -105,7 +105,7 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   align-items: flex-end;
   gap: 12px 16px;
   padding-bottom: 14px;
-  border-bottom: 1px dashed color-mix(in oklab, var(--text) 12%, transparent);
+  border-bottom: 1px dashed var(--line-2);
 }
 
 .mf-field { display: flex; flex-direction: column; gap: 6px; }
@@ -118,9 +118,9 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   display: inline-flex;
   gap: 2px;
   padding: 3px;
-  border-radius: 10px;
-  background: color-mix(in oklab, var(--text) 5%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--text) 8%, transparent);
+  border-radius: var(--r-md);
+  background: var(--fill);
+  box-shadow: inset 0 0 0 0.5px var(--line);
 
   button {
     display: inline-flex;
@@ -129,19 +129,23 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
     height: 26px;
     padding: 0 10px;
     border: 0;
-    border-radius: 7px;
+    border-radius: var(--r-sm);
     background: none;
     font-size: 12.5px;
     color: var(--text-2);
-    transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
+    transition: background-color var(--dur) var(--ease-out), color var(--dur-fast), box-shadow var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
 
     &:hover:not(:disabled) { color: var(--text); }
+    &:active:not(:disabled) { transform: scale(0.96); }
     &:disabled { opacity: 0.3; cursor: not-allowed; }
+    &:focus-visible { outline: none; box-shadow: var(--focus); }
 
+    /* 选中 = 抬升 + 轻染 */
     &.on {
-      background: var(--surface);
-      color: var(--text);
-      box-shadow: 0 1px 2px rgb(0 0 0 / 0.12), inset 0 0 0 1px color-mix(in oklab, var(--text) 12%, transparent);
+      background: var(--lift);
+      color: var(--lift-fg);
+      font-weight: 500;
+      box-shadow: var(--lift-shadow);
     }
   }
 }
@@ -151,21 +155,21 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   position: relative;
   width: 24px;
   height: 8px;
-  border-radius: 2px;
-  background: color-mix(in oklab, var(--text) 12%, transparent);
+  border-radius: calc(var(--r-xs) * 0.45);
+  background: var(--fill-3);
 
   &::after {
     content: '';
     position: absolute;
     inset: 0 auto 0 0;
     width: calc(var(--f) * 100%);
-    border-radius: 2px;
+    border-radius: inherit;
     background: currentColor;
     opacity: 0.8;
   }
 }
 
-.on .mf-span::after { background: var(--primary); opacity: 1; }
+.on .mf-span::after { background: var(--ink); opacity: 1; }
 
 .mf-hide {
   display: inline-flex;
@@ -175,8 +179,8 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   margin-left: auto;
   padding: 0 12px;
   border: 0;
-  border-radius: 9px;
-  background: color-mix(in oklab, var(--text) 5%, transparent);
+  border-radius: var(--r-pill);
+  background: var(--fill);
   font-size: 12.5px;
   color: var(--text-2);
   transition: background var(--dur-fast), color var(--dur-fast);

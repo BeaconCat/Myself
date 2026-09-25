@@ -22,7 +22,8 @@ const password = ref('');
 const show = ref(false);
 const error = ref('');
 const busy = ref(false);
-const shaking = ref(false);
+/** 表单卡片：报错抖动用 WAAPI 单独播放，不替换 CSS 入场动画（否则移除抖动类时入场会重播） */
+const cardEl = ref<HTMLElement | null>(null);
 const entering = ref(false);
 
 async function submit(): Promise<void> {
@@ -35,11 +36,25 @@ async function submit(): Promise<void> {
     window.setTimeout(() => void router.push({ name: 'admin-today' }), 520);
   } catch {
     error.value = t('studio.login.failed');
-    shaking.value = false;
-    requestAnimationFrame(() => (shaking.value = true));
+    shake();
   } finally {
     busy.value = false;
   }
+}
+
+function shake(): void {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  cardEl.value?.animate(
+    [
+      { transform: 'translateX(0)' },
+      { transform: 'translateX(-6px)', offset: 0.2 },
+      { transform: 'translateX(6px)', offset: 0.4 },
+      { transform: 'translateX(-6px)', offset: 0.6 },
+      { transform: 'translateX(6px)', offset: 0.8 },
+      { transform: 'translateX(0)' },
+    ],
+    { duration: 420, easing: 'cubic-bezier(.2,.8,.3,1)', composite: 'add' },
+  );
 }
 
 onMounted(() => {
@@ -52,7 +67,7 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="studio login" :class="{ entering }">
-    <div class="card" :class="{ shake: shaking }" @animationend="shaking = false">
+    <div ref="cardEl" class="card">
       <div class="art">
         <LightCover class="door" kind="door" />
         <div class="quote">
@@ -106,13 +121,12 @@ onBeforeUnmount(() => {
 .card {
   display: grid;
   grid-template-columns: 380px 400px;
-  border-radius: 26px;
+  border-radius: var(--r-xl);
   background: var(--paper);
   box-shadow: var(--sh-paper);
   overflow: hidden;
   animation: card-in var(--dur-slow) var(--ease-spring) both;
 
-  &.shake { animation: shake 0.42s var(--ease-out); }
 
   .entering & {
     transition: transform 0.5s var(--ease-out), opacity 0.5s var(--ease-out);
@@ -122,7 +136,6 @@ onBeforeUnmount(() => {
 }
 
 @keyframes card-in { from { opacity: 0; transform: translateY(18px) scale(0.97); } }
-@keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
 
 .art {
   position: relative;
@@ -148,10 +161,10 @@ onBeforeUnmount(() => {
   gap: 16px;
   padding: 44px 40px 32px;
 
-  .logo { width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 6px 14px -6px rgba(10, 20, 40, 0.5); }
+  .logo { width: 40px; height: 40px; border-radius: var(--r-sm); box-shadow: 0 6px 14px -6px rgba(10, 20, 40, 0.5); }
 
   h1 { font: 600 26px/1.3 var(--font-serif); margin: 6px 0 0; }
-  .sub { margin: -8px 0 8px; font-size: 13.5px; color: var(--ink-3); }
+  .sub { margin: -8px 0 8px; font-size: 13.5px; color: var(--st-ink-3); }
 
   label { display: block; }
 
@@ -160,10 +173,10 @@ onBeforeUnmount(() => {
     height: 28px;
     display: grid;
     place-items: center;
-    border-radius: 8px;
-    color: var(--ink-3);
+    border-radius: var(--r-xs);
+    color: var(--st-ink-3);
 
-    &:hover { background: var(--hover); color: var(--ink); }
+    &:hover { background: var(--hover); color: var(--st-ink); }
   }
 
   .err {

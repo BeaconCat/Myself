@@ -96,7 +96,6 @@ const defaultJSON = `{
           "portrait": {
             "src": "",
             "fade": "left",
-            "radius": 32,
             "focus": "50% 40%"
           }
         }

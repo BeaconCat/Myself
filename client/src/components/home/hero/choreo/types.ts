@@ -53,9 +53,14 @@ export interface TextEls {
   chars: HTMLElement[];
 }
 
-/** 卡片三层：变换层 / 外观层（圆角裁切、开合）/ 画面层 */
+/** 卡片三层：变换层 / 外观层（圆角裁切、开合）/ 画面层；另有与外观层并列的中性阴影层 */
 export interface CardEl {
   el: HTMLElement;
+  /**
+   * 中性阴影层（外观层的兄弟节点）：阴影不随 clip-path / 开合被裁掉，
+   * 编舞只动画它的 opacity——离场开头淡出、入场结尾淡入（见 card/lights.ts）
+   */
+  shade: HTMLElement;
   sheet: HTMLElement;
   cv: HTMLElement;
   slot: number;
@@ -69,6 +74,10 @@ export interface CardEls extends DeckGeom {
   album: HTMLElement;
   /** 卡组环境光 */
   bg: HTMLElement;
+  /** 前卡门缝光外溢到地面的品牌光（全站唯一的卡片发光），只动画 opacity */
+  spill: HTMLElement;
+  /** 外观层静止圆角（px 字符串，随 --r-base） */
+  radius: string;
   cards: CardEl[];
   front: CardEl;
   backs: CardEl[];

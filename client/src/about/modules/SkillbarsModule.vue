@@ -77,7 +77,7 @@ const rows = computed(() =>
     justify-self: center;
     width: 2px;
     height: 9px;
-    border-radius: 1px;
+    border-radius: var(--r-pill);
     background: var(--ak-line-2);
     transition: background 0.25s var(--ease-out), height 0.3s var(--ease-spring), box-shadow 0.3s;
     transition-delay: calc(var(--k) * 30ms + 200ms);
@@ -86,9 +86,10 @@ const rows = computed(() =>
   }
 }
 
-.in .ruler i.f { background: var(--primary); height: 14px; }
+/* 刻度：已达部分为主色降饱和，末端一格为主色信号（不发光） */
+.in .ruler i.f { background: color-mix(in oklab, var(--primary) 52%, var(--fill-3)); height: 14px; }
 .in .ruler i.f:nth-child(5n) { height: 19px; }
-.in .ruler i.tip { height: 22px !important; box-shadow: 0 0 10px rgba(var(--primary-rgb), 0.9); }
+.in .ruler i.tip { height: 22px !important; background: var(--ink); }
 
 .sb-scale {
   display: grid;
@@ -110,13 +111,13 @@ const rows = computed(() =>
   i {
     aspect-ratio: 1;
     border-radius: 50%;
-    background: var(--ak-sunken);
+    background: var(--fill);
     box-shadow: inset 0 0 0 1px var(--ak-line-2);
     transition: background 0.3s, transform 0.4s var(--ease-spring);
     transition-delay: calc(var(--k) * 50ms + 200ms);
   }
 }
 
-.in .dots i.f { background: var(--primary); box-shadow: none; }
-.in .dots i.h { background: linear-gradient(90deg, var(--primary) 50%, var(--ak-sunken) 50%); }
+.in .dots i.f { background: color-mix(in oklab, var(--primary) 70%, var(--fill-3)); box-shadow: none; }
+.in .dots i.h { background: linear-gradient(90deg, color-mix(in oklab, var(--primary) 70%, var(--fill-3)) 50%, var(--fill) 50%); }
 </style>

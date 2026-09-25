@@ -1,88 +1,119 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { thumbOf, type Note } from '../../api';
+import type { Note } from '../../api';
+import CoverArt from '../common/CoverArt.vue';
+import { ymdOf } from '../post/content';
 
-/** 媒体墙（X 风）：铺平所有随想配图为三列宫格 */
-const props = defineProps<{ notes: Note[]; loading: boolean }>();
-
-const emit = defineEmits<{
-  /** 打开查看器：图组 + 起始索引 */
-  open: [images: string[], index: number];
-}>();
-
+/** 媒体墙：铺平随想配图，按月分组的四列方格，角标为日期；点开进入查看器（该条随想的图组） */
+const props = defineProps<{ notes: Note[] }>();
+const emit = defineEmits<{ open: [images: string[], index: number, rect: DOMRect] }>();
 const { t } = useI18n();
 
-interface MediaCell {
-  src: string;
-  note: Note;
-  index: number;
-}
+interface Cell { key: string; src: string; note: Note; index: number; label: string }
+interface Group { key: string; label: string; cells: Cell[] }
 
-const mediaCells = computed<MediaCell[]>(() =>
-  props.notes.flatMap((note) =>
-    note.images.map((src, index) => ({ src, note, index })),
-  ),
-);
+const groups = computed<Group[]>(() => {
+  const out: Group[] = [];
+  for (const note of props.notes) {
+    if (!note.images.length) continue;
+    const ym = note.createdAt.slice(0, 7);
+    const { y, m, d } = ymdOf(note.createdAt);
+    let g = out[out.length - 1];
+    if (!g || g.key !== ym) {
+      g = { key: ym, label: t('content.thoughts.monthTitle', { y, m }), cells: [] };
+      out.push(g);
+    }
+    note.images.forEach((src, index) => {
+      g.cells.push({ key: `${note.id}-${index}`, src, note, index, label: `${m}月${d}日` });
+    });
+  }
+  return out;
+});
+
+function openAt(e: MouseEvent, c: Cell): void {
+  emit('open', c.note.images, c.index, (e.currentTarget as HTMLElement).getBoundingClientRect());
+}
 </script>
 
 <template>
-  <div class="media-wall" :class="{ loading }">
-    <button
-      v-for="(cell, i) in mediaCells"
-      :key="`${cell.note.id}-${cell.index}`"
-      class="media-cell"
-      :style="{ '--i': i % 30 }"
-      @click="emit('open', cell.note.images, cell.index)"
-    >
-      <img :src="thumbOf(cell.src)" loading="lazy" alt="" />
-    </button>
-    <p v-if="!loading && !mediaCells.length" class="empty">{{ t('thoughts.mediaEmpty') }}</p>
+  <div class="mwall">
+    <section v-for="g in groups" :key="g.key">
+      <div class="mg-h"><b>{{ g.label }}</b><span>{{ t('content.thoughts.mediaCount', { n: g.cells.length }) }}</span></div>
+      <div class="mgrid">
+        <button v-for="c in g.cells" :key="c.key" type="button" class="cell" @click="openAt($event, c)">
+          <CoverArt :src="c.src" :seed="c.key" pool="all" thumb />
+          <span class="n">{{ c.label }}</span>
+        </button>
+      </div>
+    </section>
+    <p v-if="!groups.length" class="nores">{{ t('thoughts.mediaEmpty') }}</p>
   </div>
 </template>
 
 <style scoped lang="scss">
-.media-wall {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  border-radius: var(--radius);
-  overflow: hidden;
-  transition: opacity var(--dur-fast);
+.mg-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 26px 0 14px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
 
-  &.loading { opacity: 0.55; }
+  b { font-weight: 500; color: var(--text-2); }
 }
 
-.media-cell {
-  border: none;
-  padding: 0;
-  background: var(--surface-2);
+.mgrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: var(--r-lg);
+}
+
+.cell {
+  position: relative;
   aspect-ratio: 1;
   overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: #040914;
   cursor: zoom-in;
-  animation: tweet-in 0.45s var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 0.03s);
 
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    transition: transform var(--dur) var(--ease-out), filter var(--dur-fast);
+  &:hover :deep(.cv) { transform: scale(1.05); }
+  &:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ink); }
+
+  /* 底部轻压暗，保证角标在亮图上可读 */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 55% 0 0;
+    z-index: 3;
+    background: linear-gradient(transparent, rgb(0 0 0 / 0.32));
+    pointer-events: none;
   }
 
-  &:hover img { transform: scale(1.06); filter: brightness(1.06); }
+  /* 日期角标：白字 72% */
+  .n {
+    position: absolute;
+    right: 8px;
+    bottom: 6px;
+    z-index: 4;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: rgb(255 255 255 / 0.72);
+  }
 }
 
-@keyframes tweet-in {
-  from { opacity: 0; transform: translateY(22px); }
-  to { opacity: 1; transform: none; }
-}
-
-.empty {
-  grid-column: 1 / -1;
-  color: var(--text-2);
+.nores {
+  padding: 72px 0;
   text-align: center;
-  padding: 48px 0;
+  color: var(--text-3);
+}
+
+@media (max-width: 640px) {
+  .mgrid { grid-template-columns: repeat(3, 1fr); }
 }
 </style>

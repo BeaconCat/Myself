@@ -60,12 +60,17 @@ function fitRect(i: number): Rect {
   return { left: (vw() - w) / 2, top: (vh() - h) / 2, width: w, height: h, radius: 0, opacity: 1 };
 }
 
+/** 飞行动画的圆角跟随源缩略图（圆角由 --r-* token 决定，不写死） */
+function radiusOf(el: Element): number {
+  return parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+}
+
 function originRect(i: number): Rect | null {
   const el = props.origin?.(i);
   if (!el) return null;
   const r = el.getBoundingClientRect();
   if (!r.width || r.bottom < 40 || r.top > vh() - 40) return null;
-  return { left: r.left, top: r.top, width: r.width, height: r.height, radius: 12, opacity: 1 };
+  return { left: r.left, top: r.top, width: r.width, height: r.height, radius: radiusOf(el), opacity: 1 };
 }
 
 const next2 = (fn: () => void) => requestAnimationFrame(() => requestAnimationFrame(fn));
@@ -118,7 +123,8 @@ function doClose(): void {
       top: start.top + start.height * 0.075,
       width: start.width * 0.85,
       height: start.height * 0.85,
-      radius: 18,
+      /* 与 --r-lg 同比例：--r-base × 1.4 */
+      radius: (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--r-base')) || 10) * 1.4,
       opacity: 0,
     };
     bg.value = 0;
@@ -416,7 +422,7 @@ function flyerStyle(r: Rect) {
   i {
     width: 5px;
     height: 5px;
-    border-radius: 3px;
+    border-radius: 999px;
     background: rgba(255, 255, 255, 0.3);
     transition: all var(--dur) var(--ease-spring);
 

@@ -57,6 +57,7 @@ const { t } = useI18n();
 const zoneEl = ref<HTMLElement | null>(null);
 const albumEl = ref<HTMLElement | null>(null);
 const bgEl = ref<HTMLElement | null>(null);
+const spillEl = ref<HTMLElement | null>(null);
 const cardEls: (HTMLElement | null)[] = [];
 
 const kinds = computed(() => props.covers.map(coverKindOf));
@@ -89,13 +90,25 @@ function restStyle(i: number): Record<string, string> {
   };
 }
 
-/* ===== 组内轮转：前卡退到最后（带一次下沉），其余晋升一位 ===== */
+/*
+ * ===== 组内轮转：前卡「后退 → 让位 → 归队」，其余卡错峰晋升一位 =====
+ * 旧实现的生涩来自两点：① photoIndex 一变，restStyle 立即把前卡 z-index 降到最底，
+ * 它此刻仍在最前位置，于是第一帧就被后卡「啪」地盖住；② 退场位移只有 40px 且用回弹曲线，
+ * 读起来像闪了一下。现在：
+ *   - 离场前卡在关键帧里自带 zIndex：前 34% 仍压在最上层，同时原地后退、缩小、变暗；
+ *     在最暗最小的那一刻交换层级（此时晋升卡已接近到位，交换被「从它身后穿过」掩盖），
+ *     再沿弧线滑入后排槽位；
+ *   - 晋升卡按目标槽位错峰 70ms 出发，用无回弹的品牌缓动，整组读作一次连贯的洗牌。
+ */
 const rot: Record<number, Animation | undefined> = {};
+const ROT_MS = 900;
+const ROT_STAGGER = 70;
 
 watch(() => props.photoIndex, (now, before) => {
   const len = props.covers.length;
   if (len < 2 || props.leaving || prefersReducedMotion()) return;
   const g = geo.value;
+  const topZ = g.restZ(0) + 5;
   for (let i = 0; i < len; i++) {
     const el = cardEls[i];
     if (!el || flights[i]) continue;
@@ -106,15 +119,23 @@ watch(() => props.photoIndex, (now, before) => {
     const leavingFront = from === 0;
     const kf: Keyframe[] = leavingFront
       ? [
-        { transform: g.T(0), filter: F(1) },
-        { transform: g.T(0, { dx: -40 * g.k, dy: 20 * g.k, ds: 0.9 }), filter: F(0.8), offset: 0.35 },
-        { transform: g.T(to), filter: F(g.bright(to)) },
+        { transform: g.T(0), filter: F(1), zIndex: topZ, easing: EASE.brand },
+        // 原地后退：仍在最上层，缩小变暗，给晋升卡让出视线
+        { transform: g.T(0, { dx: -26 * g.k, dy: 10 * g.k, dz: -60 * g.k, ds: 0.9 }), filter: F(0.72), zIndex: topZ, offset: 0.34 },
+        // 最暗最小处交换层级，随后沿弧线归队
+        { transform: g.T(0, { dx: -30 * g.k, dy: 12 * g.k, dz: -70 * g.k, ds: 0.88 }), filter: F(0.7), zIndex: g.restZ(to), offset: 0.36, easing: EASE.expoOut },
+        { transform: g.T(to), filter: F(g.bright(to)), zIndex: g.restZ(to) },
       ]
       : [
         { transform: g.T(from), filter: F(g.bright(from)) },
         { transform: g.T(to), filter: F(g.bright(to)) },
       ];
-    const a = el.animate(kf, { duration: 800, easing: leavingFront ? EASE.expoOut : EASE.spring });
+    const a = el.animate(kf, {
+      duration: ROT_MS,
+      delay: leavingFront ? 0 : to * ROT_STAGGER,
+      easing: leavingFront ? 'linear' : EASE.brand,
+      fill: 'backwards',
+    });
     a.playbackRate = props.speed;
     rot[i] = a;
   }
@@ -130,9 +151,10 @@ function els(): CardEls {
   const cards: CardEl[] = props.covers
     .map((_, i) => {
       const el = cardEls[i]!;
-      const sheet = el.firstElementChild as HTMLElement;
+      const sheet = el.querySelector<HTMLElement>(':scope > .sheet')!;
+      const shade = el.querySelector<HTMLElement>(':scope > .shade')!;
       const slot = slotOf(i);
-      return { el, sheet, cv: sheet.firstElementChild as HTMLElement, slot, b: geo.value.bright(slot) };
+      return { el, shade, sheet, cv: sheet.firstElementChild as HTMLElement, slot, b: geo.value.bright(slot) };
     })
     .sort((a, b) => a.slot - b.slot);
   // 编舞接管前先停掉组内轮转，避免两套动画叠加
@@ -142,6 +164,8 @@ function els(): CardEls {
     root: zoneEl.value!,
     album: albumEl.value!,
     bg: bgEl.value!,
+    spill: spillEl.value!,
+    radius: getComputedStyle(cards[0].sheet).borderTopLeftRadius || '0px',
     cards,
     front: cards[0],
     backs: cards.slice(1),
@@ -176,9 +200,6 @@ function setLightbox(on: boolean): void {
   emit('update:lightbox', on);
 }
 
-/** 相册态阴影：起飞帧与落地帧使用，和静止卡的外观层完全一致 */
-const DECK_SHADOW = 'var(--shadow), 0 30px 70px -20px rgba(var(--primary-rgb), 0.35)';
-const CENTER_SHADOW = '0 30px 80px -20px rgba(0, 0, 0, 0.55)';
 /** 中央态：规范函数表的恒等形式，与槽位变换逐函数插值 */
 const CENTER_TF = tf({});
 
@@ -188,8 +209,7 @@ function rectStyle(r: Rect, slot: number): Record<string, string> {
     top: `${r.top}px`,
     width: `${r.width}px`,
     height: `${r.height}px`,
-    borderRadius: 'var(--radius-lg)',
-    boxShadow: DECK_SHADOW,
+    borderRadius: 'var(--r-lg)',
     filter: F(geo.value.bright(slot)),
   };
 }
@@ -250,7 +270,6 @@ async function launch(i: number): Promise<void> {
       flight.style = {
         ...target,
         transform: CENTER_TF,
-        boxShadow: CENTER_SHADOW,
         transition: `all ${FLY_MS}ms ${FLY_EASE}`,
       };
       window.setTimeout(() => {
@@ -328,7 +347,7 @@ async function lbGo(delta: number): Promise<void> {
   const target = await centerStyle(to);
   const flight = flights[to];
   if (!flight) return;
-  flight.style = { ...target, transform: CENTER_TF, boxShadow: CENTER_SHADOW, opacity: '0', transition: 'none' };
+  flight.style = { ...target, transform: CENTER_TF, opacity: '0', transition: 'none' };
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const f = flights[to];
@@ -541,13 +560,15 @@ defineExpose({ els });
   <div
     ref="zoneEl"
     class="album-zone"
-    :class="{ leaving, busy }"
+    :class="{ leaving, busy, lifting: Object.keys(flights).length > 0 }"
     :aria-hidden="leaving ? 'true' : undefined"
     @pointerdown="onZoneDown"
     @pointerup="onZoneUp"
   >
     <div ref="bgEl" class="deck-ambient" />
     <div ref="albumEl" class="album">
+      <!-- 前卡门缝光外溢到地面：全站卡片唯一的品牌光（编舞只动画 opacity） -->
+      <div ref="spillEl" class="deck-spill" aria-hidden="true" />
       <!-- teleport 开启时原节点整体搬到 body 飞行 -->
       <Teleport
         v-for="(cover, i) in covers"
@@ -575,6 +596,8 @@ defineExpose({ els });
           @pointerup="onPointerUp"
           @pointercancel="onPointerUp"
         >
+          <!-- 中性阴影层：与外观层并列，不被开合 / 裁切编舞裁掉 -->
+          <div class="shade" />
           <div class="sheet">
             <div class="cv">
               <CoverArt v-if="kinds[i]" :kind="kinds[i]!" />
@@ -641,23 +664,59 @@ defineExpose({ els });
     position: absolute;
     inset: -24px -80px;
     z-index: -1;
+    transition: opacity var(--dur) ease;
   }
 
   &.leaving,
   &.busy { pointer-events: none; }
 
-  &.leaving::after { display: none; }
+  /* 离场层热区：透明度过渡，不再按类名瞬切 display */
+  &.leaving::after { opacity: 0; }
 }
 
-/* 卡组环境光（编舞驱动其明灭） */
+/* 卡组地面环境光：中性冷光（浅色为淡影），编舞驱动其明灭 */
 .deck-ambient {
   position: absolute;
-  inset: -22% -26%;
+  left: -10%;
+  right: -14%;
+  top: 58%;
+  bottom: -34%;
   pointer-events: none;
-  background: radial-gradient(closest-side, rgba(var(--primary-rgb), 0.16), rgba(var(--primary-rgb), 0.05) 55%, transparent 78%);
+  background: radial-gradient(50% 42% at 52% 30%, rgb(170 195 255 / 0.14), transparent 72%);
+  filter: blur(10px);
 }
 
-:root[data-mode='light'] .deck-ambient { opacity: 0.75; }
+:root[data-mode='light'] .deck-ambient {
+  background: radial-gradient(50% 42% at 52% 30%, rgb(20 50 120 / 0.12), transparent 72%);
+}
+
+/*
+ * 前卡门缝光外溢到地面（品牌光，强调系统里唯一允许的卡片发光）。
+ * 位于卡片之下、文字之下（z 4），相册态常亮；lightbox 起飞时随前卡离开而熄灭。
+ */
+.deck-spill {
+  position: absolute;
+  z-index: 4;
+  left: 4%;
+  right: -12%;
+  top: 74%;
+  height: 52%;
+  pointer-events: none;
+  background: radial-gradient(
+    50% 50% at 42% 30%,
+    color-mix(in srgb, var(--primary) 18%, rgb(220 230 255 / 0.5)),
+    color-mix(in srgb, var(--primary) 16%, transparent) 50%,
+    transparent 72%
+  );
+  filter: blur(18px);
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+:root[data-mode='light'] .deck-spill {
+  background: radial-gradient(50% 50% at 42% 30%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 72%);
+}
+
+.album-zone.lifting .deck-spill { opacity: 0; }
 
 .album {
   position: relative;
@@ -669,20 +728,32 @@ defineExpose({ els });
 .album-card {
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-lg);
   transform-origin: 50% 50%;
   /* 相册态不接事件：手势统一由 album-zone 解析（3D 命中不稳定） */
   pointer-events: none;
 }
 
-/* 外观层：圆角裁切 + 阴影；开合 / 裁切类编舞作用在这一层 */
+/* 中性阴影层：外观层的兄弟节点（不被 clip-path / 开合裁掉），编舞只动画 opacity */
+.shade {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-lg);
+  pointer-events: none;
+  box-shadow: 0 50px 90px -40px rgb(0 0 0 / 0.9), 0 0 0 0.5px rgb(255 255 255 / 0.08);
+}
+
+:root[data-mode='light'] .shade {
+  box-shadow: 0 50px 90px -40px rgb(16 24 60 / 0.5), 0 0 0 0.5px rgb(16 24 40 / 0.08);
+}
+
+/* 外观层：圆角裁切；开合 / 裁切类编舞作用在这一层（不挂阴影） */
 .sheet {
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-lg);
   overflow: hidden;
   background: #050a14;
-  box-shadow: var(--shadow), 0 30px 70px -20px rgba(var(--primary-rgb), 0.35);
   outline: 1px solid rgba(255, 255, 255, 0.07);
   outline-offset: -1px;
 }
@@ -711,9 +782,10 @@ defineExpose({ els });
   will-change: left, top, width, height, transform;
   touch-action: none;
 
+  .shade { border-radius: inherit; }
+
   .sheet {
     border-radius: inherit;
-    box-shadow: none;
     outline-color: transparent;
     transition: outline-color 0.3s ease;
   }
@@ -722,6 +794,7 @@ defineExpose({ els });
   &.dragging { cursor: grabbing; }
 }
 
+/* 封面光照（品牌封面光影的一部分：斜向高光 + 底部一抹主色，只在画面内部） */
 .card-glow {
   position: absolute;
   inset: 0;
@@ -745,7 +818,8 @@ defineExpose({ els });
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 1px solid rgba(var(--primary-rgb), 0.3);
+  border: 0;
+  box-shadow: inset 0 0 0 0.5px var(--line-2), 0 4px 12px -6px rgb(0 0 0 / 0.4);
   background: var(--glass);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -762,9 +836,12 @@ defineExpose({ els });
   &.next { right: -56px; }
 
   &:hover {
-    background: rgba(var(--primary-rgb), 0.25);
-    transform: translateY(-50%) scale(1.1);
+    background: var(--fill-3);
+    transform: translateY(-50%) scale(1.06);
   }
+
+  &:active { transform: translateY(-50%) scale(0.97); }
+  &:focus-visible { box-shadow: var(--focus); }
 }
 
 .album-zone:hover .step {
@@ -827,7 +904,7 @@ defineExpose({ els });
   width: 44px;
   height: 44px;
 
-  &:hover { transform: scale(1.12) rotate(90deg); background: rgba(var(--primary-rgb), 0.35); }
+  &:hover { transform: scale(1.08) rotate(90deg); background: rgba(255, 255, 255, 0.18); }
 }
 
 .lb-nav {
@@ -841,7 +918,7 @@ defineExpose({ els });
   &.prev { left: 20px; }
   &.next { right: 20px; }
 
-  &:hover { transform: translateY(-50%) scale(1.12); background: rgba(var(--primary-rgb), 0.35); }
+  &:hover { transform: translateY(-50%) scale(1.08); background: rgba(255, 255, 255, 0.18); }
 }
 
 .lb-counter {
@@ -871,6 +948,7 @@ defineExpose({ els });
     color: rgba(255, 255, 255, 0.78);
     font-size: 13px;
     padding: 7px 14px;
+    border-radius: var(--r-pill);
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.14);
     backdrop-filter: blur(8px);

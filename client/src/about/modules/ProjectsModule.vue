@@ -64,12 +64,12 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border-radius: 16px;
+    border-radius: var(--r-md);
     background: var(--ak-sunken);
-    border: 1px solid var(--ak-line);
-    transition: transform var(--dur) var(--ease-out), border-color var(--dur);
+    box-shadow: inset 0 0 0 1px var(--ak-line);
+    transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), background-color var(--dur);
 
-    &:hover { transform: translateY(-3px); border-color: rgba(var(--primary-rgb), 0.45); }
+    &:hover { transform: translateY(-3px); background: var(--fill-2); box-shadow: inset 0 0 0 1px var(--ak-line-2), var(--shadow-card-hover); }
     &:hover .cvw > * { transform: scale(1.04); }
     &:hover .tt svg { color: var(--text); transform: translate(2px, -2px); }
   }

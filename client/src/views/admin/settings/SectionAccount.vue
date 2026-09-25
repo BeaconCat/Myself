@@ -82,7 +82,7 @@ async function submit(): Promise<void> {
   gap: 4px;
   margin-top: 8px;
 
-  i { height: 3px; border-radius: 2px; background: var(--well-2); transition: background var(--dur); }
+  i { height: 3px; border-radius: calc(var(--r-xs) / 2); background: var(--well-2); transition: background var(--dur); }
 
   &[data-s='1'] i:nth-child(-n + 1) { background: var(--red); }
   &[data-s='2'] i:nth-child(-n + 2) { background: var(--yellow); }
@@ -97,7 +97,7 @@ async function submit(): Promise<void> {
   justify-content: space-between;
   gap: 12px;
 
-  .hint { font-size: 12.5px; color: var(--ink-3); }
+  .hint { font-size: 12.5px; color: var(--st-ink-3); }
   .err { font-size: 13px; color: var(--red); }
 }
 </style>

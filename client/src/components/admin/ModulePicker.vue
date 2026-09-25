@@ -125,7 +125,7 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(8, 8, 12, 0.5);
+  background: var(--scrim);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   animation: mask-in 0.25s ease both;
@@ -138,10 +138,10 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   max-height: 84vh;
   display: flex;
   flex-direction: column;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.5);
+  background: var(--elev);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
   animation: picker-in 0.38s var(--ease-spring) both;
 }
 
@@ -155,7 +155,7 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   align-items: center;
   gap: 14px;
   padding: 18px 20px;
-  border-bottom: 1px solid var(--border);
+  box-shadow: inset 0 -1px 0 var(--line);
 
   h3 { font-size: 17px; flex-shrink: 0; }
 }
@@ -165,10 +165,12 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   align-items: center;
   gap: 8px;
   flex: 1;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--bg);
+  height: 38px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  background: var(--fill);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: background-color var(--dur-fast), box-shadow var(--dur-fast);
 
   svg { width: 15px; height: 15px; color: var(--text-2); flex-shrink: 0; }
 
@@ -183,7 +185,8 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
     font-family: inherit;
   }
 
-  &:focus-within { border-color: var(--primary); }
+  &:hover { box-shadow: inset 0 0 0 1px var(--line-2); }
+  &:focus-within { background: var(--elev); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink) 70%, transparent), 0 0 0 3px color-mix(in oklab, var(--ink) 18%, transparent); }
 }
 
 .p-close {
@@ -191,15 +194,16 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   height: 34px;
   border: none;
   border-radius: 50%;
-  background: var(--surface-2);
+  background: var(--fill);
   color: var(--text-2);
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  transition: all var(--dur-fast);
+  transition: background-color var(--dur-fast), color var(--dur-fast), transform var(--dur) var(--ease-spring);
 
   svg { width: 15px; height: 15px; }
-  &:hover { color: var(--accent-red); transform: rotate(90deg); }
+  &:hover { color: var(--text); background: var(--fill-2); transform: rotate(90deg); }
+  &:focus-visible { outline: none; box-shadow: var(--focus); }
 }
 
 .p-body {
@@ -219,9 +223,9 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
     font-size: 12px;
     letter-spacing: 0.08em;
     color: var(--text-2);
-    background: var(--surface);
+    background: var(--elev);
 
-    small { font-weight: 400; opacity: 0.7; }
+    small { font-weight: 400; color: var(--text-3); }
   }
 }
 
@@ -235,27 +239,32 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   .p-grid { grid-template-columns: 1fr; }
 }
 
+/* 模块卡：默认中性面 + 细描边；选中 = 抬升 + 轻染（--lift），右上勾为实底 --solid */
 .p-card {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 14px;
-  border: 1.5px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg);
+  border: 0;
+  border-radius: var(--r-lg);
+  background: var(--fill);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text);
   text-align: left;
   cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: background-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
 
-  &:hover { border-color: rgba(var(--primary-rgb), 0.5); transform: scale(1.02); }
+  &:hover { background: var(--fill-2); box-shadow: inset 0 0 0 1px var(--line-2); }
+  &:active { transform: scale(0.985); }
+  &:focus-visible { outline: none; box-shadow: var(--focus); }
 
   &.on {
-    border-color: var(--primary);
-    background: rgba(var(--primary-rgb), 0.06);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.12);
+    background: var(--lift);
+    box-shadow: var(--lift-shadow);
 
     .p-check { opacity: 1; transform: scale(1); }
+    .p-icon { color: var(--ink); }
   }
 }
 
@@ -268,12 +277,13 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
 .p-icon {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  background: rgba(var(--primary-rgb), 0.1);
-  color: var(--primary);
+  background: var(--fill-2);
+  color: var(--text-2);
+  transition: color var(--dur);
 
   svg { width: 19px; height: 19px; }
 }
@@ -283,7 +293,7 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   min-width: 0;
 
   strong { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
-  em { font-style: normal; font-weight: 400; font-size: 11px; font-family: ui-monospace, Consolas, monospace; color: var(--text-2); opacity: 0.8; }
+  em { font-style: normal; font-weight: 400; font-size: 11px; font-family: var(--font-mono); color: var(--text-3); }
 
   span {
     display: block;
@@ -298,8 +308,9 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--primary);
-  color: #fff;
+  background: var(--solid);
+  color: var(--on-solid);
+  box-shadow: var(--btn-shadow);
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -310,25 +321,25 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   svg { width: 11px; height: 11px; }
 }
 
-.p-card.off { opacity: 0.45; cursor: not-allowed; &:hover { transform: none; border-color: var(--border); } }
+.p-card.off { opacity: 0.45; cursor: not-allowed; &:hover { transform: none; background: var(--fill); box-shadow: inset 0 0 0 1px var(--line); } }
 
 .p-spans {
   display: flex;
   align-items: center;
   gap: 4px;
 
-  span { position: relative; width: 22px; height: 6px; border-radius: 2px; background: color-mix(in oklab, var(--text) 10%, transparent); overflow: hidden; }
-  span i { position: absolute; inset: 0 auto 0 0; background: color-mix(in oklab, var(--text) 35%, transparent); }
-  span.def i { background: var(--primary); }
+  span { position: relative; width: 22px; height: 6px; border-radius: calc(var(--r-xs) * 0.45); background: var(--fill-3); overflow: hidden; }
+  span i { position: absolute; inset: 0 auto 0 0; background: var(--text-3); }
+  span.def i { background: var(--ink); }
   small { margin-left: auto; font-size: 11px; color: var(--text-2); }
 }
 
 /* 真实迷你预览（各模块样式见 modules/ModulePreview.vue） */
 .p-preview {
   padding: 12px;
-  border-radius: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--elev);
+  box-shadow: 0 0 0 0.5px var(--line), 0 1px 2px rgb(16 24 40 / 0.06);
   min-height: 78px;
   display: flex;
   align-items: center;
@@ -342,7 +353,7 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   align-items: center;
   gap: 12px;
   padding: 14px 20px;
-  border-top: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 var(--line);
 }
 
 .p-count {

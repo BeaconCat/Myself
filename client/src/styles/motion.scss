@@ -1,12 +1,109 @@
-/* 全站通用动画：路由过渡、滚动入场、微动效 */
+/* 全站通用动效：页面切换、骨架、逐项入场、滚动 reveal。
+   时长与缓动全部取 tokens.scss 的 motion tokens；reduced-motion 在 base.scss 统一归零。 */
 
-/* 路由过渡：淡出 + 上浮切入 */
-.page-enter-active { transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); }
-.page-leave-active { transition: opacity var(--dur-fast) ease; }
-.page-enter-from { opacity: 0; transform: translateY(18px); }
-.page-leave-to { opacity: 0; }
+/* ======================================================================
+   页面切换（桌面外壳，App.vue + router 钩子驱动）
+   旧页 .14s 淡出 → 新页以同形骨架渲染 → 数据到达后内容逐项 rise
+   ====================================================================== */
+.route-view {
+  /* 恢复不带过渡：新页一挂载即满不透明，由 rise / 骨架接管入场 */
+  transition: none;
+}
 
-/* 滚动入场（配合 v-reveal 指令） */
+.app-shell.is-leaving .route-view {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  pointer-events: none;
+}
+
+/* ======================================================================
+   骨架：.sk 同形骨架块；.sk-line 文字行
+   ====================================================================== */
+@keyframes sk-shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* 只作用于「叶子」元素（无子元素，可含文字）：
+   mobile 视图与 about/SkillsModule 仍有以 .sk 命名的容器，避免被误当成骨架块 */
+.sk:not(:has(> *)) {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-xs);
+  background: var(--fill-2);
+  color: transparent;
+  pointer-events: none;
+  user-select: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in oklab, var(--text) 7%, transparent) 50%,
+      transparent 80%
+    );
+    animation: sk-shimmer 1.35s var(--ease-out) infinite;
+  }
+}
+
+/* 文字行：块级、1em 高（随 font-size）、默认占满宽；style="width:60%" 调长度；
+   --lh（默认 1.6em）= 模拟行高，上下各留 (lh - 1em) / 2，多行骨架与真实段落同高 */
+.sk-line {
+  display: block;
+  max-width: 100%;
+  height: 1em;
+  margin-block: calc((var(--lh, 1.6em) - 1em) / 2);
+  border-radius: var(--r-xs);
+}
+
+/* 就地骨架（原型 data-sk）：页面用 holdRoute 按住期间，真实元素原地变骨架，几何天然一致 */
+.app-shell.is-pending [data-sk] {
+  color: transparent !important;
+  background: linear-gradient(100deg, var(--fill-2) 35%, var(--fill-3) 50%, var(--fill-2) 65%) 0 0 / 300% 100% !important;
+  box-shadow: none !important;
+  border-radius: var(--r-xs);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  pointer-events: none;
+  animation: sk-pos 1.35s var(--ease-out) infinite;
+
+  * { visibility: hidden; }
+}
+
+@keyframes sk-pos {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
+/* ======================================================================
+   逐项入场：.rise 单个元素；.rise-stagger 直接子元素依次 rise(14px)，间隔 55ms
+   可用 style="--i: n" 手动指定序号
+   ====================================================================== */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+}
+
+.rise,
+.rise-stagger > * {
+  animation: rise 0.55s var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+.rise-stagger > * {
+  @for $n from 1 through 12 {
+    &:nth-child(#{$n}) { --i: #{$n - 1}; }
+  }
+
+  &:nth-child(n + 13) { --i: 12; }
+}
+
+/* ======================================================================
+   滚动入场（配合 v-reveal 指令）
+   ====================================================================== */
 .reveal {
   opacity: 0;
   transform: translateY(28px);
@@ -18,12 +115,7 @@
   }
 }
 
-/* 悬停中心放大 + 主色辉光 */
-.hover-lift {
-  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur) ease;
-
-  &:hover {
-    transform: scale(1.03);
-    box-shadow: var(--shadow), 0 12px 32px -8px rgba(var(--primary-rgb), 0.35);
-  }
+@media (prefers-reduced-motion: reduce) {
+  .sk:not(:has(> *))::after,
+  .app-shell.is-pending [data-sk] { animation: none; }
 }

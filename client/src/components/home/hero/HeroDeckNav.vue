@@ -95,11 +95,12 @@ defineExpose({ nav });
 
 <template>
   <div v-if="mode === 'pills'" class="pills">
+    <span class="count" aria-hidden="true"><b>{{ String(itemIndex + 1).padStart(2, '0') }}</b> / {{ String(items.length).padStart(2, '0') }}</span>
     <button
       v-for="(it, i) in items"
       :key="i"
       class="pill"
-      :class="{ on: i === itemIndex }"
+      :class="{ on: i === itemIndex, done: i < itemIndex }"
       :aria-label="`第 ${i + 1} 条：${it.title.split('|').join('')}`"
       @click="emit('go', i)"
     >
@@ -127,44 +128,65 @@ defineExpose({ nav });
 </template>
 
 <style scoped lang="scss">
-/* ===== 进度胶囊 ===== */
+/* ===== 进度段：中性轨道 + 主色（--ink）填充，无发光 ===== */
 .pills {
   position: relative;
   z-index: 46;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   /* 让开左下后排卡的探出范围 */
   margin-top: 64px;
 }
 
+.count {
+  width: 56px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+
+  b {
+    color: var(--text);
+    font-weight: 500;
+  }
+}
+
+/* 按钮本体是 16px 高的热区，轨道是其中 2px 的细线 */
 .pill {
   position: relative;
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  border: none;
+  width: 28px;
+  height: 16px;
+  border: 0;
   padding: 0;
-  background: var(--border);
-  overflow: hidden;
-  transition: width var(--dur) var(--ease-out), background var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+  background: none;
+  transition: width var(--dur) var(--ease-out);
 
-  &:hover { transform: scale(1.25); }
-
-  &.on {
-    width: 52px;
-    background: var(--surface-2);
-
-    &:hover { transform: none; }
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 7px;
+    height: 2px;
+    border-radius: var(--r-pill);
+    background: var(--fill-3);
+    transition: background-color var(--dur-fast);
   }
+
+  &:hover::before { background: var(--line-2); }
+  &.done::before { background: color-mix(in oklab, var(--text-3) 70%, transparent); }
+  &.on { width: 44px; }
+  &:focus-visible { outline: none; box-shadow: var(--focus); border-radius: var(--r-xs); }
 }
 
 .pill-fill {
   position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--primary), var(--primary-deep));
-  box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.5);
+  left: 0;
+  top: 7px;
+  height: 2px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
 }
 
 /* ===== 缩略导航 ===== */
@@ -175,9 +197,9 @@ defineExpose({ nav });
   gap: 10px;
   padding: 6px;
   margin-top: 40px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: var(--glass);
-  border: 1px solid var(--border);
+  box-shadow: inset 0 0 0 0.5px var(--line-2), 0 8px 24px -16px rgb(0 0 0 / 0.5);
   backdrop-filter: blur(14px) saturate(1.3);
   -webkit-backdrop-filter: blur(14px) saturate(1.3);
 }
@@ -186,7 +208,7 @@ defineExpose({ nav });
   position: relative;
   width: 60px;
   height: 45px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   overflow: hidden;
   border: 0;
   padding: 0;
@@ -206,24 +228,26 @@ defineExpose({ nav });
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.1);
   }
 
   &:hover { opacity: 1; transform: translateY(-2px); }
   &.on { opacity: 1; }
+  &:focus-visible { outline: none; box-shadow: var(--focus); }
 }
 
+/* 当前格：2px 信号描边（--ink），无外发光 */
 .rail-ind {
   position: absolute;
   left: 6px;
   top: 6px;
   width: 60px;
   height: 45px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   overflow: hidden;
   pointer-events: none;
   z-index: 2;
-  box-shadow: inset 0 0 0 2px var(--primary), 0 0 16px rgba(var(--primary-rgb), 0.55);
+  box-shadow: inset 0 0 0 2px var(--ink);
   transition: transform var(--dur-slow) var(--ease-out);
 }
 
@@ -232,7 +256,7 @@ defineExpose({ nav });
   left: 0;
   bottom: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--primary), var(--primary-deep));
+  background: var(--ink);
 }
 
 @media (max-width: 900px) {

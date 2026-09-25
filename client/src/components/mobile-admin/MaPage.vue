@@ -292,7 +292,7 @@ defineExpose({ scrollTop, measure, scrollEl });
 
   circle {
     fill: none;
-    stroke: var(--primary);
+    stroke: var(--ink);
     stroke-width: 2.4;
     stroke-linecap: round;
     stroke-dasharray: 62.8;

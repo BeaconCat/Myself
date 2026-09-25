@@ -103,7 +103,7 @@ const span = computed(() => (since.value ? new Date().getFullYear() - since.valu
 
 .route {
   fill: none;
-  stroke: rgba(var(--primary-rgb), 0.55);
+  stroke: color-mix(in oklab, var(--primary) 50%, transparent);
   stroke-width: 0.16;
   stroke-dasharray: 0.6 0.5;
 }

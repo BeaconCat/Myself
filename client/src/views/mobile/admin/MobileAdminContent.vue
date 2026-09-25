@@ -316,7 +316,8 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
 
 <style scoped lang="scss">
 .icbtn.on {
-  background: var(--soft);
+  background: var(--lift);
+  box-shadow: var(--lift-shadow);
   color: var(--ink);
 }
 
@@ -340,7 +341,7 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
   height: 40px;
   padding: 0 12px;
   margin-top: 10px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--fill-2);
   color: var(--text-3);
 
@@ -349,7 +350,7 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
     min-width: 0;
     font-size: 16px;
     color: var(--text);
-    caret-color: var(--primary);
+    caret-color: var(--ink);
 
     &::placeholder { color: var(--text-3); }
   }
@@ -416,7 +417,7 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
 .rows > :first-child .crow::before { display: none; }
 
 @keyframes ma-fresh {
-  0% { background: var(--soft); }
+  0% { background: var(--tint); }
   100% { background: transparent; }
 }
 
@@ -424,7 +425,7 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
   position: relative;
   width: 52px;
   height: 52px;
-  border-radius: 13px;
+  border-radius: var(--r-md);
   overflow: hidden;
   flex: none;
   box-shadow: 0 0 0 0.5px var(--line);
@@ -476,12 +477,12 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
   }
 
   .mood {
-    color: var(--ink);
+    color: var(--text-2);
 
     &::before {
       content: '#';
-      opacity: 0.6;
-      margin-right: 1px;
+      color: var(--text-3);
+      margin-right: 2px;
     }
   }
 }

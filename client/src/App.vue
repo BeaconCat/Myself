@@ -5,6 +5,8 @@ import NavBar from './components/layout/NavBar.vue';
 import AppLoading from './components/loading/AppLoading.vue';
 import RouteLoading from './components/loading/RouteLoading.vue';
 import AppModal from './components/ui/AppModal.vue';
+import SearchPalette from './components/search/SearchPalette.vue';
+import SiteFooter from './components/common/SiteFooter.vue';
 import { useLoadingStore } from './stores/loading';
 import { useDevice } from './composables/useDevice';
 import MobileShell from './components/mobile/MobileShell.vue';
@@ -15,10 +17,10 @@ const shrunk = computed(() => loading.routeLoading);
 /** 幕布落下（首屏/路由遮罩仍在屏上）：页面动画整体暂停，遮罩完全离屏才播 */
 const covered = computed(() => loading.bootOverlayVisible || loading.routeOverlayVisible);
 
-/** 后台等 bare 页面不渲染前台导航 */
+/** 后台等 bare 页面不渲染前台导航 / 页脚 / 搜索 */
 const route = useRoute();
 const bare = computed(() => !!route.meta.bare);
-/** 移动端前台走独立外壳（底栏 + 抽屉），后台由 AdminRoot 自行切换 */
+/** 移动端前台走独立外壳（底栏 + 抽屉 + SearchOverlay），后台由 AdminRoot 自行切换 */
 const { isMobile } = useDevice();
 const mobileShell = computed(() => isMobile.value && !bare.value);
 
@@ -31,13 +33,22 @@ watch(shrunk, (on) => {
 
 <template>
   <MobileShell v-if="mobileShell" />
-  <div v-else class="app-shell" :class="{ shrunk, covered }" :style="{ transformOrigin: `50% ${originY}` }">
+  <div
+    v-else
+    class="app-shell"
+    :class="{ shrunk, covered, bare }"
+    :style="{ transformOrigin: `50% ${originY}` }"
+  >
     <NavBar v-if="!bare" />
-    <router-view v-slot="{ Component }">
-      <transition name="page" mode="out-in">
-        <component :is="Component" />
-      </transition>
-    </router-view>
+    <div class="route-view">
+      <router-view v-slot="{ Component }">
+        <transition name="page" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </div>
+    <SiteFooter v-if="!bare" />
+    <SearchPalette v-if="!bare" />
   </div>
   <RouteLoading />
   <AppLoading />
@@ -47,10 +58,17 @@ watch(shrunk, (on) => {
 <style scoped lang="scss">
 .app-shell {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   transition: transform 0.55s var(--ease-out);
 
   &.shrunk {
     transform: scale(0.9);
   }
+}
+
+.route-view {
+  flex: 1 0 auto;
+  min-width: 0;
 }
 </style>

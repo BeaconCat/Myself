@@ -6,7 +6,7 @@ import type { ModProps } from './props';
 import KitIcon from '../parts/KitIcon.vue';
 import { toast } from '../toast';
 
-/** 联系（contact）：宋体大标题、邮箱一键复制、主按钮、回复时效；右上一道光缝 */
+/** 联系（contact）：宋体大标题、邮箱一键复制（实底主按钮）、写信按钮、回复时效；右上一道主色信号线 */
 const props = defineProps<ModProps>();
 const d = computed(() => props.mod.data as ContactData);
 const { t } = useI18n();
@@ -23,7 +23,6 @@ async function copy(): Promise<void> {
 
 <template>
   <div class="ct" :class="{ wide: variant === 'wide' }">
-    <span class="ct-glow" aria-hidden="true" />
     <span class="ct-slit" aria-hidden="true" />
     <div class="ct-head">
       <h3>{{ d.title }}</h3>
@@ -32,12 +31,12 @@ async function copy(): Promise<void> {
     <div class="ct-foot">
       <div v-if="d.email" class="ct-mail">
         <span>{{ d.email }}</span>
-        <button class="cp" :class="{ ok: copied }" @click="copy">
+        <button class="ak-btn pri cp" :class="{ ok: copied }" @click="copy">
           <KitIcon :name="copied ? 'ok' : 'copy'" :size="14" />{{ copied ? t('aboutKit.contact.done') : t('aboutKit.contact.copy') }}
         </button>
       </div>
       <div class="ct-row">
-        <a v-if="d.url" class="ak-btn pri" :href="d.url"><KitIcon name="mail" />{{ d.buttonText }}</a>
+        <a v-if="d.url" class="ak-btn" :href="d.url"><KitIcon name="mail" />{{ d.buttonText }}</a>
         <small v-if="d.sla"><span class="ak-dot live" />{{ d.sla }}</small>
       </div>
     </div>
@@ -47,28 +46,17 @@ async function copy(): Promise<void> {
 <style scoped lang="scss">
 .ct { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 260px; }
 
-.ct-glow {
-  position: absolute;
-  right: -28px;
-  top: -28px;
-  width: 240px;
-  height: 240px;
-  background: radial-gradient(closest-side, rgba(var(--primary-rgb), 0.28), transparent);
-  pointer-events: none;
-}
-
 .ct-slit {
   position: absolute;
   right: 14px;
   top: -4px;
-  width: 3px;
-  height: 74px;
-  border-radius: 2px;
-  background: linear-gradient(#fff, rgb(var(--primary-rgb)));
-  box-shadow: 0 0 18px 2px rgba(var(--primary-rgb), 0.8);
+  width: 2px;
+  height: 64px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(var(--ink), transparent);
 }
 
-.ct-head { position: relative; }
+.ct-head { position: relative; padding-right: 24px; }
 .ct h3 { font: 700 30px/1.25 var(--font-serif); letter-spacing: 0.02em; }
 .ct p { margin-top: 10px; font-size: 14px; color: var(--text-2); }
 
@@ -78,28 +66,19 @@ async function copy(): Promise<void> {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 6px 6px 14px;
-  border-radius: 13px;
+  padding: 5px 5px 5px 16px;
+  border-radius: var(--r-pill);
   background: var(--ak-sunken);
-  border: 1px solid var(--ak-line);
+  box-shadow: inset 0 0 0 1px var(--ak-line);
 
   span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 13px var(--ak-mono); }
 }
 
 .cp {
-  display: flex;
-  align-items: center;
   gap: 6px;
   height: 32px;
-  padding: 0 12px;
-  border-radius: 9px;
+  padding: 0 14px;
   font-size: 12.5px;
-  color: var(--text-2);
-  border: 1px solid var(--ak-line-2) !important;
-  transition: color var(--dur-fast), border-color var(--dur-fast);
-
-  &:hover { color: var(--text); }
-  &.ok { color: var(--ak-green); border-color: rgb(0 200 83 / 0.5) !important; }
 }
 
 .ct-row {

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type Component } from 'vue';
 import type { AboutModule, SiteConfig } from '../stores/config';
-import { useThemeStore } from '../stores/theme';
 import { metaOf, spanOf, titleOf, variantOf } from './registry';
 import { migrateModules } from './migrate';
 import { kitToast } from './toast';
@@ -38,7 +37,8 @@ import './kit.scss';
  * 关于页模块分发器（about-kit v2）：
  * 1. migrateModules 归一旧 schema（并在缺 profile 时用旧顶层字段合成身份区）；
  * 2. 以 chapter 为界切分成若干 12 栏 bento 段落（段内 dense 回填，段间不串位）；
- * 3. 统一外壳（卡片 / 开放排版）、IO reveal + stagger、指针跟随高光、共享 tooltip 与轻提示。
+ * 3. 统一外壳（卡片 / 开放排版）、IO reveal + stagger、指针跟随中性高光、共享 tooltip 与轻提示。
+ * 主色可读性（亮主色配深字等）由全站 --solid / --on-solid / --ink 统一派生，这里不再单独计算。
  */
 const props = defineProps<{
   modules: AboutModule[];
@@ -106,17 +106,6 @@ const sections = computed<Item[][]>(() => {
   return out.filter((s) => s.length);
 });
 
-/* ---------- 主色可读性：亮主色（如秋黄）文字需更深，按钮字用深色 ---------- */
-const theme = useThemeStore();
-const inkStyle = computed(() => {
-  const hex = (theme.palette?.light.primary ?? '#0078ff').replace('#', '');
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  const light = theme.mode === 'light';
-  const mix = light ? (lum > 0.6 ? 52 : lum > 0.45 ? 62 : 74) : (lum < 0.3 ? 70 : 82);
-  return { '--ak-ink-mix': `${mix}%`, '--ak-on-primary': lum > 0.6 ? '#1a1300' : '#fff' };
-});
-
 /* ---------- reveal：进入视口依次添加 .in（同一批 80ms 错开） ---------- */
 const root = ref<HTMLElement | null>(null);
 let io: IntersectionObserver | null = null;
@@ -174,7 +163,6 @@ function onPointerOver(e: PointerEvent): void {
   <div
     ref="root"
     class="ak"
-    :style="inkStyle"
     @pointermove.passive="onPointerMove"
     @pointerover.passive="onPointerOver"
     @pointerleave="tip.on = false"
@@ -215,7 +203,7 @@ function onPointerOver(e: PointerEvent): void {
   position: fixed;
   z-index: 90;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   white-space: nowrap;
   pointer-events: none;
   font: 500 11.5px var(--ak-mono);
@@ -237,7 +225,8 @@ function onPointerOver(e: PointerEvent): void {
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-pop);
   font-size: 13px;
   color: var(--bg);
   background: var(--text);

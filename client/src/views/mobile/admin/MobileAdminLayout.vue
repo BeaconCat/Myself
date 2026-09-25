@@ -9,7 +9,6 @@
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue';
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { useThemeStore } from '../../../stores/theme';
 import { adminChildren } from '../../../router/admin';
 import { mobileAdminViews } from '../../../router/mobile-admin';
 import MaTabBar, { type AdminTab } from '../../../components/mobile-admin/MaTabBar.vue';
@@ -18,14 +17,10 @@ import MaIsland from '../../../components/mobile-admin/MaIsland.vue';
 import MaFallbackFrame from '../../../components/mobile-admin/MaFallbackFrame.vue';
 import NoteComposerSheet from '../../../components/mobile-admin/NoteComposerSheet.vue';
 import { openComposer, shell } from '../../../components/mobile-admin/state';
-import { onColor } from '../../../components/mobile-admin/format';
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
-const theme = useThemeStore();
-
-const onPrimary = computed(() => onColor(theme.palette?.[theme.mode]?.primary ?? '#0078ff'));
 
 /* ---------- 路由 → 底栏标签 / 视图层级 ---------- */
 const TAB_OF: Record<string, AdminTab> = {
@@ -147,7 +142,7 @@ const stageStyle = computed(() => {
   if (!s) return undefined;
   return {
     transform: `translateY(${s * 14}px) scale(${1 - s * 0.075})`,
-    borderRadius: `${Math.min(1, s * 3) * 22}px`,
+    borderRadius: `calc(var(--r-xl) * ${Math.min(1, s * 3)})`,
   };
 });
 
@@ -181,7 +176,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="ma-root" :style="{ '--on-primary': onPrimary }">
+  <div class="ma-root">
     <div
       class="ma-stage"
       :class="{ anim: stackAnim, stacked: shell.stack > 0 }"
@@ -348,9 +343,9 @@ $d: 0.46s;
 }
 
 .ma-up-in-enter-from,
-.ma-up-out-leave-to { transform: translateY(100%); border-radius: 36px 36px 0 0; }
+.ma-up-out-leave-to { transform: translateY(100%); border-radius: var(--r-xl) var(--r-xl) 0 0; }
 .ma-up-in-leave-to,
-.ma-up-out-enter-from { transform: scale(0.94); filter: brightness(0.7); border-radius: 24px; }
+.ma-up-out-enter-from { transform: scale(0.94); filter: brightness(0.7); border-radius: var(--r-xl); }
 
 .ma-none-enter-active,
 .ma-none-leave-active { transition: none; }

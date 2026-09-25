@@ -23,6 +23,7 @@ const chars = computed(() => [...(d.value.text ?? '')]);
   padding: 90px 0 110px;
   text-align: center;
 
+  /* 品牌光影例外：收尾处的一束门缝光（地面光晕 + 竖向光束）属于品牌母题，允许主色辉光 */
   &::before {
     content: '';
     position: absolute;
@@ -43,7 +44,7 @@ const chars = computed(() => [...(d.value.text ?? '')]);
     width: 2px;
     height: 120px;
     translate: -50% 0;
-    border-radius: 2px;
+    border-radius: var(--r-pill);
     background: linear-gradient(transparent, #fff);
     box-shadow: 0 0 18px 3px rgba(var(--primary-rgb), 0.7);
   }
@@ -70,8 +71,8 @@ const chars = computed(() => [...(d.value.text ?? '')]);
   padding: 8px 0 10px;
   text-align: left;
 
-  &::after { display: none; }
-  &::before { width: 90%; height: 90%; left: 60%; }
+  /* 卡片形态不带门缝光，光晕一并去掉 */
+  &::after, &::before { display: none; }
   p { font-size: 26px; letter-spacing: 0.04em; }
 }
 

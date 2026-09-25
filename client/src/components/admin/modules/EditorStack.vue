@@ -35,10 +35,10 @@ const { t } = useI18n();
   flex-shrink: 0;
   width: 34px;
   height: 34px;
-  border-radius: 10px;
-  font: 600 12px ui-monospace, Consolas, monospace;
-  color: var(--c);
-  background: color-mix(in oklab, var(--c) 13%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--c) 30%, transparent);
+  border-radius: var(--r-sm);
+  font: 600 12px var(--font-mono);
+  color: color-mix(in oklab, var(--c) 60%, var(--text));
+  background: var(--fill);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 </style>

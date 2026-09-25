@@ -54,7 +54,6 @@ const DATA: Record<string, (d: Any) => Any> = {
     portrait: {
       src: '',
       fade: 'left',
-      radius: 32,
       ...obj(d.portrait),
     },
   }),
@@ -220,7 +219,7 @@ export function migrateModules(list: AboutModule[] | undefined, about: LegacyAbo
         bio: about.bio ?? '',
         status: { doing: '', city: '', tz: 8 },
         links: socials ? socials.data.items.slice(0, 3).map((l: Any, i: number) => ({ ...l, primary: i === 0 })) : [],
-        portrait: { src: about.avatar ?? '', fade: 'left', radius: 32 },
+        portrait: { src: about.avatar ?? '', fade: 'left' },
       },
     }));
   }

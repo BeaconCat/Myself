@@ -223,9 +223,9 @@ const mediaCount = computed(() => media.value.length);
   height: 40px;
   margin: 0 20px;
   padding: 3px;
-  border-radius: 999px;
-  background: var(--m-fill);
-  box-shadow: inset 0 0 0 0.5px var(--m-line);
+  border-radius: var(--r-md);
+  background: var(--fill);
+  box-shadow: inset 0 0 0 0.5px var(--line);
 
   button {
     position: relative;
@@ -236,20 +236,24 @@ const mediaCount = computed(() => media.value.length);
     gap: 6px;
     font-size: 14px;
     color: var(--text-2);
-    border-radius: 999px;
+    border-radius: calc(var(--r-md) - 3px);
     transition: color var(--dur);
     white-space: nowrap;
 
+    .m-ic { transition: color var(--dur); }
+
     &.on {
-      color: var(--text);
-      font-weight: 600;
+      color: var(--lift-fg);
+      font-weight: 500;
+
+      .m-ic { color: var(--ink); }
     }
 
     em {
       font-style: normal;
       font-family: var(--m-font-mono);
       font-size: 11px;
-      color: var(--m-text-3);
+      color: var(--text-3);
     }
   }
 
@@ -259,17 +263,12 @@ const mediaCount = computed(() => media.value.length);
     bottom: 3px;
     left: 3px;
     width: calc(50% - 3px);
-    border-radius: 999px;
-    background: var(--m-elev-2);
-    box-shadow: 0 3px 10px -3px rgba(0, 0, 0, 0.45), inset 0 0 0 0.5px var(--m-line-2);
+    border-radius: calc(var(--r-md) - 3px);
+    background: var(--lift);
+    box-shadow: var(--lift-shadow);
     transform: translateX(calc(var(--i, 0) * 100%));
-    transition: transform 0.45s var(--ease-spring);
+    transition: transform 0.45s var(--ease-spring), background-color var(--dur), box-shadow var(--dur);
   }
-}
-
-html.m-shell[data-mode='light'] .segc .th {
-  background: #fff;
-  box-shadow: 0 3px 10px -4px rgba(20, 40, 80, 0.25);
 }
 
 .th-view.in-r { animation: in-r 0.42s var(--ease-out); }
@@ -291,7 +290,7 @@ html.m-shell[data-mode='light'] .segc .th {
     left: 70px;
     right: 0;
     height: 0.5px;
-    background: var(--m-line);
+    background: var(--line);
   }
 
   .av {
@@ -310,7 +309,7 @@ html.m-shell[data-mode='light'] .segc .th {
     align-items: baseline;
     gap: 6px;
     font-size: 13px;
-    color: var(--m-text-3);
+    color: var(--text-3);
     white-space: nowrap;
 
     b {
@@ -337,21 +336,21 @@ html.m-shell[data-mode='light'] .segc .th {
   -webkit-user-select: text;
 
   :deep(p) { margin: 0 0 6px; }
-  :deep(strong) { color: var(--m-ink); font-weight: 600; }
-  :deep(a) { color: var(--m-ink); }
+  :deep(strong) { color: var(--ink); font-weight: 600; }
+  :deep(a) { color: var(--ink); }
 
   :deep(code) {
     font-family: var(--m-font-mono);
     font-size: 0.82em;
     padding: 1px 5px;
-    border-radius: 5px;
-    background: var(--m-fill-2);
+    border-radius: var(--r-xs);
+    background: var(--fill-3);
   }
 
   :deep(pre) {
     margin: 8px 0;
     padding: 12px;
-    border-radius: 12px;
+    border-radius: var(--r-md);
     overflow-x: auto;
     font-size: 12.5px;
     background: var(--m-code-bg);
@@ -365,7 +364,7 @@ html.m-shell[data-mode='light'] .segc .th {
   display: grid;
   gap: 3px;
   margin-top: 10px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   overflow: hidden;
 
   &.g1 { grid-template-columns: 1fr; }
@@ -384,7 +383,7 @@ html.m-shell[data-mode='light'] .segc .th {
   aspect-ratio: 1;
   display: block;
   overflow: hidden;
-  background: var(--m-fill-2) !important;
+  background: var(--fill-3) !important;
 
   img {
     position: absolute;
@@ -409,8 +408,8 @@ html.m-shell[data-mode='light'] .segc .th {
     align-items: center;
     height: 32px;
     padding: 0 6px;
-    border-radius: 10px;
-    color: var(--m-text-3);
+    border-radius: var(--r-sm);
+    color: var(--text-3);
 
     .m-ic { width: 19px; height: 19px; }
   }
@@ -421,7 +420,7 @@ html.m-shell[data-mode='light'] .segc .th {
   display: flex;
   justify-content: space-between;
   font-size: 12.5px;
-  color: var(--m-text-3);
+  color: var(--text-3);
 }
 
 .mg {
@@ -451,7 +450,7 @@ html.m-shell[data-mode='light'] .segc .th {
 .sk-grid {
   margin-top: 12px;
   height: 120px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
 
   &.tall { height: 210px; }
 }

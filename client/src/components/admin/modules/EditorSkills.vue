@@ -43,17 +43,26 @@ const parse = (text: string) => text.split(/[,，、]+/).map((s) => s.trim()).fi
   align-items: center;
   gap: 6px;
 
+  /* 描边胶囊；主技能 = 抬升 + 轻染 + 前置 4px 主色圆点（与前台 chip 选中同构） */
   button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     height: 26px;
-    padding: 0 10px;
-    border-radius: 8px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: var(--r-pill);
     font-size: 12px;
-    color: var(--text);
-    background: var(--surface);
-    border: 1px solid color-mix(in oklab, var(--text) 14%, transparent);
-    box-shadow: 0 2px 0 color-mix(in oklab, var(--text) 14%, transparent);
+    color: var(--text-2);
+    background: none;
+    box-shadow: inset 0 0 0 1px var(--line);
+    transition: color var(--dur-fast), background-color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
 
-    &.on { color: var(--primary); border-color: rgba(var(--primary-rgb), 0.5); background: rgba(var(--primary-rgb), 0.08); }
+    &:hover { color: var(--text); background: var(--fill); box-shadow: inset 0 0 0 1px var(--line-2); }
+    &:active { transform: scale(0.96); }
+
+    &.on { color: var(--lift-fg); font-weight: 500; background: var(--lift); box-shadow: var(--lift-shadow); }
+    &.on::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--ink); }
   }
 
   .hint { margin-left: 4px; font-size: 11.5px; }

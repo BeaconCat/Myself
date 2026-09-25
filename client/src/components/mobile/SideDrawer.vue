@@ -109,7 +109,7 @@ function openGithub(): void {
           :class="{ big: tag.count > 2 }"
           @click="go({ path: '/articles', query: { tag: tag.name } })"
         >
-          {{ tag.name }}<em>{{ tag.count }}</em>
+          <span class="hs">#</span>{{ tag.name }}<em>{{ tag.count }}</em>
         </button>
       </div>
     </template>
@@ -131,7 +131,7 @@ function openGithub(): void {
     </div>
     <div class="m-list admin">
       <button class="m-li" @click="go('/admin')">
-        <span class="lic" style="color: var(--m-on-primary, #fff)"><MIcon name="lock" /></span>
+        <span class="lic" style="--c: var(--solid); color: var(--on-solid)"><MIcon name="lock" /></span>
         <span>{{ t('mobile.admin') }}</span><MIcon name="chev" class="chev" />
       </button>
     </div>
@@ -151,9 +151,6 @@ function openGithub(): void {
   overflow-y: auto;
   scrollbar-width: none;
   overscroll-behavior: contain;
-  background:
-    radial-gradient(420px 300px at -10% 104%, color-mix(in oklab, var(--primary) 30%, transparent), transparent 70%),
-    radial-gradient(200px 140px at 12% 100%, rgba(255, 255, 255, 0.08), transparent 70%);
   opacity: calc(0.2 + var(--m-dp) * 0.8);
   transform: translateX(calc((1 - var(--m-dp)) * -56px)) scale(calc(0.94 + var(--m-dp) * 0.06));
   transform-origin: left center;
@@ -180,7 +177,7 @@ function openGithub(): void {
     height: 56px;
     flex: none;
 
-    .m-avatar { border-radius: 18px; }
+    .m-avatar { border-radius: var(--r-lg); }
   }
 
   b {
@@ -193,7 +190,7 @@ function openGithub(): void {
 
   small {
     font-size: 13px;
-    color: var(--m-text-3);
+    color: var(--text-3);
   }
 }
 
@@ -203,14 +200,14 @@ function openGithub(): void {
   line-height: 1.7;
   color: var(--text-2);
 
-  &::before { content: '「'; color: var(--m-ink); }
-  &::after { content: '」'; color: var(--m-ink); }
+  &::before { content: '「'; color: var(--ink); }
+  &::after { content: '」'; color: var(--ink); }
 }
 
 .h {
   font-size: 12px;
   font-weight: 500;
-  color: var(--m-text-3);
+  color: var(--text-3);
   letter-spacing: 0.08em;
   margin: 22px 0 12px;
 }
@@ -220,9 +217,9 @@ function openGithub(): void {
   display: grid;
   grid-template-columns: 1fr 1fr;
   padding: 3px;
-  border-radius: 14px;
-  background: var(--m-fill);
-  box-shadow: inset 0 0 0 0.5px var(--m-line);
+  border-radius: var(--r-md);
+  background: var(--fill-2);
+  box-shadow: inset 0 0 0 0.5px var(--line);
 
   button {
     position: relative;
@@ -234,12 +231,16 @@ function openGithub(): void {
     gap: 7px;
     font-size: 14px;
     color: var(--text-2);
-    border-radius: 11px;
+    border-radius: calc(var(--r-md) - 3px);
     transition: color var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
 
+    .m-ic { transition: color var(--dur); }
+
     &.on {
-      color: var(--text);
+      color: var(--lift-fg);
       font-weight: 500;
+
+      .m-ic { color: var(--ink); }
     }
   }
 
@@ -249,17 +250,12 @@ function openGithub(): void {
     bottom: 3px;
     left: 3px;
     width: calc(50% - 3px);
-    border-radius: 11px;
-    background: var(--m-elev-2);
-    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.35), inset 0 0 0 0.5px var(--m-line);
+    border-radius: calc(var(--r-md) - 3px);
+    background: var(--lift);
+    box-shadow: var(--lift-shadow);
     transform: translateX(calc(var(--i, 0) * 100%));
-    transition: transform var(--dur) var(--ease-spring);
+    transition: transform var(--dur) var(--ease-spring), background-color var(--dur), box-shadow var(--dur);
   }
-}
-
-html.m-shell[data-mode='light'] .seg2 .th {
-  background: #fff;
-  box-shadow: 0 2px 8px -2px rgba(20, 40, 80, 0.2);
 }
 
 .pals {
@@ -275,22 +271,23 @@ html.m-shell[data-mode='light'] .seg2 .th {
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: var(--m-text-3);
+  color: var(--text-3);
 
   i {
     position: relative;
     width: 46px;
     height: 46px;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--c) 70%, white), var(--c) 55%, color-mix(in oklab, var(--c) 70%, black));
-    box-shadow: 0 8px 18px -8px var(--c);
+    background: var(--c);
+    box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.12);
 
+    /* 选中：外侧 1.5px 细环（--text），与色块留 3px 间隙 */
     &::after {
       content: '';
       position: absolute;
-      inset: -5px;
+      inset: -4.5px;
       border-radius: 50%;
-      box-shadow: 0 0 0 2px var(--c);
+      box-shadow: 0 0 0 1.5px var(--text);
       opacity: 0;
       transform: scale(0.8);
       transition: all var(--dur) var(--ease-spring);
@@ -319,14 +316,16 @@ html.m-shell[data-mode='light'] .seg2 .th {
     gap: 5px;
     padding: 6px 12px;
     border-radius: 999px;
-    background: var(--m-fill);
+    box-shadow: inset 0 0 0 1px var(--line);
     color: var(--text-2);
     font-size: 13px;
+
+    .hs { color: var(--text-3); margin-right: -3px; }
 
     em {
       font-style: normal;
       font-size: 11px;
-      color: var(--m-text-3);
+      color: var(--text-3);
       font-family: var(--m-font-mono);
     }
 
@@ -342,7 +341,7 @@ html.m-shell[data-mode='light'] .seg2 .th {
 .foot {
   margin-top: 22px;
   font-size: 12px;
-  color: var(--m-text-3);
+  color: var(--text-3);
   line-height: 1.7;
 }
 </style>

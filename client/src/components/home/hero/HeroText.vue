@@ -208,7 +208,10 @@ defineExpose({ els, ready: settled, resplit });
     :class="{ leaving }"
     :aria-hidden="leaving ? 'true' : undefined"
   >
-    <span ref="tagEl" class="hero-tag">{{ item.tag }}</span>
+    <span ref="tagEl" class="hero-eyebrow">
+      <span class="hero-tag">{{ item.tag }}</span>
+      <template v-if="item.date"><i class="dot" aria-hidden="true" /><span>{{ item.date }}</span></template>
+    </span>
     <h1 ref="titleEl" class="hero-title" :class="{ measure: measuring }" :aria-label="item.title.split('|').join('')">
       <span v-for="(ln, li) in titleLines" :key="li" class="ln" aria-hidden="true"><span class="ln-in"><template v-for="ti in ln" :key="ti"><span
         v-if="titleToks[ti].kind === 'w'"
@@ -228,9 +231,15 @@ defineExpose({ els, ready: settled, resplit });
         :data-t="ti"
       >{{ bodyToks[ti].text }}</span></span></span>
     </p>
-    <button ref="btnEl" class="hero-btn" :tabindex="leaving ? -1 : undefined" @click="open">
-      {{ t('hero.readMore') }}
-    </button>
+    <div ref="btnEl" class="hero-cta">
+      <button class="hero-btn primary" :tabindex="leaving ? -1 : undefined" @click="open">
+        {{ t('hero.readMore') }}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+      </button>
+      <router-link to="/articles" class="hero-btn ghost" :tabindex="leaving ? -1 : undefined">
+        {{ t('home.allPosts') }}
+      </router-link>
+    </div>
   </div>
 </template>
 
@@ -247,20 +256,43 @@ defineExpose({ els, ready: settled, resplit });
   &.leaving { pointer-events: none; }
 }
 
+/* 眉题：「# 标签 · 日期」纯文字，# 用三级灰 */
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
 .hero-tag {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 4px 12px;
-  border-radius: 999px;
-  color: var(--primary);
-  background: rgba(var(--primary-rgb), 0.1);
-  border: 1px solid rgba(var(--primary-rgb), 0.25);
+  color: var(--text-2);
+
+  &::before {
+    content: '#';
+    margin-right: 3px;
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+  }
+}
+
+.dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
 }
 
 .hero-title {
-  font-size: clamp(30px, 4.4vw, 54px);
+  font-family: var(--font-serif);
+  font-weight: 900;
+  font-size: clamp(30px, 3.9vw, 52px);
   line-height: 1.2;
+  letter-spacing: 0.005em;
+  /* 测量态按平衡换行分组：避免「API / 中心」这种末行孤字 */
+  text-wrap: balance;
   min-height: 2.4em;
   width: 100%;
 }
@@ -311,23 +343,57 @@ defineExpose({ els, ready: settled, resplit });
 /* 摘要按 CJK 逐字可断：测量态词段 inline 参与自然断行 */
 .hero-excerpt .w { display: inline; }
 
-.hero-btn {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  padding: 12px 32px;
-  border-radius: 12px;
-  border: none;
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  background: linear-gradient(180deg, var(--primary), var(--primary-deep));
-  box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast), filter var(--dur-fast);
+/* CTA：主按钮实底（--solid / --on-solid，按对比度派生），次按钮 ghost；无渐变、无发光、无文字投影 */
+.hero-cta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
 
-  &:hover {
-    filter: brightness(1.08);
-    transform: scale(1.05);
-    box-shadow: 0 8px 24px rgba(var(--primary-rgb), 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+.hero-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 46px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: var(--r-pill);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast),
+    box-shadow var(--dur-fast),
+    transform var(--dur-fast) var(--ease-spring);
+
+  svg {
+    width: 16px;
+    height: 16px;
+    transition: transform var(--dur) var(--ease-spring);
+  }
+
+  &:active { transform: scale(0.97); transition-duration: 0.08s; }
+  &:focus-visible { outline: none; box-shadow: var(--focus); }
+
+  &.primary {
+    background: var(--solid);
+    color: var(--on-solid);
+    box-shadow: var(--btn-shadow);
+
+    &:hover { background: var(--solid-hover); }
+    &:hover svg { transform: translateX(2px); }
+    &:focus-visible { box-shadow: var(--btn-shadow), var(--focus); }
+  }
+
+  &.ghost {
+    background: transparent;
+    color: var(--text-2);
+
+    &:hover { background: var(--fill-2); color: var(--text); }
   }
 }
 
@@ -342,5 +408,7 @@ defineExpose({ els, ready: settled, resplit });
   .ln-in { transform-origin: 50% 60%; }
 
   .hero-excerpt { font-size: 14px; }
+
+  .hero-cta { justify-content: center; }
 }
 </style>

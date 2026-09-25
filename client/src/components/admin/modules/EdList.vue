@@ -54,9 +54,9 @@ function move(i: number, delta: number): void {
   gap: 10px;
   align-items: flex-start;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: color-mix(in oklab, var(--text) 3%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--text) 8%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .compact .el-item { padding: 8px 10px; align-items: center; }
@@ -75,12 +75,12 @@ function move(i: number, delta: number): void {
     height: 26px;
     padding: 0;
     border: 0;
-    border-radius: 7px;
+    border-radius: var(--r-sm);
     background: none;
     color: var(--text-2);
     transition: background var(--dur-fast), color var(--dur-fast);
 
-    &:hover:not(:disabled) { background: color-mix(in oklab, var(--text) 8%, transparent); color: var(--text); }
+    &:hover:not(:disabled) { background: var(--fill-2); color: var(--text); }
     &:disabled { opacity: 0.3; cursor: default; }
     &.del:hover { color: var(--accent-red); }
   }

@@ -1,25 +1,39 @@
+<script lang="ts">
+/** 服务端渐变占位图（/api/v1/img/...）视同无图：改走光影构成，避免纯色块 */
+export function isArtUrl(url: string | undefined): boolean {
+  return !url || url.startsWith('/api/v1/img/');
+}
+</script>
+
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { thumbOf } from '../../api';
 
 /**
  * 封面：有真实封面用图片（可选缩略图），没有时按 seed 稳定选一幅 CSS 光影构成
- * （门缝光 / 光谱扇 / 书页台灯 / 光束信号环），与品牌「门、光、书页」母题一致。
+ * （门缝光 / 光谱扇 / 书页台灯 / 光束信号环；pool="all" 时追加地平线 / 窗格，供随想配图），
+ * 与品牌「门、光、书页」母题一致。
+ * 注：本组件是全站唯一允许 blur / glow 的地方（品牌封面光影），控件不得借用。
  */
-const props = withDefaults(defineProps<{ src?: string; seed: string; thumb?: boolean }>(), {
-  src: '',
-  thumb: false,
-});
+const props = withDefaults(
+  defineProps<{ src?: string; seed: string; thumb?: boolean; pool?: 'post' | 'all' }>(),
+  { src: '', thumb: false, pool: 'post' },
+);
 
-const VARIANTS = ['door', 'bands', 'pages', 'beam'] as const;
+const POST_VARIANTS = ['door', 'bands', 'pages', 'beam'] as const;
+const ALL_VARIANTS = [...POST_VARIANTS, 'dusk', 'pane'] as const;
 
 const variant = computed(() => {
+  const list = props.pool === 'all' ? ALL_VARIANTS : POST_VARIANTS;
   let h = 0;
   for (const ch of props.seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return VARIANTS[h % VARIANTS.length];
+  return list[h % list.length];
 });
 
-const url = computed(() => (props.src ? (props.thumb ? thumbOf(props.src) : props.src) : ''));
+const url = computed(() => {
+  if (isArtUrl(props.src)) return '';
+  return props.thumb ? thumbOf(props.src) : props.src;
+});
 const loaded = ref(false);
 watch(url, () => { loaded.value = false; });
 </script>
@@ -32,7 +46,9 @@ watch(url, () => { loaded.value = false; });
     <template v-if="variant === 'door'"><i class="halo" /><i class="floor" /><i class="l" /><i class="r" /></template>
     <template v-else-if="variant === 'bands'"><i class="fan" /><i class="floor" /><i class="horizon" /><i class="core" /></template>
     <template v-else-if="variant === 'pages'"><i class="lamp" /><i class="pg p2" /><i class="pg p1" /></template>
-    <template v-else><i class="rings" /><i class="ray" /><i class="gap" /></template>
+    <template v-else-if="variant === 'beam'"><i class="rings" /><i class="ray" /><i class="gap" /></template>
+    <template v-else-if="variant === 'dusk'"><i class="sun" /><i class="refl" /></template>
+    <template v-else><i class="wedge" /><i class="slit" /></template>
   </div>
 </template>
 
@@ -44,12 +60,14 @@ watch(url, () => { loaded.value = false; });
   background: #040914;
   isolation: isolate;
   container-type: size;
+  /* 父级悬停时可对 .cv 做轻微放大 */
+  transition: transform var(--dur-slow) var(--ease-out);
 
   i { position: absolute; display: block; }
 }
 
 .cv-img {
-  background: var(--m-fill-2);
+  background: var(--m-fill-2, var(--fill-2));
 
   img {
     width: 100%;
@@ -105,5 +123,21 @@ watch(url, () => { loaded.value = false; });
   .rings { inset: -10%; background: repeating-radial-gradient(circle at 34% 58%, transparent 0 10cqw, rgba(0, 120, 255, 0.5) 10cqw 10.8cqw, transparent 10.8cqw 16cqw, rgba(255, 0, 50, 0.4) 16cqw 16.6cqw, transparent 16.6cqw 22cqw); mask: radial-gradient(circle at 34% 58%, #000 18%, transparent 62%); }
   .ray { left: 30%; top: 30%; width: 110%; height: 56%; background: linear-gradient(90deg, rgba(220, 232, 255, 0.8), rgba(0, 120, 255, 0.18) 55%, transparent 85%); clip-path: polygon(0 42%, 100% 0, 100% 100%, 0 58%); filter: blur(1.6cqw); }
   .gap { left: 28%; top: 12%; width: 5%; height: 46%; border-radius: 1.2cqw; background: linear-gradient(#fff, #b8d0ff); box-shadow: 0 0 6cqw 1.5cqw rgba(120, 170, 255, 0.7), 0 0 22cqw 5cqw rgba(0, 120, 255, 0.3); }
+}
+
+/* 地平线：落日与水面倒影（随想配图） */
+.cv-dusk {
+  background: linear-gradient(180deg, #0a1530 0, #1a2d5a 44%, #f0a45b 55%, #0b1a33 55.4%, #081226 100%);
+
+  .sun { left: 50%; top: 55%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(circle, #fff5dc, #ffb300 40%, rgba(255, 120, 40, 0) 70%); clip-path: inset(0 0 50% 0); }
+  .refl { left: 44%; right: 44%; top: 57%; bottom: 8%; background: repeating-linear-gradient(180deg, rgba(255, 200, 120, 0.8) 0 2px, transparent 2px 7px); mask: linear-gradient(#000, transparent); filter: blur(0.6px); }
+}
+
+/* 窗格：暗室里一道暖光缝 */
+.cv-pane {
+  background: radial-gradient(70% 55% at 50% 100%, rgba(255, 170, 60, 0.22), transparent 70%), linear-gradient(180deg, #120d14, #07060c);
+
+  .slit { left: 47%; width: 6%; top: 10%; height: 62%; border-radius: 0.8cqw; background: linear-gradient(180deg, #fff3d6, #ffc15a 55%, #ff9d2e); box-shadow: 0 0 5cqw 1cqw rgba(255, 180, 80, 0.55), 0 0 20cqw 4cqw rgba(255, 150, 40, 0.22); }
+  .wedge { left: -10%; right: -10%; top: 72%; bottom: -4%; background: linear-gradient(180deg, rgba(255, 226, 170, 0.85), rgba(255, 170, 60, 0.28) 45%, transparent 90%); clip-path: polygon(47% 0, 53% 0, 82% 100%, 18% 100%); filter: blur(0.8cqw); }
 }
 </style>

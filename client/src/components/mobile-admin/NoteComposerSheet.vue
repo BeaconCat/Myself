@@ -338,7 +338,7 @@ async function publish(): Promise<void> {
   margin-left: 4px;
   padding: 3px 9px;
   border-radius: 999px;
-  background: var(--soft);
+  background: var(--tint);
   color: var(--ink);
   font-size: 12px;
 }
@@ -352,7 +352,7 @@ textarea {
   font-size: 17px;
   line-height: 1.7;
   color: var(--text);
-  caret-color: var(--primary);
+  caret-color: var(--ink);
   overflow: hidden;
 
   &::placeholder { color: var(--text-3); }
@@ -368,7 +368,7 @@ textarea {
   .add {
     position: relative;
     aspect-ratio: 1;
-    border-radius: 14px;
+    border-radius: var(--r-md);
     overflow: hidden;
     animation: ma-tile-in 0.45s var(--ease-spring) backwards;
   }
@@ -429,7 +429,7 @@ textarea {
   .tool {
     width: 40px;
     height: 40px;
-    border-radius: 12px;
+    border-radius: var(--r-sm);
     display: grid;
     place-items: center;
     color: var(--text-2);
@@ -462,7 +462,7 @@ textarea {
   .bg { stroke: var(--fill-2); }
 
   .fg {
-    stroke: var(--primary);
+    stroke: var(--ink);
     stroke-linecap: round;
     stroke-dasharray: 50.27;
     transition: stroke-dashoffset var(--dur) var(--ease-out), stroke var(--dur);

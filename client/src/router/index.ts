@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteComponent, type RouteRecordRaw } from 'vue-router';
+import { createRouter, createWebHistory, type RouteComponent, type RouteLocationNormalized, type RouteRecordRaw } from 'vue-router';
 import { useLoadingStore } from '../stores/loading';
 import { MOBILE_QUERY } from '../composables/useDevice';
 
@@ -60,26 +60,27 @@ const isMobileNow = (): boolean => window.matchMedia(MOBILE_QUERY).matches;
 const MIN_SHOW_MS = 900;
 let shownAt = 0;
 
+/** 是否为需要播放遮罩的站内跳转（首屏、后台内部标签、同页 query/hash 变化都不播） */
+function playsCover(to: RouteLocationNormalized, from: RouteLocationNormalized): boolean {
+  if (isMobileNow()) return false;
+  if (!from.matched.length) return false;
+  if (to.meta.admin && from.meta.admin) return false;
+  return to.path !== from.path;
+}
+
 router.beforeEach(async (to, from) => {
   // 后台鉴权
   if (to.meta.admin && !localStorage.getItem('myself.token')) {
     return { path: '/admin/login' };
   }
-  // 移动端不播桌面路由覆盖层（页面切换由移动端外壳的推入/滑动动画与骨架屏承担）
-  if (isMobileNow()) return;
-  // 首屏由 AppLoading 负责；后台子路由无 name，用 matched 判断是否已在站内
-  if (!from.matched.length) return;
-  // 控制中心内部标签页切换不播 loading
-  if (to.meta.admin && from.meta.admin) return;
+  if (!playsCover(to, from)) return;
   shownAt = performance.now();
   useLoadingStore().startRoute();
   await new Promise((resolve) => window.setTimeout(resolve, COVER_MS));
 });
 
 router.afterEach((to, from) => {
-  if (isMobileNow()) return;
-  if (!from.matched.length) return;
-  if (to.meta.admin && from.meta.admin) return;
+  if (!playsCover(to, from)) return;
   const loading = useLoadingStore();
   const remain = Math.max(0, MIN_SHOW_MS - (performance.now() - shownAt));
   // 揭幕 = 最短展示时间到 且 目标页数据门闩全部释放

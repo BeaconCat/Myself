@@ -5,7 +5,7 @@ import type { ModProps } from './props';
 import KitIcon from '../parts/KitIcon.vue';
 import ModHead from '../parts/ModHead.vue';
 
-/** 社交（socials）：列表 = 图标 + 名称 + mono handle，悬停箭头右上飞出；pills = 胶囊行 */
+/** 社交（socials）：列表 = 图标 + 名称 + mono handle，悬停箭头右上飞出；pills = 按钮行（primary 为实底主按钮） */
 const props = defineProps<ModProps>();
 const d = computed(() => props.mod.data as SocialsData);
 const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
@@ -14,7 +14,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 <template>
   <ModHead :title="title" />
   <div v-if="variant === 'pills'" class="so-pills">
-    <a v-for="l in d.items" :key="l.name + l.url" :href="l.url" :class="{ pri: l.primary }" :target="external(l.url)" rel="noopener">
+    <a v-for="l in d.items" :key="l.name + l.url" :href="l.url" class="ak-btn" :class="{ pri: l.primary }" :target="external(l.url)" rel="noopener">
       <KitIcon :name="l.icon" />{{ l.name }}
     </a>
   </div>
@@ -39,7 +39,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
   align-items: center;
   padding: 11px 10px;
   margin: 0 -10px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   transition: background var(--dur-fast);
 
   &:hover { background: var(--ak-sunken); }
@@ -53,13 +53,13 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
   place-items: center;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
-  border: 1px solid var(--ak-line-2);
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px var(--ak-line-2);
   color: var(--text-2);
-  transition: color var(--dur), border-color var(--dur);
+  transition: color var(--dur), background-color var(--dur);
 }
 
-.so a:hover .ic { color: var(--ak-ink); border-color: rgba(var(--primary-rgb), 0.45); }
+.so a:hover .ic { color: var(--text); background: var(--fill); }
 
 .arr { color: var(--ak-text-3); transition: transform var(--dur) var(--ease-spring), color var(--dur); }
 .so a:hover .arr { transform: translate(3px, -3px); color: var(--text); }
@@ -69,21 +69,6 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
   flex-wrap: wrap;
   gap: 10px;
 
-  a {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-    height: 40px;
-    padding: 0 16px 0 13px;
-    border-radius: 12px;
-    font-size: 13.5px;
-    color: var(--text-2);
-    border: 1px solid var(--ak-line);
-    background: var(--ak-sunken);
-    transition: color var(--dur) var(--ease-out), border-color var(--dur), transform var(--dur) var(--ease-out), box-shadow var(--dur);
-
-    &:hover { color: var(--text); border-color: rgba(var(--primary-rgb), 0.5); transform: translateY(-2px); box-shadow: 0 10px 24px -14px rgba(var(--primary-rgb), 0.8); }
-    &.pri { background: var(--text); color: var(--bg); border-color: transparent; }
-  }
+  a { height: 40px; padding: 0 18px 0 15px; }
 }
 </style>

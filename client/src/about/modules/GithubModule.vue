@@ -158,9 +158,8 @@ const shortType = (type: string) => (type || 'event').replace(/Event$/, '').toLo
 
   i {
     aspect-ratio: 1;
-    border-radius: 3px;
-    background: var(--ak-sunken);
-    box-shadow: inset 0 0 0 1px var(--ak-line);
+    border-radius: calc(var(--r-xs) * 0.6);
+    background: var(--fill-2);
     transition: transform var(--dur-fast) var(--ease-spring);
 
     &:hover { position: relative; z-index: 2; transform: scale(1.5); }
@@ -168,11 +167,12 @@ const shortType = (type: string) => (type || 'event').replace(/Event$/, '').toLo
   }
 }
 
+/* 热力图：主色单色阶梯（向 --fill-2 混合降饱和），不发光 */
 .hm i, .sc i {
-  &[data-l='1'] { background: rgba(var(--primary-rgb), 0.22); box-shadow: none; }
-  &[data-l='2'] { background: rgba(var(--primary-rgb), 0.45); box-shadow: none; }
-  &[data-l='3'] { background: rgba(var(--primary-rgb), 0.72); box-shadow: none; }
-  &[data-l='4'] { background: var(--primary); box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.6); }
+  &[data-l='1'] { background: color-mix(in oklab, var(--primary) 20%, var(--fill-2)); }
+  &[data-l='2'] { background: color-mix(in oklab, var(--primary) 36%, var(--fill-2)); }
+  &[data-l='3'] { background: color-mix(in oklab, var(--primary) 56%, var(--fill-2)); }
+  &[data-l='4'] { background: color-mix(in oklab, var(--primary) 78%, var(--fill-2)); }
 }
 
 .hm-legend {
@@ -184,7 +184,7 @@ const shortType = (type: string) => (type || 'event').replace(/Event$/, '').toLo
   color: var(--ak-text-3);
 
   .sc { display: flex; align-items: center; gap: 3px; }
-  .sc i { width: 10px; height: 10px; border-radius: 2px; background: var(--ak-sunken); }
+  .sc i { width: 10px; height: 10px; border-radius: calc(var(--r-xs) * 0.5); background: var(--fill-2); }
 }
 
 @container (max-width: 680px) { .hm .o1, .hm-months .o1 { display: none; } }
@@ -212,7 +212,7 @@ const shortType = (type: string) => (type || 'event').replace(/Event$/, '').toLo
     &:last-child { border-bottom: 0; padding-bottom: 0; }
   }
 
-  .sha { padding: 2px 7px; border-radius: 6px; font: 500 11.5px var(--ak-mono); color: var(--ak-ink); background: rgba(var(--primary-rgb), 0.1); }
+  .sha { padding: 2px 7px; border-radius: var(--r-xs); font: 500 11.5px var(--ak-mono); color: var(--text-2); background: var(--fill-2); }
   .msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .msg small { margin-left: 8px; font: 11.5px var(--ak-mono); color: var(--ak-text-3); }
   time { font: 400 11.5px var(--ak-mono); color: var(--ak-text-3); }

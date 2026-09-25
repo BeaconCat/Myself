@@ -67,7 +67,7 @@ function onFilled(i: number): void {
 <style scoped lang="scss">
 .qr { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 220px; }
 
-.mark { height: 40px; font: 700 90px/0.6 var(--font-serif); color: rgba(var(--primary-rgb), 0.35); }
+.mark { height: 40px; font: 700 90px/0.6 var(--font-serif); color: var(--text-3); }
 
 blockquote {
   font: 700 22px/1.65 var(--font-serif);
@@ -96,17 +96,17 @@ cite { display: block; margin-top: 14px; font: normal 13px var(--font-sans); col
     height: 3px;
     padding: 0;
     overflow: hidden;
-    border-radius: 3px;
-    background: var(--ak-line-2);
+    border-radius: var(--r-pill);
+    background: var(--fill-3);
 
-    &.done { background: rgba(var(--primary-rgb), 0.5); }
+    &.done { background: var(--text-3); }
   }
 
   .pips button.on::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: var(--primary);
+    background: var(--ink);
     transform-origin: left;
     animation: qr-fill var(--iv) linear forwards;
   }
@@ -116,12 +116,13 @@ cite { display: block; margin-top: 14px; font: normal 13px var(--font-sans); col
     place-items: center;
     width: 30px;
     height: 30px;
-    border-radius: 9px;
-    color: var(--ak-text-3);
-    border: 1px solid var(--ak-line) !important;
-    transition: color var(--dur-fast), border-color var(--dur-fast);
+    border-radius: var(--r-pill);
+    color: var(--text-2);
+    background: var(--fill);
+    transition: color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
 
-    &:hover { color: var(--text); border-color: var(--ak-line-2) !important; }
+    &:hover { color: var(--text); background: var(--fill-2); }
+    &:active { transform: scale(0.94); }
   }
 }
 

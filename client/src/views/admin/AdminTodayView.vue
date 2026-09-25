@@ -288,7 +288,7 @@ onBeforeUnmount(() => {
             >{{ job ? t('studio.today.compressBusy') : t('studio.today.compress') }}</button>
           </div>
 
-          <div class="todo-i muted" style="--c: var(--primary)">
+          <div class="todo-i muted" style="--c: var(--ink)">
             <span class="ti"><SIcon name="message" /></span>
             <div class="tx">
               <b>{{ t('studio.today.commentTodo') }}</b>
@@ -340,14 +340,14 @@ onBeforeUnmount(() => {
 
   .date {
     font-size: 13px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     letter-spacing: 0.08em;
     display: flex;
     align-items: center;
     gap: 10px;
   }
 
-  .term { color: var(--primary-ink); font-weight: 500; }
+  .term { color: var(--ink); font-weight: 500; }
 
   h1 {
     font: 600 38px/1.3 var(--font-serif);
@@ -357,14 +357,14 @@ onBeforeUnmount(() => {
 
   p {
     margin: 0;
-    color: var(--ink-2);
+    color: var(--st-ink-2);
     font: 400 16px/1.8 var(--font-serif);
   }
 
   em {
     font-style: normal;
-    color: var(--ink);
-    border-bottom: 1.5px solid var(--primary-ring);
+    color: var(--st-ink);
+    border-bottom: 1.5px solid color-mix(in oklab, var(--ink) 35%, transparent);
     margin: 0 2px;
   }
 }
@@ -388,7 +388,7 @@ onBeforeUnmount(() => {
   position: relative;
   display: flex;
   flex-direction: column;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 8px;
   text-align: left;
   transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease-out), background var(--dur-fast);
@@ -403,13 +403,14 @@ onBeforeUnmount(() => {
 
   .dcv {
     height: 108px;
-    border-radius: 11px;
+    border-radius: var(--r-sm);
 
     &::after {
       content: '';
       position: absolute;
       inset: 0;
       z-index: 2;
+      /* 封面掠光：属于封面光影（品牌），非控件发光 */
       background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.35) 48%, transparent 60%);
       transform: translateX(-100%);
       transition: transform 0.9s var(--ease-out);
@@ -435,7 +436,7 @@ onBeforeUnmount(() => {
     align-items: center;
     gap: 8px;
     font-size: 12.5px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
   }
 
   .tags {
@@ -468,12 +469,12 @@ onBeforeUnmount(() => {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     box-shadow: 0 0 0 1.5px var(--line-2) inset;
     min-height: 230px;
     font-size: 14px;
 
-    &:hover { color: var(--primary-ink); box-shadow: 0 0 0 1.5px var(--primary) inset, var(--sh-card-hover); }
+    &:hover { color: var(--st-ink); box-shadow: 0 0 0 1.5px var(--line-3) inset, var(--sh-card-hover); }
 
     .pl {
       width: 44px;
@@ -485,14 +486,14 @@ onBeforeUnmount(() => {
       transition: all var(--dur) var(--ease-spring);
     }
 
-    &:hover .pl { background: var(--primary); color: var(--on-primary); transform: rotate(90deg); }
+    &:hover .pl { background: var(--solid); color: var(--on-solid); box-shadow: var(--btn-shadow); transform: rotate(90deg); }
   }
 }
 
 .tag {
-  color: var(--ink-2);
+  color: var(--st-ink-2);
 
-  &::before { content: '#'; color: var(--ink-4); margin-right: 2px; }
+  &::before { content: '#'; color: var(--st-ink-4); margin-right: 2px; }
 }
 
 .todo { display: flex; flex-direction: column; }
@@ -509,12 +510,12 @@ onBeforeUnmount(() => {
   .ti {
     width: 38px;
     height: 38px;
-    border-radius: 12px;
+    border-radius: var(--r-sm);
     display: grid;
     place-items: center;
     flex: none;
     background: color-mix(in oklab, var(--c) 12%, var(--paper));
-    color: color-mix(in oklab, var(--c) 75%, var(--ink));
+    color: color-mix(in oklab, var(--c) 75%, var(--st-ink));
     transition: background var(--dur), color var(--dur);
   }
 
@@ -525,7 +526,7 @@ onBeforeUnmount(() => {
   small {
     display: block;
     font-size: 12.5px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -535,37 +536,37 @@ onBeforeUnmount(() => {
 
   .pbar {
     height: 4px;
-    border-radius: 2px;
+    border-radius: calc(var(--r-xs) / 2);
     background: var(--well-2);
     overflow: hidden;
     margin-top: 8px;
     max-width: 160px;
 
-    i { display: block; height: 100%; background: var(--primary); border-radius: 2px; transition: width 0.3s linear; }
+    i { display: block; height: 100%; background: var(--ink); border-radius: calc(var(--r-xs) / 2); transition: width 0.3s linear; }
   }
 
   &.done .ti {
     background: color-mix(in oklab, var(--green) 14%, var(--paper));
-    color: color-mix(in oklab, var(--green) 70%, var(--ink));
+    color: color-mix(in oklab, var(--green) 70%, var(--st-ink));
   }
 
-  &.muted b { color: var(--ink-2); }
+  &.muted b { color: var(--st-ink-2); }
 }
 
 .week {
   margin-top: 28px;
   padding: 22px;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   background: var(--well);
 
   .say {
     font: 500 17px/1.7 var(--font-serif);
     margin: 0;
 
-    b { font-weight: 700; color: var(--primary-ink); margin: 0 3px; }
+    b { font-weight: 700; color: var(--ink); margin: 0 3px; }
   }
 
-  .sub { font-size: 13px; color: var(--ink-3); margin: 6px 0 18px; }
+  .sub { font-size: 13px; color: var(--st-ink-3); margin: 6px 0 18px; }
 }
 
 .bars {
@@ -588,8 +589,8 @@ onBeforeUnmount(() => {
       display: block;
       width: 100%;
       max-width: 26px;
-      border-radius: 6px;
-      background: var(--ink-4);
+      border-radius: var(--r-xs);
+      background: var(--st-ink-4);
       height: var(--h);
       transform-origin: bottom;
       animation: bar-up 0.9s var(--ease-spring) both;
@@ -598,17 +599,17 @@ onBeforeUnmount(() => {
       transition: opacity var(--dur-fast);
     }
 
-    span { font-size: 11.5px; color: var(--ink-3); }
+    span { font-size: 11.5px; color: var(--st-ink-3); }
 
     em {
       position: absolute;
       bottom: calc(var(--h) + 30px);
       font: 500 11px var(--font-mono);
       font-style: normal;
-      color: var(--ink);
+      color: var(--st-ink);
       background: var(--paper);
       padding: 3px 7px;
-      border-radius: 6px;
+      border-radius: var(--r-xs);
       box-shadow: var(--sh-pop);
       opacity: 0;
       transform: translateY(4px);
@@ -621,8 +622,8 @@ onBeforeUnmount(() => {
     &:hover em { opacity: 1; transform: none; }
 
     &.today {
-      i { background: var(--primary); opacity: 1; }
-      span { color: var(--primary-ink); font-weight: 500; }
+      i { background: var(--ink); opacity: 1; }
+      span { color: var(--ink); font-weight: 500; }
     }
 
     &.fut i { height: 4px; background: none; box-shadow: 0 0 0 1px var(--line-3) inset; opacity: 1; }

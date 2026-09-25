@@ -1,4 +1,5 @@
 import type { CardChoreo } from '../types';
+import { lightsIn, lightsOut } from './lights';
 
 /**
  * 纵深推拉（原 02 卡片部分）：镜头后撤——旧卡组沿 Z 轴退入暗处；
@@ -13,6 +14,7 @@ export const dolly: CardChoreo = {
     duration: 1470,
   },
   exit(e, t) {
+    lightsOut(e, t);
     const n = e.cards.length;
     e.cards.forEach((c, k) => t.a(c.el, [
       { transform: e.T(c.slot), filter: e.F(c.b, 0), opacity: 1 },
@@ -28,5 +30,6 @@ export const dolly: CardChoreo = {
       { transform: e.T(c.slot), filter: e.F(c.b, 0), opacity: 1 },
     ], { dur: 950, delay: 380 + k * 70 }));
     t.a(e.bg, [{ opacity: 0, transform: 'scale(1.3)' }, { opacity: 1, transform: 'scale(1)' }], { dur: 1050, delay: 380 });
+    lightsIn(e, t, (c) => 1330 + c.slot * 70);
   },
 };

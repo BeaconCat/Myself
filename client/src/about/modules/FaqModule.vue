@@ -63,9 +63,10 @@ const parts = (a: string) => a.split('`').map((text, i) => ({ text, code: i % 2 
   flex: none;
   width: 26px;
   height: 26px;
-  border-radius: 8px;
-  border: 1px solid var(--ak-line-2);
-  transition: background var(--dur) var(--ease-out), border-color var(--dur), color var(--dur), transform var(--dur) var(--ease-out);
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--ak-line-2);
+  color: var(--text-2);
+  transition: background-color var(--dur) var(--ease-out), box-shadow var(--dur), color var(--dur), transform var(--dur) var(--ease-out);
 
   &::before, &::after {
     content: '';
@@ -75,7 +76,7 @@ const parts = (a: string) => a.split('`').map((text, i) => ({ text, code: i % 2 
     width: 10px;
     height: 1.5px;
     margin: -0.75px 0 0 -5px;
-    border-radius: 1px;
+    border-radius: var(--r-pill);
     background: currentColor;
     transition: transform var(--dur) var(--ease-spring);
   }
@@ -83,7 +84,8 @@ const parts = (a: string) => a.split('`').map((text, i) => ({ text, code: i % 2 
   &::after { transform: rotate(90deg); }
 }
 
-.fq li.open .pm { background: var(--primary); border-color: transparent; color: var(--ak-on-primary, #fff); transform: rotate(180deg); }
+/* 展开 = 抬升 + 轻染 */
+.fq li.open .pm { background: var(--lift); box-shadow: var(--lift-shadow); color: var(--lift-fg); transform: rotate(180deg); }
 .fq li.open .pm::after { transform: rotate(0); }
 
 .ans {
@@ -107,5 +109,5 @@ const parts = (a: string) => a.split('`').map((text, i) => ({ text, code: i % 2 
 .fq li.open .ans { grid-template-rows: 1fr; }
 .fq li.open .ans p { opacity: 1; transform: none; transition-delay: 0.1s; }
 
-code { padding: 1px 6px; border-radius: 5px; font: 500 12.5px var(--ak-mono); background: var(--ak-sunken); border: 1px solid var(--ak-line); }
+code { padding: 1px 6px; border-radius: var(--r-xs); font: 500 12.5px var(--ak-mono); background: var(--ak-sunken); box-shadow: inset 0 0 0 1px var(--ak-line); }
 </style>

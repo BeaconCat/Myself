@@ -59,10 +59,10 @@ const now = useClock();
   height: 3px;
   margin-top: 9px;
   overflow: hidden;
-  border-radius: 3px;
-  background: var(--ak-sunken);
+  border-radius: var(--r-pill);
+  background: var(--fill-2);
 
-  i { display: block; width: 0; height: 100%; border-radius: 3px; background: var(--primary); transition: width 1.2s var(--ease-out); transition-delay: calc(var(--k) * 90ms + 250ms); }
+  i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--ink); transition: width 1.2s var(--ease-out); transition-delay: calc(var(--k) * 90ms + 250ms); }
 }
 
 .in .prog i { width: var(--w); }

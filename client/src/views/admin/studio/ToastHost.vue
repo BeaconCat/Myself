@@ -38,7 +38,7 @@ function act(t: Toast): void {
   gap: 10px;
   height: 42px;
   padding: 0 18px 0 14px;
-  border-radius: 21px;
+  border-radius: var(--r-pill);
   background: var(--toast-bg);
   color: var(--toast-ink);
   font-size: 13.5px;
@@ -53,7 +53,7 @@ function act(t: Toast): void {
   button {
     height: 30px;
     padding: 0 12px;
-    border-radius: 15px;
+    border-radius: var(--r-pill);
     font-size: 13px;
     font-weight: 500;
     color: var(--toast-ink);

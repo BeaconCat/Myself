@@ -11,6 +11,8 @@ import { dayPartKey, pad2, useClock, zoned } from '../useClock';
  * 身份区（profile）：编辑式大字宋体名字 + 一次性扫光、一句话、自述、
  * 实时状态行（正在做 / 城市 / 本地时间逐秒走）与社交入口；
  * 右侧为圆角形象图，按 portrait.fade 向左（或向下）渐隐融入背景，未配置时用站点 logo。
+ * 形象图圆角：data.portrait.radius（px）优先，未配置时跟随全局 --r-xl。
+ * 社交入口：primary = 实底主按钮（--solid），其余为次级按钮。
  */
 const props = defineProps<ModProps>();
 const d = computed(() => props.mod.data as ProfileData);
@@ -42,12 +44,13 @@ const clock = computed(() => zoned(now.value, tz.value));
 const tzLabel = computed(() => `UTC${tz.value >= 0 ? '+' : ''}${tz.value}`);
 
 const portrait = computed(() => {
-  const p = d.value.portrait ?? { src: '', fade: 'left', radius: 32 };
+  const p: Partial<ProfileData['portrait']> = d.value.portrait ?? {};
+  const r = typeof p.radius === 'number' ? p.radius : null;
   return {
     src: p.src || '/favicon-256.png',
     logo: !p.src,
     fade: p.fade || 'left',
-    style: { '--r': `${Number(p.radius ?? 32)}px`, '--focus': p.focus || '50% 40%' },
+    style: { '--pr': r != null && Number.isFinite(r) ? `${r}px` : undefined, '--pf': p.focus || '50% 40%' },
   };
 });
 
@@ -91,6 +94,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
           v-for="l in d.links"
           :key="l.name + l.url"
           :href="l.url"
+          class="ak-btn"
           :class="{ pri: l.primary }"
           :target="external(l.url)"
           rel="noopener"
@@ -106,7 +110,6 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
       :class="[`fade-${portrait.fade}`, { logo: portrait.logo }]"
       :style="portrait.style"
     >
-      <span class="pf-glow" aria-hidden="true" />
       <span class="pf-frame">
         <img :src="portrait.src" :alt="d.name" draggable="false" />
       </span>
@@ -139,7 +142,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
   color: var(--ak-text-3);
   text-transform: uppercase;
 
-  i { width: 44px; height: 1px; background: linear-gradient(90deg, var(--primary), transparent); }
+  i { width: 44px; height: 1px; background: var(--line-2); }
 }
 
 .pf-hi {
@@ -157,10 +160,11 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
   letter-spacing: -0.035em;
   color: var(--text);
 
-  .dotp { display: inline-block; color: var(--primary); text-shadow: 0 0 30px rgba(var(--primary-rgb), 0.7); }
+  .dotp { display: inline-block; color: var(--primary); }
 
+  /* 一次性扫光：中性明度带（不带主色），扫过后即为纯文字色 */
   .lit {
-    background: linear-gradient(100deg, var(--text) 0 40%, color-mix(in oklab, var(--primary) 55%, white) 50%, var(--text) 60% 100%) 100% 0 / 250% 100% no-repeat;
+    background: linear-gradient(100deg, var(--text) 0 40%, var(--text-3) 50%, var(--text) 60% 100%) 100% 0 / 250% 100% no-repeat;
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -204,24 +208,12 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
   gap: 10px;
 
   a {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
     height: 40px;
-    padding: 0 16px 0 13px;
-    border-radius: 12px;
-    font-size: 13.5px;
-    color: var(--text-2);
-    border: 1px solid var(--ak-line);
-    background: color-mix(in oklab, var(--ak-surface) 70%, transparent);
-    transition: color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+    padding: 0 18px 0 15px;
 
-    &:hover { color: var(--text); border-color: rgba(var(--primary-rgb), 0.5); transform: translateY(-2px); box-shadow: 0 10px 24px -14px rgba(var(--primary-rgb), 0.8); }
+    .ak-mono { font-size: 11.5px; font-weight: 400; color: var(--ak-text-3); }
 
-    .ak-mono { font-size: 11.5px; color: var(--ak-text-3); }
-
-    &.pri { background: var(--text); color: var(--bg); border-color: transparent; }
-    &.pri .ak-mono { color: color-mix(in oklab, var(--bg) 60%, var(--text)); }
+    &.pri .ak-mono { color: color-mix(in oklab, var(--on-solid) 68%, transparent); }
   }
 }
 
@@ -234,21 +226,12 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
   animation: pf-portrait-in 1.2s 0.15s var(--ease-out) both;
 }
 
-.pf-glow {
-  position: absolute;
-  inset: 12% -6% 6% 22%;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(var(--primary-rgb), 0.22), transparent);
-  filter: blur(30px);
-  pointer-events: none;
-}
-
 .pf-frame {
   position: absolute;
   inset: 0;
   display: block;
   overflow: hidden;
-  border-radius: var(--r, 32px);
+  border-radius: var(--pr, var(--r-xl));
   box-shadow: 0 40px 80px -40px rgb(0 0 0 / 0.55);
 
   img {
@@ -256,7 +239,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: var(--focus, 50% 40%);
+    object-position: var(--pf, 50% 40%);
     transition: transform 1.2s var(--ease-out);
   }
 }
@@ -273,7 +256,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
   mask-image: linear-gradient(to top, transparent, rgb(0 0 0 / 0.08) 8%, rgb(0 0 0 / 0.3) 17%, rgb(0 0 0 / 0.62) 27%, rgb(0 0 0 / 0.88) 35%, #000 42%);
 }
 
-/* 未配置形象图：品牌 logo 置于同色深底上 */
+/* 未配置形象图：品牌 logo 置于同色深底上。品牌光影例外：底部一团主色门缝光属于品牌构图 */
 .pf-portrait.logo .pf-frame {
   background:
     radial-gradient(60% 50% at 58% 62%, rgba(var(--primary-rgb), 0.28), transparent 70%),
@@ -297,8 +280,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
     width: 120px;
     height: 120px;
 
-    .pf-frame { border-radius: min(var(--r, 32px), 30px); -webkit-mask-image: none; mask-image: none; box-shadow: 0 16px 36px -18px rgb(0 0 0 / 0.6); }
-    .pf-glow { display: none; }
+    .pf-frame { border-radius: min(var(--pr, var(--r-xl)), 30px); -webkit-mask-image: none; mask-image: none; box-shadow: 0 16px 36px -18px rgb(0 0 0 / 0.6); }
   }
 
   .pf-portrait.logo .pf-frame img { inset: 0; width: 86%; }

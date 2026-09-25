@@ -180,7 +180,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
           </header>
           <div class="dt-head">
             <div class="dt-meta m-in" style="--i: 0">
-              <span v-if="post.tags[0]" class="m-tagp">{{ post.tags[0] }}</span>
+              <span v-if="post.tags[0]" class="m-mood">{{ post.tags[0] }}</span>
               <span>{{ date(post.createdAt) }} · {{ t('mobile.article.minutes', { n: minutes }) }}</span>
             </div>
             <h1 class="m-in" style="--i: 1">{{ post.title }}</h1>
@@ -200,7 +200,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
                 class="m-tagp m-tap"
                 @click="router.push({ path: '/articles', query: { tag } })"
               >
-                # {{ tag }}
+                {{ tag }}
               </button>
             </div>
             <button v-if="next" class="next m-tap" @click="router.push(`/articles/${next.slug}`)">
@@ -315,6 +315,12 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   gap: 10px;
   font-size: 12.5px;
   color: var(--text-2);
+
+  .m-mood {
+    font-size: inherit;
+    font-weight: 500;
+    color: var(--text);
+  }
 }
 
 .lede {
@@ -331,7 +337,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   gap: 10px;
   margin-top: 20px;
   padding: 14px 0 22px;
-  border-bottom: 0.5px solid var(--m-line);
+  border-bottom: 0.5px solid var(--line);
   font-size: 14px;
 
   .av {
@@ -341,7 +347,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   }
 
   small {
-    color: var(--m-text-3);
+    color: var(--text-3);
     font-size: 12.5px;
   }
 }
@@ -374,9 +380,10 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   :deep(p) { margin: 0 0 16px; letter-spacing: 0.01em; }
 
   :deep(a) {
-    color: var(--m-ink);
+    color: var(--ink);
     text-decoration: underline;
-    text-decoration-color: var(--m-soft);
+    text-decoration-color: color-mix(in oklab, var(--ink) 35%, transparent);
+    text-decoration-thickness: 1px;
     text-underline-offset: 3px;
   }
 
@@ -386,9 +393,9 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
     font-family: var(--m-font-mono);
     font-size: 0.8em;
     padding: 2px 6px;
-    border-radius: 6px;
-    background: var(--m-fill-2);
-    color: var(--m-ink);
+    border-radius: var(--r-xs);
+    background: var(--fill-2);
+    color: var(--text);
   }
 
   :deep(pre) {
@@ -400,7 +407,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
     line-height: 1.75;
     overflow-x: auto;
     scrollbar-width: none;
-    box-shadow: inset 0 0.5px 0 var(--m-line), inset 0 -0.5px 0 var(--m-line);
+    box-shadow: inset 0 0.5px 0 var(--line), inset 0 -0.5px 0 var(--line);
     border-radius: 0;
     touch-action: pan-x pan-y;
   }
@@ -411,7 +418,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   :deep(blockquote) {
     margin: 22px 0;
     padding: 4px 0 4px 18px;
-    background: linear-gradient(var(--primary), var(--primary)) left / 2px 100% no-repeat;
+    box-shadow: inset 2px 0 0 var(--ink);
     font-size: 1.1em;
     line-height: 1.75;
     color: var(--text);
@@ -440,10 +447,10 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
     position: absolute;
     left: 4px;
     top: 0.8em;
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
-    background: var(--primary);
+    background: var(--text-3);
   }
 
   :deep(ol > li) { counter-increment: li; }
@@ -454,7 +461,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
     left: 0;
     font-family: var(--m-font-mono);
     font-size: 0.8em;
-    color: var(--m-ink);
+    color: var(--text-3);
   }
 
   :deep(li.task-list-item)::before { display: none; }
@@ -480,7 +487,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   :deep(th),
   :deep(td) {
     padding: 8px 12px;
-    border-bottom: 0.5px solid var(--m-line-2);
+    border-bottom: 0.5px solid var(--line-2);
     text-align: left;
     white-space: nowrap;
   }
@@ -488,7 +495,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   :deep(hr) {
     border: 0;
     height: 0.5px;
-    background: var(--m-line-2);
+    background: var(--line-2);
     margin: 28px 0;
   }
 }
@@ -510,16 +517,16 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   width: 100%;
   margin-top: 26px;
   padding: 14px;
-  border-radius: 22px;
+  border-radius: var(--r-xl);
   text-align: left;
-  background: var(--m-elev);
-  box-shadow: inset 0 0 0 0.5px var(--m-line), var(--m-shadow);
+  background: var(--elev);
+  box-shadow: var(--shadow-card);
 
   .nt { flex: 1; min-width: 0; }
 
   small {
     font-size: 12px;
-    color: var(--m-text-3);
+    color: var(--text-3);
   }
 
   b {
@@ -533,7 +540,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
     position: relative;
     width: 62px;
     height: 62px;
-    border-radius: 16px;
+    border-radius: var(--r-lg);
     overflow: hidden;
     flex: none;
   }
@@ -560,7 +567,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
     background: var(--m-glass-2);
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
-    box-shadow: 0 0.5px 0 var(--m-line-2);
+    box-shadow: 0 0.5px 0 var(--line-2);
     opacity: 0;
     transition: opacity var(--dur) var(--ease-out);
   }
@@ -597,7 +604,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
     width: 100%;
     transform: scaleX(var(--rp, 0));
     transform-origin: left center;
-    background: linear-gradient(90deg, var(--primary), var(--accent-yellow));
+    background: var(--ink);
     opacity: 0;
     transition: opacity var(--dur);
   }
@@ -613,7 +620,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   }
 
   .m-icbtn {
-    background: var(--m-fill);
+    background: var(--fill-2);
     color: var(--text);
     box-shadow: none;
   }
@@ -654,11 +661,11 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   border-radius: 999px;
   font-size: 14px;
 
-  &:active { background: var(--m-fill-2); }
+  &:active { background: var(--fill-3); }
 
   small {
     font-size: 12.5px;
-    color: var(--m-text-3);
+    color: var(--text-3);
   }
 }
 
@@ -672,10 +679,10 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
     stroke-width: 2.6;
   }
 
-  .bg { stroke: var(--m-fill-2); }
+  .bg { stroke: var(--fill-3); }
 
   .fg {
-    stroke: var(--primary);
+    stroke: var(--ink);
     stroke-linecap: round;
     stroke-dasharray: 56.55;
     stroke-dashoffset: calc(56.55 * (1 - var(--rp, 0)));
@@ -692,7 +699,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
 .sep {
   width: 0.5px;
   height: 22px;
-  background: var(--m-line-2);
+  background: var(--line-2);
 }
 
 /* 目录 sheet */
@@ -708,7 +715,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
     gap: 14px;
     min-height: 52px;
     padding: 0 14px;
-    border-radius: 16px;
+    border-radius: var(--r-md);
     text-align: left;
     font-size: 15.5px;
     color: var(--text-2);
@@ -722,7 +729,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: var(--m-line-2);
+      background: var(--line-2);
       flex: none;
       transition: all var(--dur) var(--ease-spring);
     }
@@ -731,23 +738,21 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
       margin-left: auto;
       padding-left: 12px;
       font-size: 12px;
-      color: var(--m-text-3);
+      color: var(--text-3);
       font-family: var(--m-font-mono);
       font-weight: 400;
       flex: none;
     }
 
-    &.done i { background: var(--m-text-3); }
+    &.done i { background: var(--text-3); }
 
     &.cur {
-      background: var(--m-soft);
-      color: var(--text);
+      background: var(--lift);
+      box-shadow: var(--lift-shadow);
+      color: var(--lift-fg);
       font-weight: 600;
 
-      i {
-        background: var(--primary);
-        box-shadow: 0 0 0 4px var(--m-soft);
-      }
+      i { background: var(--ink); }
     }
   }
 }

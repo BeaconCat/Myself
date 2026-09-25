@@ -138,7 +138,7 @@ function date(p: Post): string {
   inset: 0;
   display: block;
   width: 100%;
-  border-radius: 30px;
+  border-radius: var(--r-xl);
   overflow: hidden;
   text-align: left;
   color: #fff !important;
@@ -158,6 +158,7 @@ html.m-shell[data-mode='light'] .inner {
   .drag & { transition: none; }
 }
 
+/* 封面压暗层：属于品牌封面光影（中性黑，非主色），保证白字可读 */
 .shade {
   position: absolute;
   inset: 0;
@@ -252,8 +253,8 @@ p {
   position: relative;
   width: 6px;
   height: 6px;
-  border-radius: 3px;
-  background: var(--m-fill-2) !important;
+  border-radius: 999px;
+  background: var(--fill-3) !important;
   overflow: hidden;
   transition: width 0.45s var(--ease-spring);
 
@@ -263,8 +264,8 @@ p {
     position: absolute;
     inset: 0 auto 0 0;
     width: 0;
-    background: var(--primary);
-    border-radius: 3px;
+    background: var(--ink);
+    border-radius: 999px;
   }
 
   &.on i { animation: fill 6s linear forwards; }

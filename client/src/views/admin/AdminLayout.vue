@@ -70,17 +70,24 @@ const active = computed(() => {
 });
 const immersive = computed(() => route.name === 'admin-write-post');
 
-/* ===== 侧栏滑动指示块 ===== */
+/* ===== 侧栏选中块：抬升 + 轻染，在项之间 morph（前缘快、后缘慢） ===== */
 const navEl = ref<HTMLElement | null>(null);
-const ind = ref({ y: 0, h: 38, show: false });
+const ind = ref({ top: 0, bottom: 0, down: true, show: false });
 
 function moveInd(): void {
-  const a = navEl.value?.querySelector<HTMLElement>(`a[data-name="${active.value}"]`);
-  if (!a) {
+  const nav = navEl.value;
+  const a = nav?.querySelector<HTMLElement>(`a[data-name="${active.value}"]`);
+  if (!nav || !a) {
     ind.value.show = false;
     return;
   }
-  ind.value = { y: a.offsetTop, h: a.offsetHeight, show: true };
+  const top = a.offsetTop;
+  ind.value = {
+    top,
+    bottom: nav.clientHeight - top - a.offsetHeight,
+    down: top >= ind.value.top,
+    show: true,
+  };
 }
 watch(active, () => void nextTick(moveInd));
 
@@ -158,7 +165,11 @@ onBeforeUnmount(() => {
       </router-link>
 
       <nav ref="navEl" class="nav">
-        <div class="nav-ind" :class="{ show: ind.show }" :style="{ transform: `translateY(${ind.y}px)`, height: `${ind.h}px` }" />
+        <div
+          class="nav-ind"
+          :class="{ show: ind.show, up: !ind.down }"
+          :style="{ top: `${ind.top}px`, bottom: `${ind.bottom}px` }"
+        />
         <template v-for="(g, gi) in GROUPS" :key="gi">
           <div v-if="g.label" class="nav-label">{{ t(`studio.nav.${g.label}`) }}</div>
           <router-link
@@ -268,7 +279,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  border-radius: var(--r);
+  border-radius: var(--r-lg);
   background: var(--side);
   box-shadow: var(--sh-side);
   backdrop-filter: blur(20px) saturate(1.2);
@@ -286,7 +297,7 @@ onBeforeUnmount(() => {
   img {
     width: 30px;
     height: 30px;
-    border-radius: 8px;
+    border-radius: var(--r-xs);
     box-shadow: 0 4px 10px -4px rgba(10, 20, 40, 0.5);
   }
 
@@ -299,7 +310,7 @@ onBeforeUnmount(() => {
   small {
     display: block;
     font-size: 11.5px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     margin-top: 4px;
     letter-spacing: 0.08em;
   }
@@ -331,38 +342,39 @@ onBeforeUnmount(() => {
     gap: 11px;
     height: 38px;
     padding: 0 12px;
-    border-radius: 11px;
-    color: var(--ink-2);
+    border-radius: var(--r-sm);
+    color: var(--st-ink-2);
     font-size: 14px;
     flex: none;
     transition: color var(--dur-fast), background var(--dur-fast);
 
     .st-ic {
-      color: var(--ink-3);
+      color: var(--st-ink-3);
       transition: color var(--dur-fast), transform var(--dur) var(--ease-spring);
     }
 
-    &:hover { color: var(--ink); }
+    &:hover { color: var(--st-ink); }
     &:hover:not(.on) { background: var(--hover); }
     &:hover .st-ic { transform: translateY(-1px); }
 
+    /* 当前项：抬升块承载位置（不挂信号点），图标着信号色 */
     &.on {
-      color: var(--ink);
+      color: var(--lift-fg);
       font-weight: 500;
 
-      .st-ic { color: var(--primary-ink); }
+      .st-ic { color: var(--ink); }
     }
   }
 
   .cnt {
     margin-left: auto;
     font-size: 11.5px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     min-width: 20px;
     height: 20px;
     display: grid;
     place-items: center;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     padding: 0 6px;
   }
 }
@@ -371,22 +383,32 @@ onBeforeUnmount(() => {
   position: absolute;
   left: 4px;
   right: 4px;
-  top: 0;
-  border-radius: 11px;
-  background: var(--paper);
-  box-shadow: 0 0 0 1px var(--line), 0 4px 12px -6px color-mix(in oklab, var(--tint) 34%, transparent);
+  border-radius: var(--r-sm);
+  background: var(--lift);
+  box-shadow: var(--lift-shadow);
   pointer-events: none;
   opacity: 0;
-  transition: transform var(--dur) var(--ease-spring), height var(--dur) var(--ease-spring), opacity var(--dur-fast);
+  /* 向下：下缘领先（.30s ease-out），上缘拖尾（.46s spring 延迟 .05s）；向上反之 */
+  transition:
+    bottom 0.3s var(--ease-out),
+    top 0.46s var(--ease-spring) 0.05s,
+    background-color var(--dur),
+    opacity var(--dur-fast);
+
+  &.up {
+    transition:
+      top 0.3s var(--ease-out),
+      bottom 0.46s var(--ease-spring) 0.05s,
+      background-color var(--dur),
+      opacity var(--dur-fast);
+  }
 
   &.show { opacity: 1; }
 }
 
-:root[data-mode='dark'] .nav-ind { background: var(--well-2); box-shadow: 0 0 0 1px var(--line-2); }
-
 .nav-label {
   font-size: 11.5px;
-  color: var(--ink-4);
+  color: var(--st-ink-4);
   letter-spacing: 0.14em;
   padding: 18px 12px 6px;
   font-weight: 500;
@@ -418,7 +440,7 @@ onBeforeUnmount(() => {
     text-overflow: ellipsis;
   }
 
-  small { font-size: 12px; color: var(--ink-3); }
+  small { font-size: 12px; color: var(--st-ink-3); }
 }
 
 .avatar {
@@ -434,16 +456,16 @@ onBeforeUnmount(() => {
 }
 
 .ext {
-  color: var(--ink-3);
+  color: var(--st-ink-3);
   width: 30px;
   height: 30px;
   display: grid;
   place-items: center;
-  border-radius: 9px;
+  border-radius: var(--r-sm);
   flex: none;
   transition: all var(--dur-fast);
 
-  &:hover { background: var(--hover); color: var(--ink); }
+  &:hover { background: var(--hover); color: var(--st-ink); }
 }
 
 .theme-row {
@@ -458,7 +480,7 @@ onBeforeUnmount(() => {
   position: relative;
   display: flex;
   background: var(--well);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   padding: 3px;
   box-shadow: 0 0 0 1px var(--line) inset;
 
@@ -469,11 +491,12 @@ onBeforeUnmount(() => {
     height: 26px;
     display: grid;
     place-items: center;
-    color: var(--ink-3);
-    border-radius: 8px;
+    color: var(--st-ink-3);
+    border-radius: var(--r-xs);
     transition: color var(--dur);
 
-    &.on { color: var(--ink); }
+    &.on { color: var(--lift-fg); }
+    &.on .st-ic { color: var(--ink); }
   }
 
   .k {
@@ -482,16 +505,13 @@ onBeforeUnmount(() => {
     left: 3px;
     width: 30px;
     height: 26px;
-    border-radius: 8px;
-    background: var(--paper);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--line);
-    transition: transform var(--dur) var(--ease-spring);
+    border-radius: var(--r-xs);
+    background: var(--lift);
+    box-shadow: var(--lift-shadow);
+    transition: transform var(--dur) var(--ease-spring), background-color var(--dur);
   }
 
-  &.dark .k {
-    transform: translateX(30px);
-    background: var(--well-2);
-  }
+  &.dark .k { transform: translateX(30px); }
 }
 
 .seasons {
@@ -505,6 +525,7 @@ onBeforeUnmount(() => {
     display: grid;
     place-items: center;
     position: relative;
+    transition: background-color var(--dur-fast), box-shadow var(--dur-fast);
 
     i {
       width: 14px;
@@ -520,7 +541,7 @@ onBeforeUnmount(() => {
       position: absolute;
       inset: 3px;
       border-radius: 50%;
-      box-shadow: 0 0 0 1.5px var(--c);
+      box-shadow: 0 0 0 1.5px var(--st-ink);
       opacity: 0;
       transform: scale(0.6);
       transition: all var(--dur) var(--ease-spring);
@@ -528,7 +549,11 @@ onBeforeUnmount(() => {
 
     &:hover i { transform: scale(1.12); }
 
+    /* 色盘选中：抬升底 + 中性细环（不用色盘自身颜色描边/发光） */
     &.on {
+      background: var(--lift);
+      box-shadow: var(--lift-shadow);
+
       &::after { opacity: 1; transform: scale(1); }
       i { transform: scale(0.72); }
     }
@@ -540,7 +565,7 @@ onBeforeUnmount(() => {
   position: relative;
   min-width: 0;
   min-height: 0;
-  border-radius: var(--r);
+  border-radius: var(--r-lg);
   background: var(--paper);
   box-shadow: var(--sh-paper);
   overflow: hidden;
@@ -557,7 +582,7 @@ onBeforeUnmount(() => {
   overscroll-behavior: contain;
 }
 
-/* 「今天」右上角的窗光 */
+/* 「今天」右上角的窗光：品牌光影母题（门缝/窗格光），属于允许发光的品牌装饰，非控件 */
 .today-glow {
   position: absolute;
   right: 0;

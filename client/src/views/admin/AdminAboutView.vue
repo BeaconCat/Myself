@@ -326,7 +326,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
   align-items: center;
   gap: 0 16px;
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   background: var(--well);
   margin-bottom: 28px;
 
@@ -358,10 +358,10 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
     min-width: 0;
 
     b { display: block; font: 600 17px/1.3 var(--font-serif); }
-    small { font-size: 12.5px; color: var(--ink-3); }
+    small { font-size: 12.5px; color: var(--st-ink-3); }
   }
 
-  .count { font-size: 12.5px; color: var(--ink-3); }
+  .count { font-size: 12.5px; color: var(--st-ink-3); }
   .chev { transition: transform var(--dur) var(--ease-spring); }
   &.open .chev { transform: rotate(180deg); }
 
@@ -401,7 +401,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
 
 .mod {
   position: relative;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   background: var(--paper);
   box-shadow: 0 0 0 1px var(--line-2);
   display: flex;
@@ -413,13 +413,13 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
 
   &.dragging {
     z-index: 5;
-    box-shadow: 0 0 0 1.5px var(--primary), 0 30px 60px -20px color-mix(in oklab, var(--tint) 54%, transparent);
+    box-shadow: 0 0 0 1.5px var(--line-3), var(--shadow-pop);
     user-select: none;
 
     .grip { cursor: grabbing; }
   }
 
-  &.open { box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--primary) 45%, var(--line-2)), 0 0 0 5px var(--primary-ring); }
+  &.open { box-shadow: 0 0 0 1px color-mix(in oklab, var(--ink) 55%, transparent), 0 0 0 3px color-mix(in oklab, var(--ink) 16%, transparent); }
 
   &.off .mb { opacity: 0.4; filter: grayscale(1); }
 }
@@ -432,45 +432,45 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
   gap: 8px;
   padding: 10px 10px 0 8px;
   font-size: 12.5px;
-  color: var(--ink-3);
+  color: var(--st-ink-3);
 
   .grip {
     width: 26px;
     height: 26px;
     display: grid;
     place-items: center;
-    border-radius: 8px;
+    border-radius: var(--r-xs);
     cursor: grab;
-    color: var(--ink-4);
+    color: var(--st-ink-4);
     touch-action: none;
 
-    &:hover { background: var(--hover); color: var(--ink-2); }
+    &:hover { background: var(--hover); color: var(--st-ink-2); }
   }
 
   .mi {
     width: 26px;
     height: 26px;
-    border-radius: 8px;
+    border-radius: var(--r-xs);
     display: grid;
     place-items: center;
-    background: var(--primary-soft);
-    color: var(--primary-ink);
+    background: var(--tint);
+    color: var(--ink);
   }
 
-  b { font-weight: 500; font-size: 13.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  b { font-weight: 500; font-size: 13.5px; color: var(--st-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .hid {
     font-size: 11px;
     padding: 1px 7px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     background: var(--well-2);
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     white-space: nowrap;
   }
 
   .sp { flex: 1; }
-  .st-ibtn.sm { width: 28px; height: 28px; border-radius: 8px; }
-  :deep(.st-ibtn) { width: 28px; height: 28px; border-radius: 8px; }
+  .st-ibtn.sm { width: 28px; height: 28px; border-radius: var(--r-xs); }
+  :deep(.st-ibtn) { width: 28px; height: 28px; border-radius: var(--r-xs); }
 }
 
 .mb {
@@ -481,7 +481,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
   .sum {
     margin: 0 0 4px;
     font: 500 15px/1.6 var(--font-serif);
-    color: var(--ink);
+    color: var(--st-ink);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -491,7 +491,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
   .desc {
     margin: 0;
     font-size: 12.5px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     display: -webkit-box;
     -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
@@ -516,11 +516,11 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
   min-height: 104px;
   box-shadow: 0 0 0 1.5px var(--line-2) inset;
   background: transparent;
-  color: var(--ink-3);
+  color: var(--st-ink-3);
   font-size: 14px;
   cursor: pointer;
 
-  &:hover { color: var(--primary-ink); box-shadow: 0 0 0 1.5px var(--primary) inset; }
+  &:hover { color: var(--ink); box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--ink) 55%, transparent) inset; }
 }
 
 @media (max-width: 1180px) {

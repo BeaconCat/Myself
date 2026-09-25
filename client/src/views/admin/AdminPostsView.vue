@@ -275,7 +275,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
 .pcard {
   position: relative;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   padding: 8px;
   cursor: pointer;
   transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease-out), background var(--dur-fast);
@@ -288,13 +288,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
   .pcv {
     aspect-ratio: 16 / 10;
-    border-radius: 12px;
+    border-radius: var(--r-sm);
 
     &::after {
       content: '';
       position: absolute;
       inset: 0;
       z-index: 2;
+      /* 封面掠光：属于封面光影（品牌），非控件发光 */
       background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.28) 48%, transparent 62%);
       transform: translateX(-110%);
       transition: transform 1s var(--ease-out);
@@ -330,7 +331,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     margin: 0 0 12px;
     font-size: 13.5px;
     line-height: 1.65;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -343,7 +344,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     align-items: center;
     gap: 10px;
     font-size: 12.5px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     min-height: 30px;
 
     .mono { font-size: 11.5px; }
@@ -362,10 +363,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 }
 
 .tag {
-  color: var(--ink-2);
+  color: var(--st-ink-2);
   white-space: nowrap;
 
-  &::before { content: '#'; color: var(--ink-4); margin-right: 2px; }
+  &::before { content: '#'; color: var(--st-ink-4); margin-right: 2px; }
 }
 
 $cols: 84px minmax(0, 1fr) 140px 90px 96px 88px 36px;
@@ -378,7 +379,7 @@ $cols: 84px minmax(0, 1fr) 140px 90px 96px 88px 36px;
   gap: 18px;
   padding: 0 12px 10px;
   font-size: 12px;
-  color: var(--ink-4);
+  color: var(--st-ink-4);
   letter-spacing: 0.06em;
   border-bottom: 1px solid var(--line);
   margin-bottom: 6px;
@@ -392,13 +393,13 @@ $cols: 84px minmax(0, 1fr) 140px 90px 96px 88px 36px;
   align-items: center;
   gap: 18px;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   cursor: pointer;
   transition: background var(--dur-fast);
 
   &:hover { background: var(--well); }
 
-  .rcv { height: 52px; border-radius: 9px; }
+  .rcv { height: 52px; border-radius: var(--r-sm); }
   .tt { min-width: 0; }
 
   h3 {
@@ -412,11 +413,11 @@ $cols: 84px minmax(0, 1fr) 140px 90px 96px 88px 36px;
     gap: 6px;
   }
 
-  .pin-i { color: var(--primary-ink); }
+  .pin-i { color: var(--ink); }
 
   small {
     font: 12px var(--font-mono);
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -424,7 +425,7 @@ $cols: 84px minmax(0, 1fr) 140px 90px 96px 88px 36px;
   }
 
   .tags { display: flex; gap: 8px; font-size: 12.5px; overflow: hidden; }
-  .num { font: 500 12px var(--font-mono); color: var(--ink-3); text-align: right; }
+  .num { font: 500 12px var(--font-mono); color: var(--st-ink-3); text-align: right; }
 }
 
 @media (max-width: 1180px) {

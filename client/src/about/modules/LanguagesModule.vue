@@ -5,7 +5,10 @@ import type { LanguagesData } from '../types';
 import type { ModProps } from './props';
 import ModHead from '../parts/ModHead.vue';
 
-/** 语言占比（languages）：堆叠条（段间 3px 缝 + 顶部高光）或环形图；图例与图形悬停互相高亮 */
+/**
+ * 语言占比（languages）：堆叠条（段间 3px 缝）或环形图；图例与图形悬停互相高亮。
+ * 配色 = 主色单色阶梯（按占比排名从实到淡），不再使用每项自带的彩色，保持低饱和。
+ */
 const props = defineProps<ModProps>();
 const d = computed(() => props.mod.data as LanguagesData);
 const { t } = useI18n();
@@ -14,8 +17,14 @@ const hover = ref<number | null>(null);
 /** 合计不足 100 时按比例归一 */
 const items = computed(() => {
   const sum = d.value.items.reduce((a, b) => a + Math.max(0, b.percent), 0) || 1;
-  return d.value.items.map((it) => ({ ...it, share: (Math.max(0, it.percent) / sum) * 100 }));
+  return d.value.items.map((it, i) => ({ ...it, share: (Math.max(0, it.percent) / sum) * 100, color: ladder(i) }));
 });
+
+/** 主色单色阶梯：第 i 段主色不透明度递减（叠在卡面上即为同色相明度阶梯） */
+const STEPS = [88, 62, 44, 30, 20];
+function ladder(i: number): string {
+  return `color-mix(in oklab, var(--primary) ${STEPS[Math.min(i, STEPS.length - 1)]}%, transparent)`;
+}
 
 const R = 50;
 const C = 2 * Math.PI * R;
@@ -77,25 +86,24 @@ const arcs = computed(() => {
 .lg-bar {
   display: flex;
   gap: 3px;
-  height: 14px;
-  border-radius: 7px;
+  height: 12px;
+  border-radius: var(--r-pill);
   overflow: hidden;
 
   i {
     position: relative;
     width: var(--w);
     height: 100%;
-    border-radius: 3px;
+    border-radius: calc(var(--r-xs) * 0.5);
     background: var(--c);
-    transition: opacity var(--dur), filter var(--dur);
+    transition: opacity var(--dur);
 
-    &:first-child { border-radius: 7px 3px 3px 7px; }
-    &:last-child { border-radius: 3px 7px 7px 3px; }
-    &::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgb(255 255 255 / 0.28), transparent 60%); }
+    &:first-child { border-top-left-radius: var(--r-pill); border-bottom-left-radius: var(--r-pill); }
+    &:last-child { border-top-right-radius: var(--r-pill); border-bottom-right-radius: var(--r-pill); }
   }
 
-  &.hov i { opacity: 0.28; }
-  &.hov i.on { opacity: 1; filter: drop-shadow(0 0 8px var(--c)); }
+  &.hov i { opacity: 0.35; }
+  &.hov i.on { opacity: 1; }
 }
 
 .in .lg-bar i { animation: lg-grow 1.2s var(--ease-out) both; }
@@ -116,13 +124,13 @@ const arcs = computed(() => {
     align-items: center;
     padding: 6px 8px;
     margin: 0 -8px;
-    border-radius: 8px;
+    border-radius: var(--r-sm);
     font-size: 13.5px;
     cursor: default;
     transition: background var(--dur-fast);
 
     &:hover, &.on { background: var(--ak-sunken); }
-    i { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+    i { width: 10px; height: 10px; border-radius: calc(var(--r-xs) * 0.6); background: var(--c); }
     b { font: 500 12.5px var(--ak-mono); color: var(--text-2); }
   }
 }

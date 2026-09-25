@@ -1,123 +1,242 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import HeroCarousel, { type HeroItem } from '../components/home/HeroCarousel.vue';
-import { placeholderCover } from '../utils/placeholder';
-import { api, type Post } from '../api';
+import { COVER_KINDS } from '../components/home/hero/CoverArt.vue';
+import { api, type Note, type Post } from '../api';
 import { useLoadingStore } from '../stores/loading';
-import PostZigzagList from '../components/post/PostZigzagList.vue';
-import GithubStatusCard from '../components/home/GithubStatusCard.vue';
+import { useConfigStore } from '../stores/config';
+import LatestPosts from '../components/home/LatestPosts.vue';
+import ThoughtsStrip from '../components/home/ThoughtsStrip.vue';
 import AboutMeCard from '../components/home/AboutMeCard.vue';
+import GithubStatusCard from '../components/home/GithubStatusCard.vue';
+import { hashOf, monthDay, type GhStatus } from '../components/home/format';
 
-/* 轮播对接真实文章（规则由后台配置：最新 n 条 + 置顶策略） */
+/**
+ * 首页：Hero（高度随内容，约 min(78vh, 720px)）→ 最新文章（首篇大卡 + 缩略列表）
+ * → 随想横向预览 → 关于小卡 + GitHub。
+ * Hero 数据按住路由揭幕；其余板块各自加载，期间渲染同形骨架，到达后 rise-stagger 入场。
+ */
+const { t } = useI18n();
+const config = useConfigStore();
+
 const heroItems = ref<HeroItem[]>([]);
 const heroInterval = ref(3000);
+const heroLoading = ref(true);
+
 const latest = ref<Post[]>([]);
+const postTotal = ref(0);
+const postsLoading = ref(true);
 
-const fallbackPalette = [
-  ['#ff0032', '#7a0020'],
-  ['#ffb300', '#7a5200'],
-  ['#0078ff', '#00295c'],
-  ['#00c853', '#00512a'],
-];
+const notes = ref<Note[]>([]);
+const noteTotal = ref(0);
+const notesLoading = ref(true);
 
-function coversOf(post: Post, index: number): string[] {
+const gh = ref<GhStatus | null>(null);
+const ghLoading = ref(true);
+
+const commits = computed(() => gh.value?.stats.commits ?? config.cfg.github.stats.commits);
+
+/** 无封面：按 slug 稳定挑一幅 CSS 光影封面（css:<kind>） */
+function coversOf(post: Post): string[] {
   if (post.covers.length) return post.covers.slice(0, 3);
-  const [from, to] = fallbackPalette[index % fallbackPalette.length];
-  return [placeholderCover(from, to, post.tags[0] ?? 'Post')];
+  return [`css:${COVER_KINDS[hashOf(post.slug || post.title) % COVER_KINDS.length]}`];
 }
 
-onMounted(async () => {
+async function loadHero(): Promise<void> {
   // 数据就绪前按住路由揭幕，避免揭开后轮播才闪现
   const release = useLoadingStore().holdRoute();
   try {
-    const [feed, list] = await Promise.all([
-      api.hero(),
-      api.posts({ pageSize: 4 }),
-    ]);
+    const feed = await api.hero();
     heroInterval.value = feed.intervalMs;
-    heroItems.value = feed.items.map((post, i) => ({
+    heroItems.value = feed.items.map((post) => ({
       title: post.title,
       excerpt: post.excerpt,
-      covers: coversOf(post, i),
-      tag: post.tags[0] ?? '文章',
+      covers: coversOf(post),
+      tag: post.tags[0] ?? t('home.posts'),
+      date: t('home.md', monthDay(post.createdAt)),
       slug: post.slug,
     }));
-    latest.value = list.items;
+  } catch {
+    heroItems.value = [];
   } finally {
+    heroLoading.value = false;
     release();
   }
+}
+
+async function loadPosts(): Promise<void> {
+  try {
+    const list = await api.posts({ pageSize: 4 });
+    latest.value = list.items;
+    postTotal.value = list.total;
+  } catch {
+    latest.value = [];
+  } finally {
+    postsLoading.value = false;
+  }
+}
+
+async function loadNotes(): Promise<void> {
+  try {
+    const list = await api.notes({ pageSize: 6 });
+    notes.value = list.items;
+    noteTotal.value = list.total;
+  } catch {
+    notes.value = [];
+  } finally {
+    notesLoading.value = false;
+  }
+}
+
+async function loadGithub(): Promise<void> {
+  try {
+    gh.value = await api.githubStatus<GhStatus>();
+  } catch {
+    gh.value = null;
+  } finally {
+    ghLoading.value = false;
+  }
+}
+
+onMounted(() => {
+  void loadHero();
+  void loadPosts();
+  void loadNotes();
+  void loadGithub();
 });
 </script>
 
 <template>
   <main class="page">
-    <!-- 常驻背景壳：数据未就绪也有占位，杜绝揭幕后底色闪现 -->
-    <div class="hero-shell">
+    <!-- Hero：无外框，舞台高度随内容；数据未到时渲染同形骨架 -->
+    <div class="hero-wrap" :class="{ empty: !heroLoading && !heroItems.length }">
       <HeroCarousel v-if="heroItems.length" :items="heroItems" :photo-ms="heroInterval" />
+      <div v-else-if="heroLoading" class="hero-sk" aria-hidden="true">
+        <div class="txt">
+          <span class="sk sk-line" style="width: 120px" />
+          <span class="sk sk-line title" style="width: 86%" />
+          <span class="sk sk-line title" style="width: 58%" />
+          <span class="sk sk-line" style="width: 92%; margin-top: 12px" />
+          <span class="sk sk-line" style="width: 70%" />
+          <div class="cta"><span class="sk" /><span class="sk" /></div>
+        </div>
+        <div class="sk deck" />
+      </div>
     </div>
 
-    <!-- 最新四条：交错图文，无边框平铺，悬停直角框 -->
-    <section class="latest">
-      <h2 v-reveal class="section-title">最新文章</h2>
-      <PostZigzagList :posts="latest" />
-    </section>
+    <LatestPosts
+      v-if="postsLoading || latest.length"
+      class="block"
+      :posts="latest"
+      :total="postTotal"
+      :loading="postsLoading"
+    />
 
-    <!-- 扩展板块：GitHub Status + 关于我（数据后续走后端配置） -->
-    <div class="widgets">
-      <GithubStatusCard />
-      <AboutMeCard />
+    <ThoughtsStrip
+      v-if="notesLoading || notes.length"
+      class="block wide"
+      :notes="notes"
+      :total="noteTotal"
+      :loading="notesLoading"
+    />
+
+    <div v-reveal class="block me rise-stagger">
+      <AboutMeCard :posts="postTotal" :notes="noteTotal" :commits="commits" :loading="postsLoading || notesLoading" />
+      <GithubStatusCard :data="gh" :loading="ghLoading" />
     </div>
   </main>
 </template>
 
 <style scoped lang="scss">
 .page {
-  max-width: 1180px;
+  max-width: 1248px;
   margin: 0 auto;
-  padding: 110px 24px 80px;
+  padding: 64px 24px 80px;
 }
 
-/* ===== 轮播背景壳（常驻占位） ===== */
-.hero-shell {
-  --hero-w: min(1400px, 100vw - 48px);
-  width: var(--hero-w);
-  margin-inline: calc((var(--hero-w) - 100%) / -2);
-  min-height: 62vh;
-  padding: 36px 56px;
-  border-radius: 24px;
-  background:
-    radial-gradient(560px 300px at 82% 24%, rgba(var(--primary-rgb), 0.08), transparent 65%),
-    radial-gradient(480px 260px at 12% 80%, rgba(var(--primary-rgb), 0.05), transparent 65%),
-    linear-gradient(180deg, rgba(var(--primary-rgb), 0.045), rgba(var(--primary-rgb), 0.015));
-  border: 1px solid rgba(var(--primary-rgb), 0.08);
-}
+/* ===== Hero 舞台：高度随内容（约 min(78vh, 720px)），内容垂直居中，无外框 ===== */
+.hero-wrap {
+  height: min(78vh, 720px);
+  min-height: 540px;
+  display: grid;
+  align-items: center;
 
-@media (max-width: 900px) {
-  .hero-shell {
-    min-height: auto;
-    padding: 20px 16px;
+  &.empty {
+    height: auto;
+    min-height: 0;
   }
 }
 
-/* ===== 最新文章：交错图文平铺 ===== */
-.latest {
-  margin-top: 80px;
+.hero-sk {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 56px;
+  align-items: center;
+
+  .txt {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .sk-line {
+    display: block;
+    height: 12px;
+  }
+
+  .title { height: 46px; }
+
+  .cta {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+
+    span {
+      width: 128px;
+      height: 46px;
+      border-radius: var(--r-pill);
+    }
+
+    span + span { width: 104px; }
+  }
+
+  .deck {
+    justify-self: center;
+    width: min(100%, clamp(430px, 36vw, 580px));
+    aspect-ratio: 4 / 3;
+    border-radius: var(--r-lg);
+  }
 }
 
-.section-title {
-  font-size: clamp(24px, 3vw, 32px);
-  margin-bottom: 8px;
-}
+.block { margin-top: 96px; }
+.hero-wrap + .block { margin-top: 24px; }
 
-/* ===== 扩展板块 ===== */
-.widgets {
-  margin-top: 56px;
+.me {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
+  margin-top: 72px;
+}
+
+@media (max-width: 900px) {
+  .hero-wrap {
+    height: auto;
+    min-height: 0;
+    padding: 24px 0 8px;
+  }
+
+  .hero-sk {
+    grid-template-columns: 1fr;
+    gap: 26px;
+
+    .deck { width: min(100% - 92px, 300px); }
+  }
+
+  .block { margin-top: 72px; }
 }
 
 @media (max-width: 768px) {
-  .page { padding-top: 88px; }
+  .page { padding-top: 72px; }
 }
 </style>

@@ -118,21 +118,21 @@ onMounted(() => void load());
 
 .missing {
   padding: 40px;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   background: var(--well);
-  color: var(--ink-3);
+  color: var(--st-ink-3);
   text-align: center;
 }
 
 .tips {
   padding: 22px;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   background: var(--well);
   font-size: 13px;
-  color: var(--ink-3);
+  color: var(--st-ink-3);
   line-height: 1.7;
 
-  h3 { font: 600 16px var(--font-serif); color: var(--ink); margin: 0 0 14px; }
+  h3 { font: 600 16px var(--font-serif); color: var(--st-ink); margin: 0 0 14px; }
 
   ul {
     list-style: none;

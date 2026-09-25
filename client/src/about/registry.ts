@@ -58,7 +58,7 @@ export const MODULE_REGISTRY: ModuleMeta[] = [
       bio: '写一段自述：你是谁、在做什么、热爱什么。',
       status: { doing: '正在做的一件事', city: '所在城市', tz: 8 },
       links: [{ name: 'GitHub', handle: '@your-github', icon: 'github', url: 'https://github.com/', primary: true }],
-      portrait: { src: '', fade: 'left', radius: 32, focus: '50% 40%' },
+      portrait: { src: '', fade: 'left', focus: '50% 40%' },
     }),
     summary: (d) => [d.name, d.status?.city].filter(Boolean).join(' · '),
   },
