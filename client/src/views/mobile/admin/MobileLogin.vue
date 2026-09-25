@@ -157,7 +157,6 @@ html.ma-lock body {
   width: 88px;
   height: 88px;
   margin: 0 auto;
-  animation: ml-in 0.8s var(--ease-spring) backwards;
 
   .logo {
     position: relative;
@@ -187,7 +186,6 @@ h1 {
   font-size: 32px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  animation: ml-in 0.7s var(--ease-out) 0.08s backwards;
 }
 
 .sub {
@@ -195,16 +193,11 @@ h1 {
   text-align: center;
   font-size: 14px;
   color: var(--text-3);
-  animation: ml-in 0.7s var(--ease-out) 0.14s backwards;
 }
 
-@keyframes ml-in {
-  from { opacity: 0; transform: translateY(16px) scale(0.96); filter: blur(6px); }
-}
 
 .card {
   margin-top: 34px;
-  animation: ml-in 0.7s var(--ease-out) 0.2s backwards;
 
 }
 

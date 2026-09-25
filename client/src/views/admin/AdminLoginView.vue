@@ -125,7 +125,6 @@ onBeforeUnmount(() => {
   background: var(--paper);
   box-shadow: var(--sh-paper);
   overflow: hidden;
-  animation: card-in var(--dur-slow) var(--ease-spring) both;
 
 
   .entering & {
@@ -135,7 +134,6 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes card-in { from { opacity: 0; transform: translateY(18px) scale(0.97); } }
 
 .art {
   position: relative;
