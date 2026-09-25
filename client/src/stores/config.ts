@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { api } from '../api';
-import type { CardChoreoId, TextChoreoId } from '../components/home/hero/choreo/types';
+import type { CardChoreoId, RotateChoreoId, TextChoreoId } from '../components/home/hero/choreo/types';
 import DEFAULT_ABOUT_MODULES from '../about/default-modules.json';
 
 /**
@@ -46,6 +46,8 @@ export interface SiteConfig {
     textAnim: TextChoreoId;
     /** 右侧卡组切换动效 */
     cardAnim: CardChoreoId;
+    /** 组内多封面的轮转动效 */
+    rotateAnim: RotateChoreoId;
   };
   thoughts: { subtitle: string };
   covers: { expandMs: number };
@@ -88,7 +90,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
       { id: 'winter', name: '冬 · 霜蓝', primary: '#0078ff', primaryDeep: '#005fd6' },
     ],
   },
-  hero: { intervalMs: 3000, count: 4, pinnedRule: 'pinned-first', textAnim: 'lightscan', cardAnim: 'hinge' },
+  hero: { intervalMs: 3000, count: 4, pinnedRule: 'pinned-first', textAnim: 'lightscan', cardAnim: 'hinge', rotateAnim: 'lift' },
   thoughts: { subtitle: '碎片化的想法、心情与瞬间，短到装不下一篇文章。' },
   covers: { expandMs: 10000 },
   timezone: 'Asia/Shanghai',

@@ -218,3 +218,68 @@
   transform: translateZ(calc(var(--leaf-t) * -1)) rotateY(180deg);
   border-radius: var(--leaf-r) 0 0 var(--leaf-r);
 }
+
+/* 背面受光：门扇背面朝向门后光源，靠门洞（门轴）一侧最亮（背面已镜像，左扇门轴在其局部右侧） */
+.hc-leaf-lit {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.hc-leaf-l .hc-leaf-lit {
+  background: linear-gradient(270deg, rgba(255, 248, 236, 0.62), color-mix(in srgb, var(--primary) 16%, transparent) 55%, transparent 92%);
+}
+
+.hc-leaf-r .hc-leaf-lit {
+  background: linear-gradient(90deg, rgba(255, 248, 236, 0.62), color-mix(in srgb, var(--primary) 16%, transparent) 55%, transparent 92%);
+}
+
+/*
+ * 地面光扇（品牌门光）：卡片底边向观者方向放平的地面平面，与门扇同一透视；
+ * 受光区 / 门扇投影由编舞按开门角逐帧裁切，这里只给材质。平面宽 3 倍卡宽，卡片居中三分之一。
+ */
+.hc-fan {
+  position: absolute;
+  top: 100%;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: 50% 0;
+  transform: rotateX(90deg);
+  filter: blur(1px);
+
+  > * {
+    position: absolute;
+    inset: 0;
+  }
+}
+
+.hc-fan-lit {
+  background: radial-gradient(
+    26% 80% at 50% 0%,
+    rgba(240, 246, 255, 0.92),
+    color-mix(in srgb, var(--primary) 34%, rgba(200, 220, 255, 0.35)) 38%,
+    color-mix(in srgb, var(--primary) 12%, transparent) 70%,
+    transparent 100%
+  );
+}
+
+.hc-fan-sh {
+  background: radial-gradient(22% 60% at 50% 0%, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.18) 55%, transparent);
+}
+
+:root[data-mode='light'] {
+  .hc-fan-lit {
+    background: radial-gradient(
+      30% 100% at 50% 0%,
+      color-mix(in srgb, var(--primary) 30%, rgba(255, 255, 255, 0.9)),
+      color-mix(in srgb, var(--primary) 22%, transparent) 40%,
+      color-mix(in srgb, var(--primary) 8%, transparent) 70%,
+      transparent 100%
+    );
+  }
+
+  .hc-fan-sh {
+    background: radial-gradient(22% 60% at 50% 0%, rgba(20, 30, 60, 0.2), rgba(20, 30, 60, 0.07) 55%, transparent);
+  }
+}

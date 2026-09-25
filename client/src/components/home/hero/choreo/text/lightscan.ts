@@ -1,4 +1,4 @@
-import { MASK, fade, wipe } from '../engine';
+import { MASK, fade, inkBox, wipe } from '../engine';
 import type { TextChoreo } from '../types';
 
 /**
@@ -22,9 +22,10 @@ export const lightscan: TextChoreo = {
   enter(e, t) {
     e.lines.forEach((l, i) => {
       const d = 600 + i * 110;
-      const lw = l.inner.offsetWidth;
+      const ib = inkBox(l.inner);
+      const lw = ib.width;
       t.a(l.inner, wipe(MASK.show), { dur: 720, delay: d, ease: 'quartInOut' });
-      const track = t.make(l.ln, 'hc-glint-track', { left: `${l.inner.offsetLeft}px`, width: `${lw}px` });
+      const track = t.make(l.ln, 'hc-glint-track', { left: `${ib.left}px`, width: `${lw}px` });
       const g = t.make(track, 'hc-glint');
       // 起点帧透明：等待期间短行的扫光会探进行内，不能提前露出
       const x0 = -0.08 * lw - 32;

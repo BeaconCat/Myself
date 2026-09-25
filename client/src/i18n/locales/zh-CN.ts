@@ -439,7 +439,12 @@ export default {
     speed: '速度',
     duration: '时长',
     reduced: '系统已开启「减弱动态效果」，预览与前台一样降级为淡入淡出。',
-    hint: '两列可任意搭配；悬停舞台暂停轮播，左右方向键切换文章。',
+    hint: '三列可任意搭配；悬停舞台暂停轮播，左右方向键切换文章，「只播组内切换」单独对比封面轮转。',
+    rotateTitle: '组内切换',
+    rotateSub: '同一篇文章多张封面之间的轮转方式',
+    rotateOnly: '只播组内切换',
+    prevCover: '上一张',
+    nextCover: '下一张',
   },
   mobileAdmin: {
     tab: {

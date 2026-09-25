@@ -6,9 +6,12 @@ import type { HeroItem } from './types';
 import {
   CARD_CHOREOS,
   DEFAULT_CARD_CHOREO,
+  DEFAULT_ROTATE_CHOREO,
   DEFAULT_TEXT_CHOREO,
+  ROTATE_CHOREOS,
   TEXT_CHOREOS,
   isCardChoreoId,
+  isRotateChoreoId,
   isTextChoreoId,
   type ChoreoMeta,
 } from './choreo';
@@ -16,17 +19,19 @@ import { prefersReducedMotion } from './useHeroChoreo';
 
 /**
  * 后台「外观」页的 Hero 动效混搭器：
- * 缩放渲染一个真实 HeroCarousel 舞台（与前台同一套组件）+ 两列选择器（文字 / 卡组）。
- * 深浅与色盘跟随全站主题。
+ * 缩放渲染一个真实 HeroCarousel 舞台（与前台同一套组件）+ 三列选择器（文字 / 卡组 / 组内切换）。
+ * 深浅与色盘跟随全站主题。支持 v-model:text / v-model:card / v-model:rotate。
  */
 const props = defineProps<{
   text?: string;
   card?: string;
+  rotate?: string;
 }>();
 
 const emit = defineEmits<{
   'update:text': [id: string];
   'update:card': [id: string];
+  'update:rotate': [id: string];
 }>();
 
 const { t } = useI18n();
@@ -61,6 +66,7 @@ const SAMPLES: HeroItem[] = [
 
 const textId = computed(() => (isTextChoreoId(props.text) ? props.text : DEFAULT_TEXT_CHOREO));
 const cardId = computed(() => (isCardChoreoId(props.card) ? props.card : DEFAULT_CARD_CHOREO));
+const rotateId = computed(() => (isRotateChoreoId(props.rotate) ? props.rotate : DEFAULT_ROTATE_CHOREO));
 
 const playing = ref(true);
 const SPEEDS = [0.25, 0.5, 1] as const;
@@ -102,15 +108,26 @@ function pickCard(id: string): void {
   if (id !== cardId.value) emit('update:card', id);
 }
 
+function pickRotate(id: string): void {
+  if (id !== rotateId.value) emit('update:rotate', id);
+}
+
+/** 只播组内切换：不换文章，只让当前卡组轮转一位（当前文章单封面时先切到多封面的一篇） */
+function previewRotate(): void {
+  carousel.value?.rotate();
+}
+
 watch([textId, cardId], () => void preview());
+watch(rotateId, () => previewRotate());
 
 function fmt(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
-const groups = computed<{ key: 'text' | 'card'; title: string; sub: string; list: ChoreoMeta[]; value: string; pick: (id: string) => void }[]>(() => [
+const groups = computed<{ key: 'text' | 'card' | 'rotate'; title: string; sub: string; list: ChoreoMeta[]; value: string; pick: (id: string) => void }[]>(() => [
   { key: 'text', title: t('heroLab.textTitle'), sub: t('heroLab.textSub'), list: TEXT_CHOREOS, value: textId.value, pick: pickText },
   { key: 'card', title: t('heroLab.cardTitle'), sub: t('heroLab.cardSub'), list: CARD_CHOREOS, value: cardId.value, pick: pickCard },
+  { key: 'rotate', title: t('heroLab.rotateTitle'), sub: t('heroLab.rotateSub'), list: ROTATE_CHOREOS, value: rotateId.value, pick: pickRotate },
 ]);
 
 /** 时长条满格参照 */
@@ -128,6 +145,7 @@ const MAX_MS = 1600;
           :photo-ms="2600"
           :text-anim="textId"
           :card-anim="cardId"
+          :rotate-anim="rotateId"
           :speed="speed"
           :playing="playing"
         />
@@ -149,6 +167,10 @@ const MAX_MS = 1600;
         </button>
         <button class="ib" :aria-label="t('heroLab.next')" :title="t('heroLab.next')" @click="carousel?.next()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l6 6-6 6" /><path d="M17 6v12" /></svg>
+        </button>
+        <button class="ib txt" :title="t('heroLab.rotateOnly')" @click="previewRotate">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="12" height="10" rx="2" /><path d="M8 4.5h10a2 2 0 0 1 2 2v8" /></svg>
+          <span>{{ t('heroLab.rotateOnly') }}</span>
         </button>
         <span class="sep" />
         <div class="seg" role="radiogroup" :aria-label="t('heroLab.speed')">
@@ -281,6 +303,18 @@ const MAX_MS = 1600;
 
     &:hover { transform: scale(1.06); }
   }
+
+  /* 带文字的胶囊钮：只播组内切换 */
+  &.txt {
+    width: auto;
+    display: inline-flex;
+    gap: 6px;
+    padding: 0 12px 0 10px;
+    border-radius: var(--r-pill);
+    font-size: 12.5px;
+
+    svg { width: 16px; height: 16px; }
+  }
 }
 
 .sep {
@@ -337,12 +371,13 @@ const MAX_MS = 1600;
 /* ===== 选择器 ===== */
 .cols {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .col-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 10px;
   margin-bottom: 10px;
@@ -459,6 +494,10 @@ const MAX_MS = 1600;
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
   color: var(--text-2);
+}
+
+@media (max-width: 1100px) {
+  .cols { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 900px) {

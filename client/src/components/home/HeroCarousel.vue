@@ -8,7 +8,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRef, watch } fro
 import type { HeroItem } from './hero/types';
 import { useConfigStore } from '../../stores/config';
 import { getCardChoreo, getTextChoreo } from './hero/choreo';
-import type { CardChoreoId, FxEls, TextChoreoId } from './hero/choreo/types';
+import type { CardChoreoId, FxEls, RotateChoreoId, TextChoreoId } from './hero/choreo/types';
 import { EASE } from './hero/choreo/engine';
 import { useHeroRotation } from './hero/useHeroRotation';
 import { useHeroChoreo } from './hero/useHeroChoreo';
@@ -25,17 +25,20 @@ const props = withDefaults(
     textAnim?: TextChoreoId | string;
     /** 覆盖站点配置 hero.cardAnim（混搭器用） */
     cardAnim?: CardChoreoId | string;
+    /** 覆盖站点配置 hero.rotateAnim（混搭器用） */
+    rotateAnim?: RotateChoreoId | string;
     /** 全部动效倍速（混搭器 0.25x / 0.5x / 1x） */
     speed?: number;
     /** false = 暂停自动轮播并冻结进行中的切换 */
     playing?: boolean;
   }>(),
-  { photoMs: 3000, textAnim: undefined, cardAnim: undefined, speed: 1, playing: true },
+  { photoMs: 3000, textAnim: undefined, cardAnim: undefined, rotateAnim: undefined, speed: 1, playing: true },
 );
 
 const config = useConfigStore();
 const textChoreo = computed(() => getTextChoreo(props.textAnim ?? config.cfg.hero?.textAnim));
 const cardChoreo = computed(() => getCardChoreo(props.cardAnim ?? config.cfg.hero?.cardAnim));
+const rotateId = computed(() => props.rotateAnim ?? config.cfg.hero?.rotateAnim);
 const navMode = computed<'pills' | 'rail'>(() => (cardChoreo.value.chrome === 'rail' ? 'rail' : 'pills'));
 
 /* ===== 双缓冲：切换期间新旧两套内容同时在场 ===== */
@@ -99,9 +102,15 @@ const choreo = useHeroChoreo({ host: heroEl, fx: fxEl, speed, playing: clockOn }
 /* ===== 文字列高度：新旧层绝对居中叠放，列高从旧层平滑过渡到新层（移动端下方卡组不跳） ===== */
 let colAnim: Animation | null = null;
 
+/**
+ * 仅单列布局（≤900px，卡组在文字下方）需要：桌面两列时文字列高度不影响任何布局，
+ * 新旧层直接在网格里居中叠放——入场终帧与收尾后的静止态同一套布局，零位移。
+ */
+const stacked = window.matchMedia('(max-width: 900px)');
+
 function lockTextCol(oldEl: HTMLElement | null, newEl: HTMLElement): void {
   const col = textCol.value;
-  if (!col) return;
+  if (!col || !stacked.matches) return;
   const hNew = newEl.offsetHeight;
   const hOld = oldEl?.offsetHeight ?? hNew;
   colAnim?.cancel();
@@ -123,6 +132,28 @@ function settle(): void {
   unlockTextCol();
   slides.value = slides.value.filter((s) => !s.leaving);
   busy.value = false;
+  if (pendingRotate) {
+    pendingRotate = false;
+    void nextTick(() => stepPhoto(1));
+  }
+}
+
+/**
+ * 只播一次组内切换（混搭器「只播组内切换」）：当前文章不足两张封面时，
+ * 先切到第一篇多封面的文章，落定后再轮转。
+ */
+let pendingRotate = false;
+
+function rotateOnce(): void {
+  if (busy.value) return;
+  if (covers.value.length >= 2) {
+    stepPhoto(1);
+    return;
+  }
+  const i = props.items.findIndex((it) => it.covers.length >= 2);
+  if (i < 0) return;
+  pendingRotate = true;
+  void swapTo(i);
 }
 
 let settingUp = false;
@@ -243,6 +274,7 @@ defineExpose({
   next: () => swapTo(itemIndex.value + 1),
   prev: () => swapTo(itemIndex.value - 1),
   go: (i: number) => swapTo(i),
+  rotate: rotateOnce,
 });
 </script>
 
@@ -281,6 +313,7 @@ defineExpose({
           :leaving="s.leaving"
           :busy="busy"
           :speed="speed"
+          :rotate-anim="rotateId"
           @update:photo-index="photoIndex = $event"
           @update:lightbox="onLightbox"
           @step="stepPhoto"
