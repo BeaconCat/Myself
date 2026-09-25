@@ -57,25 +57,25 @@ function onFilled(i: number): void {
             @animationend="onFilled(i)"
           />
         </div>
-        <button class="nb" :aria-label="t('aboutKit.quotes.prev')" @click="go(idx - 1)"><KitIcon name="left" :size="15" /></button>
-        <button class="nb" :aria-label="t('aboutKit.quotes.next')" @click="go(idx + 1)"><KitIcon name="right" :size="15" /></button>
+        <button class="nb" :aria-label="t('aboutKit.quotes.prev')" @click="go(idx - 1)"><KitIcon name="left" :size="18" /></button>
+        <button class="nb" :aria-label="t('aboutKit.quotes.next')" @click="go(idx + 1)"><KitIcon name="right" :size="18" /></button>
       </div>
     </div>
   </template>
 </template>
 
 <style scoped lang="scss">
-.qr { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 220px; }
+.qr { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 200px; }
 
-.mark { height: 40px; font: 700 90px/0.6 var(--font-serif); color: var(--text-3); }
+.mark { height: 36px; font: 700 80px/0.6 var(--font-serif); color: var(--text-3); }
 
 blockquote {
-  font: 700 22px/1.65 var(--font-serif);
+  font: 700 23px/1.6 var(--font-serif);
   letter-spacing: 0.02em;
   transition: opacity 0.5s var(--ease-out), filter 0.5s var(--ease-out), transform 0.5s var(--ease-out);
 }
 
-cite { display: block; margin-top: 14px; font: normal 13px var(--font-sans); color: var(--ak-text-3); transition: opacity 0.5s 0.08s; }
+cite { display: block; margin-top: 12px; font: normal 14px var(--font-sans); color: var(--ak-text-3); transition: opacity 0.5s 0.08s; }
 
 .qr.out blockquote { opacity: 0; filter: blur(8px); transform: translateY(-6px); }
 .qr.out cite { opacity: 0; }
@@ -93,7 +93,7 @@ cite { display: block; margin-top: 14px; font: normal 13px var(--font-sans); col
     position: relative;
     flex: 1;
     max-width: 36px;
-    height: 3px;
+    height: 4px;
     padding: 0;
     overflow: hidden;
     border-radius: var(--r-pill);
@@ -114,8 +114,8 @@ cite { display: block; margin-top: 14px; font: normal 13px var(--font-sans); col
   .nb {
     display: grid;
     place-items: center;
-    width: 30px;
-    height: 30px;
+    width: 38px;
+    height: 38px;
     border-radius: var(--r-pill);
     color: var(--text-2);
     background: var(--fill);
@@ -135,8 +135,8 @@ cite { display: block; margin-top: 14px; font: normal 13px var(--font-sans); col
 
   li { padding: 16px 0; border-top: 1px solid var(--ak-line); }
   li:first-child { border-top: 0; padding-top: 0; }
-  q { font: 700 16px/1.7 var(--font-serif); quotes: '「' '」'; }
-  cite { margin-top: 6px; font-size: 12.5px; }
+  q { font: 700 17px/1.7 var(--font-serif); quotes: '「' '」'; }
+  cite { margin-top: 6px; font-size: 13px; }
 }
 
 @container (max-width: 360px) { blockquote { font-size: 19px; } }

@@ -89,10 +89,10 @@ const shortType = (type: string) => (type || 'event').replace(/Event$/, '').toLo
 
 <template>
   <ModHead :title="title">
-    <a class="ak-link-arrow gh-user" :href="`https://github.com/${user}`" target="_blank" rel="noopener">@{{ user }}<KitIcon name="arrow" :size="13" /></a>
+    <a class="ak-link-arrow gh-user" :href="`https://github.com/${user}`" target="_blank" rel="noopener">@{{ user }}<KitIcon name="arrow" :size="15" /></a>
   </ModHead>
-  <div class="gh-head">
-    <div v-for="[k, v] in head" :key="k"><b><CountUp :value="v" /></b><span>{{ k }}</span></div>
+  <div class="ak-statbar gh-head">
+    <div v-for="[k, v] in head" :key="k" class="ak-stat"><b><CountUp :value="v" /></b><span>{{ k }}</span></div>
   </div>
   <div class="hm-wrap">
     <div class="hm-months">
@@ -122,18 +122,11 @@ const shortType = (type: string) => (type || 'event').replace(/Event$/, '').toLo
 </template>
 
 <style scoped lang="scss">
-.gh-user { display: flex; align-items: center; gap: 4px; color: var(--ak-text-3); transition: color var(--dur-fast); }
+/* 统计条 → 撑满模块宽度的 53 周热力图 → 最近动态；与首页 GithubStatusCard 同一写法 */
+.gh-user { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--ak-ink); transition: color var(--dur-fast); }
 .gh-user:hover { color: var(--text); }
 
-.gh-head {
-  display: flex;
-  margin-bottom: 22px;
-
-  div { flex: 1; min-width: 0; padding-left: 18px; border-left: 1px solid var(--ak-line); }
-  div:first-child { padding-left: 0; border-left: 0; }
-  b { display: block; font: 500 26px/1 var(--ak-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
-  > div > span { font-size: 12px; color: var(--ak-text-3); }
-}
+.gh-head { margin-bottom: 20px; }
 
 .hm-wrap { position: relative; }
 
@@ -143,7 +136,7 @@ const shortType = (type: string) => (type || 'event').replace(/Event$/, '').toLo
   grid-auto-columns: 1fr;
   gap: 3px;
   margin-bottom: 6px;
-  font: 400 10px var(--ak-mono);
+  font: 400 12px var(--ak-mono);
   color: var(--ak-text-3);
 
   span { width: 0; overflow: visible; white-space: nowrap; }
@@ -158,7 +151,7 @@ const shortType = (type: string) => (type || 'event').replace(/Event$/, '').toLo
 
   i {
     aspect-ratio: 1;
-    border-radius: calc(var(--r-xs) * 0.6);
+    border-radius: max(2px, calc(var(--r-xs) * 0.6));
     background: var(--fill-2);
     transition: transform var(--dur-fast) var(--ease-spring);
 
@@ -167,12 +160,12 @@ const shortType = (type: string) => (type || 'event').replace(/Event$/, '').toLo
   }
 }
 
-/* 热力图：主色单色阶梯（向 --fill-2 混合降饱和），不发光 */
+/* 热力图：主色单色阶梯（向 --fill-2 混合），数据信号，不发光 */
 .hm i, .sc i {
-  &[data-l='1'] { background: color-mix(in oklab, var(--primary) 20%, var(--fill-2)); }
-  &[data-l='2'] { background: color-mix(in oklab, var(--primary) 36%, var(--fill-2)); }
-  &[data-l='3'] { background: color-mix(in oklab, var(--primary) 56%, var(--fill-2)); }
-  &[data-l='4'] { background: color-mix(in oklab, var(--primary) 78%, var(--fill-2)); }
+  &[data-l='1'] { background: color-mix(in oklab, var(--primary) 28%, var(--fill-2)); }
+  &[data-l='2'] { background: color-mix(in oklab, var(--primary) 52%, var(--fill-2)); }
+  &[data-l='3'] { background: color-mix(in oklab, var(--primary) 76%, var(--fill-2)); }
+  &[data-l='4'] { background: var(--primary); }
 }
 
 .hm-legend {
@@ -180,42 +173,38 @@ const shortType = (type: string) => (type || 'event').replace(/Event$/, '').toLo
   justify-content: space-between;
   align-items: center;
   margin-top: 10px;
-  font: 400 11px var(--ak-mono);
+  font: 400 12px var(--ak-mono);
   color: var(--ak-text-3);
 
-  .sc { display: flex; align-items: center; gap: 3px; }
-  .sc i { width: 10px; height: 10px; border-radius: calc(var(--r-xs) * 0.5); background: var(--fill-2); }
+  .sc { display: flex; align-items: center; gap: 4px; }
+  .sc i { width: 11px; height: 11px; border-radius: max(2px, calc(var(--r-xs) * 0.5)); background: var(--fill-2); }
 }
 
 @container (max-width: 680px) { .hm .o1, .hm-months .o1 { display: none; } }
 
-@container (max-width: 440px) {
-  .hm .o2, .hm-months .o2 { display: none; }
-  .gh-head b { font-size: 20px; }
-  .gh-head div { padding-left: 10px; }
-}
+@container (max-width: 440px) { .hm .o2, .hm-months .o2 { display: none; } }
 
 .gh-commits {
   list-style: none;
-  margin-top: 20px;
-  border-top: 1px solid var(--ak-line);
+  margin-top: auto;
+  padding-top: 16px;
 
   li {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 14px;
-    align-items: center;
-    padding: 11px 0;
-    border-bottom: 1px solid var(--ak-line);
-    font-size: 13.5px;
+    gap: 12px;
+    align-items: baseline;
+    padding: 10px 0;
+    box-shadow: 0 -1px 0 var(--ak-line);
+    font-size: 14px;
 
-    &:last-child { border-bottom: 0; padding-bottom: 0; }
+    &:last-child { padding-bottom: 0; }
   }
 
-  .sha { padding: 2px 7px; border-radius: var(--r-xs); font: 500 11.5px var(--ak-mono); color: var(--text-2); background: var(--fill-2); }
+  .sha { font: 500 12.5px var(--ak-mono); color: var(--ak-ink); }
   .msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .msg small { margin-left: 8px; font: 11.5px var(--ak-mono); color: var(--ak-text-3); }
-  time { font: 400 11.5px var(--ak-mono); color: var(--ak-text-3); }
+  .msg small { margin-left: 8px; font: 12.5px var(--ak-mono); color: var(--ak-text-3); }
+  time { font: 400 12.5px var(--ak-mono); color: var(--ak-text-3); }
 }
 
 @container (max-width: 420px) {

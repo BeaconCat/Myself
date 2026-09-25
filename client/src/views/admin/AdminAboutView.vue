@@ -235,9 +235,9 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
         <p>{{ t('studio.about.desc') }}</p>
       </div>
       <div class="act">
-        <a class="st-btn g" href="/about" target="_blank" rel="noopener"><SIcon name="eye" :size="16" />{{ t('studio.about.preview') }}</a>
+        <a class="st-btn g" href="/about" target="_blank" rel="noopener"><SIcon name="eye" :size="18" />{{ t('studio.about.preview') }}</a>
         <button type="button" class="st-btn" :class="dirty ? 'p' : 'g'" :disabled="busy || !dirty" @click="save">
-          <SIcon name="check" :size="16" />{{ dirty ? t('studio.save') : t('studio.saved') }}
+          <SIcon name="check" :size="18" />{{ dirty ? t('studio.save') : t('studio.saved') }}
         </button>
       </div>
     </div>
@@ -246,7 +246,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
     <div class="identity st-rise" :class="{ open: identityOpen }">
       <button type="button" class="av" :disabled="avatarBusy" :title="t('studio.about.avatar')" @click="avatarInput?.click()">
         <img :src="about.avatar || '/favicon-256.png'" alt="" />
-        <span><SIcon name="upload" :size="16" /></span>
+        <span><SIcon name="upload" :size="18" /></span>
       </button>
       <input ref="avatarInput" type="file" accept="image/*" hidden @change="onAvatar" />
       <div class="id-main">
@@ -256,7 +256,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
       <span class="count">{{ t('studio.about.count', { n: about.modules.length, v: visibleCount }) }}</span>
       <button type="button" class="st-btn g sm" @click="identityOpen = !identityOpen">
         {{ identityOpen ? t('studio.about.collapse') : t('studio.about.editIdentity') }}
-        <SIcon name="chevronD" :size="14" class="chev" />
+        <SIcon name="chevronD" :size="16" class="chev" />
       </button>
       <div class="id-form">
         <div>
@@ -280,16 +280,16 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
         :data-id="mod.id"
       >
         <div class="mh">
-          <span class="grip" :title="t('studio.about.drag')" @pointerdown="onGripDown($event, mod)"><SIcon name="grip" :size="16" /></span>
+          <span class="grip" :title="t('studio.about.drag')" @pointerdown="onGripDown($event, mod)"><SIcon name="grip" :size="18" /></span>
           <span class="mi"><svg class="st-ic" width="16" height="16" viewBox="0 0 24 24"><path :d="metaOf(mod.type)?.icon ?? ''" /></svg></span>
           <b>{{ titleOf(mod) }}</b>
           <span v-if="mod.hidden" class="hid">{{ t('studio.about.hiddenTag') }}</span>
           <span class="sp" />
           <button type="button" class="st-ibtn sm" :class="{ on: !mod.hidden }" :title="mod.hidden ? t('studio.about.show') : t('studio.about.hide')" @click="toggleHidden(mod)">
-            <SIcon :name="mod.hidden ? 'eyeOff' : 'eye'" :size="16" />
+            <SIcon :name="mod.hidden ? 'eyeOff' : 'eye'" :size="18" />
           </button>
           <button type="button" class="st-ibtn sm" :class="{ on: expanded === mod.id }" :title="t('studio.edit')" @click="toggleExpand(mod)">
-            <SIcon name="pen" :size="16" />
+            <SIcon name="pen" :size="18" />
           </button>
           <PopMenu :items="menu(mod)" />
         </div>
@@ -318,9 +318,9 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
 
 <style scoped lang="scss">
 .view {
-  max-width: 1120px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 52px 64px 96px;
+  padding: 32px 48px 72px;
 }
 
 /* ---------- 身份条 ---------- */
@@ -528,7 +528,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
 }
 
 @media (max-width: 1180px) {
-  .view { padding: 40px 36px 80px; }
+  .view { padding: 28px 32px 64px; }
   .mods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .span-3 { grid-column: span 2; }
 }

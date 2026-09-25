@@ -52,31 +52,32 @@ const rows = computed(() =>
 </template>
 
 <style scoped lang="scss">
-.sb { list-style: none; display: flex; flex-direction: column; gap: 16px; }
+/* 行在模块高度内均匀铺开（同排等高时不留底部空白）；数值为等宽大号 */
+.sb { list-style: none; display: flex; flex-direction: column; justify-content: space-between; flex: 1; gap: 14px; }
 
 .sb-row {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) 34px;
+  grid-template-columns: 60px minmax(0, 1fr) 36px;
   gap: 14px;
   align-items: center;
 
-  .nm { font-size: 13.5px; line-height: 1.35; }
-  > b { font: 500 12.5px var(--ak-mono); text-align: right; color: var(--text-2); }
+  .nm { font-size: 15px; font-weight: 500; line-height: 1.35; }
+  > b { font: 600 17px var(--ak-mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--text); }
 }
 
-.sb-tier { display: block; font: 400 10.5px var(--ak-mono); color: var(--ak-text-3); }
+.sb-tier { display: block; margin-top: 2px; font: 400 12px var(--font-sans); color: var(--ak-text-3); }
 
 .ruler {
   position: relative;
   display: grid;
   grid-template-columns: repeat(20, 1fr);
   align-items: end;
-  height: 22px;
+  height: 24px;
 
   i {
     justify-self: center;
-    width: 2px;
-    height: 9px;
+    width: 3px;
+    height: 10px;
     border-radius: var(--r-pill);
     background: var(--ak-line-2);
     transition: background 0.25s var(--ease-out), height 0.3s var(--ease-spring), box-shadow 0.3s;
@@ -89,14 +90,14 @@ const rows = computed(() =>
 /* 刻度：已达部分为主色降饱和，末端一格为主色信号（不发光） */
 .in .ruler i.f { background: color-mix(in oklab, var(--primary) 52%, var(--fill-3)); height: 14px; }
 .in .ruler i.f:nth-child(5n) { height: 19px; }
-.in .ruler i.tip { height: 22px !important; background: var(--ink); }
+.in .ruler i.tip { height: 24px !important; background: var(--ink); }
 
 .sb-scale {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) 34px;
+  grid-template-columns: 60px minmax(0, 1fr) 36px;
   gap: 14px;
-  margin-top: 6px;
-  font: 400 10px var(--ak-mono);
+  margin-top: 8px;
+  font: 400 12px var(--ak-mono);
   color: var(--ak-text-3);
 
   div { display: flex; justify-content: space-between; }
@@ -104,7 +105,7 @@ const rows = computed(() =>
 
 .dots {
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 15px));
+  grid-template-columns: repeat(10, minmax(0, 18px));
   justify-content: space-between;
   gap: 5px;
 

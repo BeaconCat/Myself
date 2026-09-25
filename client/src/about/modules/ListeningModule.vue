@@ -49,9 +49,9 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
         <span>{{ fmt(dur) }}</span>
       </div>
       <div class="ls-ctl">
-        <button :aria-label="t('aboutKit.listening.prev')" @click="skip(-15)"><KitIcon name="prev" :size="16" /></button>
-        <button class="pp" :aria-label="t('aboutKit.listening.toggle')" @click="playing = !playing"><KitIcon :name="playing ? 'pause' : 'play'" :size="16" /></button>
-        <button :aria-label="t('aboutKit.listening.next')" @click="skip(15)"><KitIcon name="next" :size="16" /></button>
+        <button :aria-label="t('aboutKit.listening.prev')" @click="skip(-15)"><KitIcon name="prev" :size="18" /></button>
+        <button class="pp" :aria-label="t('aboutKit.listening.toggle')" @click="playing = !playing"><KitIcon :name="playing ? 'pause' : 'play'" :size="18" /></button>
+        <button :aria-label="t('aboutKit.listening.next')" @click="skip(15)"><KitIcon name="next" :size="18" /></button>
       </div>
     </div>
     <ul v-if="d.recent.length" class="ls-recent">
@@ -65,11 +65,11 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
 </template>
 
 <style scoped lang="scss">
-.ls { display: grid; grid-template-columns: 1fr; gap: 20px; }
+.ls { display: grid; grid-template-columns: 1fr; gap: 18px; flex: 1; align-content: space-between; }
 
-.ls-deck { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: center; }
+.ls-deck { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; }
 
-.deck-vinyl { --s: 128px; position: relative; }
+.deck-vinyl { --s: 104px; position: relative; }
 
 .vinyl {
   position: relative;
@@ -133,9 +133,9 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
 .ls-info {
   min-width: 0;
 
-  b { display: block; font: 700 17px/1.35 var(--font-serif); }
-  span { font-size: 13px; color: var(--text-2); }
-  small { display: block; margin-top: 4px; font: 400 11.5px var(--ak-mono); color: var(--ak-text-3); }
+  b { display: block; font: 700 19px/1.35 var(--font-serif); }
+  span { font-size: 15px; color: var(--text-2); }
+  small { display: block; margin-top: 4px; font: 400 12.5px var(--ak-mono); color: var(--ak-text-3); }
 }
 
 .ls-bar {
@@ -143,10 +143,10 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
   align-items: center;
   gap: 10px;
   margin-top: 16px;
-  font: 400 11px var(--ak-mono);
+  font: 400 12.5px var(--ak-mono);
   color: var(--ak-text-3);
 
-  .tr { position: relative; flex: 1; height: 3px; border-radius: var(--r-pill); background: var(--fill-2); }
+  .tr { position: relative; flex: 1; height: 4px; border-radius: var(--r-pill); background: var(--fill-2); }
 
   i {
     position: absolute;
@@ -181,10 +181,11 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
   button {
     display: grid;
     place-items: center;
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
     border-radius: var(--r-pill);
     color: var(--text-2);
+    background: var(--fill);
     transition: background-color var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
 
     &:hover { background: var(--fill-2); color: var(--text); }
@@ -202,27 +203,28 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
 
   li {
     display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
     gap: 12px;
     align-items: center;
-    padding: 9px 0;
+    padding: 10px 0;
     border-bottom: 1px solid var(--ak-line);
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 500;
 
     &:last-child { border-bottom: 0; }
   }
 
-  .cv { display: block; width: 28px; height: 28px; overflow: hidden; border-radius: var(--r-xs); }
+  .cv { display: block; width: 32px; height: 32px; overflow: hidden; border-radius: var(--r-xs); }
   .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .nm small { margin-left: 6px; color: var(--ak-text-3); }
-  time { font: 400 11px var(--ak-mono); color: var(--ak-text-3); }
+  .nm small { margin-left: 6px; font-size: 13px; font-weight: 400; color: var(--ak-text-3); }
+  time { font: 400 12.5px var(--ak-mono); color: var(--ak-text-3); }
 }
 
 @container (min-width: 600px) {
   .ls.wide { grid-template-columns: auto minmax(0, 1fr); gap: 34px; align-items: center; }
   .ls-recent { border-top: 0; border-left: 1px solid var(--ak-line); padding-left: 28px; }
-  .deck-vinyl { --s: 170px; }
+  .deck-vinyl { --s: 150px; }
 }
 
-@container (max-width: 340px) { .ls-deck { grid-template-columns: 1fr; justify-items: start; } }
+@container (max-width: 260px) { .ls-deck { grid-template-columns: 1fr; justify-items: start; } }
 </style>

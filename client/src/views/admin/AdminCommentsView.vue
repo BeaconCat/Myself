@@ -55,7 +55,7 @@ const tip = computed(() => t('studio.reserved.commentsTip'));
     <div v-if="tab === 'pending'" class="bulk">
       <label class="st-ckrow"><span class="st-ck"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" /></svg></span>{{ t('studio.comments.selectAll') }}</label>
       <span class="sp" />
-      <button type="button" class="st-btn q sm st-tip" :data-tip="tip" disabled><SIcon name="check" :size="16" />{{ t('studio.comments.approveAll') }}</button>
+      <button type="button" class="st-btn q sm st-tip" :data-tip="tip" disabled><SIcon name="check" :size="18" />{{ t('studio.comments.approveAll') }}</button>
     </div>
 
     <div v-if="!list.length" class="st-empty">
@@ -80,11 +80,11 @@ const tip = computed(() => t('studio.reserved.commentsTip'));
         </div>
         <div class="acts">
           <template v-if="tab === 'pending'">
-            <button type="button" class="st-btn p sm st-tip" :data-tip="tip" disabled><SIcon name="check" :size="16" />{{ t('studio.comments.approve') }}</button>
-            <button type="button" class="st-ibtn st-tip" :data-tip="tip" disabled><SIcon name="reply" :size="16" /></button>
-            <button type="button" class="st-ibtn st-tip" :data-tip="tip" disabled><SIcon name="flag" :size="16" /></button>
+            <button type="button" class="st-btn p sm st-tip" :data-tip="tip" disabled><SIcon name="check" :size="18" />{{ t('studio.comments.approve') }}</button>
+            <button type="button" class="st-ibtn st-tip" :data-tip="tip" disabled><SIcon name="reply" :size="18" /></button>
+            <button type="button" class="st-ibtn st-tip" :data-tip="tip" disabled><SIcon name="flag" :size="18" /></button>
           </template>
-          <button v-else type="button" class="st-ibtn st-tip" :data-tip="tip" disabled><SIcon name="reply" :size="16" /></button>
+          <button v-else type="button" class="st-ibtn st-tip" :data-tip="tip" disabled><SIcon name="reply" :size="18" /></button>
         </div>
       </div>
     </div>
@@ -93,21 +93,21 @@ const tip = computed(() => t('studio.reserved.commentsTip'));
 
 <style scoped lang="scss">
 .view {
-  max-width: 1120px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 52px 64px 96px;
+  padding: 32px 48px 72px;
 }
 
 .bulk {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  margin-bottom: 6px;
-  font-size: 13px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  font-size: 13.5px;
   color: var(--st-ink-3);
 
-  .st-ckrow { font-size: 13px; }
+  .st-ckrow { font-size: 14px; }
   .sp { flex: 1; }
 }
 
@@ -117,7 +117,7 @@ const tip = computed(() => t('studio.reserved.commentsTip'));
   display: grid;
   grid-template-columns: 18px 40px minmax(0, 1fr) auto;
   gap: 14px;
-  padding: 20px 12px;
+  padding: 14px 12px;
   border-bottom: 1px solid var(--line);
   align-items: start;
   transition: background var(--dur-fast);
@@ -143,18 +143,18 @@ const tip = computed(() => t('studio.reserved.commentsTip'));
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--st-ink-3);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 
-    b { color: var(--st-ink); font-weight: 500; font-size: 14px; }
+    b { color: var(--st-ink); font-weight: 600; font-size: 15px; }
     a { color: var(--st-ink-2); font-family: var(--font-serif); }
   }
 
-  p { margin: 0; font-size: 14.5px; line-height: 1.75; color: var(--st-ink); }
+  p { margin: 0; font-size: 15px; line-height: 1.7; color: var(--st-ink); }
 
   .flag {
-    font-size: 11.5px;
+    font-size: 12.5px;
     color: color-mix(in oklab, var(--yellow) 60%, var(--st-ink));
     background: color-mix(in oklab, var(--yellow) 14%, var(--paper));
     padding: 1px 7px;
@@ -168,6 +168,6 @@ const tip = computed(() => t('studio.reserved.commentsTip'));
 .st-empty .clean { margin-bottom: 0; }
 
 @media (max-width: 1180px) {
-  .view { padding: 40px 36px 80px; }
+  .view { padding: 28px 32px 64px; }
 }
 </style>

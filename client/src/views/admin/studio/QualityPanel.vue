@@ -171,16 +171,16 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 32px;
   align-items: center;
-  padding: 22px 26px;
+  padding: 20px 24px;
   border-radius: var(--r-lg);
   background: var(--well);
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 
 .q-range {
   max-width: 420px;
 
-  small { display: block; font-size: 12px; color: var(--st-ink-3); margin-top: 8px; }
+  small { display: block; font-size: 13px; color: var(--st-ink-3); margin-top: 8px; }
 
   input[type='range'] {
     appearance: none;
@@ -208,7 +208,7 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
 .sel {
   text-align: right;
 
-  b { display: block; font-size: 26px; line-height: 1.1; font-weight: 500; }
+  b { display: block; font-size: 30px; line-height: 1.1; font-weight: 600; font-variant-numeric: tabular-nums; }
   small { font-size: 12.5px; color: var(--st-ink-3); }
 }
 

@@ -9,7 +9,7 @@ import StSeg from './studio/StSeg.vue';
 import StSwitch from './studio/StSwitch.vue';
 import { saveBlob } from './studio/state';
 import { toast } from './studio/toast';
-import { dateTimeText, formatSize, relTime } from './studio/format';
+import { dateTimeText, formatSize, relTime, sizeParts } from './studio/format';
 
 /** 数据备份：立即备份（进度环）、备份记录（下载 / 删除）、自动备份间隔；导入导出为预留界面 */
 const { t } = useI18n();
@@ -24,6 +24,7 @@ const autoHours = ref(0);
 let timer = 0;
 
 const latest = computed(() => backups.value[0] ?? null);
+const totalSize = computed(() => backups.value.reduce((s, b) => s + b.size, 0));
 
 async function load(): Promise<void> {
   try {
@@ -137,12 +138,17 @@ onBeforeUnmount(() => window.clearInterval(timer));
         <p v-else-if="running">{{ t('studio.data.runningSub') }}</p>
         <p v-else>{{ t('studio.data.noneSub') }}</p>
       </div>
-      <button type="button" class="st-btn p lg" :disabled="running" @click="backupNow"><SIcon name="archive" :size="16" />{{ t('studio.data.now') }}</button>
+      <button type="button" class="st-btn p lg" :disabled="running" @click="backupNow"><SIcon name="archive" :size="18" />{{ t('studio.data.now') }}</button>
     </div>
 
     <div class="bk-grid">
-      <div>
+      <section class="st-card">
         <div class="st-sec-t"><h2>{{ t('studio.data.records') }}</h2><span>{{ t('studio.data.recordsN', { n: backups.length }) }}</span></div>
+        <div class="st-stats" style="--n: 3">
+          <div class="st-stat"><b>{{ backups.length }}</b><small>{{ t('studio.data.sCount') }}</small></div>
+          <div class="st-stat"><b>{{ sizeParts(totalSize)[0] }}<span class="u">{{ sizeParts(totalSize)[1] }}</span></b><small>{{ t('studio.data.sSize') }}</small></div>
+          <div class="st-stat"><b class="auto">{{ autoHours ? autoLabel(autoHours) : t('studio.data.sAutoOff') }}</b><small>{{ t('studio.data.sAuto') }}</small></div>
+        </div>
         <p v-if="loaded && !backups.length" class="empty">{{ t('studio.data.empty') }}</p>
         <div class="bk-list">
           <div v-for="(b, i) in backups" :key="b.name" class="r st-rise" :class="{ fresh: fresh === b.name }" :style="{ '--i': Math.min(i, 8) }">
@@ -150,14 +156,14 @@ onBeforeUnmount(() => window.clearInterval(timer));
             <div class="nm"><b class="mono">{{ b.name }}</b><small>{{ dateTimeText(b.createdAt) }}</small></div>
             <span class="num">{{ formatSize(b.size) }}</span>
             <span class="ops">
-              <button type="button" class="st-ibtn" :title="t('studio.data.download')" @click="download(b.name)"><SIcon name="download" :size="16" /></button>
-              <button type="button" class="st-ibtn" :title="t('studio.delete')" @click="remove(b)"><SIcon name="trash" :size="16" /></button>
+              <button type="button" class="st-ibtn" :title="t('studio.data.download')" @click="download(b.name)"><SIcon name="download" :size="18" /></button>
+              <button type="button" class="st-ibtn" :title="t('studio.delete')" @click="remove(b)"><SIcon name="trash" :size="18" /></button>
             </span>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div>
+      <section class="st-card">
         <div class="st-sec-t"><h2>{{ t('studio.data.auto') }}</h2></div>
         <div class="st-opt">
           <div>{{ t('studio.data.autoSwitch') }}<small>{{ t('studio.data.autoSwitchSub') }}</small></div>
@@ -177,11 +183,11 @@ onBeforeUnmount(() => window.clearInterval(timer));
         </div>
         <div class="contents">
           <div class="st-flabel">{{ t('studio.data.contains') }}</div>
-          <p><SIcon name="check" :size="14" />{{ t('studio.data.cDb') }}</p>
-          <p><SIcon name="check" :size="14" />{{ t('studio.data.cUploads') }}</p>
-          <p><SIcon name="check" :size="14" />{{ t('studio.data.cConfig') }}</p>
+          <p><SIcon name="check" :size="16" />{{ t('studio.data.cDb') }}</p>
+          <p><SIcon name="check" :size="16" />{{ t('studio.data.cUploads') }}</p>
+          <p><SIcon name="check" :size="16" />{{ t('studio.data.cConfig') }}</p>
         </div>
-      </div>
+      </section>
     </div>
 
     <!-- 迁移（预留） -->
@@ -211,29 +217,29 @@ onBeforeUnmount(() => window.clearInterval(timer));
 
 <style scoped lang="scss">
 .view {
-  max-width: 1120px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 52px 64px 96px;
+  padding: 32px 48px 72px;
 }
 
 .bk-hero {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 28px;
+  gap: 24px;
   align-items: center;
-  padding: 28px 30px;
+  padding: 20px 24px;
   border-radius: var(--r-lg);
   background: var(--well);
-  margin-bottom: 44px;
+  margin-bottom: 20px;
 
-  h2 { font: 600 24px/1.3 var(--font-serif); margin: 0 0 6px; }
-  p { margin: 0; font-size: 13px; color: var(--st-ink-3); }
+  h2 { font: 700 24px/1.3 var(--font-serif); margin: 0 0 6px; }
+  p { margin: 0; font-size: 14px; color: var(--st-ink-3); }
 }
 
 .ring {
   --p: 0;
-  width: 92px;
-  height: 92px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -248,19 +254,25 @@ onBeforeUnmount(() => window.clearInterval(timer));
 
 .bk-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 48px;
-  margin-bottom: 56px;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  align-items: stretch;
+  gap: 20px;
+  margin-bottom: 36px;
+
+  > .st-card { gap: 6px; }
+  .st-sec-t { margin-bottom: 8px; }
+  .st-stats { margin-bottom: 8px; }
+  .auto { font-family: var(--font-sans); font-size: 24px; line-height: 1.25; }
 }
 
-.empty { font-size: 13.5px; color: var(--st-ink-3); }
+.empty { font-size: 14px; color: var(--st-ink-3); margin: 0; }
 
 .bk-list .r {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr) 90px auto;
   gap: 14px;
   align-items: center;
-  padding: 12px 8px;
+  padding: 10px 8px;
   border-bottom: 1px solid var(--line);
   border-radius: var(--r-sm);
   transition: background var(--dur-fast);
@@ -270,9 +282,9 @@ onBeforeUnmount(() => window.clearInterval(timer));
 
   .fi { width: 40px; height: 40px; border-radius: var(--r-sm); display: grid; place-items: center; background: var(--well); color: var(--st-ink-2); }
   .nm { min-width: 0; }
-  b { display: block; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  small { font-size: 12px; color: var(--st-ink-3); }
-  .num { font: 500 12px var(--font-mono); color: var(--st-ink-2); text-align: right; }
+  b { display: block; font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  small { font-size: 13px; color: var(--st-ink-3); }
+  .num { font: 600 13px var(--font-mono); color: var(--st-ink-2); text-align: right; }
   .ops { display: flex; gap: 2px; opacity: 0.55; transition: opacity var(--dur-fast); }
   &:hover .ops { opacity: 1; }
 }
@@ -282,9 +294,12 @@ onBeforeUnmount(() => window.clearInterval(timer));
 .dim { opacity: 0.5; pointer-events: none; }
 
 .contents {
-  padding-top: 18px;
+  margin-top: auto;
+  padding: 14px 16px 6px;
+  border-radius: var(--r-md);
+  background: var(--well);
 
-  p { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13.5px; color: var(--st-ink-2); }
+  p { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 14px; color: var(--st-ink-2); }
   .st-ic { color: color-mix(in oklab, var(--green) 70%, var(--st-ink)); }
 }
 
@@ -301,17 +316,17 @@ onBeforeUnmount(() => window.clearInterval(timer));
   flex-direction: column;
   gap: 14px;
   padding: 20px;
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   box-shadow: 0 0 0 1px var(--line-2);
 
-  .ic { width: 42px; height: 42px; border-radius: var(--r-sm); display: grid; place-items: center; background: var(--well); color: var(--st-ink-2); }
-  b { display: block; font: 600 15px var(--font-serif); margin-bottom: 4px; }
-  small { font-size: 12.5px; color: var(--st-ink-3); line-height: 1.6; }
-  .st-btn { align-self: flex-start; }
+  .ic { width: 44px; height: 44px; border-radius: var(--r-md); display: grid; place-items: center; background: var(--well); color: var(--st-ink-2); }
+  b { display: block; font: 700 17px/1.35 var(--font-serif); margin-bottom: 4px; }
+  small { font-size: 13.5px; color: var(--st-ink-3); line-height: 1.6; }
+  .st-btn { align-self: flex-start; margin-top: auto; }
 }
 
 @media (max-width: 1180px) {
-  .view { padding: 40px 36px 80px; }
+  .view { padding: 28px 32px 64px; }
   .bk-grid { grid-template-columns: 1fr; }
   .mg { grid-template-columns: 1fr; }
 }

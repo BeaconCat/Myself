@@ -123,34 +123,36 @@ async function logout(): Promise<void> {
 
 <template>
   <MaPage :title="t('mobileAdmin.me.title')" @refresh="refresh">
+    <!-- 高密度：身份与外观合并为一张卡（左身份 / 右操作，下方外观设置） -->
     <div class="me-card">
-      <img class="av" :src="avatar" alt="" draggable="false" />
-      <div class="who">
-        <b>{{ name }}</b>
-        <small>{{ t('mobileAdmin.me.role') }}</small>
+      <div class="me-head">
+        <img class="av" :src="avatar" alt="" draggable="false" />
+        <div class="who">
+          <b>{{ name }}</b>
+          <small>{{ t('mobileAdmin.me.role') }}</small>
+        </div>
+        <button class="icbtn tap" :aria-label="t('mobileAdmin.me.viewSite')" @click="viewSite"><MaIcon name="globe" :size="19" /></button>
       </div>
-      <button class="icbtn tap" :aria-label="t('mobileAdmin.me.viewSite')" @click="viewSite"><MaIcon name="globe" :size="19" /></button>
-    </div>
-
-    <div class="sec-h"><h2>{{ t('mobileAdmin.me.appearance') }}</h2><span class="note">{{ t('mobileAdmin.me.localOnly') }}</span></div>
-    <div class="appear">
-      <div class="seg2" :style="{ '--i': theme.mode === 'dark' ? 1 : 0 }">
-        <span class="th" />
-        <button class="tap" :class="{ on: theme.mode === 'light' }" @click="setMode($event, 'light')"><MaIcon name="sun" :size="17" />{{ t('mobileAdmin.me.light') }}</button>
-        <button class="tap" :class="{ on: theme.mode === 'dark' }" @click="setMode($event, 'dark')"><MaIcon name="moon" :size="17" />{{ t('mobileAdmin.me.dark') }}</button>
-      </div>
-      <div class="pals">
-        <button
-          v-for="p in theme.allPalettes"
-          :key="p.id"
-          class="pal tap"
-          :class="{ on: theme.paletteId === p.id }"
-          :style="{ '--c': p[theme.mode].primary }"
-          @click="setPalette($event, p.id, p.nameKey)"
-        >
-          <i />
-          <span>{{ p.nameKey.split('·')[0].trim() }}</span>
-        </button>
+      <div class="appear">
+        <div class="ap-h"><span>{{ t('mobileAdmin.me.appearance') }}</span><small>{{ t('mobileAdmin.me.localOnly') }}</small></div>
+        <div class="seg2" :style="{ '--i': theme.mode === 'dark' ? 1 : 0 }">
+          <span class="th" />
+          <button class="tap" :class="{ on: theme.mode === 'light' }" @click="setMode($event, 'light')"><MaIcon name="sun" :size="18" />{{ t('mobileAdmin.me.light') }}</button>
+          <button class="tap" :class="{ on: theme.mode === 'dark' }" @click="setMode($event, 'dark')"><MaIcon name="moon" :size="18" />{{ t('mobileAdmin.me.dark') }}</button>
+        </div>
+        <div class="pals">
+          <button
+            v-for="p in theme.allPalettes"
+            :key="p.id"
+            class="pal tap"
+            :class="{ on: theme.paletteId === p.id }"
+            :style="{ '--c': p[theme.mode].primary }"
+            @click="setPalette($event, p.id, p.nameKey)"
+          >
+            <i />
+            <span>{{ p.nameKey.split('·')[0].trim() }}</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -203,13 +205,6 @@ async function logout(): Promise<void> {
     </div>
 
     <div class="ma-list grp gap">
-      <button class="ma-li tap" @click="viewSite">
-        <span class="lic" style="--c: #0b1220"><MaIcon name="globe" :size="17" /></span>
-        <span class="lt">{{ t('mobileAdmin.me.viewSite') }}</span>
-        <MaIcon name="chev" :size="16" class="chev" />
-      </button>
-    </div>
-    <div class="ma-list grp gap">
       <button class="ma-li danger tap" @click="logout">{{ t('mobileAdmin.me.logout') }}</button>
     </div>
     <p class="foot">{{ config.cfg.site.title }} · {{ config.cfg.site.subtitle }}</p>
@@ -218,18 +213,21 @@ async function logout(): Promise<void> {
 
 <style scoped lang="scss">
 .me-card {
+  margin: 2px 16px 0;
+  padding: 18px;
+  border-radius: var(--r-lg);
+  background: var(--elev);
+  box-shadow: var(--shadow-card);
+}
+
+.me-head {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin: 4px 16px 0;
-  padding: 16px;
-  border-radius: var(--r-xl);
-  background: var(--elev);
-  box-shadow: var(--shadow-card);
 
   .av {
-    width: 58px;
-    height: 58px;
+    width: 60px;
+    height: 60px;
     border-radius: var(--r-lg);
     object-fit: cover;
     box-shadow: 0 0 0 0.5px var(--line-2);
@@ -240,27 +238,35 @@ async function logout(): Promise<void> {
   b {
     display: block;
     font-family: var(--font-serif);
-    font-size: 20px;
+    font-size: 24px;
+    line-height: 1.25;
   }
 
   small {
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--text-3);
   }
 }
 
-.sec-h .note {
-  margin-left: 10px;
-  font-size: 12px;
-  color: var(--text-3);
+.appear {
+  margin-top: 18px;
+  padding-top: 16px;
+  box-shadow: 0 -1px 0 var(--line);
 }
 
-.appear {
-  margin: 0 16px;
-  padding: 14px;
-  border-radius: var(--r-xl);
-  background: var(--elev);
-  box-shadow: inset 0 0 0 0.5px var(--line);
+.ap-h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 600;
+
+  small {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-3);
+  }
 }
 
 .seg2 {
@@ -311,23 +317,23 @@ async function logout(): Promise<void> {
 
 .pals {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
   gap: 10px 6px;
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .pal {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 13px;
   color: var(--text-3);
 
   i {
     position: relative;
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: var(--c);
     box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.12);

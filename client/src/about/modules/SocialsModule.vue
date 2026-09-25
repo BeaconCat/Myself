@@ -34,7 +34,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 
 .so a {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   padding: 11px 10px;
@@ -44,22 +44,22 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 
   &:hover { background: var(--ak-sunken); }
 
-  b { display: block; font-size: 14px; font-weight: 500; line-height: 1.3; }
-  > span > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 11.5px var(--ak-mono); color: var(--ak-text-3); }
+  b { display: block; font-size: 15px; font-weight: 500; line-height: 1.35; }
+  > span > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 12.5px var(--ak-mono); color: var(--ak-text-3); }
 }
 
 .ic {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--r-sm);
-  box-shadow: inset 0 0 0 1px var(--ak-line-2);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-pill);
+  background: var(--fill);
   color: var(--text-2);
   transition: color var(--dur), background-color var(--dur);
 }
 
-.so a:hover .ic { color: var(--text); background: var(--fill); }
+.so a:hover .ic { color: var(--text); background: var(--fill-2); }
 
 .arr { color: var(--ak-text-3); transition: transform var(--dur) var(--ease-spring), color var(--dur); }
 .so a:hover .arr { transform: translate(3px, -3px); color: var(--text); }

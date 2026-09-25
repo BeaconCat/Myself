@@ -95,3 +95,9 @@ html.theme-revealing,
 html.theme-revealing *:not(.theme-reveal-layer *) {
   transition-property: transform, opacity !important;
 }
+
+/* 装饰层（Hero 光晕、通栏暗角等）允许外延，但不许撑出横向滚动；clip 不建滚动容器，不影响 sticky */
+html,
+body {
+  overflow-x: clip;
+}

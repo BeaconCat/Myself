@@ -51,9 +51,6 @@ html.m-shell {
     -webkit-font-smoothing: antialiased;
     -webkit-text-size-adjust: 100%;
   }
-
-  /* 桌面首屏 loading 在移动端由 MobileSplash 接管 */
-  .boot { display: none !important; }
 }
 
 html.m-shell[data-mode='light'] {
@@ -120,13 +117,13 @@ html.m-shell[data-mode='light'] {
 }
 
 .m-icbtn {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   color: var(--text);
-  background: var(--fill-2);
+  background: var(--fill);
   flex: none;
 
   .m-ic { width: 20px; height: 20px; }
@@ -204,7 +201,7 @@ html.m-shell[data-mode='light'] {
 /* 心情 / 标签小字：「# 名称」纯文字，# 用三级灰 */
 .m-mood {
   font-style: normal;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-2);
 
   &::before {
@@ -218,13 +215,13 @@ html.m-shell[data-mode='light'] {
 .m-tagp {
   display: inline-flex;
   align-items: center;
-  height: 26px;
-  padding: 0 11px;
+  height: 30px;
+  padding: 0 12px;
   border-radius: 999px;
   box-shadow: inset 0 0 0 1px var(--line-2);
   color: var(--text-2);
   font-weight: 500;
-  font-size: 12px;
+  font-size: 13px;
 
   &::before {
     content: '#';
@@ -240,7 +237,7 @@ html.m-shell[data-mode='light'] {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 16px;
+  padding: 13px 16px;
   text-align: left;
   border-radius: var(--r-lg);
 
@@ -259,9 +256,9 @@ html.m-shell[data-mode='light'] {
   .rt { flex: 1; min-width: 0; }
 
   .meta {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-3);
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 
     em {
       font-style: normal;
@@ -288,9 +285,9 @@ html.m-shell[data-mode='light'] {
 
   .ex {
     display: block;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-2);
-    margin-top: 4px;
+    margin-top: 3px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -298,9 +295,9 @@ html.m-shell[data-mode='light'] {
 
   .thumb {
     position: relative;
-    width: 68px;
-    height: 68px;
-    border-radius: var(--r-lg);
+    width: 76px;
+    height: 76px;
+    border-radius: var(--r-md);
     overflow: hidden;
     flex: none;
     box-shadow: 0 0 0 0.5px var(--line);

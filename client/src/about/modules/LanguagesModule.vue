@@ -26,6 +26,9 @@ function ladder(i: number): string {
   return `color-mix(in oklab, var(--primary) ${STEPS[Math.min(i, STEPS.length - 1)]}%, transparent)`;
 }
 
+/** 图例条长度以最大占比为满格，便于比较 */
+const maxShare = computed(() => Math.max(1, ...items.value.map((x) => x.share)));
+
 const R = 50;
 const C = 2 * Math.PI * R;
 const arcs = computed(() => {
@@ -76,17 +79,21 @@ const arcs = computed(() => {
         :style="{ '--c': it.color }"
         @pointerenter="hover = i"
       >
-        <i /><span>{{ it.name }}</span><b>{{ it.percent }}%</b>
+        <i /><span>{{ it.name }}</span><b>{{ it.percent }}<small>%</small></b>
+        <span v-if="variant !== 'ring'" class="lg-track"><em :style="{ '--w': `${(it.share / maxShare) * 100}%`, '--k': i }" /></span>
       </li>
     </ul>
   </div>
 </template>
 
 <style scoped lang="scss">
+/* 堆叠条撑满宽度 → 每种语言一行：色块 + 名称 + 等宽百分比，下方同宽比较条；行在模块内均匀铺开 */
+.lg-barwrap { display: flex; flex-direction: column; flex: 1; }
+
 .lg-bar {
   display: flex;
   gap: 3px;
-  height: 12px;
+  height: 14px;
   border-radius: var(--r-pill);
   overflow: hidden;
 
@@ -112,30 +119,49 @@ const arcs = computed(() => {
 
 .lg-leg {
   list-style: none;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 2px;
-  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+  gap: 4px;
+  margin-top: 16px;
 
   li {
     display: grid;
     grid-template-columns: 10px minmax(0, 1fr) auto;
-    gap: 10px;
+    column-gap: 10px;
+    row-gap: 6px;
     align-items: center;
-    padding: 6px 8px;
-    margin: 0 -8px;
+    padding: 6px 10px;
+    margin: 0 -10px;
     border-radius: var(--r-sm);
-    font-size: 13.5px;
+    font-size: 15px;
+    font-weight: 500;
     cursor: default;
     transition: background var(--dur-fast);
 
     &:hover, &.on { background: var(--ak-sunken); }
-    i { width: 10px; height: 10px; border-radius: calc(var(--r-xs) * 0.6); background: var(--c); }
-    b { font: 500 12.5px var(--ak-mono); color: var(--text-2); }
+    > i { width: 10px; height: 10px; border-radius: max(2px, calc(var(--r-xs) * 0.6)); background: var(--c); }
+    > b { font: 600 15px var(--ak-mono); font-variant-numeric: tabular-nums; }
+    > b small { font-size: 12px; font-weight: 400; color: var(--ak-text-3); }
   }
 }
 
-@container (min-width: 520px) { .lg-barwrap .lg-leg { grid-template-columns: 1fr 1fr; column-gap: 24px; } }
+.lg-track {
+  grid-column: 2 / -1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: var(--fill-2);
+
+  em { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--c); transition: width 1s var(--ease-out); transition-delay: calc(var(--k) * 70ms + 200ms); }
+}
+
+.in .lg-track em { width: var(--w); }
+
+@container (min-width: 520px) {
+  .lg-barwrap .lg-leg { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; align-content: space-between; }
+}
 
 .lg-ring {
   display: grid;
@@ -146,7 +172,7 @@ const arcs = computed(() => {
   .lg-leg { margin-top: 0; }
 
   .ctr { position: relative; }
-  svg { display: block; width: 124px; height: 124px; transform: rotate(-90deg); }
+  svg { display: block; width: 140px; height: 140px; transform: rotate(-90deg); }
 
   circle {
     fill: none;
@@ -163,9 +189,9 @@ const arcs = computed(() => {
     display: grid;
     place-items: center;
     text-align: center;
-    font: 500 20px/1.1 var(--ak-mono);
+    font: 600 26px/1.1 var(--ak-mono);
 
-    small { display: block; font: 400 10px var(--font-sans); color: var(--ak-text-3); }
+    small { display: block; margin-top: 2px; font: 400 12px var(--font-sans); color: var(--ak-text-3); }
   }
 }
 
@@ -174,4 +200,6 @@ const arcs = computed(() => {
 @keyframes lg-dash { from { stroke-dasharray: var(--c); } }
 
 @container (max-width: 300px) { .lg-ring { grid-template-columns: 1fr; justify-items: center; } }
+
+@media (prefers-reduced-motion: reduce) { .lg-track em { width: var(--w); transition: none; } }
 </style>

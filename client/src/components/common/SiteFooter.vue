@@ -53,8 +53,8 @@ const links = [
 
 <style scoped lang="scss">
 .site-footer {
-  margin-top: 120px;
-  padding: 40px 0 44px;
+  margin-top: 64px;
+  padding: 32px 0 36px;
   box-shadow: inset 0 0.5px 0 var(--line);
   font-size: 13px;
   color: var(--text-3);
@@ -65,7 +65,7 @@ const links = [
   margin-inline: auto;
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 28px 40px;
+  gap: 20px 40px;
   align-items: center;
 }
 
@@ -126,7 +126,7 @@ const links = [
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding-top: 20px;
+  padding-top: 16px;
   box-shadow: inset 0 0.5px 0 var(--line);
 }
 

@@ -3,7 +3,7 @@ import type { Post } from '../../api';
 import CoverArt from '../common/CoverArt.vue';
 import PostMeta from './PostMeta.vue';
 
-/** 缩略行：元信息 + 宋体标题 + 两行摘要 + 右侧缩略封面（与移动端 .m-arow 同构，桌面放大） */
+/** 缩略行（紧凑）：元信息 + 宋体标题 + 一行摘要 + 右侧缩略封面（与移动端 .m-arow 同构） */
 withDefaults(defineProps<{ post: Post; meta?: string }>(), { meta: '' });
 </script>
 
@@ -23,9 +23,9 @@ withDefaults(defineProps<{ post: Post; meta?: string }>(), { meta: '' });
   position: relative;
   display: flex;
   align-items: center;
-  gap: 24px;
-  margin: 0 -18px;
-  padding: 22px 18px;
+  gap: 20px;
+  margin: 0 -16px;
+  padding: 14px 16px;
   border-radius: var(--r-lg);
   outline: none;
   transition: background-color var(--dur-fast);
@@ -35,8 +35,8 @@ withDefaults(defineProps<{ post: Post; meta?: string }>(), { meta: '' });
     content: '';
     position: absolute;
     top: 0;
-    left: 18px;
-    right: 18px;
+    left: 16px;
+    right: 16px;
     height: 0.5px;
     background: var(--line-2);
     transition: opacity var(--dur-fast);
@@ -54,7 +54,7 @@ withDefaults(defineProps<{ post: Post; meta?: string }>(), { meta: '' });
 
 .t {
   display: block;
-  margin-top: 6px;
+  margin-top: 3px;
   font-family: var(--font-serif);
   font-size: 20px;
   font-weight: 700;
@@ -71,20 +71,20 @@ withDefaults(defineProps<{ post: Post; meta?: string }>(), { meta: '' });
 
 .ex {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-top: 6px;
-  font-size: 14px;
-  line-height: 1.7;
+  margin-top: 3px;
+  font-size: 15px;
+  line-height: 1.65;
   color: var(--text-2);
 }
 
 .thumb {
   position: relative;
   flex: none;
-  width: 128px;
-  height: 96px;
+  width: 120px;
+  height: 76px;
   overflow: hidden;
   isolation: isolate;
   border-radius: var(--r-md);

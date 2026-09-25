@@ -23,10 +23,11 @@ const d = computed(() => props.mod.data as ChapterData);
 </template>
 
 <style scoped lang="scss">
-.ch { padding: 84px 0 4px; }
+/* 分区标题：与上一段相距 40 + 网格间距 20 ≈ 60px；标题 28px 宋体，副题与标题同行对齐 */
+.ch { padding: 40px 0 0; }
 
-.ch-top { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.ch-no { font: 500 12px/1 var(--ak-mono); letter-spacing: 0.12em; color: var(--ak-ink); }
+.ch-top { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.ch-no { font: 600 13px/1 var(--ak-mono); letter-spacing: 0.1em; color: var(--ak-ink); }
 
 .ch-rule {
   flex: 1;
@@ -39,7 +40,7 @@ const d = computed(() => props.mod.data as ChapterData);
 
 .in .ch-rule { transform: none; }
 
-.ch-meta { font: 400 11.5px var(--ak-mono); color: var(--ak-text-3); }
+.ch-meta { font: 400 13px var(--ak-mono); color: var(--ak-text-3); }
 
 .ch-row {
   display: flex;
@@ -47,13 +48,13 @@ const d = computed(() => props.mod.data as ChapterData);
   justify-content: space-between;
   gap: 24px;
 
-  h2 { font: 700 38px/1.1 var(--font-serif); letter-spacing: 0.02em; }
-  p { font-size: 14px; color: var(--ak-text-3); }
+  h2 { font: 700 28px/1.2 var(--font-serif); letter-spacing: 0.02em; }
+  p { font-size: 15px; color: var(--text-2); }
 }
 
 @container (max-width: 560px) {
-  .ch { padding: 40px 0 0; }
-  .ch-row { flex-direction: column; gap: 8px; }
-  .ch-row h2 { font-size: 30px; }
+  .ch { padding: 28px 0 0; }
+  .ch-row { flex-direction: column; gap: 6px; }
+  .ch-row h2 { font-size: 24px; }
 }
 </style>

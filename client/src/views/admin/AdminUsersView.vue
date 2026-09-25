@@ -34,18 +34,18 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
         <p>{{ t('studio.users.desc') }}</p>
       </div>
       <div class="act">
-        <button type="button" class="st-btn g st-tip" :data-tip="tip" disabled><SIcon name="download" :size="16" />{{ t('studio.users.export') }}</button>
-        <button type="button" class="st-btn p st-tip" :data-tip="tip" disabled><SIcon name="mail" :size="16" />{{ t('studio.users.invite') }}</button>
+        <button type="button" class="st-btn g st-tip" :data-tip="tip" disabled><SIcon name="download" :size="18" />{{ t('studio.users.export') }}</button>
+        <button type="button" class="st-btn p st-tip" :data-tip="tip" disabled><SIcon name="mail" :size="18" />{{ t('studio.users.invite') }}</button>
       </div>
     </div>
 
     <div class="st-note-bar st-rise"><SIcon name="info" />{{ t('studio.reserved.users') }}</div>
 
-    <div class="u-stats">
-      <div class="st-rise" style="--i: 0"><b class="mono">128</b><small>{{ t('studio.users.sTotal') }}</small><span class="up mono">+14</span></div>
-      <div class="st-rise" style="--i: 1"><b class="mono">36</b><small>{{ t('studio.users.sActive') }}</small></div>
-      <div class="st-rise" style="--i: 2"><b class="mono">3</b><small>{{ t('studio.users.sAuthors') }}</small></div>
-      <div class="st-rise" style="--i: 3"><b class="mono">412</b><small>{{ t('studio.users.sComments') }}</small><span class="up mono">+38</span></div>
+    <div class="st-stats u-stats st-rise" style="--i: 0">
+      <div class="st-stat"><b>128<span class="dl up">+14</span></b><small>{{ t('studio.users.sTotal') }}</small></div>
+      <div class="st-stat"><b>36</b><small>{{ t('studio.users.sActive') }}</small></div>
+      <div class="st-stat"><b>3</b><small>{{ t('studio.users.sAuthors') }}</small></div>
+      <div class="st-stat"><b>412<span class="dl up">+38</span></b><small>{{ t('studio.users.sComments') }}</small></div>
     </div>
 
     <table class="st-table">
@@ -88,29 +88,21 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
 
 <style scoped lang="scss">
 .view {
-  max-width: 1120px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 52px 64px 96px;
+  padding: 32px 48px 72px;
 }
 
-.u-stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 36px;
+.u-stats { margin-bottom: 24px; }
 
-  > div { padding: 18px 20px; border-radius: var(--r-md); background: var(--well); }
-  b { display: block; font-size: 28px; line-height: 1.2; font-weight: 500; letter-spacing: -0.03em; }
-  small { font-size: 12.5px; color: var(--st-ink-3); }
-  .up { font-size: 12px; color: color-mix(in oklab, var(--green) 70%, var(--st-ink)); margin-left: 6px; }
-}
+.u-stats .dl { margin-left: 6px; }
 
 .st-table {
   .u { display: flex; align-items: center; gap: 12px; }
 
   .av {
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     display: grid;
     place-items: center;
@@ -122,18 +114,18 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
     img { width: 100%; height: 100%; object-fit: cover; }
   }
 
-  b { display: block; font-weight: 500; }
-  small { color: var(--st-ink-3); font-size: 12px; }
-  .mono { font-size: 12px; color: var(--st-ink-3); }
-  .act-cell { font-size: 13px; color: var(--st-ink-2); }
+  b { display: block; font-weight: 600; font-size: 15px; }
+  small { color: var(--st-ink-3); font-size: 13px; }
+  .mono { font-size: 13px; color: var(--st-ink-3); }
+  .act-cell { font-size: 14px; color: var(--st-ink-2); }
   .online { display: inline-flex; align-items: center; gap: 6px; .st-dot { --c: var(--green); } }
   .dash { font-size: 12px; color: var(--st-ink-3); }
 }
 
 .role {
-  font-size: 12px;
-  padding: 3px 9px;
-  border-radius: var(--r-xs);
+  font-size: 13px;
+  padding: 4px 11px;
+  border-radius: var(--r-pill);
   background: var(--well-2);
   color: var(--st-ink-2);
 
@@ -142,7 +134,9 @@ const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
 }
 
 @media (max-width: 1180px) {
-  .view { padding: 40px 36px 80px; }
-  .u-stats { grid-template-columns: repeat(2, 1fr); }
+  .view { padding: 28px 32px 64px; }
+  .u-stats { --n: 2; }
+  .u-stats .st-stat:nth-child(3) { box-shadow: 0 -1px 0 var(--line-2); }
+  .u-stats .st-stat:nth-child(4) { box-shadow: -1px 0 0 var(--line-2), 0 -1px 0 var(--line-2); }
 }
 </style>

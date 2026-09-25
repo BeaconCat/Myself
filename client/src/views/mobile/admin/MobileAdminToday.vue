@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 后台 · 概览：问候 + 本周发布柱状图 + 三项计数 + 待办 + 继续写 + 最近动静。
+ * 后台 · 概览：问候 + 本周发布柱状图与计数统计条（合并一卡）+ 待办 + 继续写 + 最近动静。
  * 全部来自真实数据（文章 / 随想 / 素材 / 备份 / 图片质量扫描），支持下拉刷新。
  */
 import { computed, onMounted, ref, watch } from 'vue';
@@ -233,34 +233,39 @@ function syncNow(): void {
 
     <MaSkeleton v-if="!ready" variant="hero" />
     <template v-else>
+      <!-- 高密度：本周柱状图与计数统计条合并为一张信息完整的大卡 -->
       <section class="ov-hero">
-        <small>{{ t('mobileAdmin.today.weekTitle') }}</small>
+        <header class="ov-head">
+          <small>{{ t('mobileAdmin.today.weekTitle') }}</small>
+          <div class="legend">
+            <span style="--c: var(--primary)">{{ t('mobileAdmin.today.legendPosts') }}</span>
+            <span style="--c: var(--bar-2)">{{ t('mobileAdmin.today.legendNotes') }}</span>
+          </div>
+        </header>
         <div class="ov-num">
           <b>{{ week.total }}</b>
           <em v-if="week.delta !== 0" :class="{ down: week.delta < 0 }">{{ week.delta > 0 ? '+' : '' }}{{ week.delta }}</em>
           <span class="unit">{{ t('mobileAdmin.today.weekUnit') }}</span>
         </div>
-        <p v-if="!week.total" class="bars-empty">
-          {{ lastPublished ? t('mobileAdmin.today.weekEmptySince', { time: lastPublished }) : t('mobileAdmin.today.weekEmpty') }}
-        </p>
-        <div class="bars" :class="{ grown, quiet: !week.total }">
-          <div v-for="(d, k) in week.days" :key="d.start" class="bar" :class="{ today: k === 6, empty: !d.sum }">
-            <span class="val">{{ d.sum || '' }}</span>
-            <i :style="{ '--h': Math.max(0.06, d.h), '--k': k, '--p': d.sum ? d.posts / d.sum : 0 }" />
-            <small>{{ d.label }}</small>
+        <div class="bars-box">
+          <p v-if="!week.total" class="bars-empty">
+            {{ lastPublished ? t('mobileAdmin.today.weekEmptySince', { time: lastPublished }) : t('mobileAdmin.today.weekEmpty') }}
+          </p>
+          <div class="bars" :class="{ grown, quiet: !week.total }">
+            <div v-for="(d, k) in week.days" :key="d.start" class="bar" :class="{ today: k === 6, empty: !d.sum }">
+              <span class="val">{{ d.sum || '' }}</span>
+              <i :style="{ '--h': Math.max(0.06, d.h), '--k': k, '--p': d.sum ? d.posts / d.sum : 0 }" />
+              <small>{{ d.label }}</small>
+            </div>
           </div>
         </div>
-        <div class="legend">
-          <span style="--c: var(--primary)">{{ t('mobileAdmin.today.legendPosts') }}</span>
-          <span style="--c: var(--bar-2)">{{ t('mobileAdmin.today.legendNotes') }}</span>
+        <div class="ov-stats">
+          <button class="tap" @click="router.push({ name: 'admin-posts' })"><b>{{ counts.posts }}</b><small>{{ t('mobileAdmin.today.posts') }}</small></button>
+          <button class="tap" @click="router.push({ name: 'admin-notes' })"><b>{{ counts.notes }}</b><small>{{ t('mobileAdmin.today.notes') }}</small></button>
+          <button class="tap" @click="router.push({ name: 'admin-media' })"><b>{{ counts.media }}</b><small>{{ t('mobileAdmin.today.media') }}</small></button>
+          <button class="tap" @click="router.push({ name: 'admin-posts', query: { filter: 'draft' } })"><b>{{ drafts.length }}</b><small>{{ t('mobileAdmin.content.draft') }}</small></button>
         </div>
       </section>
-
-      <div class="ov-trio">
-        <button class="tap" @click="router.push({ name: 'admin-posts' })"><b>{{ counts.posts }}</b><small>{{ t('mobileAdmin.today.posts') }}</small></button>
-        <button class="tap" @click="router.push({ name: 'admin-notes' })"><b>{{ counts.notes }}</b><small>{{ t('mobileAdmin.today.notes') }}</small></button>
-        <button class="tap" @click="router.push({ name: 'admin-media' })"><b>{{ counts.media }}</b><small>{{ t('mobileAdmin.today.media') }}</small></button>
-      </div>
 
       <section>
         <div class="sec-h"><h2>{{ t('mobileAdmin.today.todo') }}</h2><span v-if="todos.length" class="badge">{{ todos.length }}</span></div>
@@ -355,13 +360,20 @@ function syncNow(): void {
   /* 图表第二系列：主色掺底，数据色而非发光 */
   --bar-2: color-mix(in oklab, var(--primary) 38%, var(--fill-2));
 
-  margin: 4px 16px 0;
-  padding: 20px 20px 14px;
-  border-radius: var(--r-xl);
+  margin: 2px 16px 0;
+  padding: 18px;
+  border-radius: var(--r-lg);
   background: var(--elev);
   box-shadow: var(--shadow-card);
   position: relative;
   overflow: hidden;
+}
+
+.ov-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 
   > small {
     font-size: 13px;
@@ -373,13 +385,14 @@ function syncNow(): void {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: 2px;
 
   b {
-    font-family: var(--font-serif);
-    font-size: 46px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-family: var(--font-mono);
+    font-size: 44px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
     line-height: 1.1;
   }
 
@@ -404,24 +417,27 @@ function syncNow(): void {
   }
 }
 
+.bars-box { position: relative; }
+
 .bars-empty {
-  position: absolute;
-  left: 20px;
-  right: 20px;
-  top: 112px;
+  margin-top: 12px;
   text-align: center;
   font-size: 13px;
   color: var(--text-3);
   animation: ma-act-in 0.6s var(--ease-out) 0.3s backwards;
 }
 
+/* 柱状图撑满卡片宽度：7 列等分，柱宽随宽度放大（不设上限） */
 .bars {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
-  height: 132px;
-  margin-top: 12px;
+  gap: 8px;
+  height: 128px;
+  margin-top: 10px;
   align-items: end;
+
+  /* 本周无发布：柱区收成一条基线，不留大片空白 */
+  &.quiet { height: 46px; }
 }
 
 .bar {
@@ -435,8 +451,7 @@ function syncNow(): void {
   i {
     display: block;
     width: 100%;
-    max-width: 30px;
-    height: calc(var(--h) * 80px);
+    height: calc(var(--h) * 86px);
     border-radius: var(--r-sm);
     /* 堆叠柱：底部实色段（文章）+ 其余为第二系列（随想），两段均为纯色 */
     background: var(--bar-2) linear-gradient(var(--primary), var(--primary)) bottom / 100% calc(var(--p) * 100%) no-repeat;
@@ -448,14 +463,14 @@ function syncNow(): void {
 
   .val {
     font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-3);
+    font-size: 12px;
+    color: var(--text-2);
     opacity: 0;
     transition: opacity 0.4s calc(var(--k, 0) * 45ms + 0.3s);
   }
 
   small {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-3);
   }
 
@@ -466,6 +481,8 @@ function syncNow(): void {
   .quiet & {
     i { height: 6px; }
   }
+
+  .quiet & .val { display: none; }
 
   &.today {
     small { color: var(--ink); font-weight: 600; }
@@ -479,9 +496,8 @@ function syncNow(): void {
 
 .legend {
   display: flex;
-  gap: 14px;
-  margin-top: 12px;
-  font-size: 12px;
+  gap: 12px;
+  font-size: 12.5px;
   color: var(--text-2);
 
   span::before {
@@ -495,31 +511,39 @@ function syncNow(): void {
   }
 }
 
-.ov-trio {
+/* 统计条：等分格 + 大号等宽数字，窄屏 2 列 */
+.ov-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  margin: 14px 16px 0;
-  padding: 16px 4px;
-  border-radius: var(--r-xl);
-  background: var(--elev);
-  box-shadow: var(--shadow-card);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+  border-radius: var(--r-md);
+  background: var(--fill);
+  overflow: hidden;
 
   button {
-    padding: 0 16px;
+    min-width: 0;
+    padding: 16px 16px 14px;
     text-align: left;
 
-    & + button { border-left: 0.5px solid var(--line); }
+    &:nth-child(2) { box-shadow: -1px 0 0 var(--line); }
+    &:nth-child(3) { box-shadow: 0 -1px 0 var(--line); }
+    &:nth-child(4) { box-shadow: -1px 0 0 var(--line), 0 -1px 0 var(--line); }
+    &:active { background: var(--fill-2); }
   }
 
   b {
     display: block;
-    font-size: 24px;
-    font-weight: 700;
-    font-family: var(--font-serif);
+    font-family: var(--font-mono);
+    font-size: 30px;
+    line-height: 1.1;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
 
   small {
-    font-size: 12px;
+    display: block;
+    margin-top: 6px;
+    font-size: 12.5px;
     color: var(--text-3);
   }
 }
@@ -549,7 +573,7 @@ function syncNow(): void {
   }
 
   .tt { font-size: 15px; }
-  small { font-size: 12px; margin-top: 2px; }
+  small { font-size: 13px; margin-top: 2px; }
 }
 
 .all-clear {
@@ -557,8 +581,8 @@ function syncNow(): void {
   align-items: center;
   gap: 14px;
   margin: 0 16px;
-  padding: 16px;
-  border-radius: var(--r-xl);
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
   background: var(--elev);
   box-shadow: inset 0 0 0 0.5px var(--line);
 
@@ -582,8 +606,8 @@ function syncNow(): void {
   gap: 14px;
   width: calc(100% - 32px);
   margin: 0 16px;
-  padding: 16px;
-  border-radius: var(--r-xl);
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
   text-align: left;
   background: var(--elev);
   box-shadow: inset 0 0 0 0.5px var(--line);
@@ -618,16 +642,40 @@ function syncNow(): void {
 
 .draft-pair {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: 1fr;
   margin: 0 16px;
+  border-radius: var(--r-lg);
+  background: var(--elev);
+  box-shadow: inset 0 0 0 0.5px var(--line);
+  overflow: hidden;
 
+  /* 高密度：两个入口合并为一组列表行（图标 + 标题 + 说明同一行） */
   .draft {
+    position: relative;
     width: auto;
     margin: 0;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+
+    & + .draft::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 64px;
+      right: 0;
+      height: 0.5px;
+      background: var(--line-2);
+    }
+  }
+
+  .dt {
+    display: flex;
     flex-direction: column-reverse;
-    align-items: flex-start;
-    gap: 16px;
   }
 
   .go { margin-left: 0; }
@@ -647,7 +695,7 @@ function syncNow(): void {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 4px;
+  padding: 11px 0;
   position: relative;
   animation: ma-act-in 0.5s var(--ease-out) backwards;
   animation-delay: calc(var(--k) * 50ms);
@@ -656,7 +704,7 @@ function syncNow(): void {
     content: '';
     position: absolute;
     top: 0;
-    left: 52px;
+    left: 50px;
     right: 0;
     height: 0.5px;
     background: var(--line);
@@ -679,19 +727,17 @@ function syncNow(): void {
   }
 
   p {
-    font-size: 14.5px;
-    line-height: 1.5;
+    font-size: 15px;
+    line-height: 1.45;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
 
     :deep(b) { font-weight: 600; }
   }
 
   small {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-3);
   }
 

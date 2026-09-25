@@ -55,7 +55,7 @@ const split = (date: string) => {
     background: var(--ak-line-2);
   }
 
-  li { position: relative; padding-bottom: 20px; }
+  li { position: relative; padding-bottom: 18px; }
   li:last-child { padding-bottom: 0; }
 
   li::before {
@@ -70,9 +70,9 @@ const split = (date: string) => {
     box-shadow: inset 0 0 0 1.5px var(--ak-text-3);
   }
 
-  time { font: 500 11.5px var(--ak-mono); letter-spacing: 0.04em; color: var(--ak-text-3); }
-  b { display: block; margin-top: 2px; font: 700 15px/1.5 var(--font-serif); }
-  p { margin-top: 2px; font-size: 13px; color: var(--text-2); }
+  time { font: 500 12.5px var(--ak-mono); letter-spacing: 0.02em; color: var(--ak-text-3); }
+  b { display: block; margin-top: 2px; font: 700 16px/1.5 var(--font-serif); }
+  p { margin-top: 2px; font-size: 14px; line-height: 1.6; color: var(--text-2); }
 }
 
 /* 当前节点：主色信号点 + 轻染环（无外发光） */
@@ -118,18 +118,20 @@ const split = (date: string) => {
   time {
     display: block;
     margin-bottom: 8px;
-    font: 700 26px/1 var(--font-serif);
+    font: 700 28px/1 var(--font-serif);
     letter-spacing: -0.02em;
 
-    small { margin-left: 2px; font: 500 12px var(--ak-mono); letter-spacing: 0; color: var(--ak-text-3); }
+    small { margin-left: 2px; font: 500 13px var(--ak-mono); letter-spacing: 0; color: var(--ak-text-3); }
   }
 
-  b { display: block; font: 700 14.5px/1.5 var(--font-serif); }
-  p { margin-top: 4px; font-size: 12.5px; color: var(--text-2); }
+  b { display: block; font: 700 16px/1.5 var(--font-serif); }
+  p { margin-top: 4px; font-size: 14px; color: var(--text-2); }
 }
 
 .ms li, .msh li { opacity: 0; transform: translateY(8px); transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out); transition-delay: calc(var(--k) * 80ms + 200ms); }
 .in .ms li, .in .msh li { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) { .ms li, .msh li { opacity: 1; transform: none; transition: none; } }
 
 @container (max-width: 600px) {
   .msh { grid-auto-flow: row; padding: 0 0 0 26px; }

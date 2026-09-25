@@ -56,7 +56,7 @@ function openAt(e: MouseEvent, c: Cell): void {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 26px 0 14px;
+  padding: 20px 0 10px;
   font-size: 13px;
   letter-spacing: 0.06em;
   color: var(--text-3);
@@ -66,7 +66,7 @@ function openAt(e: MouseEvent, c: Cell): void {
 
 .mgrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 4px;
   overflow: hidden;
   isolation: isolate;
@@ -102,7 +102,7 @@ function openAt(e: MouseEvent, c: Cell): void {
     bottom: 6px;
     z-index: 4;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: rgb(255 255 255 / 0.72);
   }
 }
@@ -111,6 +111,10 @@ function openAt(e: MouseEvent, c: Cell): void {
   padding: 72px 0;
   text-align: center;
   color: var(--text-3);
+}
+
+@media (max-width: 1100px) {
+  .mgrid { grid-template-columns: repeat(4, 1fr); }
 }
 
 @media (max-width: 640px) {

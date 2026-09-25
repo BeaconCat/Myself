@@ -64,7 +64,7 @@ onMounted(() => void load());
 
 <template>
   <section class="studio view">
-    <router-link class="st-link back" :to="{ name: 'admin-notes' }"><SIcon name="arrowL" :size="16" />{{ t('studio.writeNote.back') }}</router-link>
+    <router-link class="st-link back" :to="{ name: 'admin-notes' }"><SIcon name="arrowL" :size="18" />{{ t('studio.writeNote.back') }}</router-link>
     <div class="st-vh">
       <div>
         <h1>{{ id === null ? t('studio.writeNote.title') : t('studio.writeNote.editTitle') }}</h1>
@@ -102,9 +102,9 @@ onMounted(() => void load());
 
 <style scoped lang="scss">
 .view {
-  max-width: 1120px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 40px 64px 96px;
+  padding: 32px 48px 72px;
 }
 
 .back { margin-bottom: 20px; }
@@ -155,7 +155,7 @@ onMounted(() => void load());
 }
 
 @media (max-width: 1180px) {
-  .view { padding: 32px 36px 80px; }
+  .view { padding: 28px 32px 64px; }
   .grid { grid-template-columns: 1fr; }
 }
 </style>

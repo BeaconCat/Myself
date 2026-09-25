@@ -110,9 +110,9 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
 
 .mf-field { display: flex; flex-direction: column; gap: 6px; }
 .mf-title { flex: 1; min-width: 160px; }
-.mf-title .a-input { padding-top: 6px; padding-bottom: 6px; height: 32px; }
+.mf-title .a-input { padding-top: 6px; padding-bottom: 6px; height: 34px; }
 
-.mf-label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; color: var(--text-2); }
+.mf-label { font-size: 12.5px; font-weight: 600; letter-spacing: 0.04em; color: var(--text-2); }
 
 .mf-seg {
   display: inline-flex;
@@ -126,12 +126,12 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    height: 26px;
-    padding: 0 10px;
+    height: 28px;
+    padding: 0 11px;
     border: 0;
     border-radius: var(--r-sm);
     background: none;
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--text-2);
     transition: background-color var(--dur) var(--ease-out), color var(--dur-fast), box-shadow var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
 
@@ -175,13 +175,13 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
+  height: 34px;
   margin-left: auto;
-  padding: 0 12px;
+  padding: 0 14px;
   border: 0;
   border-radius: var(--r-pill);
   background: var(--fill);
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-2);
   transition: background var(--dur-fast), color var(--dur-fast);
 

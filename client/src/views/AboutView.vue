@@ -24,7 +24,7 @@ const about = computed(() => config.cfg.about);
 <style scoped lang="scss">
 .about-page {
   position: relative;
-  padding: 24px 0 96px;
+  padding: 8px 0 32px;
   overflow-x: clip;
 }
 
@@ -36,7 +36,7 @@ const about = computed(() => config.cfg.about);
 }
 
 @media (max-width: 640px) {
-  .about-page { padding: 8px 0 90px; }
+  .about-page { padding: 4px 0 72px; }
   .wrap { padding: 0 16px; }
 }
 </style>

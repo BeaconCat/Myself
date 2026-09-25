@@ -47,7 +47,7 @@ function like(n: GuestNote, i: number): void {
     <span class="av me">{{ t('aboutKit.guestbook.visitorShort') }}</span>
     <input v-model="draft" :maxlength="MAX" :placeholder="t('aboutKit.guestbook.placeholder')" :aria-label="t('aboutKit.guestbook.placeholder')" />
     <span class="cnt">{{ draft.length }}/{{ MAX }}</span>
-    <button class="ak-btn pri send" type="submit"><KitIcon name="send" :size="15" />{{ t('aboutKit.guestbook.send') }}</button>
+    <button class="ak-btn pri send" type="submit"><KitIcon name="send" :size="16" />{{ t('aboutKit.guestbook.send') }}</button>
   </form>
   <div class="gb-meta">
     <span>{{ d.requireLogin ? t('aboutKit.guestbook.needLogin') : t('aboutKit.guestbook.asVisitor') }}</span>
@@ -63,7 +63,7 @@ function like(n: GuestNote, i: number): void {
       <p>{{ n.text }}</p>
       <div v-if="n.reply" class="re"><b>{{ t('aboutKit.guestbook.owner') }}</b>{{ n.reply }}</div>
       <button class="lk" :class="{ on: liked.has(keyOf(n, i)) }" @click="like(n, i)">
-        <KitIcon name="heart" :size="13" /><span>{{ n.likes + (liked.has(keyOf(n, i)) ? 1 : 0) }}</span>
+        <KitIcon name="heart" :size="15" /><span>{{ n.likes + (liked.has(keyOf(n, i)) ? 1 : 0) }}</span>
       </button>
     </article>
   </div>
@@ -84,7 +84,7 @@ function like(n: GuestNote, i: number): void {
   /* 聚焦：焦点环（--ink）是唯一允许的彩色环 */
   &:focus-within { background: var(--elev); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink) 70%, transparent), 0 0 0 3px color-mix(in oklab, var(--ink) 18%, transparent); }
 
-  .av { width: 34px; height: 34px; }
+  .av { width: 36px; height: 36px; }
 
   input {
     flex: 1;
@@ -93,34 +93,38 @@ function like(n: GuestNote, i: number): void {
     border: 0;
     outline: 0;
     font: inherit;
-    font-size: 14px;
+    font-size: 15px;
     color: var(--text);
 
     &::placeholder { color: var(--ak-text-3); }
   }
 
-  .cnt { font: 400 11px var(--ak-mono); color: var(--ak-text-3); }
-  .send { height: 34px; }
+  .cnt { font: 400 12px var(--ak-mono); color: var(--ak-text-3); }
+  .send { height: 36px; }
 }
 
-.gb-meta { display: flex; justify-content: space-between; margin: 10px 2px 18px; font-size: 12px; color: var(--ak-text-3); }
+.gb-meta { display: flex; justify-content: space-between; margin: 10px 2px 16px; font-size: 13px; color: var(--ak-text-3); }
 
-.gb-wall { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* 留言卡：默认两列；通栏宽度足够时四列一排（避免 3 + 1 的孤卡） */
+.gb-wall { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+@container (min-width: 1000px) { .gb-wall { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 .note {
+  display: flex;
+  flex-direction: column;
   padding: 14px 16px;
   border-radius: var(--r-md);
   background: var(--ak-sunken);
-  box-shadow: inset 0 0 0 1px var(--ak-line);
-  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur);
+  transition: transform var(--dur) var(--ease-out), background-color var(--dur);
 
-  &:hover { box-shadow: inset 0 0 0 1px var(--ak-line-2); transform: translateY(-2px); }
+  &:hover { background: var(--fill-2); transform: translateY(-2px); }
   &.fresh { animation: gb-pop 0.6s var(--ease-spring); }
 
   header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-  header b { font-size: 13px; font-weight: 600; }
-  time { margin-left: auto; font: 400 11px var(--ak-mono); color: var(--ak-text-3); }
-  p { font-size: 13.5px; line-height: 1.75; color: var(--text-2); overflow-wrap: anywhere; }
+  header b { font-size: 14.5px; font-weight: 600; }
+  time { margin-left: auto; font: 400 12.5px var(--ak-mono); color: var(--ak-text-3); }
+  p { font-size: 15px; line-height: 1.7; color: var(--text); overflow-wrap: anywhere; }
 
   .re {
     margin-top: 10px;
@@ -128,18 +132,20 @@ function like(n: GuestNote, i: number): void {
     border-radius: var(--r-sm);
     background: var(--ak-surface);
     box-shadow: inset 0 0 0 1px var(--ak-line);
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--text-2);
 
-    b { margin-right: 6px; font-size: 12px; color: var(--ak-ink); }
+    b { margin-right: 6px; font-size: 13px; color: var(--ak-ink); }
   }
 
   .lk {
     display: flex;
     align-items: center;
     gap: 5px;
-    margin-top: 10px;
-    font: 400 11px var(--ak-mono);
+    align-self: flex-start;
+    margin-top: auto;
+    padding-top: 10px;
+    font: 400 12.5px var(--ak-mono);
     color: var(--ak-text-3);
     transition: color var(--dur-fast);
 
@@ -154,10 +160,10 @@ function like(n: GuestNote, i: number): void {
   display: grid;
   place-items: center;
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  font: 600 12px var(--font-sans);
+  font: 600 13px var(--font-sans);
   color: #fff;
   background: var(--c);
 

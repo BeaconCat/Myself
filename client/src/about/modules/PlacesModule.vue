@@ -60,9 +60,9 @@ const span = computed(() => (since.value ? new Date().getFullYear() - since.valu
       </svg>
     </div>
     <div class="pl-side">
-      <div class="pl-sum">
-        <div><b><CountUp :value="d.items.length" /></b><span>{{ t('aboutKit.places.cities') }}</span></div>
-        <div v-if="span"><b><CountUp :value="span" /></b><span>{{ t('aboutKit.places.span', { y: since }) }}</span></div>
+      <div class="ak-statbar pl-sum" :style="{ '--n': span ? 2 : 1 }">
+        <div class="ak-stat"><b><CountUp :value="d.items.length" /></b><span>{{ t('aboutKit.places.cities') }}</span></div>
+        <div v-if="span" class="ak-stat"><b><CountUp :value="span" /></b><span>{{ t('aboutKit.places.span', { y: since }) }}</span></div>
       </div>
       <ul class="pl-list">
         <li v-for="(p, i) in d.items" :key="i" :class="{ on: hover === i, home: p.home }" @pointerenter="hover = i">
@@ -112,14 +112,7 @@ const span = computed(() => (since.value ? new Date().getFullYear() - since.valu
 
 @keyframes pl-flow { to { stroke-dashoffset: -22; } }
 
-.pl-sum {
-  display: flex;
-  gap: 26px;
-  margin-bottom: 8px;
-
-  b { display: block; font: 500 28px/1 var(--ak-mono); letter-spacing: -0.03em; }
-  > div > span { font-size: 12px; color: var(--ak-text-3); }
-}
+.pl-sum { margin-bottom: 10px; }
 
 .pl-list {
   list-style: none;
@@ -131,20 +124,21 @@ const span = computed(() => (since.value ? new Date().getFullYear() - since.valu
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    padding: 7px 0;
+    padding: 8px 0;
     border-bottom: 1px solid var(--ak-line);
-    font-size: 13px;
+    font-size: 15px;
+    font-weight: 500;
     cursor: default;
     transition: color var(--dur-fast);
 
-    small { font: 400 11px var(--ak-mono); color: var(--ak-text-3); }
+    small { font: 400 12.5px var(--ak-mono); color: var(--ak-text-3); }
     &.on { color: var(--ak-ink); }
     &.home small { color: var(--ak-yellow); }
   }
 }
 
-@container (min-width: 620px) {
-  .pl { grid-template-columns: 1.5fr 1fr; align-items: center; gap: 30px; }
+@container (min-width: 500px) {
+  .pl { grid-template-columns: 1.4fr 1fr; align-items: center; gap: 28px; }
   .pl-list { grid-template-columns: 1fr; }
 }
 </style>

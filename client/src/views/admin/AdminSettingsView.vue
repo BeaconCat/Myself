@@ -128,7 +128,7 @@ onBeforeUnmount(() => {
       </div>
       <div class="act">
         <button type="button" class="st-btn" :class="dirty ? 'p' : 'g'" :disabled="busy || !dirty" @click="save">
-          <SIcon name="check" :size="16" />{{ dirty ? t('studio.save') : t('studio.saved') }}
+          <SIcon name="check" :size="18" />{{ dirty ? t('studio.save') : t('studio.saved') }}
         </button>
       </div>
     </div>
@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
       </nav>
 
       <div class="secs">
-        <section id="set-site" class="sec st-rise" style="--i: 0">
+        <section id="set-site" class="sec st-card wide st-rise" style="--i: 0">
           <h2>{{ t('studio.settings.nav.site') }}</h2>
           <div class="st-opt">
             <div>{{ t('studio.settings.siteTitle') }}<small>{{ t('studio.settings.siteTitleSub') }}</small></div>
@@ -157,7 +157,7 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <section id="set-loading" class="sec st-rise" style="--i: 1">
+        <section id="set-loading" class="sec st-card half st-rise" style="--i: 1">
           <h2>{{ t('studio.settings.nav.loading') }}</h2>
           <div class="st-opt">
             <div>{{ t('studio.settings.bootText') }}<small>{{ t('studio.settings.bootTextSub') }}</small></div>
@@ -169,7 +169,7 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <section id="set-content" class="sec st-rise" style="--i: 2">
+        <section id="set-content" class="sec st-card half st-rise" style="--i: 2">
           <h2>{{ t('studio.settings.nav.content') }}</h2>
           <div class="st-opt">
             <div>{{ t('studio.settings.thoughtsSub') }}<small>{{ t('studio.settings.thoughtsSubSub') }}</small></div>
@@ -181,24 +181,24 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <section id="set-timezone" class="sec st-rise" style="--i: 3">
+        <section id="set-timezone" class="sec st-card wide st-rise" style="--i: 3">
           <h2>{{ t('studio.settings.nav.timezone') }}</h2>
           <div class="st-opt">
             <div>{{ t('studio.settings.tz') }}<small>{{ t('studio.settings.tzSub') }}</small></div>
             <label class="st-field w260 sel">
-              <SIcon name="globe" :size="16" />
+              <SIcon name="globe" :size="18" />
               <select v-model="cfg.timezone"><option v-for="tz in TIMEZONES" :key="tz" :value="tz">{{ tz }}</option></select>
-              <SIcon name="chevronD" :size="14" />
+              <SIcon name="chevronD" :size="16" />
             </label>
           </div>
         </section>
 
-        <section id="set-github" class="sec st-rise" style="--i: 4">
+        <section id="set-github" class="sec st-card wide st-rise" style="--i: 4">
           <h2>{{ t('studio.settings.nav.github') }}</h2>
           <SectionGithub :cfg="cfg" />
         </section>
 
-        <section id="set-account" class="sec st-rise" style="--i: 5">
+        <section id="set-account" class="sec st-card wide st-rise" style="--i: 5">
           <h2>{{ t('studio.settings.nav.account') }}</h2>
           <p class="sec-desc">{{ t('studio.settings.accountDesc') }}</p>
           <SectionAccount />
@@ -210,15 +210,15 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .view {
-  max-width: 1120px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 52px 64px 96px;
+  padding: 32px 48px 72px;
 }
 
 .layout {
   display: grid;
-  grid-template-columns: 168px minmax(0, 1fr);
-  gap: 48px;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 28px;
   align-items: start;
 }
 
@@ -232,10 +232,10 @@ onBeforeUnmount(() => {
   button {
     position: relative;
     text-align: left;
-    height: 34px;
+    height: 38px;
     padding: 0 14px;
     border-radius: var(--r-sm);
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: var(--st-ink-3);
     transition: all var(--dur-fast);
 
@@ -245,16 +245,33 @@ onBeforeUnmount(() => {
   }
 }
 
+/* 分区 = 卡片；短分区两两并排（6/6）等高，长分区整行 */
+.secs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 18px;
+}
+
 .sec {
   scroll-margin-top: 24px;
-  padding-bottom: 36px;
-  margin-bottom: 36px;
-  border-bottom: 1px solid var(--line);
+  gap: 6px;
 
-  &:last-child { border-bottom: 0; }
+  &.wide { grid-column: 1 / -1; }
 
-  h2 { font: 600 18px/1.3 var(--font-serif); margin: 0 0 6px; }
-  .sec-desc { font-size: 13px; color: var(--st-ink-3); margin: 0 0 14px; }
+  h2 { font: 700 22px/1.3 var(--font-serif); margin: 0 0 4px; }
+  .sec-desc { font-size: 14px; color: var(--st-ink-3); margin: 0 0 10px; }
+}
+
+/* 半宽卡：说明在上、输入框撑满 */
+.half {
+  :deep(.st-opt), .st-opt {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .st-field { width: auto; }
 }
 
 .w140 { width: 140px; }
@@ -269,8 +286,9 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1180px) {
-  .view { padding: 40px 36px 80px; }
+  .view { padding: 28px 32px 64px; }
   .layout { grid-template-columns: 1fr; }
   .sub { display: none; }
+  .secs { grid-template-columns: 1fr; }
 }
 </style>

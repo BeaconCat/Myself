@@ -51,13 +51,13 @@ async function submit(): Promise<void> {
 <template>
   <form class="acc" @submit.prevent="submit">
     <input type="text" autocomplete="username" value="admin" hidden />
-    <label><span class="st-flabel">{{ t('studio.settings.pwOld') }}</span><span class="st-field"><SIcon name="lock" :size="16" /><input v-model="oldPw" type="password" autocomplete="current-password" /></span></label>
+    <label><span class="st-flabel">{{ t('studio.settings.pwOld') }}</span><span class="st-field"><SIcon name="lock" :size="18" /><input v-model="oldPw" type="password" autocomplete="current-password" /></span></label>
     <label>
       <span class="st-flabel">{{ t('studio.settings.pwNew') }}</span>
-      <span class="st-field"><SIcon name="key" :size="16" /><input v-model="newPw" type="password" autocomplete="new-password" /></span>
+      <span class="st-field"><SIcon name="key" :size="18" /><input v-model="newPw" type="password" autocomplete="new-password" /></span>
       <span class="meter" :data-s="strength"><i /><i /><i /><i /></span>
     </label>
-    <label><span class="st-flabel">{{ t('studio.settings.pwConfirm') }}</span><span class="st-field"><SIcon name="check" :size="16" /><input v-model="confirmPw" type="password" autocomplete="new-password" /></span></label>
+    <label><span class="st-flabel">{{ t('studio.settings.pwConfirm') }}</span><span class="st-field"><SIcon name="check" :size="18" /><input v-model="confirmPw" type="password" autocomplete="new-password" /></span></label>
     <div class="ft">
       <span v-if="error" class="err">{{ error }}</span>
       <span v-else class="hint">{{ t('studio.settings.pwHint') }}</span>
