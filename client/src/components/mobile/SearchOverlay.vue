@@ -204,7 +204,7 @@ function openNote(): void {
           <div class="h">{{ t('mobile.search.tags') }}</div>
           <div class="chips">
             <button v-for="tag in allTags" :key="tag.name" class="chip m-tap" @click="openTag(tag.name)">
-              # {{ tag.name }}<em>{{ tag.count }}</em>
+              <span class="hs">#</span>{{ tag.name }}<em>{{ tag.count }}</em>
             </button>
           </div>
         </template>
@@ -218,7 +218,7 @@ function openNote(): void {
             <div class="chips">
               <button v-for="tag in matchedTags" :key="tag.name" class="chip on m-tap" @click="openTag(tag.name)">
                 <!-- eslint-disable-next-line vue/no-v-html -->
-                # <span v-html="hl(tag.name)" /><em>{{ tag.count }}</em>
+                <span class="hs">#</span><span v-html="hl(tag.name)" /><em>{{ tag.count }}</em>
               </button>
             </div>
           </template>
@@ -309,9 +309,9 @@ function openNote(): void {
   gap: 8px;
   height: 44px;
   padding: 0 12px;
-  border-radius: 14px;
-  background: var(--m-fill-2);
-  color: var(--m-text-3);
+  border-radius: var(--r-md);
+  background: var(--fill-3);
+  color: var(--text-3);
 
   input {
     flex: 1;
@@ -322,11 +322,11 @@ function openNote(): void {
     background: none;
     border: 0;
     outline: none;
-    caret-color: var(--primary);
+    caret-color: var(--ink);
     user-select: text;
     -webkit-user-select: text;
 
-    &::placeholder { color: var(--m-text-3); }
+    &::placeholder { color: var(--text-3); }
     &::-webkit-search-cancel-button { display: none; }
   }
 }
@@ -337,7 +337,7 @@ function openNote(): void {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--m-text-3) !important;
+  background: var(--text-3) !important;
   color: var(--bg) !important;
   opacity: 0;
   pointer-events: none;
@@ -353,7 +353,7 @@ function openNote(): void {
 
 .cancel {
   font-size: 16px;
-  color: var(--m-ink) !important;
+  color: var(--ink) !important;
 }
 
 .body {
@@ -382,14 +382,14 @@ function openNote(): void {
   padding: 14px 20px 8px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--m-text-3);
+  color: var(--text-3);
   letter-spacing: 0.04em;
 
   button {
     margin-left: auto;
     font-size: 13px;
     font-weight: 400;
-    color: var(--m-ink) !important;
+    color: var(--ink) !important;
   }
 }
 
@@ -404,7 +404,7 @@ function openNote(): void {
   font-size: 15.5px;
   text-align: left;
 
-  .m-ic { color: var(--m-text-3); width: 18px; height: 18px; }
+  .m-ic { color: var(--text-3); width: 18px; height: 18px; }
   span { flex: 1; }
 
   & + &::before {
@@ -414,10 +414,10 @@ function openNote(): void {
     left: 50px;
     right: 0;
     height: 0.5px;
-    background: var(--m-line);
+    background: var(--line);
   }
 
-  &:active { background: var(--m-fill); }
+  &:active { background: var(--fill-2); }
 }
 
 .chips {
@@ -427,6 +427,7 @@ function openNote(): void {
   padding: 4px 20px;
 }
 
+/* chip：未选中 = 1px 描边空心；选中 = 抬升 + 轻染 + 前置 4px 主色圆点 */
 .chip {
   height: 34px;
   padding: 0 14px;
@@ -436,22 +437,38 @@ function openNote(): void {
   gap: 4px;
   font-size: 14px;
   color: var(--text-2);
-  background: var(--m-fill);
-  box-shadow: inset 0 0 0 0.5px var(--m-line);
+  box-shadow: inset 0 0 0 1px var(--line);
+
+  &::before {
+    content: '';
+    width: 0;
+    height: 4px;
+    margin-right: -4px;
+    border-radius: 50%;
+    background: var(--ink);
+    opacity: 0;
+    transition: width var(--dur) var(--ease-spring), margin var(--dur) var(--ease-spring), opacity var(--dur);
+  }
+
+  .hs { color: var(--text-3); margin-right: 1px; }
 
   em {
     font-style: normal;
     font-family: var(--m-font-mono);
     font-size: 11px;
-    opacity: 0.6;
+    color: var(--text-3);
     margin-left: 2px;
   }
 
   &.on {
-    background: var(--m-soft);
-    color: var(--m-ink);
-    box-shadow: none;
+    background: var(--lift);
+    color: var(--lift-fg);
+    box-shadow: var(--lift-shadow);
     font-weight: 500;
+
+    &::before { width: 4px; margin-right: 2px; opacity: 1; }
+    .hs { display: none; }
+    em { color: var(--text-2); }
   }
 }
 
@@ -476,7 +493,7 @@ function openNote(): void {
     display: block;
     margin-top: 4px;
     font-size: 12px;
-    color: var(--m-text-3);
+    color: var(--text-3);
   }
 
   & + &::before {
@@ -486,17 +503,17 @@ function openNote(): void {
     left: 20px;
     right: 0;
     height: 0.5px;
-    background: var(--m-line);
+    background: var(--line);
   }
 
-  &:active { background: var(--m-fill); }
+  &:active { background: var(--fill-2); }
 }
 
 .search :deep(mark) {
   background: none;
-  color: var(--m-ink);
+  color: var(--ink);
   font-weight: 700;
-  box-shadow: inset 0 -0.35em 0 var(--m-soft);
+  box-shadow: inset 0 -0.35em 0 var(--tint);
 }
 
 .empty {
@@ -510,8 +527,8 @@ function openNote(): void {
     border-radius: 50%;
     display: grid;
     place-items: center;
-    background: var(--m-fill);
-    color: var(--m-text-3);
+    background: var(--fill-2);
+    color: var(--text-3);
   }
 
   b {
@@ -522,7 +539,7 @@ function openNote(): void {
   p {
     margin-top: 6px;
     font-size: 13.5px;
-    color: var(--m-text-3);
+    color: var(--text-3);
     line-height: 1.7;
   }
 }

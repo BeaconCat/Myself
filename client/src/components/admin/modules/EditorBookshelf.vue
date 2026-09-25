@@ -57,7 +57,7 @@ const make = (): Book => ({ title: '', author: '', color: '#1d3a5f', textColor: 
   display: flex;
   justify-content: center;
   padding-top: 6px;
-  border-radius: 2px;
+  border-radius: calc(var(--r-xs) * 0.45);
   writing-mode: vertical-rl;
   font: 700 10px var(--font-serif);
   letter-spacing: 0.1em;

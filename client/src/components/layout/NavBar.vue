@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import ThemeSwitcher from './ThemeSwitcher.vue';
+import UiIcon from '../ui/UiIcon.vue';
 import { useAuthStore } from '../../stores/auth';
 
 const { t } = useI18n();
+const route = useRoute();
 const auth = useAuthStore();
 const drawerOpen = ref(false);
 const writeOpen = ref(false);
@@ -17,28 +20,90 @@ function onDocPointerDown(e: PointerEvent): void {
   if (!writeWrap.value?.contains(e.target as Node)) writeOpen.value = false;
 }
 
-onMounted(() => document.addEventListener('pointerdown', onDocPointerDown));
-onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocPointerDown));
-
 const links = [
   { to: '/', key: 'nav.home' },
   { to: '/articles', key: 'nav.articles' },
   { to: '/thoughts', key: 'nav.thoughts' },
   { to: '/about', key: 'nav.about' },
 ];
+
+/** 当前所在栏目（文章详情归入「文章」）；-1 = 不在任何栏目，选中块淡出 */
+const activeIndex = computed(() => {
+  const p = route.path;
+  if (p === '/') return 0;
+  return links.findIndex((l, i) => i > 0 && (p === l.to || p.startsWith(`${l.to}/`)));
+});
+
+/* ===== 选中块 morph：前缘 .30s ease-out，后缘 .46s spring 延迟 .05s ===== */
+const capsule = ref<HTMLElement | null>(null);
+const itemEls: HTMLElement[] = [];
+
+function setItem(r: unknown, i: number): void {
+  const el = (r as { $el?: HTMLElement } | null)?.$el;
+  if (el) itemEls[i] = el;
+}
+const lift = ref({ l: 0, r: 0, dir: 'to-r' as 'to-r' | 'to-l', on: false, instant: true });
+
+function place(instant = false): void {
+  const cap = capsule.value;
+  const el = itemEls[activeIndex.value];
+  if (!cap || !el) {
+    lift.value = { ...lift.value, on: false };
+    return;
+  }
+  const l = el.offsetLeft;
+  const r = cap.clientWidth - l - el.offsetWidth;
+  const wasOn = lift.value.on;
+  lift.value = {
+    l,
+    r,
+    dir: l < lift.value.l ? 'to-l' : 'to-r',
+    on: true,
+    // 从「无选中」进入时不 morph，原地淡入
+    instant: instant || !wasOn,
+  };
+  if (lift.value.instant) {
+    requestAnimationFrame(() => requestAnimationFrame(() => { lift.value = { ...lift.value, instant: false }; }));
+  }
+}
+
+watch(activeIndex, () => void nextTick(() => place()));
+
+let ro: ResizeObserver | null = null;
+onMounted(() => {
+  document.addEventListener('pointerdown', onDocPointerDown);
+  place(true);
+  // 字体加载完成 / 容器尺寸变化后重新测量，不做动画
+  void document.fonts?.ready.then(() => place(true));
+  if (capsule.value && 'ResizeObserver' in window) {
+    ro = new ResizeObserver(() => place(true));
+    ro.observe(capsule.value);
+  }
+});
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', onDocPointerDown);
+  ro?.disconnect();
+});
 </script>
 
 <template>
-  <!-- PC：毛玻璃胶囊导航 -->
+  <!-- PC：居中毛玻璃胶囊导航 + 外观（色盘 / 深浅）+ 登录态写作 / 后台入口 -->
   <header class="nav-pc">
-    <nav class="capsule">
+    <nav ref="capsule" class="capsule" :aria-label="t('shell.mainNav')">
+      <span
+        class="lift"
+        :class="[lift.dir, { on: lift.on, instant: lift.instant }]"
+        :style="{ left: `${lift.l}px`, right: `${lift.r}px` }"
+        aria-hidden="true"
+      />
       <router-link
-        v-for="link in links"
+        v-for="(link, i) in links"
         :key="link.to"
+        :ref="(r) => setItem(r, i)"
         :to="link.to"
         class="capsule-link"
-        active-class="active"
-        :exact-active-class="link.to === '/' ? 'active' : ''"
+        :class="{ on: activeIndex === i }"
+        :aria-current="activeIndex === i ? 'page' : undefined"
       >
         {{ t(link.key) }}
       </router-link>
@@ -47,24 +112,23 @@ const links = [
 
     <!-- 写作入口：文章 / 随想 -->
     <div v-if="auth.loggedIn" ref="writeWrap" class="write-wrap">
-      <button class="admin-dot" :title="t('write.menuTitle')" @click="writeOpen = !writeOpen">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 20h9" />
-          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-        </svg>
+      <button
+        class="round-btn"
+        :class="{ open: writeOpen }"
+        :title="t('write.menuTitle')"
+        :aria-expanded="writeOpen"
+        @click="writeOpen = !writeOpen"
+      >
+        <UiIcon name="pen" class="s" />
       </button>
       <transition name="pop">
         <div v-if="writeOpen" class="write-menu" @click="writeOpen = false">
           <router-link to="/write/post" class="wm-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6 3h9l5 5v13H6zM14 3v6h6" />
-            </svg>
+            <UiIcon name="doc" class="s" />
             <span>{{ t('write.menuPost') }}</span>
           </router-link>
           <router-link to="/write/note" class="wm-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.3 8.8 8.8 0 0 1-3.8-.8L3 21l2-5.2a8 8 0 0 1-1-3.9A8.4 8.4 0 0 1 12.5 3.5 8.4 8.4 0 0 1 21 11.5Z" />
-            </svg>
+            <UiIcon name="bubble" class="s" />
             <span>{{ t('write.menuNote') }}</span>
           </router-link>
         </div>
@@ -72,15 +136,12 @@ const links = [
     </div>
 
     <!-- 管理员快捷入口（登录态常驻 30 天） -->
-    <router-link v-if="auth.loggedIn" to="/admin" class="admin-dot" :title="t('admin.loginTitle')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" />
-      </svg>
+    <router-link v-if="auth.loggedIn" to="/admin" class="round-btn" :title="t('admin.loginTitle')">
+      <UiIcon name="user" class="s" />
     </router-link>
   </header>
 
-  <!-- 移动端：悬浮顶栏 + 汉堡侧栏 -->
+  <!-- 窄屏兜底（桌面外壳在 768px 以下几乎不会出现，移动端有独立外壳）：悬浮顶栏 + 汉堡侧栏 -->
   <header class="nav-mobile">
     <span class="site-name">{{ t('common.siteName') }}</span>
     <button
@@ -97,11 +158,11 @@ const links = [
     <aside v-if="drawerOpen" class="drawer">
       <nav class="drawer-links">
         <router-link
-          v-for="link in links"
+          v-for="(link, i) in links"
           :key="link.to"
           :to="link.to"
           class="drawer-link"
-          active-class="active"
+          :class="{ on: activeIndex === i }"
           @click="drawerOpen = false"
         >
           {{ t(link.key) }}
@@ -132,8 +193,25 @@ const links = [
 </template>
 
 <style scoped lang="scss">
-/* ===== PC 胶囊 ===== */
+/* ===== 共用：毛玻璃胶囊面（中性描边 + 中性阴影，无主色描边 / 外发光） ===== */
+%glass {
+  background: color-mix(in oklab, var(--bg) 72%, transparent);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  box-shadow: inset 0 0 0 0.5px var(--line-2), 0 8px 24px -16px rgb(0 0 0 / 0.5);
+
+  :root[data-mode='light'] & {
+    background: color-mix(in oklab, var(--bg) 70%, rgb(255 255 255 / 0.4));
+    box-shadow: inset 0 0 0 0.5px var(--line-2), 0 1px 2px rgb(16 24 40 / 0.04), 0 10px 28px -18px rgb(16 24 40 / 0.35);
+  }
+}
+
+/* ===== PC ===== */
+/* 顶栏圆角随全局 --r-base 走：默认（10）时 44px 高度恰为胶囊，基准调小则变圆角矩形 */
 .nav-pc {
+  --nav-r: calc(var(--r-base) * 2.2px);
+  --nav-r-in: max(2px, calc(var(--nav-r) - 4px));
+
   position: fixed;
   top: 18px;
   left: 0;
@@ -142,44 +220,145 @@ const links = [
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   pointer-events: none;
 
   > * { pointer-events: auto; }
 }
 
 .capsule {
+  @extend %glass;
+
+  position: relative;
   display: flex;
-  gap: 2px;
-  padding: 5px;
-  border-radius: 999px;
-  background: var(--glass);
-  backdrop-filter: blur(14px) saturate(1.5);
-  -webkit-backdrop-filter: blur(14px) saturate(1.5);
-  border: 1px solid rgba(var(--primary-rgb), 0.18);
-  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  align-items: center;
+  height: 44px;
+  padding: 4px;
+  border-radius: var(--nav-r);
+}
+
+/* 选中块：抬升 + 轻染，在项之间 morph（左右两缘分别过渡，形成拉伸） */
+.lift {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: var(--nav-r-in);
+  background: var(--lift);
+  box-shadow: var(--lift-shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    right 0.3s var(--ease-out),
+    left 0.46s var(--ease-spring) 0.05s,
+    opacity var(--dur) var(--ease-out),
+    background-color var(--dur),
+    box-shadow var(--dur);
+
+  &.to-l {
+    transition:
+      left 0.3s var(--ease-out),
+      right 0.46s var(--ease-spring) 0.05s,
+      opacity var(--dur) var(--ease-out),
+      background-color var(--dur),
+      box-shadow var(--dur);
+  }
+
+  &.instant { transition: opacity var(--dur) var(--ease-out); }
+  &.on { opacity: 1; }
 }
 
 .capsule-link {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 18px 1px;
+  border-radius: var(--nav-r-in);
   font-size: 14px;
-  font-weight: 600;
-  padding: 8px 18px;
-  border-radius: 999px;
+  font-weight: 500;
   color: var(--text-2);
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: color var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
 
-  &:hover { background: var(--surface-2); color: var(--text); }
+  &:hover { color: var(--text); }
+  &:active { transform: scale(0.96); }
+  &.on { color: var(--lift-fg); }
 
-  &.active {
-    background: linear-gradient(180deg, var(--primary), var(--primary-deep));
-    color: #fff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-    box-shadow: 0 2px 10px rgba(var(--primary-rgb), 0.5);
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus);
   }
 }
 
-/* ===== 移动悬浮顶栏 ===== */
+/* 圆形按钮：写作 / 后台（中性玻璃面，hover 只改明度） */
+.round-btn {
+  @extend %glass;
+
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: min(50%, var(--nav-r));
+  color: var(--text-2);
+  transition: color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+
+  &:hover,
+  &.open { color: var(--text); background: color-mix(in oklab, var(--bg) 60%, var(--fill-3)); }
+  &:active { transform: scale(0.94); }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus);
+  }
+}
+
+.write-wrap { position: relative; }
+
+.write-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  padding: 6px;
+  border-radius: var(--r-lg);
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  box-shadow: var(--shadow-pop);
+  transform-origin: top right;
+
+  :root[data-mode='light'] & { background: rgb(255 255 255 / 0.92); }
+}
+
+.wm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  transition: background-color var(--dur-fast), color var(--dur-fast);
+
+  &:hover { background: var(--fill-2); color: var(--text); }
+  &:focus-visible { outline: none; box-shadow: var(--focus); }
+}
+
+.pop-enter-active { transition: opacity 0.2s var(--ease-out), transform 0.35s var(--ease-spring); }
+.pop-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.pop-enter-from, .pop-leave-to { opacity: 0; transform: translateY(-6px) scale(0.97); }
+
+/* ===== 窄屏兜底：悬浮顶栏 + 汉堡侧栏 ===== */
 .nav-mobile {
+  @extend %glass;
+
   display: none;
   position: fixed;
   top: 12px;
@@ -187,12 +366,7 @@ const links = [
   right: 12px;
   z-index: 100;
   padding: 10px 16px;
-  border-radius: var(--radius);
-  background: var(--glass);
-  backdrop-filter: blur(14px) saturate(1.5);
-  -webkit-backdrop-filter: blur(14px) saturate(1.5);
-  border: 1px solid rgba(var(--primary-rgb), 0.18);
-  box-shadow: var(--shadow);
+  border-radius: var(--r-lg);
   justify-content: space-between;
   align-items: center;
 }
@@ -218,7 +392,7 @@ const links = [
     display: block;
     width: 20px;
     height: 2px;
-    border-radius: 2px;
+    border-radius: var(--r-pill);
     background: var(--text);
     transition: transform var(--dur) var(--ease-spring), opacity var(--dur-fast);
   }
@@ -236,150 +410,62 @@ const links = [
   width: min(78vw, 320px);
   z-index: 99;
   background: var(--surface);
-  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-pop);
   padding: 84px 22px 22px;
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 
-.drawer-links {
+.drawer-links,
+.drawer-admin {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+}
+
+.drawer-admin {
+  padding-top: 14px;
+  box-shadow: inset 0 0.5px 0 var(--line);
 }
 
 .drawer-link {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 12px 16px;
-  border-radius: var(--radius);
+  border-radius: var(--r-md);
   color: var(--text-2);
-  transition: all var(--dur-fast);
+  transition: background-color var(--dur-fast), color var(--dur-fast);
 
-  &.active {
-    background: rgba(var(--primary-rgb), 0.12);
-    color: var(--primary);
+  &:hover { background: var(--fill); color: var(--text); }
+
+  &.on {
+    background: var(--lift);
+    box-shadow: var(--lift-shadow);
+    color: var(--lift-fg);
   }
 }
 
-.write-wrap { position: relative; }
-
-.write-menu {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  z-index: 120;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px;
-  min-width: 150px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow), 0 16px 40px -12px rgba(var(--primary-rgb), 0.25);
-}
-
-.wm-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--text-2);
-  transition: all var(--dur-fast);
-
-  svg { width: 16px; height: 16px; }
-
-  &:hover {
-    background: rgba(var(--primary-rgb), 0.1);
-    color: var(--primary);
-    transform: translateX(2px);
-  }
-}
-
-.pop-enter-active, .pop-leave-active { transition: opacity var(--dur-fast), transform var(--dur-fast) var(--ease-out); }
-.pop-enter-from, .pop-leave-to { opacity: 0; transform: translateY(-8px) scale(0.96); }
-
-.admin-dot {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  color: var(--text);
-  background: var(--glass);
-  backdrop-filter: blur(14px) saturate(1.5);
-  -webkit-backdrop-filter: blur(14px) saturate(1.5);
-  border: 1px solid rgba(var(--primary-rgb), 0.18);
-  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  transition: all var(--dur-fast) var(--ease-out);
-
-  svg { width: 18px; height: 18px; }
-
-  &:hover {
-    color: var(--primary);
-    border-color: rgba(var(--primary-rgb), 0.5);
-    transform: scale(1.08);
-    box-shadow: var(--shadow), 0 0 14px rgba(var(--primary-rgb), 0.35);
-  }
-}
-
-.drawer-admin {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
-}
-
-/* 主题条：居中 + 放大触控目标 */
 .drawer-theme {
   display: flex;
   justify-content: center;
   margin-top: auto;
   padding-bottom: 8px;
-
-  :deep(.switcher) {
-    padding: 12px 18px;
-    gap: 12px;
-  }
-
-  :deep(.dot) {
-    width: 22px;
-    height: 22px;
-  }
-
-  :deep(.divider) { height: 20px; }
-
-  :deep(.mode-btn) {
-    width: 32px;
-    height: 32px;
-  }
-
-  :deep(.mode-icon) {
-    width: 24px;
-    height: 24px;
-  }
 }
 
 .drawer-mask {
   position: fixed;
   inset: 0;
   z-index: 98;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--scrim);
 }
 
-/* 过渡 */
-.drawer-enter-active, .drawer-leave-active { transition: transform var(--dur) var(--ease-out); }
+.drawer-enter-active, .drawer-leave-active { transition: transform var(--dur) var(--ease-sheet); }
 .drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }
 .fade-enter-active, .fade-leave-active { transition: opacity var(--dur-fast); }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .nav-pc { display: none; }
   .nav-mobile { display: flex; }
 }

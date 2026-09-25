@@ -52,9 +52,7 @@ watch(() => loading.bootDone, (done) => { if (done) finish(); });
   align-items: center;
   justify-content: center;
   gap: 18px;
-  background:
-    radial-gradient(60% 40% at 50% 46%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 70%),
-    var(--bg);
+  background: var(--bg);
   transition: opacity 0.55s var(--ease-out) 0.1s;
 
   &.leaving {
@@ -67,9 +65,9 @@ watch(() => loading.bootDone, (done) => { if (done) finish(); });
   position: relative;
   width: 84px;
   height: 84px;
-  border-radius: 24px;
+  border-radius: var(--r-xl);
   overflow: hidden;
-  box-shadow: 0 22px 40px -16px color-mix(in oklab, var(--primary) 60%, black), 0 0 0 0.5px rgba(255, 255, 255, 0.14);
+  box-shadow: var(--shadow-pop);
   animation: mark-in 0.7s var(--ease-spring) both;
   transition: transform 0.6s var(--ease-out), opacity 0.45s var(--ease-out);
 
@@ -85,7 +83,7 @@ watch(() => loading.bootDone, (done) => { if (done) finish(); });
   }
 }
 
-/* 门缝扫光 */
+/* 门缝扫光（品牌光影，允许发光） */
 .sweep {
   position: absolute;
   inset: -20%;
@@ -109,8 +107,8 @@ watch(() => loading.bootDone, (done) => { if (done) finish(); });
 .bar {
   width: 72px;
   height: 3px;
-  border-radius: 2px;
-  background: color-mix(in oklab, var(--text) 10%, transparent);
+  border-radius: 999px;
+  background: var(--fill-3);
   overflow: hidden;
   animation: fade-up 0.5s var(--ease-out) 0.25s both;
   transition: opacity 0.3s;
@@ -119,6 +117,7 @@ watch(() => loading.bootDone, (done) => { if (done) finish(); });
     display: block;
     height: 100%;
     border-radius: inherit;
+    /* 品牌三色常量（非主色渐变），仅用于启动进度 */
     background: linear-gradient(90deg, var(--accent-red), var(--accent-yellow), var(--accent-blue));
     transform-origin: left center;
     transition: transform 0.35s var(--ease-out);

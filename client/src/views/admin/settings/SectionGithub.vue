@@ -120,7 +120,7 @@ onMounted(loadLog);
 .panel {
   margin-top: 16px;
   padding: 18px 20px;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: var(--well);
 }
 
@@ -131,13 +131,13 @@ onMounted(loadLog);
   gap: 28px;
 
   b { display: block; font-size: 22px; font-weight: 500; line-height: 1.2; letter-spacing: -0.02em; }
-  small { font-size: 12px; color: var(--ink-3); }
+  small { font-size: 12px; color: var(--st-ink-3); }
 }
 
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.msg { margin: 12px 0 0; font-size: 13px; color: color-mix(in oklab, var(--green) 70%, var(--ink)); &.err { color: var(--red); } }
+.msg { margin: 12px 0 0; font-size: 13px; color: color-mix(in oklab, var(--green) 70%, var(--st-ink)); &.err { color: var(--red); } }
 
 .log {
   list-style: none;
@@ -154,17 +154,17 @@ onMounted(loadLog);
     gap: 10px;
     align-items: center;
     font-size: 12.5px;
-    color: var(--ink-2);
+    color: var(--st-ink-2);
 
     .st-dot { --c: var(--green); }
     &.err .st-dot { --c: var(--red); }
     &.err span { color: var(--red); }
-    time { font-size: 11.5px; color: var(--ink-3); }
+    time { font-size: 11.5px; color: var(--st-ink-3); }
     span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   }
 }
 
-.empty { margin: 12px 0 0; font-size: 12.5px; color: var(--ink-3); }
+.empty { margin: 12px 0 0; font-size: 12.5px; color: var(--st-ink-3); }
 
 .manual {
   display: grid;

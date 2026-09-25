@@ -169,13 +169,13 @@ onMounted(() => {
         <div class="stat"><b class="mono">{{ sizeParts(stats.total)[0] }}<span class="u">{{ sizeParts(stats.total)[1] }}</span></b><small>{{ t('studio.media.statSize') }}</small></div>
         <div class="usage">
           <div class="ub">
-            <i :style="{ width: stats.pct(stats.posts), background: 'var(--primary)' }" />
-            <i :style="{ width: stats.pct(stats.notes), background: 'color-mix(in oklab, var(--primary) 45%, var(--well-2))' }" />
+            <i :style="{ width: stats.pct(stats.posts), background: 'var(--ink)' }" />
+            <i :style="{ width: stats.pct(stats.notes), background: 'color-mix(in oklab, var(--ink) 45%, var(--well-2))' }" />
             <i :style="{ width: stats.pct(stats.other), background: 'var(--line-3)' }" />
           </div>
           <div class="lg">
-            <span><i class="st-dot" style="--c: var(--primary)" />{{ t('studio.media.lgPosts', { size: formatSize(stats.posts) }) }}</span>
-            <span><i class="st-dot" style="--c: color-mix(in oklab, var(--primary) 45%, var(--well-2))" />{{ t('studio.media.lgNotes', { size: formatSize(stats.notes) }) }}</span>
+            <span><i class="st-dot" style="--c: var(--ink)" />{{ t('studio.media.lgPosts', { size: formatSize(stats.posts) }) }}</span>
+            <span><i class="st-dot" style="--c: color-mix(in oklab, var(--ink) 45%, var(--well-2))" />{{ t('studio.media.lgNotes', { size: formatSize(stats.notes) }) }}</span>
             <span><i class="st-dot" style="--c: var(--line-3)" />{{ t('studio.media.lgOther', { size: formatSize(stats.other) }) }}</span>
             <button v-if="compressCount" type="button" class="zip-link" @click="setTab('optimize')">
               <i class="st-dot" style="--c: var(--yellow)" />{{ t('studio.media.lgZip', { n: compressCount }) }}
@@ -238,8 +238,8 @@ onMounted(() => {
 
 .stat {
   b { display: block; font-size: 26px; line-height: 1.1; font-weight: 500; letter-spacing: -0.03em; }
-  small { font-size: 12.5px; color: var(--ink-3); }
-  .u { font: 400 14px var(--font-sans); color: var(--ink-3); margin-left: 3px; letter-spacing: 0; }
+  small { font-size: 12.5px; color: var(--st-ink-3); }
+  .u { font: 400 14px var(--font-sans); color: var(--st-ink-3); margin-left: 3px; letter-spacing: 0; }
 }
 
 .usage {
@@ -249,7 +249,7 @@ onMounted(() => {
   .ub {
     display: flex;
     height: 8px;
-    border-radius: 4px;
+    border-radius: var(--r-xs);
     overflow: hidden;
     background: var(--well-2);
     margin: 8px 0 8px;
@@ -262,13 +262,13 @@ onMounted(() => {
     gap: 16px;
     flex-wrap: wrap;
     font-size: 12px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
 
     span, button { display: inline-flex; align-items: center; gap: 5px; }
   }
 
   .zip-link {
-    color: color-mix(in oklab, var(--yellow) 50%, var(--ink));
+    color: color-mix(in oklab, var(--yellow) 50%, var(--st-ink));
     transition: gap var(--dur) var(--ease-spring);
 
     &:hover { gap: 8px; }
@@ -286,7 +286,7 @@ onMounted(() => {
   width: 100%;
   margin: 0 0 14px;
   break-inside: avoid;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   overflow: hidden;
   cursor: zoom-in;
   background: var(--well-2);
@@ -326,7 +326,7 @@ onMounted(() => {
     top: 10px;
     height: 22px;
     padding: 0 8px;
-    border-radius: 11px;
+    border-radius: var(--r-sm);
     font: 500 11px/22px var(--font-sans);
     background: rgba(255, 179, 0, 0.92);
     color: #1e1c19;
@@ -339,16 +339,16 @@ onMounted(() => {
   position: fixed;
   inset: 14px 14px 14px 276px;
   z-index: 30;
-  border-radius: var(--r);
+  border-radius: var(--r-lg);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
   font: 500 17px var(--font-serif);
-  color: var(--primary-ink);
-  background: color-mix(in oklab, var(--primary-soft) 88%, transparent);
-  border: 1.5px dashed var(--primary);
+  color: var(--ink);
+  background: color-mix(in oklab, var(--paper) 84%, transparent);
+  border: 1.5px dashed color-mix(in oklab, var(--ink) 60%, transparent);
   backdrop-filter: blur(4px);
   pointer-events: none;
 }

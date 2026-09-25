@@ -1,75 +1,79 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { thumbOf, type Note } from '../../api';
+import type { Note } from '../../api';
+import CoverArt from '../common/CoverArt.vue';
+import ContentIcon from '../post/ContentIcon.vue';
+import { ymdOf } from '../post/content';
 import { render as renderMarkdown } from '../../utils/markdown';
 
-/** 单条随想卡（X 风）：头像 + 头部 + 短内容 Markdown + 配图拼图 */
-defineProps<{
-  note: Note;
-  /** 逐条浮入的 stagger 序号（写入 --i） */
-  index: number;
-}>();
-
+/**
+ * 单条随想：头像 + 头部（名字 · @handle · 时间 · 右侧「# 心情」可点）+ Markdown 正文 + 配图宫格。
+ * 配图 1 / 2 / 3 / 4 / 5–9 张对应单图、双拼、三拼、四宫格、九宫格；无图随想只有正文。
+ * 服务端占位图与缺图统一走 CoverArt 光影构成。
+ */
+const props = defineProps<{ note: Note; avatar: string; name: string; handle: string }>();
 const emit = defineEmits<{
-  /** 打开查看器：图组 + 起始索引 */
-  open: [images: string[], index: number];
+  open: [images: string[], index: number, rect: DOMRect];
+  mood: [mood: string];
+  copy: [note: Note];
 }>();
-
 const { t } = useI18n();
 
-/** 拼图布局类：1 单图 / 2 双拼 / 3 三拼 / 4 四宫格 / ≥5 三列宫格 */
-function gridClass(n: number): string {
-  if (n === 1) return 'g1';
-  if (n === 2) return 'g2';
-  if (n === 3) return 'g3';
-  if (n === 4) return 'g4';
-  return 'gn';
-}
+const html = computed(() => renderMarkdown(props.note.contentMd));
+const grid = computed(() => {
+  const n = props.note.images.length;
+  return n >= 5 ? 'n9' : `n${n}`;
+});
 
-function render(note: Note): string {
-  return renderMarkdown(note.contentMd);
-}
-
-/** 相对时间：今天/昨天内显示口语化，更早显示日期 */
-function timeOf(s: string): string {
-  const then = new Date(s.replace(' ', 'T'));
-  const diffMs = Date.now() - then.getTime();
-  const hours = Math.floor(diffMs / 3.6e6);
-  if (hours < 1) return t('thoughts.justNow');
-  if (hours < 24) return t('thoughts.hoursAgo', { n: hours });
+/** 一天内口语化，一周内「n 天前」，更早 M月D日（跨年带年份） */
+const when = computed(() => {
+  const s = props.note.createdAt;
+  const diff = Date.now() - new Date(s.replace(' ', 'T')).getTime();
+  const hours = Math.floor(diff / 3.6e6);
+  if (hours < 1 && diff >= 0) return t('thoughts.justNow');
+  if (hours < 24 && diff >= 0) return t('thoughts.hoursAgo', { n: hours });
   const days = Math.floor(hours / 24);
-  if (days < 7) return t('thoughts.daysAgo', { n: days });
-  return s.slice(0, 10);
+  if (days < 7 && diff >= 0) return t('thoughts.daysAgo', { n: days });
+  const { y, m, d } = ymdOf(s);
+  return y === new Date().getFullYear() ? `${m}月${d}日` : `${y}年${m}月${d}日`;
+});
+
+function openAt(e: MouseEvent, i: number): void {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  emit('open', props.note.images, i, rect);
 }
 </script>
 
 <template>
-  <article class="tweet" :style="{ '--i': index }">
-    <img class="avatar" src="/favicon-64.png" alt="" draggable="false" />
-    <div class="tweet-main">
-      <header class="tweet-head">
-        <strong>BeaconCat</strong>
-        <span class="handle">{{ '@myself' }}</span>
-        <span class="sep">·</span>
-        <time>{{ timeOf(note.createdAt) }}</time>
-        <span v-if="note.mood" class="mood">{{ note.mood }}</span>
+  <article class="post">
+    <span class="av"><img :src="avatar" alt="" draggable="false" /></span>
+    <div class="main">
+      <header class="hd">
+        <b>{{ name }}</b>
+        <span class="handle">@{{ handle }}</span>
+        <span class="dotsep" />
+        <time :datetime="note.createdAt.replace(' ', 'T')" :title="note.createdAt.slice(0, 16)">{{ when }}</time>
+        <button v-if="note.mood" type="button" class="tag" @click="emit('mood', note.mood)">{{ note.mood }}</button>
       </header>
-      <!-- 短内容 Markdown -->
-      <div class="tweet-body markdown-mini" v-html="render(note)" />
+      <!-- eslint-disable-next-line vue/no-v-html -->
+      <div class="body" v-html="html" />
 
-      <!-- 配图拼图 -->
-      <div
-        v-if="note.images.length"
-        class="pics"
-        :class="gridClass(note.images.length)"
-      >
+      <div v-if="note.images.length" class="igrid" :class="grid">
         <button
           v-for="(src, i) in note.images"
-          :key="src"
-          class="pic"
-          @click="emit('open', note.images, i)"
+          :key="`${i}-${src}`"
+          type="button"
+          class="cell"
+          @click="openAt($event, i)"
         >
-          <img :src="thumbOf(src)" alt="" loading="lazy" draggable="false" />
+          <CoverArt :src="src" :seed="`${note.id}-${i}`" pool="all" thumb />
+        </button>
+      </div>
+
+      <div class="act">
+        <button type="button" class="ab" :aria-label="t('content.thoughts.copyText')" :title="t('content.thoughts.copyText')" @click="emit('copy', note)">
+          <ContentIcon name="copy" size="s" />
         </button>
       </div>
     </div>
@@ -77,128 +81,180 @@ function timeOf(s: string): string {
 </template>
 
 <style scoped lang="scss">
-.tweet {
-  display: flex;
-  gap: 14px;
-  padding: 20px 12px;
-  border-bottom: 1px solid var(--border);
-  transition: background var(--dur-fast);
-  /* 逐条浮入（含追加加载的新条目） */
-  animation: tweet-in 0.5s var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 0.05s);
+.post {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 16px;
+  padding: 26px 0 18px;
 
-  &:hover { background: rgba(var(--primary-rgb), 0.04); }
+  & + &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 60px;
+    right: 0;
+    height: 0.5px;
+    background: var(--line-2);
+  }
 }
 
-@keyframes tweet-in {
-  from { opacity: 0; transform: translateY(22px); }
-  to { opacity: 1; transform: none; }
-}
-
-.avatar {
+.av {
   width: 44px;
   height: 44px;
+  overflow: hidden;
   border-radius: 50%;
-  flex-shrink: 0;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
+  background: #060b16;
+  box-shadow: 0 0 0 0.5px rgb(255 255 255 / 0.14);
+
+  img { display: block; width: 100%; height: 100%; object-fit: cover; }
 }
 
-.tweet-main {
-  flex: 1;
-  min-width: 0;
-}
+.main { min-width: 0; }
 
-.tweet-head {
+.hd {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-3);
 
-  strong { font-weight: 700; }
-
-  .handle, .sep, time { color: var(--text-2); font-size: 13px; }
-
-  .mood {
-    margin-left: auto;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 10px;
-    background: rgba(var(--primary-rgb), 0.1);
-    color: var(--primary);
-  }
+  b { font-size: 15px; font-weight: 500; color: var(--text); }
+  .handle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 
-.tweet-body {
-  margin-top: 6px;
-  font-size: 15px;
-  line-height: 1.8;
+.dotsep {
+  flex: none;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
 
-  :deep(p) { margin: 4px 0; }
+/* 心情：「# 名称」纯文字，可点击按心情搜索 */
+.tag {
+  flex: none;
+  margin-left: auto;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: none;
+  font-size: 13px;
+  color: var(--text-2);
+  transition: color var(--dur-fast);
 
-  :deep(code) {
-    font-family: Consolas, 'Courier New', monospace;
-    font-size: 0.88em;
-    background: var(--surface-2);
-    padding: 2px 6px;
-    border-radius: 6px;
+  &::before {
+    content: '#';
+    margin-right: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    color: var(--text-3);
   }
 
-  :deep(strong) { color: var(--primary); }
+  &:hover { color: var(--ink); }
+  &:focus-visible { outline: none; box-shadow: var(--focus); }
+}
+
+.body {
+  margin-top: 6px;
+  font-size: 15.5px;
+  line-height: 1.8;
+  color: var(--text);
+  overflow-wrap: anywhere;
+
+  :deep(p) { margin: 0 0 6px; }
+  :deep(p:last-child) { margin-bottom: 0; }
+  :deep(strong) { font-weight: 700; }
 
   :deep(a) {
-    color: var(--primary);
-    border-bottom: 1px solid rgba(var(--primary-rgb), 0.35);
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--ink) 35%, transparent);
+    text-underline-offset: 3px;
+
+    &:hover { text-decoration-color: currentColor; }
+  }
+
+  :deep(code:not(pre code)) {
+    padding: 1px 5px;
+    border-radius: var(--r-xs);
+    background: var(--fill-2);
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+  }
+
+  :deep(pre) {
+    margin: 8px 0;
+    padding: 14px 16px;
+    overflow-x: auto;
+    border-radius: var(--r-sm);
+    background: var(--hl-bg);
+    box-shadow: inset 0 0 0 0.5px var(--line);
+    font-size: 12.5px;
+  }
+
+  :deep(ul), :deep(ol) { margin: 4px 0 6px; padding-left: 1.4em; }
+  :deep(blockquote) {
+    margin: 6px 0;
+    padding-left: 14px;
+    background: linear-gradient(var(--line-2), var(--line-2)) left / 2px 100% no-repeat;
+    color: var(--text-2);
   }
 }
 
-/* ===== 拼图 ===== */
-.pics {
+/* ---------- 配图宫格 ---------- */
+.igrid {
   display: grid;
   gap: 4px;
-  margin-top: 12px;
-  border-radius: var(--radius);
+  max-width: 540px;
+  margin-top: 14px;
   overflow: hidden;
-  max-width: 480px;
+  isolation: isolate;
+  border-radius: var(--r-lg);
 
-  /* 单图：自然比例，限高 */
-  &.g1 {
-    grid-template-columns: 1fr;
-
-    .pic { aspect-ratio: 16 / 10; }
-  }
-
-  &.g2 { grid-template-columns: repeat(2, 1fr); }
-  &.g3 { grid-template-columns: repeat(3, 1fr); }
-  &.g4 {
-    grid-template-columns: repeat(2, 1fr);
-    max-width: 380px;
-  }
-  /* 5–9 图：三列宫格 */
-  &.gn { grid-template-columns: repeat(3, 1fr); }
+  &.n1 { grid-template-columns: 1fr; max-width: 560px; }
+  &.n1 .cell { aspect-ratio: 16 / 10; }
+  &.n2 { grid-template-columns: 1fr 1fr; }
+  &.n3 { grid-template-columns: repeat(3, 1fr); }
+  &.n4 { grid-template-columns: 1fr 1fr; max-width: 420px; }
+  &.n9 { grid-template-columns: repeat(3, 1fr); max-width: 460px; }
 }
 
-.pic {
+.cell {
   position: relative;
-  border: none;
-  padding: 0;
-  background: var(--surface-2);
   aspect-ratio: 1;
   overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: #040914;
   cursor: zoom-in;
 
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    transition: transform var(--dur) var(--ease-out), filter var(--dur-fast);
-  }
+  &:hover :deep(.cv) { transform: scale(1.05); }
+  &:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ink); }
+}
 
-  &:hover img {
-    transform: scale(1.06);
-    filter: brightness(1.06);
-  }
+/* ---------- 操作 ---------- */
+.act {
+  display: flex;
+  gap: 4px;
+  margin: 10px 0 0 -8px;
+}
+
+.ab {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-3);
+  transition: background-color var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+
+  &:hover { background: var(--fill-2); color: var(--text); }
+  &:active { transform: scale(0.94); }
+  &:focus-visible { outline: none; box-shadow: var(--focus); }
 }
 </style>

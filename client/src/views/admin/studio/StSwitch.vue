@@ -22,7 +22,7 @@ defineProps<{ disabled?: boolean; label?: string }>();
   position: relative;
   width: 38px;
   height: 22px;
-  border-radius: 11px;
+  border-radius: var(--r-pill);
   background: var(--line-3);
   flex: none;
   cursor: pointer;
@@ -35,7 +35,7 @@ defineProps<{ disabled?: boolean; label?: string }>();
     left: 2px;
     width: 18px;
     height: 18px;
-    border-radius: 9px;
+    border-radius: var(--r-pill);
     background: #fff;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
     transition: all var(--dur) var(--ease-spring);
@@ -44,7 +44,7 @@ defineProps<{ disabled?: boolean; label?: string }>();
   &:active:not(:disabled)::after { width: 23px; }
 
   &.on {
-    background: var(--primary);
+    background: var(--solid);
 
     &::after { left: 18px; }
     &:active:not(:disabled)::after { left: 13px; }

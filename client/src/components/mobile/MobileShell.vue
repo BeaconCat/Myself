@@ -12,7 +12,6 @@ import {
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { mobilePublicViews } from '../../router/mobile-public';
-import { useThemeStore } from '../../stores/theme';
 import { attachDrag, clamp, rubber } from './gesture';
 import { closeDrawer, openSearch, shell, TAB_ORDER, type TabName } from './shell';
 import SideDrawer from './SideDrawer.vue';
@@ -33,7 +32,6 @@ import './mobile.scss';
  */
 const route = useRoute();
 const router = useRouter();
-const theme = useThemeStore();
 
 type Lazy = () => Promise<Component>;
 const loaders = mobilePublicViews as Record<string, Lazy>;
@@ -179,25 +177,13 @@ onMounted(() => {
 /* 抽屉打开时路由变化（标签跳转等）自动收起 */
 watch(() => route.fullPath, () => { if (shell.dp) closeDrawer(); });
 
-/* ---------- 文档级设置：viewport-fit、滚动锁定、主色上的前景色 ---------- */
+/* ---------- 文档级设置：viewport-fit、滚动锁定 ---------- */
 const html = document.documentElement;
 html.classList.add('m-shell');
 const viewport = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
 const viewportBefore = viewport?.content ?? '';
 if (viewport && !viewportBefore.includes('viewport-fit')) viewport.content = `${viewportBefore}, viewport-fit=cover`;
 
-function onPrimary(hex: string): string {
-  const v = hex.replace('#', '');
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) / 255);
-  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-  const lum = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return lum > 0.42 ? '#1a1200' : '#ffffff';
-}
-watch(
-  () => theme.palette?.light.primary,
-  (p) => { if (p) html.style.setProperty('--m-on-primary', onPrimary(p)); },
-  { immediate: true },
-);
 
 onMounted(() => {
   /* 预取其余页面分包，切 tab / 进详情时不再等网络 */
@@ -214,7 +200,6 @@ onBeforeUnmount(() => {
   detach?.();
   window.clearTimeout(popTimer);
   html.classList.remove('m-shell');
-  html.style.removeProperty('--m-on-primary');
   if (viewport) viewport.content = viewportBefore;
   shell.dp = 0;
   shell.searchOpen = false;
@@ -295,7 +280,7 @@ onBeforeUnmount(() => {
   inset: 0;
   overflow: hidden;
   background: var(--bg);
-  border-radius: calc(var(--m-dp) * 34px);
+  border-radius: calc(var(--m-dp) * var(--r-xl) * 1.6);
   transform: translateX(calc(var(--m-dp) * var(--m-dw))) scale(calc(1 - var(--m-dp) * 0.15));
   box-shadow:
     0 30px 60px -12px rgba(0, 0, 0, calc(var(--m-dp) * 0.55)),

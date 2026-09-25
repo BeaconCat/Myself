@@ -1,25 +1,34 @@
 /*
- * 关于页组件库（about-kit v2）全局样式 —— 仅作用于 .ak 根容器内部。
+ * 关于页组件库（about-kit v2 · 第三轮强调系统）全局样式 —— 仅作用于 .ak 根容器内部。
  *
- * Tokens（由全站派生色 --bg/--surface/--surface-2/--text/--text-2/--primary/--primary-rgb 再派生）：
- *   --ak-surface / --ak-surface-hi / --ak-sunken   卡片底 / 高光面 / 下沉面
- *   --ak-line / --ak-line-2                        细线（按文字色 9% / 16% 混合，深浅通用）
- *   --ak-text-3                                     三级文字
- *   --ak-ink                                        主色可读文字（由 AboutModules 按主色亮度设置混合比）
- *   --ak-on-primary                                 主色上的文字色（亮主色=深字）
- *   --ak-pad 28 / --ak-gap 20 / --ak-r-lg 22 / --ak-r-md 14
+ * 全部 --ak-* 都是全站 token 的别名（styles/tokens.scss），不再自行按主色派生：
+ *   --ak-line / --ak-line-2 = --line / --line-2      --ak-text-3 = --text-3
+ *   --ak-ink = --ink（链接 / 信号文字）               --ak-on-primary = --on-solid
+ *   --ak-surface = 卡面（深：surface 掺 5% 白；浅：纯白）  --ak-sunken = --fill（下沉面，半透明）
+ *   --ak-r-lg / --ak-r-md = --r-lg / --r-md（随 theme.radius 缩放）
+ * 强调规则：主按钮 = --solid 实底；选中 = --lift 抬升 + 轻染；chip = 极轻描边胶囊；
+ * 列表标签 =「# 名称」；卡片 / 控件只用中性阴影。发光只属于品牌光影构图（见 .ak-scene）。
  * 模块内部布局一律用 container query 响应自身宽度。
  */
 
 .ak {
-  --ak-mono: ui-monospace, 'JetBrains Mono', 'Cascadia Mono', 'SF Mono', Consolas, monospace;
+  --ak-mono: var(--font-mono);
   --ak-pad: 28px;
   --ak-gap: 20px;
-  --ak-r-lg: 22px;
-  --ak-r-md: 14px;
-  --ak-line: color-mix(in oklab, var(--text) 9%, transparent);
-  --ak-line-2: color-mix(in oklab, var(--text) 16%, transparent);
-  --ak-text-3: color-mix(in oklab, var(--text-2) 62%, var(--bg));
+  --ak-r-lg: var(--r-lg);
+  --ak-r-md: var(--r-md);
+  --ak-line: var(--line);
+  --ak-line-2: var(--line-2);
+  --ak-text-3: var(--text-3);
+  --ak-ink: var(--ink);
+  --ak-on-primary: var(--on-solid);
+  --ak-sunken: var(--fill);
+  --ak-surface: var(--elev);
+  --ak-surface-hi: var(--elev);
+  --ak-shadow: var(--shadow-card);
+  --ak-shadow-hover: var(--shadow-card-hover);
+  /* 卡片 hover 时跟随指针的中性高光描边 */
+  --ak-spot: rgb(16 24 40 / 0.16);
   --ak-yellow: #ffb300;
   --ak-red: #ff0032;
   --ak-green: #00c853;
@@ -30,21 +39,9 @@
 }
 
 :root[data-mode='dark'] .ak {
-  --ak-surface: color-mix(in oklab, var(--surface) 88%, var(--bg));
-  --ak-surface-hi: color-mix(in oklab, var(--surface-2) 55%, var(--surface));
-  --ak-sunken: color-mix(in oklab, var(--bg) 70%, var(--surface));
-  --ak-ink: color-mix(in oklab, var(--primary) var(--ak-ink-mix, 78%), white);
-  --ak-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 1px 1px rgb(0 0 0 / 0.3), 0 24px 48px -28px rgb(0 0 0 / 0.8);
-  --ak-shadow-hover: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 1px 1px rgb(0 0 0 / 0.3), 0 32px 60px -28px rgb(0 0 0 / 0.9), 0 0 0 1px rgba(var(--primary-rgb), 0.06);
-}
-
-:root[data-mode='light'] .ak {
-  --ak-surface: color-mix(in oklab, var(--surface) 96%, var(--bg));
-  --ak-surface-hi: var(--surface);
-  --ak-sunken: color-mix(in oklab, var(--surface-2) 55%, var(--surface));
-  --ak-ink: color-mix(in oklab, var(--primary) var(--ak-ink-mix, 72%), black);
-  --ak-shadow: 0 1px 2px rgb(16 28 56 / 0.04), 0 18px 36px -24px color-mix(in oklab, rgb(16 28 56 / 0.2), var(--primary) 12%);
-  --ak-shadow-hover: 0 1px 2px rgb(16 28 56 / 0.05), 0 28px 50px -24px color-mix(in oklab, rgb(16 28 56 / 0.28), var(--primary) 14%);
+  --ak-surface: color-mix(in oklab, var(--surface) 95%, white);
+  --ak-surface-hi: color-mix(in oklab, var(--surface) 90%, white);
+  --ak-spot: rgb(255 255 255 / 0.2);
 }
 
 .ak {
@@ -68,7 +65,7 @@
     cursor: pointer;
   }
 
-  :focus-visible { outline: 2px solid rgba(var(--primary-rgb), 0.8); outline-offset: 3px; border-radius: 8px; }
+  :focus-visible { outline: none; box-shadow: var(--focus); }
 
   /* ---------- 网格 ---------- */
   .ak-sec {
@@ -94,19 +91,19 @@
     display: flex;
     flex-direction: column;
     padding: var(--ak-pad);
-    background: linear-gradient(180deg, var(--ak-surface-hi), var(--ak-surface) 60%);
-    border: 1px solid var(--ak-line);
+    background: var(--ak-surface);
     box-shadow: var(--ak-shadow);
-    transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), border-color var(--dur);
+    transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 
+    /* 中性高光描边：hover 时沿指针位置亮起一段，颜色为低透明度白 / 黑（不带主色） */
     &::before {
       content: '';
       position: absolute;
-      inset: -1px;
+      inset: 0;
       border-radius: inherit;
       padding: 1px;
       pointer-events: none;
-      background: radial-gradient(320px circle at var(--mx, 50%) var(--my, 0%), rgba(var(--primary-rgb), 0.75), rgba(var(--primary-rgb), 0.12) 40%, transparent 70%);
+      background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 0%), var(--ak-spot), transparent 70%);
       -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
       -webkit-mask-composite: xor;
       mask-composite: exclude;
@@ -165,8 +162,7 @@
       opacity 0.8s var(--ease-out) var(--d, 0ms),
       filter 0.8s var(--ease-out) var(--d, 0ms),
       transform var(--dur) var(--ease-out),
-      box-shadow var(--dur) var(--ease-out),
-      border-color var(--dur);
+      box-shadow var(--dur) var(--ease-out);
   }
 
   /* ---------- 通用小件 ---------- */
@@ -174,70 +170,111 @@
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: var(--primary);
+    background: var(--ink);
     flex: none;
 
     &.live { background: var(--ak-green); animation: ak-ping 2.2s var(--ease-out) infinite; }
   }
 
+  /* segmented：选中项 = 抬升 + 轻染 */
   .ak-seg {
     display: inline-flex;
     gap: 2px;
     padding: 3px;
-    border-radius: 10px;
-    background: var(--ak-sunken);
-    border: 1px solid var(--ak-line);
+    border-radius: var(--r-md);
+    background: var(--fill);
+    box-shadow: inset 0 0 0 0.5px var(--line);
 
     button {
       padding: 4px 11px;
-      border-radius: 7px;
+      border-radius: var(--r-sm);
       font-size: 12.5px;
       line-height: 1.5;
-      color: var(--ak-text-3);
-      transition: color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
+      color: var(--text-2);
+      transition: color var(--dur-fast), background-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
 
       &:hover { color: var(--text); }
+      &:active { transform: scale(0.96); }
 
       &.on {
-        background: var(--ak-surface-hi);
-        color: var(--text);
-        box-shadow: 0 1px 2px rgb(0 0 0 / 0.15), inset 0 0 0 1px var(--ak-line-2);
+        background: var(--lift);
+        color: var(--lift-fg);
+        font-weight: 500;
+        box-shadow: var(--lift-shadow);
       }
     }
   }
 
+  /* 按钮：默认 = 次级（中性面 + 细描边）；.pri = 主按钮实底，无渐变 / 外发光 / 文字投影 */
   .ak-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     height: 38px;
-    padding: 0 16px;
-    border-radius: 11px;
+    padding: 0 18px;
+    border-radius: var(--r-pill);
     font-size: 13.5px;
     font-weight: 500;
+    line-height: 1;
     white-space: nowrap;
-    border: 1px solid var(--ak-line-2);
-    background: var(--ak-surface-hi);
+    background: var(--fill-2);
     color: var(--text);
-    transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast), box-shadow var(--dur-fast), background var(--dur-fast);
+    box-shadow: inset 0 0 0 0.5px var(--line);
+    transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
 
-    &:hover { transform: translateY(-1px); border-color: rgba(var(--primary-rgb), 0.5); box-shadow: 0 8px 20px -10px rgba(var(--primary-rgb), 0.5); }
-    &:active { transform: translateY(0) scale(0.98); }
+    &:hover { background: var(--fill-3); }
+    &:active { transform: scale(0.97); transition-duration: 0.08s; }
+    &:focus-visible { box-shadow: var(--focus); }
 
     &.pri {
-      background: var(--primary);
-      color: var(--ak-on-primary, #fff);
-      border-color: transparent;
-      box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 10px 24px -12px rgba(var(--primary-rgb), 0.9);
+      background: var(--solid);
+      color: var(--on-solid);
+      box-shadow: var(--btn-shadow);
 
-      &:hover { background: color-mix(in oklab, var(--primary) 88%, white); }
+      &:hover { background: var(--solid-hover); }
+      &:focus-visible { box-shadow: var(--btn-shadow), var(--focus); }
     }
+  }
+
+  /* 可点击 / 可悬停的标签：极轻描边胶囊（.star = 前置 4px 主色圆点，与 chip 选中同构） */
+  .ak-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: var(--r-pill);
+    font-size: 13px;
+    color: var(--text-2);
+    box-shadow: inset 0 0 0 1px var(--line);
+    transition: color var(--dur-fast), box-shadow var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+
+    &:hover { color: var(--text); background: var(--fill); box-shadow: inset 0 0 0 1px var(--line-2); }
+    &:active { transform: scale(0.96); }
+
+    &.star { color: var(--text); font-weight: 500; }
+    &.star::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--ink); }
+  }
+
+  /* 列表里的纯文字标签：「# 名称」（# 为三级灰） */
+  .ak-tag {
+    display: inline-flex;
+    align-items: baseline;
+    font-size: 12.5px;
+    font-style: normal;
+    color: var(--text-2);
+    white-space: nowrap;
+
+    &::before { content: '#'; margin-right: 3px; font-family: var(--ak-mono); font-size: 0.92em; color: var(--text-3); }
   }
 
   .ak-link-arrow svg { transition: transform var(--dur) var(--ease-spring); }
   .ak-link-arrow:hover svg { transform: translate(2px, -2px); }
 
-  /* ---------- CSS 光影构图（替代照片） ---------- */
+  /* ---------- CSS 光影构图（替代照片） ----------
+   * 品牌光影例外：这里是「门缝里透出的光」母题的封面构图，允许主色辉光 / blur，
+   * 与首页 Hero 门缝光、CoverArt 同属品牌资产；控件与卡片不得借用这些写法。 */
   .ak-scene-img { display: block; width: 100%; height: 100%; object-fit: cover; }
 
   .ak-scene {
@@ -255,7 +292,7 @@
   .sc-door {
     background: radial-gradient(70% 45% at 50% 100%, rgba(var(--primary-rgb), 0.35), transparent 70%), linear-gradient(#060b16, #0b1426);
 
-    &::before { left: 46%; width: 8%; top: 14%; height: 52%; background: linear-gradient(180deg, #fff, #dbe8ff 60%, rgb(var(--primary-rgb))); box-shadow: 0 0 40px 8px rgb(255 255 255 / 0.35), 0 0 120px 30px rgba(var(--primary-rgb), 0.35); border-radius: 2px; }
+    &::before { left: 46%; width: 8%; top: 14%; height: 52%; background: linear-gradient(180deg, #fff, #dbe8ff 60%, rgb(var(--primary-rgb))); box-shadow: 0 0 40px 8px rgb(255 255 255 / 0.35), 0 0 120px 30px rgba(var(--primary-rgb), 0.35); border-radius: calc(var(--r-xs) * 0.45); }
     &::after { left: 0; right: 0; top: 66%; bottom: 0; background: linear-gradient(180deg, rgb(255 255 255 / 0.75), rgba(var(--primary-rgb), 0.25) 45%, transparent); clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%); filter: blur(6px); }
   }
 
@@ -306,6 +343,20 @@
     &::before { inset: -20% -10% 0; background-image: linear-gradient(rgba(var(--primary-rgb), 0.45) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--primary-rgb), 0.45) 1px, transparent 1px); background-size: 36px 36px; transform: perspective(300px) rotateX(58deg) translateY(30%); transform-origin: bottom; -webkit-mask: linear-gradient(transparent, #000 60%); }
     &::after { left: 50%; top: 26%; width: 40%; aspect-ratio: 1; translate: -50% 0; border-radius: 50%; background: radial-gradient(circle, #fff, rgb(var(--primary-rgb)) 35%, transparent 70%); filter: blur(8px); opacity: 0.8; }
   }
+}
+
+/* 深色卡面：自上而下的中性明度渐变（不含主色）；浅色为纯白 --elev */
+:root[data-mode='dark'] .ak .ak-m.card {
+  background: linear-gradient(180deg, var(--ak-surface-hi), var(--surface) 70%);
+}
+
+/* 浅色次级按钮：白底 + 细描边 + 1px 中性阴影（与全站 .btn-secondary 一致） */
+:root[data-mode='light'] .ak .ak-btn:not(.pri) {
+  background: #fff;
+  box-shadow: 0 0 0 0.5px var(--line-2), 0 1px 2px rgb(16 24 40 / 0.06);
+
+  &:hover { background: color-mix(in oklab, var(--bg) 50%, white); }
+  &:focus-visible { box-shadow: var(--focus); }
 }
 
 @keyframes ak-ping {

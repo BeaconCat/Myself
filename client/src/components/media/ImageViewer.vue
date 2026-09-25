@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import CoverArt, { isArtUrl } from '../common/CoverArt.vue';
 
 /**
  * 全屏图片查看器：
  * 缩放：PC 滚轮 / 移动端双指；拖动：长按图片后拖拽；
  * 退出：双击空白 / 右上角关闭键；左下角操作指南逐条滑入滑出。
+ * 服务端占位图（/api/v1/img/...）以 16:10 光影构成展示，与列表里的占位一致。
  */
 export interface OriginRect {
   left: number;
@@ -33,7 +35,9 @@ const dragging = ref(false);
 /** FLIP 飞行中：用慢过渡接管 transform */
 const flying = ref(false);
 const imgReady = ref(!props.originRect);
-const imgEl = ref<HTMLImageElement | null>(null);
+const imgEl = ref<HTMLElement | null>(null);
+/** 当前是否为光影占位（非真实图片） */
+const isArt = computed(() => isArtUrl(props.images[index.value]));
 
 /** 由 originRect 计算相对屏幕中央展示位的位移/缩放 */
 function flyTransformFromOrigin(): { tx: number; ty: number; s: number } | null {
@@ -207,7 +211,11 @@ function onKey(e: KeyboardEvent): void {
   if (e.key === 'ArrowRight') go(1);
 }
 
+/* 光影占位没有 load 事件：挂载 / 切换后下一帧当作已加载 */
+watch(index, () => { if (isArt.value) void nextTick(onImgLoad); });
+
 onMounted(() => {
+  if (isArt.value) void nextTick(onImgLoad);
   window.addEventListener('keydown', onKey);
   document.documentElement.style.overflow = 'hidden';
 });
@@ -228,7 +236,22 @@ onBeforeUnmount(() => {
     >
       <!-- 图片舞台 -->
       <div class="stage">
+        <div
+          v-if="isArt"
+          :key="`art-${index}`"
+          ref="imgEl"
+          class="stage-img stage-art"
+          :class="{ dragging, flying, flip: !!originRect, ready: imgReady }"
+          :style="imgStyle"
+          @pointerdown.prevent="onPointerDown"
+          @pointermove="onPointerMove"
+          @pointerup="onPointerUp"
+          @pointercancel="onPointerUp"
+        >
+          <CoverArt :seed="images[index]" pool="all" />
+        </div>
         <img
+          v-else
           :key="index"
           ref="imgEl"
           class="stage-img"
@@ -247,7 +270,7 @@ onBeforeUnmount(() => {
 
       <!-- 关闭 -->
       <button class="close" :aria-label="t('viewer.close')" @click="requestClose">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
           <path d="M6 6l12 12M18 6L6 18" />
         </svg>
       </button>
@@ -255,10 +278,10 @@ onBeforeUnmount(() => {
       <!-- 多图切换 -->
       <template v-if="images.length > 1">
         <button class="nav prev" aria-label="prev" @click.stop="go(-1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
         </button>
         <button class="nav next" aria-label="next" @click.stop="go(1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7" /></svg>
         </button>
         <span class="counter">{{ index + 1 }} / {{ images.length }}</span>
       </template>
@@ -326,6 +349,16 @@ onBeforeUnmount(() => {
   &.flying { transition: transform 0.5s var(--ease-out); }
 }
 
+/* 光影占位：16:10，尺寸与普通图片同样受视口约束 */
+.stage-art {
+  position: relative;
+  width: min(88vw, calc(86vh * 1.6));
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: #040914;
+}
+
 @keyframes img-in {
   from { opacity: 0; scale: 0.9; }
 }
@@ -338,47 +371,49 @@ onBeforeUnmount(() => {
   to { opacity: 0; scale: 0.92; }
 }
 
-/* 关闭键 */
-.close {
+/* 关闭键 / 切换键：中性毛玻璃圆钮（查看器恒为深底） */
+.close,
+.nav {
   position: absolute;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.1);
+  box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.18);
+  color: #fff;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+
+  &:hover { background: rgb(255 255 255 / 0.2); }
+  &:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(8 8 12), 0 0 0 4px #fff; }
+}
+
+.close {
   top: 22px;
   right: 22px;
   width: 44px;
   height: 44px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast);
 
   svg { width: 20px; height: 20px; }
 
-  &:hover { transform: scale(1.12) rotate(90deg); background: rgba(var(--primary-rgb), 0.35); }
+  &:hover { transform: rotate(90deg); }
+  &:active { transform: rotate(90deg) scale(0.94); }
 }
 
-/* 多图切换 */
 .nav {
-  position: absolute;
   top: 50%;
-  transform: translateY(-50%);
   width: 46px;
   height: 46px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast);
+  transform: translateY(-50%);
 
   svg { width: 22px; height: 22px; }
 
   &.prev { left: 20px; }
   &.next { right: 20px; }
 
-  &:hover { transform: translateY(-50%) scale(1.12); background: rgba(var(--primary-rgb), 0.35); }
+  &:active { transform: translateY(-50%) scale(0.94); }
 }
 
 .counter {
@@ -404,11 +439,12 @@ onBeforeUnmount(() => {
   pointer-events: none;
 
   li {
-    color: rgba(255, 255, 255, 0.78);
+    color: rgb(255 255 255 / 0.78);
     font-size: 13px;
     padding: 7px 14px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: var(--r-pill);
+    background: rgb(255 255 255 / 0.08);
+    box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.14);
     backdrop-filter: blur(8px);
     width: fit-content;
     animation: guide-in 0.5s var(--ease-out) both;

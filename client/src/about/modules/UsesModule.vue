@@ -23,7 +23,7 @@ const d = computed(() => props.mod.data as UsesData);
             <b v-else>{{ it.name }}</b>
             <span v-if="it.desc">{{ it.desc }}</span>
           </span>
-          <em v-if="it.tag">{{ it.tag }}</em>
+          <em v-if="it.tag" class="ak-tag">{{ it.tag }}</em>
         </li>
       </ul>
     </div>
@@ -67,28 +67,21 @@ const d = computed(() => props.mod.data as UsesData);
     place-items: center;
     width: 34px;
     height: 34px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     background: var(--ak-sunken);
-    border: 1px solid var(--ak-line);
+    box-shadow: inset 0 0 0 1px var(--ak-line);
     color: var(--text-2);
-    transition: color var(--dur-fast), border-color var(--dur-fast);
+    transition: color var(--dur-fast), box-shadow var(--dur-fast);
   }
 
-  li:hover .ic { color: var(--ak-ink); border-color: rgba(var(--primary-rgb), 0.4); }
+  li:hover .ic { color: var(--text); box-shadow: inset 0 0 0 1px var(--ak-line-2); }
 
   .tx { min-width: 0; }
   b { display: block; font-size: 13.5px; font-weight: 500; }
   .tx > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--ak-text-3); }
   a:hover b { color: var(--ak-ink); }
 
-  em {
-    padding: 2px 7px;
-    border-radius: 6px;
-    white-space: nowrap;
-    font: normal 10.5px var(--ak-mono);
-    color: var(--ak-ink);
-    background: rgba(var(--primary-rgb), 0.1);
-  }
+  em { font-size: 12px; }
 }
 
 @container (max-width: 560px) { .us { grid-template-columns: 1fr; } }

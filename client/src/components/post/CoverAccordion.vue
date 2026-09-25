@@ -129,7 +129,7 @@ export default {};
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--surface-2);
+  background: #040914;
 }
 
 .seg {
@@ -138,7 +138,7 @@ export default {};
   bottom: 0;
   border: none;
   padding: 0;
-  background: var(--surface-2);
+  background: #040914;
   overflow: hidden;
   cursor: pointer;
   /* 位移(left)与宽度同曲线同帧过渡 */
@@ -163,17 +163,18 @@ export default {};
   }
 
   &.on { cursor: zoom-in; }
+  &:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ink); }
 }
 
-/* 倒计时条：随展开段定位，右锚定向右收缩 */
+/* 倒计时条：随展开段定位，右锚定向右收缩；中性白线，不发光（round 3：发光只属于封面光影） */
 .countdown {
   position: absolute;
-  bottom: 8px;
-  height: 3px;
-  margin-inline: 10px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--primary), var(--primary-deep));
-  box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.6);
+  bottom: 10px;
+  height: 2px;
+  margin-inline: 12px;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / 0.78);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.18);
   transform-origin: right center;
   animation: countdown-shrink linear both;
   pointer-events: none;

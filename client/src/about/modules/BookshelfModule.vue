@@ -74,7 +74,7 @@ const readingCount = computed(() => d.value.items.filter((b) => b.status === '�
     right: -6px;
     bottom: -12px;
     height: 12px;
-    border-radius: 3px;
+    border-radius: calc(var(--r-xs) * 0.6);
     background: linear-gradient(180deg, var(--ak-line-2), var(--ak-sunken));
     box-shadow: 0 14px 24px -12px rgb(0 0 0 / 0.5);
   }
@@ -89,7 +89,7 @@ const readingCount = computed(() => d.value.items.filter((b) => b.status === '�
   width: var(--w);
   height: var(--h);
   padding: 12px 0 10px !important;
-  border-radius: 3px 3px 2px 2px;
+  border-radius: calc(var(--r-xs) * 0.6) calc(var(--r-xs) * 0.6) calc(var(--r-xs) * 0.4) calc(var(--r-xs) * 0.4);
   background: var(--c) !important;
   color: var(--tc) !important;
   box-shadow: inset 2px 0 0 rgb(255 255 255 / 0.12), inset -3px 0 6px rgb(0 0 0 / 0.25);
@@ -112,7 +112,8 @@ const readingCount = computed(() => d.value.items.filter((b) => b.status === '�
   .a { margin-top: auto; writing-mode: vertical-rl; font: 400 9.5px/1 var(--font-sans); letter-spacing: 0.1em; opacity: 0.6; }
 
   &:hover { transform: translateY(-10px); }
-  &.on { transform: translateY(-18px); box-shadow: inset 2px 0 0 rgb(255 255 255 / 0.12), 0 18px 28px -10px rgb(0 0 0 / 0.55), 0 0 0 1.5px rgba(var(--primary-rgb), 0.9); }
+  /* 选中 = 抬升（书脊上浮 + 中性投影 + 细描边），不挂主色光环 */
+  &.on { transform: translateY(-18px); box-shadow: inset 2px 0 0 rgb(255 255 255 / 0.12), 0 18px 28px -10px rgb(0 0 0 / 0.55), 0 0 0 1px var(--line-2); }
 
   &.lean { margin-left: 10px; transform: rotate(-6deg); transform-origin: bottom left; }
   &.lean:hover { transform: rotate(-6deg) translateY(-8px); }
@@ -141,9 +142,9 @@ const readingCount = computed(() => d.value.items.filter((b) => b.status === '�
   flex-direction: column;
   min-height: 210px;
   padding: 18px;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: var(--ak-sunken);
-  border: 1px solid var(--ak-line);
+  box-shadow: inset 0 0 0 1px var(--ak-line);
 
   small { font: 500 11px var(--ak-mono); letter-spacing: 0.06em; color: var(--ak-ink); }
   b { display: block; margin: 6px 0 2px; font: 700 21px/1.35 var(--font-serif); }
@@ -162,8 +163,8 @@ const readingCount = computed(() => d.value.items.filter((b) => b.status === '�
   font: 400 11px var(--ak-mono);
   color: var(--ak-text-3);
 
-  i { position: relative; flex: 1; height: 3px; overflow: hidden; border-radius: 3px; background: var(--ak-line); }
-  i::after { content: ''; position: absolute; inset: 0; width: var(--w); background: var(--primary); }
+  i { position: relative; flex: 1; height: 3px; overflow: hidden; border-radius: var(--r-pill); background: var(--ak-line); }
+  i::after { content: ''; position: absolute; inset: 0; width: var(--w); background: var(--ink); }
 }
 
 @container (max-width: 600px) {

@@ -7,6 +7,7 @@ const dialog = useDialogStore();
 
 const inputValue = ref('');
 const inputEl = ref<HTMLInputElement | null>(null);
+const okEl = ref<HTMLButtonElement | null>(null);
 /** 退场动画期间保留渲染 */
 const leaving = ref(false);
 const snapshot = ref(dialog.active);
@@ -18,16 +19,16 @@ watch(
       snapshot.value = active;
       leaving.value = false;
       inputValue.value = active.inputValue ?? '';
-      if (active.input) {
-        await nextTick();
-        inputEl.value?.focus();
-      }
+      await nextTick();
+      // 聚焦到输入框或确认键，保证 Enter / Esc 立即可用
+      if (active.input) inputEl.value?.focus();
+      else okEl.value?.focus({ preventScroll: true });
     } else if (snapshot.value) {
       leaving.value = true;
       window.setTimeout(() => {
         leaving.value = false;
         snapshot.value = null;
-      }, 260);
+      }, 220);
     }
   },
 );
@@ -40,7 +41,8 @@ function done(ok: boolean): void {
 }
 
 function onKey(e: KeyboardEvent): void {
-  if (e.key === 'Enter') done(true);
+  // 焦点在按钮上时交给按钮自身的点击（避免在「取消」上按 Enter 却被当成确认）
+  if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) done(true);
   if (e.key === 'Escape') done(false);
 }
 </script>
@@ -74,6 +76,7 @@ function onKey(e: KeyboardEvent): void {
             @click="done(false)"
           >{{ snapshot.cancelText ?? '取消' }}</button>
           <button
+            ref="okEl"
             class="m-btn primary"
             :class="{ danger: snapshot.danger }"
             @click="done(true)"
@@ -92,15 +95,15 @@ function onKey(e: KeyboardEvent): void {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(8, 8, 12, 0.45);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--scrim);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   animation: mask-in 0.25s ease both;
 
   &.leaving {
-    animation: mask-out 0.26s ease both;
+    animation: mask-out 0.22s ease both;
 
-    .modal { animation: modal-out 0.26s var(--ease-out) both; }
+    .modal { animation: modal-out 0.22s var(--ease-out) both; }
   }
 }
 
@@ -109,28 +112,28 @@ function onKey(e: KeyboardEvent): void {
 
 .modal {
   width: min(420px, 100%);
-  padding: 26px 26px 22px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.5);
+  padding: 24px 24px 20px;
+  background: var(--elev);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-pop);
   /* 灵动入场：缩放 + 上浮 + 微回弹 */
-  animation: modal-in 0.38s var(--ease-spring) both;
+  animation: modal-in 0.42s var(--ease-spring) both;
 }
 
 @keyframes modal-in {
-  from { opacity: 0; transform: translateY(26px) scale(0.92); }
-  60% { opacity: 1; }
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  50% { opacity: 1; }
   to { opacity: 1; transform: none; }
 }
 
 @keyframes modal-out {
-  to { opacity: 0; transform: translateY(14px) scale(0.95); }
+  to { opacity: 0; transform: translateY(8px) scale(0.97); }
 }
 
 .m-title {
   font-size: 17px;
-  margin-bottom: 10px;
+  line-height: 1.4;
+  margin-bottom: 8px;
 }
 
 .m-msg {
@@ -142,57 +145,71 @@ function onKey(e: KeyboardEvent): void {
 
 .m-input {
   width: 100%;
+  height: 40px;
   margin-top: 14px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg);
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--fill);
+  box-shadow: inset 0 0 0 0.5px var(--line-2);
   color: var(--text);
   font-size: 14px;
   font-family: inherit;
+  caret-color: var(--ink);
   outline: none;
-  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+  transition: box-shadow var(--dur-fast), background-color var(--dur-fast);
+
+  &::placeholder { color: var(--text-3); }
 
   &:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.12);
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--ink), 0 0 0 3px var(--tint);
   }
 }
 
 .m-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
+  gap: 8px;
+  margin-top: 22px;
 }
 
+/* 按钮：次要 = 中性填充；主 = 实底 --solid；危险 = 品牌红实底。无渐变 / 外发光 / 文字投影 */
 .m-btn {
-  padding: 9px 22px;
-  border-radius: 10px;
-  border: 1px solid transparent;
+  height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--r-pill);
   font-size: 14px;
-  font-weight: 700;
-  transition: all var(--dur-fast) var(--ease-out);
+  font-weight: 500;
+  line-height: 1;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+
+  &:active { transform: scale(0.97); transition-duration: 0.08s; }
+  &:focus-visible { outline: none; box-shadow: var(--focus); }
 
   &.ghost {
-    background: var(--surface);
-    border-color: var(--border);
+    background: var(--fill-2);
     color: var(--text);
+    box-shadow: inset 0 0 0 0.5px var(--line);
 
-    &:hover { border-color: var(--primary); color: var(--primary); }
+    &:hover { background: var(--fill-3); }
+    &:focus-visible { box-shadow: var(--focus); }
   }
 
   &.primary {
-    color: #fff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-    background: linear-gradient(180deg, var(--primary), var(--primary-deep));
-    box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.4);
+    background: var(--solid);
+    color: var(--on-solid);
+    box-shadow: var(--btn-shadow);
 
-    &:hover { filter: brightness(1.08); transform: scale(1.04); }
+    &:hover { background: var(--solid-hover); }
+    &:focus-visible { box-shadow: var(--btn-shadow), var(--focus); }
 
     &.danger {
-      background: linear-gradient(180deg, #ff2450, #d40029);
-      box-shadow: 0 4px 14px rgba(255, 0, 50, 0.4);
+      background: #e0002c;
+      color: #fff;
+
+      &:hover { background: color-mix(in oklab, #e0002c 88%, black); }
     }
   }
 }

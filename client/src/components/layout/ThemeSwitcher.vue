@@ -5,6 +5,7 @@ import { useThemeStore } from '../../stores/theme';
 import { useAuthStore } from '../../stores/auth';
 import { adminApi } from '../../api';
 import { circularReveal } from '../../utils/circularReveal';
+import UiIcon from '../ui/UiIcon.vue';
 
 const { t } = useI18n();
 const theme = useThemeStore();
@@ -46,8 +47,10 @@ function onMode(e: MouseEvent): void {
         :key="p.id"
         class="dot"
         :class="{ active: theme.paletteId === p.id }"
-        :style="{ background: p[theme.mode].primary }"
+        :style="{ '--c': p[theme.mode].primary }"
         :title="p.nameKey"
+        :aria-label="p.nameKey"
+        :aria-pressed="theme.paletteId === p.id"
         @click="onPalette($event, p.id)"
       />
       <span class="divider" />
@@ -55,78 +58,124 @@ function onMode(e: MouseEvent): void {
     <button
       class="mode-btn"
       :title="theme.mode === 'light' ? t('theme.dark') : t('theme.light')"
+      :aria-label="theme.mode === 'light' ? t('theme.dark') : t('theme.light')"
       @click="onMode($event)"
     >
-      <svg v-if="theme.mode === 'light'" class="mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <circle cx="12" cy="12" r="4.2" fill="currentColor" stroke="none" />
-        <path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.85 1.85M16.85 16.85l1.85 1.85M18.7 5.3l-1.85 1.85M7.15 16.85L5.3 18.7" />
-      </svg>
-      <svg v-else class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M20.6 14.3A8.7 8.7 0 0 1 9.7 3.4a0.5 0.5 0 0 0-.65-.62A9.8 9.8 0 1 0 21.2 14.95a0.5 0.5 0 0 0-.6-.65Z" />
-      </svg>
+      <UiIcon :name="theme.mode === 'light' ? 'sun' : 'moon'" class="mode-icon" />
     </button>
   </div>
 </template>
 
 <style scoped lang="scss">
+/* 外观胶囊：与导航胶囊同一中性玻璃面 */
 .switcher {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: var(--glass);
-  backdrop-filter: blur(14px) saturate(1.5);
-  -webkit-backdrop-filter: blur(14px) saturate(1.5);
-  border: 1px solid rgba(var(--primary-rgb), 0.18);
-  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  gap: 4px;
+  height: 44px;
+  padding: 0 4px 0 10px;
+  /* 与导航胶囊同一圆角规则（--r-base 默认时为胶囊） */
+  border-radius: var(--nav-r, var(--r-pill));
+  background: color-mix(in oklab, var(--bg) 72%, transparent);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  box-shadow: inset 0 0 0 0.5px var(--line-2), 0 8px 24px -16px rgb(0 0 0 / 0.5);
+
+  :root[data-mode='light'] & {
+    background: color-mix(in oklab, var(--bg) 70%, rgb(255 255 255 / 0.4));
+    box-shadow: inset 0 0 0 0.5px var(--line-2), 0 1px 2px rgb(16 24 40 / 0.04), 0 10px 28px -18px rgb(16 24 40 / 0.35);
+  }
 
   /* 正圆模式：只剩深浅切换 */
   &.solo {
-    width: 40px;
-    height: 40px;
+    width: 44px;
     padding: 0;
     justify-content: center;
   }
 }
 
+/* 色盘圆点：实色 + 中性内描边 / 顶光；选中 = 外圈细环（文字色），无同色投影 */
 .dot {
-  width: 16px;
-  height: 16px;
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border: 0;
   border-radius: 50%;
-  border: 2px solid transparent;
-  transition: transform var(--dur-fast) var(--ease-spring), border-color var(--dur-fast), box-shadow var(--dur-fast);
+  background: none;
+  transition: transform var(--dur-fast) var(--ease-spring);
 
-  &:hover { transform: scale(1.2); }
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), inset 0 0 0 0.5px rgb(0 0 0 / 0.2);
+    transition: transform var(--dur) var(--ease-spring);
+  }
 
-  &.active {
-    border-color: var(--surface);
-    transform: scale(1.25);
-    box-shadow: 0 0 0 1.5px rgba(var(--primary-rgb), 0.7), 0 0 10px rgba(var(--primary-rgb), 0.5);
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1.5px var(--text);
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-spring);
+  }
+
+  &:hover::before { transform: scale(1.15); }
+  &:active { transform: scale(0.9); }
+
+  &.active::after {
+    opacity: 0.85;
+    transform: none;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus);
   }
 }
 
 .divider {
   width: 1px;
-  height: 16px;
-  background: var(--border);
+  height: 18px;
+  margin: 0 4px 0 6px;
+  background: var(--line-2);
 }
 
+/* 深浅切换：中性图标按钮 */
 .mode-btn {
-  border: none;
-  background: none;
-  width: 26px;
-  height: 26px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
-  color: var(--text);
-  transition: transform var(--dur-fast) var(--ease-spring);
+  border: 0;
+  border-radius: min(50%, var(--nav-r-in, 50%));
+  background: none;
+  color: var(--text-2);
+  transition: color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
 
-  &:hover { transform: rotate(18deg) scale(1.12); }
+  &:hover {
+    color: var(--text);
+    background: var(--fill-2);
+  }
+
+  &:active { transform: scale(0.92); }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus);
+  }
 }
 
 .mode-icon {
-  width: 19px;
-  height: 19px;
+  width: 18px;
+  height: 18px;
+  transition: transform var(--dur) var(--ease-spring);
+
+  .mode-btn:hover & { transform: rotate(18deg); }
 }
 </style>

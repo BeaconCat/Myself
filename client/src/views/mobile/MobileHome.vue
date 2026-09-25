@@ -174,7 +174,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
     align-items: center;
     gap: 2px;
     font-size: 14px;
-    color: var(--m-ink);
+    color: var(--ink);
   }
 }
 
@@ -193,10 +193,10 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
   flex: none;
   width: min(268px, 72vw);
   padding: 16px;
-  border-radius: 22px;
+  border-radius: var(--r-xl);
   text-align: left;
-  background: var(--m-elev);
-  box-shadow: inset 0 0 0 0.5px var(--m-line), var(--m-shadow);
+  background: var(--elev);
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -219,9 +219,9 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
     .more {
       width: 52px;
       height: 52px;
-      border-radius: 10px;
+      border-radius: var(--r-sm);
       object-fit: cover;
-      background: var(--m-fill-2);
+      background: var(--fill-3);
     }
 
     .more {
@@ -238,7 +238,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    color: var(--m-text-3);
+    color: var(--text-3);
     margin-top: auto;
   }
 }
@@ -246,7 +246,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
 .foot {
   margin: 34px 20px 0;
   padding-top: 26px;
-  border-top: 0.5px solid var(--m-line);
+  border-top: 0.5px solid var(--line);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -254,7 +254,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
   .mk {
     width: 34px;
     height: 34px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     flex: none;
   }
 
@@ -266,7 +266,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
 
   small {
     font-size: 12px;
-    color: var(--m-text-3);
+    color: var(--text-3);
   }
 
   .rss {
@@ -276,7 +276,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
     gap: 6px;
     padding: 8px 12px;
     border-radius: 999px;
-    background: var(--m-fill);
+    background: var(--fill-2);
     font-size: 13px;
     color: var(--text-2);
     flex: none;
@@ -287,7 +287,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
 .sk-card {
   margin: 4px 20px 0;
   height: min(calc((100vw - 40px) * 1.3), 62vh);
-  border-radius: 30px;
+  border-radius: var(--r-xl);
 }
 
 .sk-dots {
@@ -296,7 +296,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
   gap: 6px;
   margin: 16px 0 34px;
 
-  span { width: 6px; height: 6px; border-radius: 3px; }
+  span { width: 6px; height: 6px; border-radius: 999px; }
   span:first-child { width: 30px; }
 }
 
@@ -316,7 +316,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
   .thumb {
     width: 68px;
     height: 68px;
-    border-radius: 16px;
+    border-radius: var(--r-lg);
     flex: none;
   }
 }

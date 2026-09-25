@@ -42,13 +42,13 @@ const { t } = useI18n();
   height: 30px;
   flex-shrink: 0;
   padding: 6px;
-  border-radius: 9px;
+  border-radius: var(--r-sm);
   fill: none;
   stroke: currentColor;
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
   color: var(--text-2);
-  background: color-mix(in oklab, var(--text) 5%, transparent);
+  background: var(--fill);
 }
 </style>

@@ -38,11 +38,10 @@ const { t } = useI18n();
   gap: 11px;
   min-width: 0;
   padding: 10px;
-  border-radius: 12px;
-  border: 1px solid transparent;
-  transition: background var(--dur-fast), border-color var(--dur-fast);
+  border-radius: var(--r-md);
+  transition: background-color var(--dur-fast), box-shadow var(--dur-fast);
 
-  &:hover { background: var(--ak-sunken); border-color: var(--ak-line); }
+  &:hover { background: var(--ak-sunken); box-shadow: inset 0 0 0 1px var(--ak-line); }
 }
 
 .g {
@@ -51,11 +50,12 @@ const { t } = useI18n();
   flex: none;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   font: 600 12.5px var(--ak-mono);
-  color: var(--c);
-  background: color-mix(in oklab, var(--c) 13%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--c) 30%, transparent);
+  /* 字形保留一点品牌色相，底与描边中性 */
+  color: color-mix(in oklab, var(--c) 60%, var(--text));
+  background: var(--fill);
+  box-shadow: inset 0 0 0 1px var(--ak-line);
 }
 
 .tx {

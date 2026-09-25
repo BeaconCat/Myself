@@ -233,28 +233,14 @@ onBeforeUnmount(() => {
     text-align: left;
     height: 34px;
     padding: 0 14px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     font-size: 13.5px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     transition: all var(--dur-fast);
 
-    &::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 50%;
-      width: 3px;
-      height: 14px;
-      margin-top: -7px;
-      border-radius: 2px;
-      background: var(--primary);
-      transform: scaleY(0);
-      transition: transform var(--dur) var(--ease-spring);
-    }
-
-    &:hover { color: var(--ink); background: var(--hover); }
-    &.on { color: var(--ink); font-weight: 500; }
-    &.on::before { transform: scaleY(1); }
+    &:hover:not(.on) { color: var(--st-ink); background: var(--hover); }
+    /* 当前分区：抬升 + 轻染，不挂信号条 */
+    &.on { color: var(--lift-fg); font-weight: 500; background: var(--lift); box-shadow: var(--lift-shadow); }
   }
 }
 
@@ -267,7 +253,7 @@ onBeforeUnmount(() => {
   &:last-child { border-bottom: 0; }
 
   h2 { font: 600 18px/1.3 var(--font-serif); margin: 0 0 6px; }
-  .sec-desc { font-size: 13px; color: var(--ink-3); margin: 0 0 14px; }
+  .sec-desc { font-size: 13px; color: var(--st-ink-3); margin: 0 0 14px; }
 }
 
 .w140 { width: 140px; }

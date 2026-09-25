@@ -354,9 +354,9 @@ label.icbtn { cursor: pointer; }
 .store {
   margin: 4px 16px 0;
   padding: 16px 18px;
-  border-radius: 22px;
+  border-radius: var(--r-xl);
   background: var(--elev);
-  box-shadow: inset 0 0 0 0.5px var(--line), var(--shadow);
+  box-shadow: var(--shadow-card);
 
   .top2 {
     display: flex;
@@ -378,7 +378,7 @@ label.icbtn { cursor: pointer; }
     display: flex;
     height: 8px;
     margin-top: 12px;
-    border-radius: 4px;
+    border-radius: 999px;
     overflow: hidden;
     background: var(--fill-2);
     gap: 2px;
@@ -405,7 +405,7 @@ label.icbtn { cursor: pointer; }
       display: inline-block;
       width: 8px;
       height: 8px;
-      border-radius: 2px;
+      border-radius: 50%;
       margin-right: 5px;
       background: var(--c);
     }
@@ -423,22 +423,23 @@ label.icbtn { cursor: pointer; }
   gap: 10px;
   margin-top: 14px;
   padding: 10px 12px;
-  border-radius: 14px;
-  background: var(--soft);
-  color: var(--ink);
+  border-radius: var(--r-md);
+  background: var(--fill);
+  box-shadow: inset 0 0 0 0.5px var(--line);
+  color: var(--text);
   font-size: 13.5px;
   text-align: left;
 
   .sq-ic {
     width: 28px;
     height: 28px;
-    border-radius: 8px;
+    border-radius: var(--r-sm);
     display: grid;
     place-items: center;
-    background: var(--primary);
-    color: var(--on-primary);
-    --ring-bg: color-mix(in oklab, var(--on-primary) 30%, transparent);
-    --ring-fg: var(--on-primary);
+    background: var(--solid);
+    color: var(--on-solid);
+    --ring-bg: color-mix(in oklab, var(--on-solid) 30%, transparent);
+    --ring-fg: var(--on-solid);
   }
 
   .sq-t { flex: 1; }
@@ -472,12 +473,16 @@ label.icbtn { cursor: pointer; }
 
   small {
     position: absolute;
-    left: 6px;
+    left: 5px;
     bottom: 5px;
+    padding: 1px 5px;
+    border-radius: 999px;
     font-family: var(--font-mono);
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.9);
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+    color: rgba(255, 255, 255, 0.92);
+    background: rgb(0 0 0 / 0.42);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
 
   &.up {

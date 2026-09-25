@@ -1,5 +1,6 @@
 import { fade } from '../engine';
 import type { CardChoreo, ChoreoCtx } from '../types';
+import { lightsIn, lightsOut } from './lights';
 
 /**
  * 构造一扇门：preserve-3d 的门扇 = 正面（半幅画面 + 渐暗层）+ 自由边侧面（厚度）+ 背面（暗化）。
@@ -37,6 +38,7 @@ export const door: CardChoreo = {
     duration: 1480,
   },
   exit(e, t) {
+    lightsOut(e, t);
     const f = e.front;
     // 消失点在卡片中心：card 层 perspective 属性（filter 置空避免拍平）
     t.set(f.el, {
@@ -120,5 +122,6 @@ export const door: CardChoreo = {
       { opacity: 0, transform: 'scaleX(1.05) scaleY(1)' },
     ], { dur: 1300, delay: 160, ease: 'brand' });
     t.a(e.bg, fade(0, 1), { dur: 1000, delay: 280 });
+    lightsIn(e, t, (c) => (c.slot === 0 ? 1340 : 1400 + (c.slot - 1) * 80));
   },
 };

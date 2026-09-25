@@ -142,7 +142,7 @@ const statusIdx = computed({
       <h5>{{ t('mobileAdmin.post.tags') }}</h5>
       <div class="tags ma-field">
         <button v-for="tg in draft.tags" :key="tg" class="tg tap" @click="draft.tags = draft.tags.filter((x) => x !== tg)">
-          # {{ tg }}<MaIcon name="close" :size="11" />
+          <span class="hs">#</span>{{ tg }}<MaIcon name="close" :size="11" />
         </button>
         <input
           v-model="tagInput"
@@ -153,7 +153,7 @@ const statusIdx = computed({
         />
       </div>
       <div v-if="suggestions.length" class="sugg">
-        <button v-for="s in suggestions" :key="s" class="chip tap" @mousedown.prevent @click="addTag(s)"># {{ s }}</button>
+        <button v-for="s in suggestions" :key="s" class="chip tap" @mousedown.prevent @click="addTag(s)"><span class="hs">#</span>{{ s }}</button>
       </div>
 
       <h5>{{ t('mobileAdmin.post.excerpt') }}</h5>
@@ -227,7 +227,7 @@ const statusIdx = computed({
 .cv {
   position: relative;
   aspect-ratio: 4 / 3;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   overflow: hidden;
   background: var(--fill);
   display: grid;
@@ -242,7 +242,7 @@ const statusIdx = computed({
     object-fit: cover;
   }
 
-  &.first { box-shadow: 0 0 0 2px var(--primary); }
+  &.first { box-shadow: 0 0 0 2px var(--ink); }
 
   .tag {
     position: absolute;
@@ -273,7 +273,7 @@ const statusIdx = computed({
 
   &.up {
     --ring-bg: var(--fill-2);
-    --ring-fg: var(--primary);
+    --ring-fg: var(--ink);
   }
 
   &.add {
@@ -296,11 +296,11 @@ const statusIdx = computed({
   align-items: center;
   height: 46px;
   padding: 0 6px 0 14px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: var(--fill);
   box-shadow: inset 0 0 0 0.5px var(--line);
 
-  &:focus-within { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 55%, transparent); }
+  &:focus-within { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink) 55%, transparent); }
   &.bad { box-shadow: inset 0 0 0 1px var(--accent-red); }
 
   .pre {
@@ -314,7 +314,7 @@ const statusIdx = computed({
     min-width: 0;
     font-family: var(--font-mono);
     font-size: 15px;
-    caret-color: var(--primary);
+    caret-color: var(--ink);
 
     &::placeholder { color: var(--text-3); }
   }
@@ -322,7 +322,7 @@ const statusIdx = computed({
   .wand {
     width: 36px;
     height: 36px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     display: grid;
     place-items: center;
     color: var(--ink);
@@ -362,10 +362,13 @@ const statusIdx = computed({
   border-radius: 999px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--ink);
-  background: var(--soft);
+  color: var(--text);
+  background: var(--elev);
+  box-shadow: inset 0 0 0 1px var(--line-2);
   animation: ma-cv-in 0.35s var(--ease-spring);
 }
+
+.hs { color: var(--text-3); margin-right: -3px; }
 
 .sugg {
   display: flex;

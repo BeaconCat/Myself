@@ -1,286 +1,553 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, type Post, type Tag } from '../api';
-import PostZigzagList from '../components/post/PostZigzagList.vue';
+import PostFeature from '../components/post/PostFeature.vue';
+import PostRow from '../components/post/PostRow.vue';
+import ContentIcon from '../components/post/ContentIcon.vue';
+import { isStuck, ymdOf } from '../components/post/content';
 import { useConfigStore } from '../stores/config';
 import { useLoadingStore } from '../stores/loading';
 
+/**
+ * 桌面文章列表：大标题 + 统计副标题；搜索 + 标签 chips 吸顶（毛玻璃）；
+ * 首篇大卡 + 其余缩略行，按月分组；触底续载。?tag= 驱动筛选（详情页标签、⌘K 可深链）。
+ */
 const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
 const config = useConfigStore();
 
+const PAGE_SIZE = 20;
 const posts = ref<Post[]>([]);
 const tags = ref<Tag[]>([]);
-const activeTag = ref('');
-const keyword = ref('');
-const loading = ref(false);
-/** 旧列表整体淡出阶段 */
-const exiting = ref(false);
-/** key 重建触发逐条浮入 */
+const total = ref(0);
+const pageNo = ref(1);
+/** 首屏：同形骨架 */
+const booting = ref(true);
+/** 筛选切换中：旧列表压暗 */
+const switching = ref(false);
+const loadingMore = ref(false);
+const failed = ref(false);
+/** 列表重建序号：换筛选后 key 变化触发逐项 rise */
 const listSeq = ref(0);
 
-const page = ref(1);
-const total = ref(0);
-const PAGE_SIZE = 20;
+const keyword = ref('');
+const activeTag = computed(() => (typeof route.query.tag === 'string' ? route.query.tag : ''));
 
-function queryParams(nextPage: number) {
-  return {
-    page: nextPage,
-    pageSize: PAGE_SIZE,
-    tag: activeTag.value || undefined,
-    q: keyword.value || undefined,
-  };
+/* 统计：全站篇数 + 最近更新日期（与筛选无关） */
+const allTotal = ref(0);
+const latestAt = ref('');
+const sub = computed(() => {
+  if (!latestAt.value) return allTotal.value || booting.value ? '' : t('content.articles.subEmpty');
+  const { m, d } = ymdOf(latestAt.value);
+  return t('content.articles.sub', { n: allTotal.value, m, d });
+});
+
+const hasMore = computed(() => posts.value.length < total.value);
+let seq = 0;
+
+function params(page: number) {
+  return { page, pageSize: PAGE_SIZE, tag: activeTag.value || undefined, q: keyword.value.trim() || undefined };
 }
 
-/**
- * 切换筛选的丝滑序列：变暗加载 → 数据就绪 → 旧列表整体淡出 → 新列表逐条浮入
- */
-async function load(): Promise<void> {
-  loading.value = true;
+async function reload(): Promise<void> {
+  const my = ++seq;
+  failed.value = false;
+  if (!booting.value) switching.value = true;
   try {
-    const res = await api.posts(queryParams(1));
-    exiting.value = true;
-    await new Promise((resolve) => window.setTimeout(resolve, 260));
+    const res = await api.posts(params(1));
+    if (my !== seq) return;
     posts.value = res.items;
     total.value = res.total;
-    page.value = 1;
+    pageNo.value = 1;
     listSeq.value += 1;
-    await nextTick();
-    exiting.value = false;
+    if (!activeTag.value && !keyword.value.trim()) {
+      allTotal.value = res.total;
+      latestAt.value = res.items[0]?.createdAt ?? '';
+    }
+  } catch {
+    if (my === seq) failed.value = true;
   } finally {
-    loading.value = false;
+    if (my === seq) {
+      booting.value = false;
+      switching.value = false;
+    }
   }
 }
 
-function pickTag(tag: string): void {
-  if (activeTag.value === tag && !keyword.value) return;
-  activeTag.value = tag;
-  void load();
+async function loadStats(): Promise<void> {
+  if (allTotal.value) return;
+  const all = await api.posts({ pageSize: 1 }).catch(() => null);
+  if (!all) return;
+  allTotal.value = all.total;
+  latestAt.value = all.items[0]?.createdAt ?? '';
 }
-
-let debounce = 0;
-function onSearch(): void {
-  window.clearTimeout(debounce);
-  debounce = window.setTimeout(() => void load(), 300);
-}
-
-/* 分段加载：滚动触底追加，20/页 */
-const loadingMore = ref(false);
-const hasMore = computed(() => posts.value.length < total.value);
 
 async function loadMore(): Promise<void> {
-  if (loadingMore.value || loading.value || exiting.value || !hasMore.value) return;
+  if (booting.value || switching.value || loadingMore.value || !hasMore.value) return;
   loadingMore.value = true;
+  const my = seq;
   try {
-    const res = await api.posts(queryParams(page.value + 1));
+    const res = await api.posts(params(pageNo.value + 1));
+    if (my !== seq) return;
     posts.value = [...posts.value, ...res.items];
     total.value = res.total;
-    page.value += 1;
+    pageNo.value += 1;
   } finally {
     loadingMore.value = false;
   }
 }
 
+function pickTag(name: string): void {
+  if (name === activeTag.value) return;
+  void router.replace({ query: name ? { ...route.query, tag: name } : {} });
+}
+
+watch(activeTag, () => {
+  keepFilterInView();
+  void reload();
+});
+
+let debounce = 0;
+function onSearch(): void {
+  window.clearTimeout(debounce);
+  debounce = window.setTimeout(() => {
+    keepFilterInView();
+    void reload();
+  }, 280);
+}
+
+/** 已滚过标题区时，换筛选后停在吸顶条处，而不是被短列表弹回页首 */
+const filterbar = ref<HTMLElement | null>(null);
+const head = ref<HTMLElement | null>(null);
+const NAV_H = 64;
+function keepFilterInView(): void {
+  if (!stuck.value || !head.value) return;
+  const top = head.value.getBoundingClientRect().bottom + window.scrollY - NAV_H;
+  void nextTick(() => window.scrollTo({ top: Math.max(0, top) }));
+}
+
+/* 按月分组：首篇大卡，其余缩略行 */
+interface Group { key: string; label: string; count: number; items: { post: Post; feat: boolean }[] }
+const groups = computed<Group[]>(() => {
+  const out: Group[] = [];
+  posts.value.forEach((p, i) => {
+    const key = p.createdAt.slice(0, 7);
+    let g = out[out.length - 1];
+    if (!g || g.key !== key) {
+      const { y, m } = ymdOf(p.createdAt);
+      g = { key, label: t('content.articles.month', { y, m }), count: 0, items: [] };
+      out.push(g);
+    }
+    g.count += 1;
+    g.items.push({ post: p, feat: i === 0 });
+  });
+  return out;
+});
+
+const emptyText = computed(() => {
+  const q = keyword.value.trim();
+  if (failed.value) return t('content.articles.loadFailed');
+  if (q) return t('content.articles.noResult', { q });
+  if (activeTag.value) return t('content.articles.emptyTag');
+  return t('articles.empty');
+});
+
+/* 吸顶态：贴住导航下缘时显出毛玻璃底 */
+const stuck = ref(false);
+function onScroll(): void {
+  stuck.value = isStuck(filterbar.value, NAV_H);
+}
+
+/* 「/」聚焦搜索 */
+const input = ref<HTMLInputElement | null>(null);
+function onKey(e: KeyboardEvent): void {
+  if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+  const el = document.activeElement as HTMLElement | null;
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+  e.preventDefault();
+  input.value?.focus();
+}
+
+/* 触底哨兵 */
 const sentinel = ref<HTMLElement | null>(null);
-let observer: IntersectionObserver | null = null;
+let io: IntersectionObserver | null = null;
 
 onMounted(async () => {
-  observer = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((e) => e.isIntersecting)) void loadMore();
-    },
-    { rootMargin: '400px' },
-  );
-  if (sentinel.value) observer.observe(sentinel.value);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('keydown', onKey);
+  io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) void loadMore(); }, { rootMargin: '400px' });
+  if (sentinel.value) io.observe(sentinel.value);
   const release = useLoadingStore().holdRoute();
   try {
-    await load();
-    tags.value = await api.tags();
+    const [, tagList] = await Promise.all([reload(), api.tags().catch(() => [] as Tag[])]);
+    tags.value = tagList;
+    await loadStats();
   } finally {
     release();
   }
+  onScroll();
 });
 
 onBeforeUnmount(() => {
-  observer?.disconnect();
+  window.removeEventListener('scroll', onScroll);
+  window.removeEventListener('keydown', onKey);
+  io?.disconnect();
   window.clearTimeout(debounce);
 });
 </script>
 
 <template>
-  <main class="page">
-    <h1 v-reveal class="page-title">{{ t('nav.articles') }}</h1>
+  <main class="articles">
+    <div class="wrap">
+      <header ref="head" class="ph rise-stagger">
+        <h1>{{ t('nav.articles') }}</h1>
+        <p v-if="sub">{{ sub }}</p>
+        <p v-else><span class="sk sk-line" style="width: 220px" /></p>
+      </header>
+    </div>
 
-    <!-- 工具栏：搜索 + 标签筛选一行 -->
-    <div v-reveal class="toolbar">
-      <div class="search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-          <circle cx="11" cy="11" r="7" />
-          <path d="M20 20l-3.8-3.8" />
-        </svg>
-        <input
-          v-model="keyword"
-          type="search"
-          :placeholder="t('articles.searchPlaceholder')"
-          @input="onSearch"
-        />
-      </div>
-
-      <div class="tag-scroll">
-        <button class="tag-chip" :class="{ on: !activeTag }" @click="pickTag('')">
-          {{ t('articles.all') }}
-        </button>
-        <button
-          v-for="tag in tags"
-          :key="tag.name"
-          class="tag-chip"
-          :class="{ on: activeTag === tag.name }"
-          @click="pickTag(tag.name)"
-        >{{ tag.name }}<i>{{ tag.count }}</i></button>
+    <!-- 搜索 + 标签 chips：吸顶毛玻璃条 -->
+    <div ref="filterbar" class="filterbar" :class="{ stuck }">
+      <div class="wrap in">
+        <label class="field">
+          <ContentIcon name="search" size="s" />
+          <input
+            ref="input"
+            v-model="keyword"
+            type="search"
+            :placeholder="t('articles.searchPlaceholder')"
+            @input="onSearch"
+            @keydown.esc="($event.target as HTMLInputElement).blur()"
+          />
+          <kbd>/</kbd>
+        </label>
+        <div class="chips">
+          <button class="chip" :class="{ on: !activeTag }" @click="pickTag('')">
+            {{ t('articles.all') }}<em v-if="allTotal">{{ allTotal }}</em>
+          </button>
+          <button
+            v-for="tg in tags"
+            :key="tg.name"
+            class="chip"
+            :class="{ on: activeTag === tg.name }"
+            @click="pickTag(tg.name)"
+          >
+            {{ tg.name }}<em>{{ tg.count }}</em>
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- 列表：加载变暗 → 整体淡出 → 新列表逐条浮入 -->
-    <div class="list-wrap" :class="{ loading, exiting }">
-      <PostZigzagList :key="listSeq" :posts="posts" :alternate="false" compact />
-    </div>
+    <div class="wrap">
+      <!-- 首屏骨架：与真实列表同形（分组头 / 大卡 / 缩略行） -->
+      <div v-if="booting" class="skel" aria-hidden="true">
+        <div class="grp-h"><span class="sk sk-line" style="width: 96px" /><span class="sk sk-line" style="width: 36px" /></div>
+        <div class="sk sk-cover" />
+        <span class="sk sk-line" style="width: 180px; margin-top: 22px" />
+        <span class="sk sk-line" style="width: 62%; height: 30px; margin-top: 12px" />
+        <span class="sk sk-line" style="width: 84%; margin-top: 14px" />
+        <div class="sk-rows">
+          <div v-for="n in 3" :key="n" class="sk-row">
+            <div class="rt">
+              <span class="sk sk-line" style="width: 160px" />
+              <span class="sk sk-line" style="width: 54%; height: 20px; margin-top: 10px" />
+              <span class="sk sk-line" style="width: 88%; margin-top: 10px" />
+            </div>
+            <span class="sk sk-thumb" />
+          </div>
+        </div>
+      </div>
 
-    <div ref="sentinel" class="sentinel" aria-hidden="true" />
-    <p v-if="loadingMore" class="more-hint">{{ t('thoughts.loadingMore') }}</p>
-    <p v-else-if="!loading && !hasMore && posts.length" class="end-text">
-      {{ config.cfg.site.listEndText }}
-    </p>
-    <p v-if="!loading && !posts.length" class="empty">{{ t('articles.empty') }}</p>
+      <div v-else :key="listSeq" class="list" :class="{ dim: switching }">
+        <p v-if="!posts.length" class="nores rise">{{ emptyText }}</p>
+        <section v-for="g in groups" :key="g.key" class="grp rise-stagger">
+          <div class="grp-h"><b>{{ g.label }}</b><span>{{ t('content.articles.monthCount', { n: g.count }) }}</span></div>
+          <template v-for="it in g.items" :key="it.post.slug">
+            <PostFeature v-if="it.feat" class="feat" :post="it.post" />
+            <PostRow v-else :post="it.post" />
+          </template>
+        </section>
+
+        <div v-if="loadingMore" class="sk-rows more" aria-hidden="true">
+          <div v-for="n in 2" :key="n" class="sk-row">
+            <div class="rt">
+              <span class="sk sk-line" style="width: 160px" />
+              <span class="sk sk-line" style="width: 54%; height: 20px; margin-top: 10px" />
+              <span class="sk sk-line" style="width: 88%; margin-top: 10px" />
+            </div>
+            <span class="sk sk-thumb" />
+          </div>
+        </div>
+        <p v-else-if="!hasMore && posts.length" class="list-end">{{ config.cfg.site.listEndText }}</p>
+      </div>
+
+      <div ref="sentinel" class="sentinel" aria-hidden="true" />
+    </div>
   </main>
 </template>
 
 <style scoped lang="scss">
-.page {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 110px 24px 80px;
+.articles {
+  --nav-h: 64px;
+  /* 浮动导航之下留出页首空间（导航 64 + 页首 64） */
+  padding: 64px 0 96px;
+  min-height: 100vh;
 }
 
-.page-title {
-  font-size: clamp(30px, 4vw, 42px);
-  margin-bottom: 26px;
+.wrap {
+  width: min(880px, calc(100% - 80px));
+  margin-inline: auto;
 }
 
-/* 工具栏 */
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 20px;
-}
+/* ---------- 页首 ---------- */
+.ph {
+  padding: 64px 0 28px;
 
-.search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  width: min(300px, 42vw);
-  padding: 9px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
-
-  svg {
-    width: 17px;
-    height: 17px;
-    color: var(--text-2);
-    flex-shrink: 0;
+  h1 {
+    font-family: var(--font-serif);
+    font-size: 52px;
+    font-weight: 900;
+    line-height: 1.12;
+    letter-spacing: 0.01em;
+    color: var(--text);
   }
+
+  p {
+    min-height: 1.7em;
+    margin-top: 12px;
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+}
+
+/* ---------- 吸顶筛选条 ---------- */
+.filterbar {
+  position: sticky;
+  top: var(--nav-h);
+  z-index: 30;
+  margin: 0 0 8px;
+  padding: 12px 0;
+
+  /* 毛玻璃底向上铺到视口顶，与导航连成一整片；未吸顶时隐藏 */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: calc(var(--nav-h) * -1) 0 0;
+    background: color-mix(in oklab, var(--bg) 88%, transparent);
+    backdrop-filter: blur(20px) saturate(170%);
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
+    box-shadow: inset 0 -0.5px 0 var(--line);
+    opacity: 0;
+    transition: opacity var(--dur) var(--ease-out);
+    pointer-events: none;
+  }
+
+  &.stuck::before { opacity: 1; }
+
+  .in {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+}
+
+.field {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 9px;
+  width: 280px;
+  height: 40px;
+  padding: 0 10px 0 13px;
+  border-radius: var(--r-md);
+  background: var(--fill);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text-3);
+  cursor: text;
+  transition: background-color var(--dur-fast), box-shadow var(--dur-fast), color var(--dur-fast);
 
   input {
     flex: 1;
+    width: 0;
     min-width: 0;
-    border: none;
+    border: 0;
     outline: none;
     background: none;
-    color: var(--text);
+    font: inherit;
     font-size: 14px;
-    font-family: inherit;
+    color: var(--text);
+    caret-color: var(--ink);
 
-    &::placeholder { color: var(--text-2); }
+    &::placeholder { color: var(--text-3); }
+    &::-webkit-search-cancel-button { display: none; }
   }
 
+  &:hover { box-shadow: inset 0 0 0 1px var(--line-2); }
+
   &:focus-within {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
+    background: var(--elev);
+    color: var(--text-2);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink) 70%, transparent),
+      0 0 0 3px color-mix(in oklab, var(--ink) 18%, transparent);
+
+    kbd { opacity: 0; }
   }
 }
 
-.tag-scroll {
+:root[data-mode='light'] .field:not(:focus-within) { background: color-mix(in oklab, var(--bg) 40%, white); }
+
+kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: var(--r-xs);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-2);
+  background: var(--fill);
+  box-shadow: inset 0 0 0 0.5px var(--line-2), inset 0 -1px 0 var(--line);
+  transition: opacity var(--dur-fast);
+}
+
+.chips {
   display: flex;
-  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+  padding: 2px;
   overflow-x: auto;
   scrollbar-width: none;
-  /* 发光完整余量：上下 14px、左右 12px */
-  padding: 14px 12px;
-  margin: -14px -12px;
 
   &::-webkit-scrollbar { display: none; }
 }
 
-.tag-chip {
-  flex-shrink: 0;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 7px 16px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+/* chip：选中 = 抬升 + 轻染 + 前置 4px 主色圆点 */
+.chip {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  font-size: 13.5px;
   color: var(--text-2);
-  transition: all var(--dur-fast) var(--ease-out);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: background-color var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast),
+    transform var(--dur-fast) var(--ease-spring);
 
-  i {
-    font-style: normal;
-    margin-left: 6px;
-    font-size: 11px;
-    opacity: 0.7;
+  &::before {
+    content: '';
+    width: 0;
+    height: 4px;
+    margin-right: -6px;
+    border-radius: 50%;
+    background: var(--ink);
+    opacity: 0;
+    transition: width var(--dur) var(--ease-spring), margin var(--dur) var(--ease-spring), opacity var(--dur);
   }
 
-  &:hover { border-color: var(--primary); color: var(--primary); transform: scale(1.06); }
+  em {
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-3);
+  }
+
+  &:hover { color: var(--text); background: var(--fill); box-shadow: inset 0 0 0 1px var(--line-2); }
+  &:active { transform: scale(0.96); }
+  &:focus-visible { outline: none; box-shadow: var(--focus); }
 
   &.on {
-    background: linear-gradient(180deg, var(--primary), var(--primary-deep));
-    border-color: transparent;
-    color: #fff;
-    box-shadow: 0 2px 10px rgba(var(--primary-rgb), 0.45);
+    background: var(--lift);
+    color: var(--lift-fg);
+    font-weight: 500;
+    box-shadow: var(--lift-shadow);
+
+    &::before { width: 4px; margin-right: 0; opacity: 1; }
+    em { color: var(--text-2); }
   }
 }
 
-/* 切换序列：变暗（加载中）→ 整体淡出（数据就绪）→ 新列表浮入 */
-.list-wrap {
+/* ---------- 列表 ---------- */
+.list {
   transition: opacity 0.26s ease;
 
-  &.loading { opacity: 0.55; }
-  &.exiting { opacity: 0; }
+  &.dim { opacity: 0.5; pointer-events: none; }
+}
+
+.grp-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 30px 0 16px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+
+  b { font-weight: 500; color: var(--text-2); }
+}
+
+.feat { margin-bottom: 36px; }
+
+.nores {
+  padding: 72px 0;
+  text-align: center;
+  color: var(--text-3);
+}
+
+.list-end {
+  padding: 36px 0 0;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
 }
 
 .sentinel { height: 1px; }
 
-.more-hint, .end-text {
-  text-align: center;
+/* ---------- 骨架 ---------- */
+.skel .grp-h { align-items: center; }
+
+.sk-cover {
+  aspect-ratio: 2.1 / 1;
+  border-radius: var(--r-xl);
+}
+
+.sk-rows { margin-top: 36px; }
+.sk-rows.more { margin-top: 0; }
+
+.sk-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
   padding: 22px 0;
-  font-size: 13px;
-  color: var(--text-2);
+
+  & + & { box-shadow: inset 0 0.5px 0 var(--line); }
+
+  .rt { flex: 1; min-width: 0; }
 }
 
-.end-text { font-family: var(--font-serif); letter-spacing: 0.1em; }
-
-.empty {
-  color: var(--text-2);
-  text-align: center;
-  padding: 48px 0;
+.sk-thumb {
+  flex: none;
+  width: 128px;
+  height: 96px;
+  border-radius: var(--r-md);
 }
 
-@media (max-width: 768px) {
-  .page { padding-top: 88px; }
-
-  .toolbar { flex-direction: column; align-items: stretch; }
-  .search { width: 100%; }
+@media (max-width: 1100px) {
+  .wrap { width: calc(100% - 64px); max-width: 880px; }
+  .field { width: 220px; }
 }
 </style>

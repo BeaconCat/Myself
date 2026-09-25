@@ -1,8 +1,9 @@
 /* =====================================================================
    移动后台 tokens（.ma-root 作用域）
-   - 底色 / 纸面 / 线 / 文字三级：由全局 --primary 轻度交叠（3–8%），跟色盘走
-   - --ink：主色在当前底上的可读版本（深色提亮 / 浅色压暗）
-   - --soft / --glow：主色 16% 软底 / 50% 辉光
+   - 底色 / 纸面 / 线 / 文字三级：由全局 --primary 轻度交叠（2–5%），跟色盘走
+   - 强调一律用全局 token（styles/tokens.scss）：选中 = --lift / --lift-shadow / --lift-fg，
+     主按钮 = --solid / --on-solid / --btn-shadow，信号文字 = --ink（按 WCAG 派生），
+     轻染底 = --tint；不再使用彩色外发光。圆角只用 --r-* token。
    - --ease-sheet：iOS sheet 近似（无过冲）；--ease-spring-2：带回弹的 detent 落位
    - 安全区：--safe-t / --safe-b 取 env()，演示环境下给最小值
    ===================================================================== */
@@ -15,17 +16,15 @@
   --safe-b: max(env(safe-area-inset-bottom), 8px);
   --nav-row: 44px;
   --tab-h: 54px;
-  --soft: color-mix(in oklab, var(--primary) 16%, transparent);
-  --glow: color-mix(in oklab, var(--primary) 50%, transparent);
   --good: #1fb85a;
   --warn: #d99a00;
 
   color-scheme: dark;
-  --bg: color-mix(in oklab, var(--primary) 6%, #0a1020);
-  --bg-deep: color-mix(in oklab, var(--primary) 5%, #03070f);
-  --elev: color-mix(in oklab, var(--primary) 7%, #10192b);
-  --elev-2: color-mix(in oklab, var(--primary) 8%, #172238);
-  --sheet: color-mix(in oklab, var(--primary) 7%, #0f1727);
+  --bg: color-mix(in oklab, var(--primary) 3%, #0a1020);
+  --bg-deep: color-mix(in oklab, var(--primary) 3%, #03070f);
+  --elev: color-mix(in oklab, var(--primary) 4%, #10192b);
+  --elev-2: color-mix(in oklab, var(--primary) 5%, #172238);
+  --sheet: color-mix(in oklab, var(--primary) 4%, #0f1727);
   --fill: rgba(150, 172, 212, 0.08);
   --fill-2: rgba(150, 172, 212, 0.14);
   --line: rgba(150, 172, 212, 0.13);
@@ -39,16 +38,15 @@
   --glass-hi: rgba(255, 255, 255, 0.07);
   --scrim: rgba(0, 3, 10, 0.55);
   --shadow: 0 18px 40px -16px rgba(0, 4, 14, 0.85);
-  --ink: color-mix(in oklab, var(--primary) 72%, white);
-  --cut: color-mix(in oklab, var(--primary) 5%, #0e1626);
+  --cut: color-mix(in oklab, var(--primary) 3%, #0e1626);
 }
 
 :root[data-mode='light'] .ma-root {
   color-scheme: light;
-  --bg: color-mix(in oklab, var(--primary) 4%, #f3f5f9);
-  --bg-deep: color-mix(in oklab, var(--primary) 6%, #d9dfe8);
+  --bg: color-mix(in oklab, var(--primary) 2%, #f3f5f9);
+  --bg-deep: color-mix(in oklab, var(--primary) 3%, #d9dfe8);
   --elev: #ffffff;
-  --elev-2: color-mix(in oklab, var(--primary) 3%, #f8f9fc);
+  --elev-2: color-mix(in oklab, var(--primary) 2%, #f8f9fc);
   --sheet: #ffffff;
   --fill: rgba(11, 18, 32, 0.045);
   --fill-2: rgba(11, 18, 32, 0.08);
@@ -63,7 +61,6 @@
   --glass-hi: rgba(255, 255, 255, 0.9);
   --scrim: rgba(8, 14, 28, 0.28);
   --shadow: 0 18px 40px -18px rgba(30, 50, 90, 0.3);
-  --ink: color-mix(in oklab, var(--primary) 78%, black);
   --cut: #f4f6fa;
   --good: #12a150;
   --warn: #b37f00;
@@ -132,10 +129,10 @@
     border-radius: 999px;
     font-size: 14.5px;
     font-weight: 600;
-    color: var(--on-primary);
-    background: var(--primary);
-    box-shadow: 0 8px 18px -8px var(--glow);
-    transition: opacity var(--dur), transform var(--dur-fast) var(--ease-spring);
+    color: var(--on-solid);
+    background: var(--solid);
+    box-shadow: var(--btn-shadow);
+    transition: opacity var(--dur), background-color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
 
     &:disabled {
       opacity: 0.35;
@@ -145,7 +142,7 @@
 
   /* 分组列表（iOS inset grouped） */
   .ma-list {
-    border-radius: 18px;
+    border-radius: var(--r-lg);
     background: var(--elev);
     overflow: hidden;
     box-shadow: inset 0 0 0 0.5px var(--line);
@@ -180,11 +177,11 @@
     .lic {
       width: 29px;
       height: 29px;
-      border-radius: 8px;
+      border-radius: var(--r-sm);
       display: grid;
       place-items: center;
       color: #fff;
-      background: var(--c, var(--primary));
+      background: var(--c, var(--solid));
       flex: none;
     }
 
@@ -227,14 +224,14 @@
 
   .st {
     padding: 1px 7px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     font-size: 11px;
     font-weight: 500;
     white-space: nowrap;
 
     &.pub { background: color-mix(in oklab, var(--good) 14%, transparent); color: var(--good); }
     &.dr { background: rgba(255, 179, 0, 0.15); color: var(--warn); }
-    &.pin { background: var(--soft); color: var(--ink); }
+    &.pin { background: var(--tint); color: var(--ink); }
   }
 
   .chip {
@@ -247,14 +244,28 @@
     gap: 6px;
     font-size: 14px;
     color: var(--text-2);
-    background: var(--fill);
-    box-shadow: inset 0 0 0 0.5px var(--line);
-    transition: background var(--dur) var(--ease-out), color var(--dur), box-shadow var(--dur);
+    box-shadow: inset 0 0 0 1px var(--line);
+    transition: background-color var(--dur) var(--ease-out), color var(--dur), box-shadow var(--dur);
+
+    /* 选中 = 抬升 + 轻染 + 前置 4px 主色圆点 */
+    &::before {
+      content: '';
+      width: 0;
+      height: 4px;
+      margin-right: -6px;
+      border-radius: 50%;
+      background: var(--ink);
+      opacity: 0;
+      transition: width var(--dur) var(--ease-spring), margin var(--dur) var(--ease-spring), opacity var(--dur);
+    }
 
     &.on {
-      background: var(--soft);
-      color: var(--ink);
-      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 40%, transparent);
+      background: var(--lift);
+      color: var(--lift-fg);
+      box-shadow: var(--lift-shadow);
+      font-weight: 500;
+
+      &::before { width: 4px; margin-right: 0; opacity: 1; }
     }
   }
 
@@ -262,12 +273,12 @@
     display: block;
     width: 100%;
     padding: 12px 14px;
-    border-radius: 14px;
+    border-radius: var(--r-md);
     background: var(--fill);
     box-shadow: inset 0 0 0 0.5px var(--line);
     font-size: 16px;
     color: var(--text);
-    caret-color: var(--primary);
+    caret-color: var(--ink);
     transition: box-shadow var(--dur-fast), background var(--dur-fast);
 
     &::placeholder {
@@ -276,7 +287,7 @@
 
     &:focus {
       background: var(--fill-2);
-      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 55%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink) 55%, transparent);
     }
   }
 }

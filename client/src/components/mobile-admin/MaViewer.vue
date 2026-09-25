@@ -60,7 +60,7 @@ watch(
         imgStyle.value = {};
         return;
       }
-      imgStyle.value = { transform: f, transition: 'none', borderRadius: '12px' };
+      imgStyle.value = { transform: f, transition: 'none', borderRadius: 'var(--r-md)' };
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
           imgStyle.value = { transform: 'none', transition: 'transform .45s var(--ease-sheet), border-radius .45s' };
@@ -94,7 +94,7 @@ function close(): void {
     const f = flipFrom(src ?? null, img);
     imgStyle.value = { transform: prev ?? 'none', transition: 'none' };
     requestAnimationFrame(() => {
-      imgStyle.value = { transform: f ?? 'scale(.85)', transition: 'transform .42s var(--ease-sheet), border-radius .42s', borderRadius: '12px' };
+      imgStyle.value = { transform: f ?? 'scale(.85)', transition: 'transform .42s var(--ease-sheet), border-radius .42s', borderRadius: 'var(--r-md)' };
     });
   } else {
     imgStyle.value = { transform: 'scale(.85)', opacity: '0', transition: 'transform .35s, opacity .3s' };

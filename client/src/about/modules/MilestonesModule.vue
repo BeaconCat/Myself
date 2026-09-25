@@ -52,7 +52,7 @@ const split = (date: string) => {
     top: 8px;
     bottom: 8px;
     width: 1px;
-    background: linear-gradient(rgba(var(--primary-rgb), 0.8), var(--ak-line-2) 30%, var(--ak-line-2));
+    background: var(--ak-line-2);
   }
 
   li { position: relative; padding-bottom: 20px; }
@@ -75,9 +75,10 @@ const split = (date: string) => {
   p { margin-top: 2px; font-size: 13px; color: var(--text-2); }
 }
 
+/* 当前节点：主色信号点 + 轻染环（无外发光） */
 .ms li.now::before, .msh li.now::before {
-  background: var(--primary);
-  box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.2), 0 0 16px rgba(var(--primary-rgb), 0.9);
+  background: var(--ink);
+  box-shadow: 0 0 0 4px var(--tint);
 }
 
 .ms li.now time, .msh li.now time { color: var(--ak-ink); }
@@ -97,7 +98,7 @@ const split = (date: string) => {
     right: 0;
     top: 34px;
     height: 1px;
-    background: linear-gradient(90deg, var(--ak-line-2), var(--ak-line-2) 70%, rgba(var(--primary-rgb), 0.8));
+    background: var(--ak-line-2);
   }
 
   li { position: relative; padding: 22px 18px 0 0; }

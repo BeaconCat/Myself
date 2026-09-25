@@ -41,16 +41,16 @@ function rectOf(i: number): Record<string, string> | null {
 
 async function show(i: number): Promise<void> {
   index.value = i;
-  box.value = { ...(rectOf(i) ?? target()), transition: 'none', borderRadius: '14px' };
+  box.value = { ...(rectOf(i) ?? target()), transition: 'none', borderRadius: 'var(--r-md)' };
   open.value = true;
   window.addEventListener('keydown', onKey);
   await nextTick();
-  requestAnimationFrame(() => requestAnimationFrame(() => { box.value = { ...target(), borderRadius: '18px' }; }));
+  requestAnimationFrame(() => requestAnimationFrame(() => { box.value = { ...target(), borderRadius: 'var(--r-lg)' }; }));
 }
 
 function close(): void {
   const back = rectOf(index.value);
-  box.value = back ? { ...back, borderRadius: '14px' } : { ...box.value, opacity: '0' };
+  box.value = back ? { ...back, borderRadius: 'var(--r-md)' } : { ...box.value, opacity: '0' };
   open.value = false;
   window.removeEventListener('keydown', onKey);
 }
@@ -124,7 +124,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     position: relative;
     overflow: hidden;
     padding: 0;
-    border-radius: 14px;
+    border-radius: var(--r-md);
     cursor: zoom-in;
 
     &::after {
@@ -258,7 +258,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
   place-items: center;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--r-pill);
   color: #fff !important;
   background: rgb(255 255 255 / 0.08) !important;
   border: 1px solid rgb(255 255 255 / 0.12) !important;

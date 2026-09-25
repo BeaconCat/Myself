@@ -97,8 +97,8 @@ const bars = computed(() => {
     width: 100%;
     max-width: 44px;
     height: var(--h);
-    border-radius: 8px 8px 3px 3px;
-    background: linear-gradient(180deg, rgba(var(--primary-rgb), 0.85), rgba(var(--primary-rgb), 0.25));
+    border-radius: var(--r-xs) var(--r-xs) calc(var(--r-xs) * 0.4) calc(var(--r-xs) * 0.4);
+    background: color-mix(in oklab, var(--primary) 36%, var(--fill-2));
 
     &.fut {
       background: repeating-linear-gradient(135deg, var(--ak-line-2) 0 1px, transparent 1px 6px);
@@ -106,7 +106,7 @@ const bars = computed(() => {
       border-bottom: 0;
     }
 
-    &.peak { background: linear-gradient(180deg, var(--primary), rgba(var(--primary-rgb), 0.35)); box-shadow: 0 0 24px -4px rgba(var(--primary-rgb), 0.8); }
+    &.peak { background: color-mix(in oklab, var(--primary) 80%, var(--fill-2)); }
   }
 
   .v { position: absolute; top: -19px; left: 50%; translate: -50% 0; font: 500 10.5px var(--ak-mono); color: var(--ak-text-3); }
@@ -137,7 +137,6 @@ const bars = computed(() => {
     border-radius: 50%;
     vertical-align: middle;
     background: var(--ak-yellow);
-    box-shadow: 0 0 6px var(--ak-yellow);
   }
 }
 

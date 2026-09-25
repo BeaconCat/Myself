@@ -146,8 +146,8 @@ defineExpose({ handles });
   bottom: -100px;
   display: flex;
   flex-direction: column;
-  border-radius: 30px 30px 0 0;
-  background: var(--m-elev);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: var(--elev);
   box-shadow: 0 -10px 40px -10px rgba(0, 0, 0, 0.4), inset 0 0.5px 0 var(--m-glass-line);
   will-change: transform;
   padding-bottom: 100px;
@@ -166,8 +166,8 @@ defineExpose({ handles });
   i {
     width: 38px;
     height: 5px;
-    border-radius: 3px;
-    background: var(--m-line-2);
+    border-radius: 999px;
+    background: var(--line-2);
   }
 }
 
@@ -186,7 +186,7 @@ defineExpose({ handles });
   small {
     margin-left: 10px;
     font-size: 13px;
-    color: var(--m-text-3);
+    color: var(--text-3);
   }
 
   .close {
@@ -196,7 +196,7 @@ defineExpose({ handles });
     border-radius: 50%;
     display: grid;
     place-items: center;
-    background: var(--m-fill);
+    background: var(--fill-2);
 
     .m-ic {
       width: 16px;

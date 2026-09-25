@@ -396,7 +396,7 @@ const scrollY = ref(0);
 
         <div class="ed-tags">
           <span class="st" :class="draft.status === 'draft' ? 'dr' : 'pub'">{{ draft.status === 'draft' ? t('mobileAdmin.content.draft') : t('mobileAdmin.content.published') }}</span>
-          <button v-for="tg in draft.tags" :key="tg" class="tagp tap" @click="metaOpen = true"># {{ tg }}</button>
+          <button v-for="tg in draft.tags" :key="tg" class="tagp tap" @click="metaOpen = true"><span class="hs">#</span>{{ tg }}</button>
           <button class="tagp add tap" @click="metaOpen = true">+ {{ t('mobileAdmin.post.tag') }}</button>
         </div>
 
@@ -503,9 +503,9 @@ const scrollY = ref(0);
   display: block;
   width: 100%;
   height: 176px;
-  border-radius: 22px;
+  border-radius: var(--r-xl);
   overflow: hidden;
-  box-shadow: 0 18px 36px -22px rgba(0, 10, 40, 0.8), 0 0 0 0.5px var(--line);
+  box-shadow: var(--shadow-card);
   animation: ma-ed-in 0.5s var(--ease-out);
 
   img {
@@ -541,7 +541,7 @@ const scrollY = ref(0);
   gap: 8px;
   height: 44px;
   padding: 0 14px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   font-size: 14px;
   color: var(--text-3);
   box-shadow: inset 0 0 0 1px var(--line-2);
@@ -563,7 +563,7 @@ const scrollY = ref(0);
   font-weight: 700;
   line-height: 1.35;
   color: var(--text);
-  caret-color: var(--primary);
+  caret-color: var(--ink);
 
   &::placeholder { color: var(--text-3); }
 }
@@ -581,16 +581,20 @@ const scrollY = ref(0);
   }
 }
 
+/* 标签：极轻描边胶囊，「# 名称」# 用三级灰 */
 .tagp {
   padding: 4px 10px;
   border-radius: 999px;
-  background: var(--soft);
-  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--text-2);
   font-weight: 500;
   font-size: 12px;
 
+  .hs { color: var(--text-3); margin-right: 2px; }
+
   &.add {
     background: var(--fill);
+    box-shadow: none;
     color: var(--text-3);
   }
 }
@@ -606,7 +610,7 @@ const scrollY = ref(0);
   font-size: 17px;
   line-height: 1.9;
   color: var(--text);
-  caret-color: var(--primary);
+  caret-color: var(--ink);
 
   &::placeholder { color: var(--text-3); }
 }
@@ -626,11 +630,11 @@ const scrollY = ref(0);
   right: 10px;
   bottom: calc(var(--safe-b) + 8px);
   height: 50px;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   display: flex;
   align-items: center;
   padding: 0 6px;
-  box-shadow: inset 0 0 0 0.5px var(--glass-line), inset 0 1px 0 var(--glass-hi), 0 14px 30px -14px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 0 0 0.5px var(--glass-line), inset 0 1px 0 var(--glass-hi), var(--shadow-pop);
   transition: transform 0.25s var(--ease-out), bottom 0.25s var(--ease-out), border-radius 0.25s;
 
   &.lifted {
@@ -655,7 +659,7 @@ const scrollY = ref(0);
   min-width: 40px;
   height: 38px;
   padding: 0 8px;
-  border-radius: 11px;
+  border-radius: var(--r-sm);
   display: grid;
   place-items: center;
   font-size: 14px;
@@ -672,7 +676,7 @@ const scrollY = ref(0);
 
   .kb-ring {
     --ring-bg: var(--fill-2);
-    --ring-fg: var(--primary);
+    --ring-fg: var(--ink);
   }
 }
 
@@ -689,7 +693,7 @@ const scrollY = ref(0);
   width: 40px;
   height: 38px;
   margin-left: 4px;
-  border-radius: 11px;
+  border-radius: var(--r-sm);
   display: grid;
   place-items: center;
   color: var(--ink);

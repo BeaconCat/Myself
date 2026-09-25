@@ -196,7 +196,7 @@ onMounted(() => void load());
 
 .tl-m {
   font: 600 13px/1 var(--font-serif);
-  color: var(--ink-3);
+  color: var(--st-ink-3);
   letter-spacing: 0.14em;
   margin: 44px 0 6px 128px;
 }
@@ -227,13 +227,13 @@ onMounted(() => void load());
     height: 9px;
     border-radius: 50%;
     background: var(--paper);
-    box-shadow: 0 0 0 1.5px var(--ink-4);
+    box-shadow: 0 0 0 1.5px var(--st-ink-4);
     transition: all var(--dur) var(--ease-spring);
   }
 
   &:hover::after, &.pinned::after {
-    box-shadow: 0 0 0 1.5px var(--primary), 0 0 0 5px var(--primary-ring);
-    background: var(--primary);
+    box-shadow: 0 0 0 1.5px var(--ink);
+    background: var(--ink);
   }
 
   .d {
@@ -241,13 +241,13 @@ onMounted(() => void load());
     padding-top: 22px;
 
     b { display: block; font-size: 20px; line-height: 1; font-weight: 500; letter-spacing: -0.02em; }
-    small { font-size: 12px; color: var(--ink-3); }
+    small { font-size: 12px; color: var(--st-ink-3); }
   }
 
   .c {
     min-width: 0;
     padding: 18px 20px 12px 24px;
-    border-radius: 16px;
+    border-radius: var(--r-md);
     transition: background var(--dur-fast);
   }
 
@@ -259,10 +259,10 @@ onMounted(() => void load());
 
     :deep(p) { margin: 0 0 0.6em; }
     :deep(p:last-child) { margin-bottom: 0; }
-    :deep(a) { color: var(--primary-ink); text-decoration: underline; text-underline-offset: 3px; }
-    :deep(code) { font: 14px var(--font-mono); background: var(--well-2); padding: 1px 5px; border-radius: 5px; }
+    :deep(a) { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+    :deep(code) { font: 14px var(--font-mono); background: var(--well-2); padding: 1px 5px; border-radius: var(--r-xs); }
     :deep(ul), :deep(ol) { padding-left: 1.3em; margin: 0 0 0.6em; }
-    :deep(blockquote) { margin: 0.6em 0; padding-left: 1em; border-left: 2px solid var(--primary-ring); color: var(--ink-2); }
+    :deep(blockquote) { margin: 0.6em 0; padding-left: 1em; border-left: 2px solid var(--line-3); color: var(--st-ink-2); }
   }
 
   .imgs {
@@ -275,7 +275,7 @@ onMounted(() => void load());
     &[data-n='1'] { grid-template-columns: 1fr; max-width: 300px; }
     &[data-n='2'], &[data-n='4'] { grid-template-columns: repeat(2, 1fr); max-width: 300px; }
 
-    .t { aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--well-2); }
+    .t { aspect-ratio: 1; border-radius: var(--r-sm); overflow: hidden; background: var(--well-2); }
     &[data-n='1'] .t { aspect-ratio: 16 / 10; }
     img { width: 100%; height: 100%; object-fit: cover; display: block; }
   }
@@ -286,12 +286,12 @@ onMounted(() => void load());
     gap: 14px;
     margin-top: 12px;
     font-size: 12.5px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     min-height: 34px;
 
     .mood, .pin { display: inline-flex; align-items: center; gap: 6px; }
-    .mood .st-dot { --c: var(--primary); }
-    .pin { color: var(--primary-ink); }
+    .mood .st-dot { --c: var(--ink); }
+    .pin { color: var(--ink); }
     .sp { flex: 1; }
   }
 
@@ -309,7 +309,7 @@ onMounted(() => void load());
   &.bye { animation: collapse 0.45s var(--ease-out) forwards; overflow: hidden; }
 }
 
-@keyframes fresh { 0% { background: var(--primary-soft-2); } 100% { background: transparent; } }
+@keyframes fresh { 0% { background: var(--tint); } 100% { background: transparent; } }
 @keyframes collapse { 40% { opacity: 0; transform: translateX(20px); } 100% { opacity: 0; max-height: 0; padding: 0; } }
 
 .more { max-width: 780px; display: flex; justify-content: center; margin-top: 32px; }

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * V2 贴底底栏：概览 / 内容 / 凸起 + / 素材 / 我的。
- * 选中：图标线性 → 实心（.f 填充 + .d 镂空）并做一次弹跳；中央 + 打开 action sheet 时旋转成 ×。
+ * 选中：图标线性 → 实心（.f 填充 + .d 镂空），图标着 --ink、文字 --text，不发光，并做一次弹跳；
+ * 中央 + 为实底 --solid / --on-solid + 中性紧阴影，打开 action sheet 时旋转成 ×。
  */
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -113,9 +114,12 @@ watch(
     font-weight: 500;
   }
 
-  &.on {
-    color: var(--ink);
+  :deep(.ma-ic) { transition: color var(--dur) var(--ease-out); }
 
+  &.on {
+    color: var(--text);
+
+    :deep(.ma-ic) { color: var(--ink); }
     :deep(.ma-ic .f) { fill: currentColor; }
     :deep(.ma-ic .d) { stroke: var(--cut); }
   }
@@ -150,17 +154,16 @@ watch(
   border-radius: 50%;
   display: grid;
   place-items: center;
-  color: var(--on-primary);
-  background: radial-gradient(
-    circle at 35% 25%,
-    color-mix(in oklab, var(--primary) 70%, white),
-    var(--primary) 55%,
-    var(--primary-deep)
-  );
+  color: var(--on-solid);
+  background: var(--solid);
+  /* 底色描边把按钮从底栏里「挖」出来 + 中性紧阴影（不发光） */
   box-shadow:
     0 0 0 5px var(--bg),
-    0 12px 24px -8px var(--glow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    var(--btn-shadow),
+    0 6px 14px -8px rgb(0 0 0 / 0.35);
+  transition: background-color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+
+  &:active { background: var(--solid-hover); }
 
   :deep(.ma-ic) {
     stroke-width: 2;

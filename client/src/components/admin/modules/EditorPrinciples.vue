@@ -26,5 +26,5 @@ const { t } = useI18n();
 <style scoped lang="scss">
 @use './module-editor';
 
-.no { width: 28px; font: 700 18px var(--font-serif); color: var(--primary); }
+.no { width: 28px; font: 700 18px var(--font-serif); color: var(--text-3); }
 </style>

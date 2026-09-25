@@ -252,7 +252,7 @@ function syncNow(): void {
         </div>
         <div class="legend">
           <span style="--c: var(--primary)">{{ t('mobileAdmin.today.legendPosts') }}</span>
-          <span style="--c: var(--soft-2)">{{ t('mobileAdmin.today.legendNotes') }}</span>
+          <span style="--c: var(--bar-2)">{{ t('mobileAdmin.today.legendNotes') }}</span>
         </div>
       </section>
 
@@ -352,25 +352,16 @@ function syncNow(): void {
 }
 
 .ov-hero {
-  --soft-2: color-mix(in oklab, var(--primary) 38%, var(--fill-2));
+  /* 图表第二系列：主色掺底，数据色而非发光 */
+  --bar-2: color-mix(in oklab, var(--primary) 38%, var(--fill-2));
 
   margin: 4px 16px 0;
   padding: 20px 20px 14px;
-  border-radius: 26px;
+  border-radius: var(--r-xl);
   background: var(--elev);
-  box-shadow: inset 0 0 0 0.5px var(--line), var(--shadow);
+  box-shadow: var(--shadow-card);
   position: relative;
   overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    inset: -40% -20% auto auto;
-    width: 70%;
-    height: 90%;
-    background: radial-gradient(closest-side, color-mix(in oklab, var(--primary) 16%, transparent), transparent);
-    pointer-events: none;
-  }
 
   > small {
     font-size: 13px;
@@ -446,12 +437,9 @@ function syncNow(): void {
     width: 100%;
     max-width: 30px;
     height: calc(var(--h) * 80px);
-    border-radius: 8px;
-    background: linear-gradient(
-      0deg,
-      var(--primary) 0 calc(var(--p) * 100%),
-      var(--soft-2) calc(var(--p) * 100%) 100%
-    );
+    border-radius: var(--r-sm);
+    /* 堆叠柱：底部实色段（文章）+ 其余为第二系列（随想），两段均为纯色 */
+    background: var(--bar-2) linear-gradient(var(--primary), var(--primary)) bottom / 100% calc(var(--p) * 100%) no-repeat;
     transform-origin: bottom;
     transform: scaleY(0.02);
     transition: transform 0.7s var(--ease-spring);
@@ -481,7 +469,6 @@ function syncNow(): void {
 
   &.today {
     small { color: var(--ink); font-weight: 600; }
-    i { box-shadow: 0 8px 18px -8px var(--glow); }
   }
 }
 
@@ -502,7 +489,7 @@ function syncNow(): void {
     display: inline-block;
     width: 8px;
     height: 8px;
-    border-radius: 2px;
+    border-radius: 50%;
     margin-right: 5px;
     background: var(--c);
   }
@@ -513,9 +500,9 @@ function syncNow(): void {
   grid-template-columns: repeat(3, 1fr);
   margin: 14px 16px 0;
   padding: 16px 4px;
-  border-radius: 22px;
+  border-radius: var(--r-xl);
   background: var(--elev);
-  box-shadow: inset 0 0 0 0.5px var(--line), var(--shadow);
+  box-shadow: var(--shadow-card);
 
   button {
     padding: 0 16px;
@@ -542,7 +529,7 @@ function syncNow(): void {
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border-radius: 10px;
+  border-radius: 999px;
   display: inline-grid;
   place-items: center;
   font-size: 12px;
@@ -571,7 +558,7 @@ function syncNow(): void {
   gap: 14px;
   margin: 0 16px;
   padding: 16px;
-  border-radius: 20px;
+  border-radius: var(--r-xl);
   background: var(--elev);
   box-shadow: inset 0 0 0 0.5px var(--line);
 
@@ -596,9 +583,9 @@ function syncNow(): void {
   width: calc(100% - 32px);
   margin: 0 16px;
   padding: 16px;
-  border-radius: 22px;
+  border-radius: var(--r-xl);
   text-align: left;
-  background: linear-gradient(135deg, var(--soft), transparent 70%), var(--elev);
+  background: var(--elev);
   box-shadow: inset 0 0 0 0.5px var(--line);
 
   .dt { min-width: 0; }
@@ -622,10 +609,10 @@ function syncNow(): void {
     border-radius: 50%;
     display: grid;
     place-items: center;
-    background: var(--primary);
-    color: var(--on-primary);
+    background: var(--solid);
+    color: var(--on-solid);
     flex: none;
-    box-shadow: 0 8px 16px -8px var(--glow);
+    box-shadow: var(--btn-shadow);
   }
 }
 
@@ -678,11 +665,11 @@ function syncNow(): void {
   .ai {
     width: 38px;
     height: 38px;
-    border-radius: 12px;
+    border-radius: var(--r-md);
     display: grid;
     place-items: center;
     flex: none;
-    background: var(--soft);
+    background: var(--tint);
     color: var(--ink);
   }
 
@@ -711,7 +698,7 @@ function syncNow(): void {
   .athumb {
     width: 44px;
     height: 44px;
-    border-radius: 11px;
+    border-radius: var(--r-sm);
     object-fit: cover;
     flex: none;
     box-shadow: 0 0 0 0.5px var(--line);

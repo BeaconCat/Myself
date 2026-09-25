@@ -60,8 +60,8 @@ const tip = computed(() => t('studio.reserved.commentsTip'));
 
     <div v-if="!list.length" class="st-empty">
       <svg class="clean" viewBox="0 0 96 96" width="96" height="96" fill="none" aria-hidden="true">
-        <path d="M22 30h52a4 4 0 0 1 4 4v28a4 4 0 0 1-4 4H42l-12 10V66h-8a4 4 0 0 1-4-4V34a4 4 0 0 1 4-4z" stroke="var(--ink-4)" stroke-width="1.5" />
-        <path d="M38 48l7 7 13-14" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M22 30h52a4 4 0 0 1 4 4v28a4 4 0 0 1-4 4H42l-12 10V66h-8a4 4 0 0 1-4-4V34a4 4 0 0 1 4-4z" stroke="var(--st-ink-4)" stroke-width="1.5" />
+        <path d="M38 48l7 7 13-14" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
       <h4>{{ t('studio.comments.cleanTitle') }}</h4>
       <p>{{ t('studio.comments.cleanSub') }}</p>
@@ -105,7 +105,7 @@ const tip = computed(() => t('studio.reserved.commentsTip'));
   padding: 10px 12px;
   margin-bottom: 6px;
   font-size: 13px;
-  color: var(--ink-3);
+  color: var(--st-ink-3);
 
   .st-ckrow { font-size: 13px; }
   .sp { flex: 1; }
@@ -144,21 +144,21 @@ const tip = computed(() => t('studio.reserved.commentsTip'));
     gap: 8px;
     flex-wrap: wrap;
     font-size: 13px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     margin-bottom: 6px;
 
-    b { color: var(--ink); font-weight: 500; font-size: 14px; }
-    a { color: var(--ink-2); font-family: var(--font-serif); }
+    b { color: var(--st-ink); font-weight: 500; font-size: 14px; }
+    a { color: var(--st-ink-2); font-family: var(--font-serif); }
   }
 
-  p { margin: 0; font-size: 14.5px; line-height: 1.75; color: var(--ink); }
+  p { margin: 0; font-size: 14.5px; line-height: 1.75; color: var(--st-ink); }
 
   .flag {
     font-size: 11.5px;
-    color: color-mix(in oklab, var(--yellow) 60%, var(--ink));
+    color: color-mix(in oklab, var(--yellow) 60%, var(--st-ink));
     background: color-mix(in oklab, var(--yellow) 14%, var(--paper));
     padding: 1px 7px;
-    border-radius: 5px;
+    border-radius: var(--r-xs);
   }
 
   .acts { display: flex; gap: 6px; opacity: 0.55; transition: opacity var(--dur-fast); }

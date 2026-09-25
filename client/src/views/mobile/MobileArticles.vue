@@ -236,6 +236,9 @@ function open(p: Post): void {
   padding: 0 20px;
 }
 
+/* chip：未选中 = 1px 描边空心；选中 = 抬升 + 轻染 + 前置 4px 主色圆点 */
+.chips { padding-top: 2px; padding-bottom: 2px; }
+
 .chip {
   flex: none;
   height: 36px;
@@ -246,26 +249,41 @@ function open(p: Post): void {
   gap: 6px;
   font-size: 14px;
   color: var(--text-2);
-  background: var(--m-fill);
-  box-shadow: inset 0 0 0 0.5px var(--m-line);
+  box-shadow: inset 0 0 0 1px var(--line);
   transition:
-    background var(--dur) var(--ease-out),
+    background-color var(--dur) var(--ease-out),
     color var(--dur),
     box-shadow var(--dur),
     transform var(--dur-fast) var(--ease-spring);
+
+  &::before {
+    content: '';
+    width: 0;
+    height: 4px;
+    margin-right: -6px;
+    border-radius: 50%;
+    background: var(--ink);
+    opacity: 0;
+    transition: width var(--dur) var(--ease-spring), margin var(--dur) var(--ease-spring), opacity var(--dur);
+  }
 
   em {
     font-style: normal;
     font-family: var(--m-font-mono);
     font-size: 11px;
-    opacity: 0.6;
+    color: var(--text-3);
+
+    &:empty { display: none; }
   }
 
   &.on {
-    background: var(--text);
-    color: var(--bg);
-    box-shadow: none;
+    background: var(--lift);
+    color: var(--lift-fg);
+    box-shadow: var(--lift-shadow);
     font-weight: 500;
+
+    &::before { width: 4px; margin-right: 0; opacity: 1; }
+    em { color: var(--text-2); }
   }
 }
 
@@ -274,7 +292,7 @@ function open(p: Post): void {
 .grp {
   padding: 14px 16px 8px;
   font-size: 12.5px;
-  color: var(--m-text-3);
+  color: var(--text-3);
   letter-spacing: 0.06em;
 }
 
@@ -287,20 +305,23 @@ function open(p: Post): void {
   .fc {
     position: relative;
     height: 218px;
-    border-radius: 24px;
+    border-radius: var(--r-xl);
     overflow: hidden;
-    box-shadow: 0 22px 40px -24px rgba(0, 10, 40, 0.8), 0 0 0 0.5px var(--m-line);
+    box-shadow: var(--shadow-card);
   }
 
   .meta {
     margin-top: 14px;
     font-size: 12.5px;
-    color: var(--m-text-3);
+    color: var(--text-3);
 
     em {
       font-style: normal;
-      color: var(--m-ink);
+      color: var(--text-2);
       font-weight: 500;
+
+      &::before { content: '#'; color: var(--text-3); margin-right: 2px; }
+      &:empty { display: none; }
     }
   }
 
@@ -324,7 +345,7 @@ function open(p: Post): void {
   .thumb {
     width: 84px;
     height: 84px;
-    border-radius: 18px;
+    border-radius: var(--r-lg);
   }
 
   b { font-size: 16.5px; }
@@ -353,7 +374,7 @@ function open(p: Post): void {
 .feat-sk {
   margin: 0 20px;
   height: 218px;
-  border-radius: 24px;
+  border-radius: var(--r-xl);
 }
 
 .m-sk-line { display: block; }
@@ -374,7 +395,7 @@ function open(p: Post): void {
   .thumb {
     width: 84px;
     height: 84px;
-    border-radius: 18px;
+    border-radius: var(--r-lg);
     flex: none;
   }
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 移动端登录：门光 logo + 衬线大标题 + iOS 分组输入框；错误时卡片抖动，成功后门光放大转场进入后台。
+ * 移动端登录：logo + 衬线大标题 + iOS 分组输入框 + 实底主按钮；错误时卡片抖动，成功后中性光圈放大转场进入后台。
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -8,28 +8,39 @@ import { useI18n } from 'vue-i18n';
 import { adminApi } from '../../../api';
 import { useAuthStore } from '../../../stores/auth';
 import { useConfigStore } from '../../../stores/config';
-import { useThemeStore } from '../../../stores/theme';
 import MaIcon from '../../../components/mobile-admin/MaIcon.vue';
 import MaIsland from '../../../components/mobile-admin/MaIsland.vue';
 import MaRing from '../../../components/mobile-admin/MaRing.vue';
 import { toast } from '../../../components/mobile-admin/state';
-import { onColor } from '../../../components/mobile-admin/format';
 
 const { t } = useI18n();
 const router = useRouter();
 const auth = useAuthStore();
 const config = useConfigStore();
-const theme = useThemeStore();
 
 const username = ref('');
 const password = ref('');
 const reveal = ref(false);
 const busy = ref(false);
-const shake = ref(false);
+/** 报错抖动用 WAAPI 单独播放，不替换 CSS 入场动画（否则移除抖动类时入场会重播） */
+const cardEl = ref<HTMLElement | null>(null);
+function shake(): void {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  cardEl.value?.animate(
+    [
+      { transform: 'none' },
+      { transform: 'translateX(-10px)', offset: 0.2 },
+      { transform: 'translateX(8px)', offset: 0.4 },
+      { transform: 'translateX(-5px)', offset: 0.6 },
+      { transform: 'translateX(3px)', offset: 0.8 },
+      { transform: 'none' },
+    ],
+    { duration: 500, easing: 'cubic-bezier(.2,.8,.3,1)', composite: 'add' },
+  );
+}
 const success = ref(false);
 const error = ref('');
 
-const onPrimary = computed(() => onColor(theme.palette?.[theme.mode]?.primary ?? '#0078ff'));
 const canSubmit = computed(() => !!username.value && !!password.value && !busy.value);
 
 async function submit(): Promise<void> {
@@ -46,8 +57,7 @@ async function submit(): Promise<void> {
     }, 520);
   } catch {
     error.value = t('mobileAdmin.login.failed');
-    shake.value = false;
-    requestAnimationFrame(() => (shake.value = true));
+    shake();
     navigator.vibrate?.([12, 40, 12]);
   } finally {
     busy.value = false;
@@ -59,8 +69,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('ma-lock'));
 </script>
 
 <template>
-  <div class="ma-root ml" :class="{ success }" :style="{ '--on-primary': onPrimary }">
-    <div class="glow" aria-hidden="true" />
+  <div class="ma-root ml" :class="{ success }">
     <main class="ml-main">
       <div class="brand">
         <span class="halo" aria-hidden="true" />
@@ -69,7 +78,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('ma-lock'));
       <h1>{{ t('mobileAdmin.login.title') }}</h1>
       <p class="sub">{{ config.cfg.site.title }} · {{ t('mobileAdmin.login.sub') }}</p>
 
-      <form class="card" :class="{ shake }" @submit.prevent="submit" @animationend="shake = false">
+      <form ref="cardEl" class="card" @submit.prevent="submit">
         <div class="ma-list fields">
           <label class="row">
             <MaIcon name="user" :size="19" />
@@ -131,22 +140,6 @@ html.ma-lock body {
   flex-direction: column;
 }
 
-.glow {
-  position: absolute;
-  inset: -20% -30% auto;
-  height: 70%;
-  background:
-    radial-gradient(50% 50% at 50% 60%, color-mix(in oklab, var(--primary) 26%, transparent), transparent 70%),
-    radial-gradient(30% 30% at 50% 70%, rgba(255, 255, 255, 0.08), transparent 70%);
-  pointer-events: none;
-  animation: ml-breathe 6s ease-in-out infinite alternate;
-}
-
-@keyframes ml-breathe {
-  from { opacity: 0.75; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1.04); }
-}
-
 .ml-main {
   position: relative;
   flex: 1;
@@ -170,17 +163,19 @@ html.ma-lock body {
     position: relative;
     width: 100%;
     height: 100%;
-    border-radius: 26px;
-    box-shadow: 0 20px 40px -14px color-mix(in oklab, var(--primary) 60%, black), 0 0 0 0.5px rgba(255, 255, 255, 0.14);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-card);
     transition: transform 0.6s var(--ease-sheet);
   }
 
+  /* 成功转场用的中性光圈（不带主色、不发光），平时隐藏 */
   .halo {
     position: absolute;
     inset: -30px;
     border-radius: 50%;
-    background: radial-gradient(closest-side, color-mix(in oklab, var(--primary) 45%, transparent), transparent);
-    filter: blur(8px);
+    background: var(--fill-2);
+    opacity: 0;
+    transform: scale(0.6);
     transition: transform 0.7s var(--ease-sheet), opacity 0.7s;
   }
 }
@@ -211,16 +206,8 @@ h1 {
   margin-top: 34px;
   animation: ml-in 0.7s var(--ease-out) 0.2s backwards;
 
-  &.shake { animation: ml-shake 0.5s var(--ease-out); }
 }
 
-@keyframes ml-shake {
-  0%, 100% { transform: none; }
-  20% { transform: translateX(-10px); }
-  40% { transform: translateX(8px); }
-  60% { transform: translateX(-5px); }
-  80% { transform: translateX(3px); }
-}
 
 .fields {
   background: var(--elev);
@@ -254,7 +241,7 @@ h1 {
     height: 100%;
     font-size: 17px;
     color: var(--text);
-    caret-color: var(--primary);
+    caret-color: var(--ink);
 
     &::placeholder { color: var(--text-3); }
   }
@@ -287,23 +274,24 @@ h1 {
   width: 100%;
   height: 52px;
   margin-top: 8px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   font-size: 17px;
   font-weight: 600;
-  color: var(--on-primary);
-  background: linear-gradient(180deg, color-mix(in oklab, var(--primary) 88%, white), var(--primary) 50%, var(--primary-deep));
-  box-shadow: 0 14px 28px -12px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: opacity var(--dur), transform var(--dur-fast) var(--ease-spring);
+  color: var(--on-solid);
+  background: var(--solid);
+  box-shadow: var(--btn-shadow);
+  transition: opacity var(--dur), background-color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
 
+  &:active:not(:disabled) { transform: scale(0.97); background: var(--solid-hover); }
   &:disabled { opacity: 0.45; box-shadow: none; }
 
   .go-ring {
-    --ring-bg: color-mix(in oklab, var(--on-primary) 30%, transparent);
-    --ring-fg: var(--on-primary);
+    --ring-bg: color-mix(in oklab, var(--on-solid) 30%, transparent);
+    --ring-fg: var(--on-solid);
   }
 }
 
@@ -318,7 +306,7 @@ h1 {
 
 /* 登录成功：门光放大，内容淡出 */
 .success {
-  .brand .halo { transform: scale(3.2); opacity: 0.9; }
+  .brand .halo { transform: scale(3.2); opacity: 1; }
   .brand .logo { transform: scale(1.08); }
 
   h1,

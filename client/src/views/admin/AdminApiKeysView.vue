@@ -345,7 +345,7 @@ onMounted(load);
   padding: 52px 64px 96px;
 }
 
-.hk { font-size: 13px; padding: 1px 6px; border-radius: 6px; background: var(--well); margin: 0 3px; }
+.hk { font-size: 13px; padding: 1px 6px; border-radius: var(--r-xs); background: var(--well); margin: 0 3px; }
 
 .keys { display: flex; flex-direction: column; gap: 12px; margin-bottom: 48px; }
 .keys-empty { padding: 32px 0 40px; }
@@ -356,13 +356,13 @@ onMounted(load);
   align-items: center;
   gap: 18px;
   padding: 18px 20px;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   box-shadow: 0 0 0 1px var(--line-2);
   transition: box-shadow var(--dur);
 
   &:hover { box-shadow: 0 0 0 1px var(--line-3), var(--sh-card-hover); }
 
-  .ki { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary-ink); }
+  .ki { width: 44px; height: 44px; border-radius: var(--r-md); display: grid; place-items: center; background: var(--tint); color: var(--ink); }
   .kn { min-width: 0; }
   h4 { margin: 0 0 4px; font: 600 15.5px var(--font-serif); }
 
@@ -371,25 +371,25 @@ onMounted(load);
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
 
-    button { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; color: var(--ink-3); }
-    button:hover { background: var(--hover); color: var(--ink); }
+    button { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--r-xs); color: var(--st-ink-3); }
+    button:hover { background: var(--hover); color: var(--st-ink); }
 
-    .fresh { font-size: 11px; padding: 1px 7px; border-radius: 6px; background: color-mix(in oklab, var(--green) 14%, var(--paper)); color: color-mix(in oklab, var(--green) 70%, var(--ink)); }
+    .fresh { font-size: 11px; padding: 1px 7px; border-radius: var(--r-xs); background: color-mix(in oklab, var(--green) 14%, var(--paper)); color: color-mix(in oklab, var(--green) 70%, var(--st-ink)); }
   }
 
   .scopes { display: flex; gap: 5px; margin-top: 8px; }
-  .scopes span { font-size: 11.5px; padding: 2px 8px; border-radius: 6px; background: var(--well); color: var(--ink-2); }
+  .scopes span { font-size: 11.5px; padding: 2px 8px; border-radius: var(--r-xs); background: var(--well); color: var(--st-ink-2); }
 
   .lu { font-size: 13px; }
-  .lu small { display: block; font-size: 11.5px; color: var(--ink-3); margin-top: 3px; }
+  .lu small { display: block; font-size: 11.5px; color: var(--st-ink-3); margin-top: 3px; }
 }
 
 .code {
   position: relative;
   margin: 0;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: var(--code-bg);
   color: #d9d6cf;
   padding: 20px 22px;
@@ -420,23 +420,23 @@ em {
   flex: none;
   text-align: center;
   padding: 2px 0;
-  border-radius: 5px;
+  border-radius: var(--r-xs);
   font-family: var(--font-mono);
 
-  &.post { background: color-mix(in oklab, var(--green) 16%, var(--paper)); color: color-mix(in oklab, var(--green) 70%, var(--ink)); }
-  &.get { background: color-mix(in oklab, var(--blue) 14%, var(--paper)); color: color-mix(in oklab, var(--blue) 70%, var(--ink)); }
-  &.put { background: color-mix(in oklab, var(--yellow) 18%, var(--paper)); color: color-mix(in oklab, var(--yellow) 50%, var(--ink)); }
-  &.delete { background: color-mix(in oklab, var(--red) 12%, var(--paper)); color: color-mix(in oklab, var(--red) 70%, var(--ink)); }
+  &.post { background: color-mix(in oklab, var(--green) 16%, var(--paper)); color: color-mix(in oklab, var(--green) 70%, var(--st-ink)); }
+  &.get { background: color-mix(in oklab, var(--blue) 14%, var(--paper)); color: color-mix(in oklab, var(--blue) 70%, var(--st-ink)); }
+  &.put { background: color-mix(in oklab, var(--yellow) 18%, var(--paper)); color: color-mix(in oklab, var(--yellow) 50%, var(--st-ink)); }
+  &.delete { background: color-mix(in oklab, var(--red) 12%, var(--paper)); color: color-mix(in oklab, var(--red) 70%, var(--st-ink)); }
 }
 
 .endp {
   display: flex;
   flex-direction: column;
 
-  div { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font: 12.5px var(--font-mono); color: var(--ink-2); }
+  div { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font: 12.5px var(--font-mono); color: var(--st-ink-2); }
 }
 
-.note { font-size: 12.5px; color: var(--ink-3); line-height: 1.7; margin: 14px 0 0; }
+.note { font-size: 12.5px; color: var(--st-ink-3); line-height: 1.7; margin: 14px 0 0; }
 
 .tester { margin-bottom: 56px; }
 
@@ -447,13 +447,13 @@ em {
   align-items: center;
   margin-bottom: 16px;
 
-  small { font-size: 12px; color: var(--ink-3); line-height: 1.5; }
+  small { font-size: 12px; color: var(--st-ink-3); line-height: 1.5; }
 }
 
 .eps { display: flex; flex-direction: column; gap: 6px; }
 
 .ep {
-  border-radius: 14px;
+  border-radius: var(--r-md);
   transition: background var(--dur-fast), box-shadow var(--dur-fast);
 
   &.open { background: var(--well); }
@@ -464,25 +464,25 @@ em {
     gap: 12px;
     width: 100%;
     padding: 10px 12px;
-    border-radius: 14px;
+    border-radius: var(--r-md);
     text-align: left;
 
     &:hover { background: var(--well); }
 
-    code { font: 12.5px var(--font-mono); color: var(--ink); white-space: nowrap; }
-    .d { flex: 1; min-width: 0; font-size: 13px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    code { font: 12.5px var(--font-mono); color: var(--st-ink); white-space: nowrap; }
+    .d { flex: 1; min-width: 0; font-size: 13px; color: var(--st-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .au {
       font-size: 11px;
       padding: 1px 7px;
-      border-radius: 6px;
+      border-radius: var(--r-xs);
       background: var(--well-2);
-      color: var(--ink-3);
+      color: var(--st-ink-3);
 
-      &.apikey { background: var(--primary-soft-2); color: var(--primary-ink); }
+      &.apikey { background: var(--tint); color: var(--ink); }
     }
 
-    .chev { color: var(--ink-4); transition: transform var(--dur) var(--ease-spring); }
+    .chev { color: var(--st-ink-4); transition: transform var(--dur) var(--ease-spring); }
   }
 
   &.open .chev { transform: rotate(180deg); }
@@ -507,7 +507,7 @@ em {
     color: var(--red);
 
     .st-dot { --c: var(--red); }
-    &.ok { color: color-mix(in oklab, var(--green) 70%, var(--ink)); .st-dot { --c: var(--green); } }
+    &.ok { color: color-mix(in oklab, var(--green) 70%, var(--st-ink)); .st-dot { --c: var(--green); } }
   }
 
   .resp { max-height: 320px; font-size: 12px; line-height: 1.7; }
@@ -523,10 +523,10 @@ em {
   max-height: 280px;
   overflow: auto;
   padding: 18px 20px;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: var(--well);
   font: 12.5px/1.8 var(--font-mono);
-  color: var(--ink-2);
+  color: var(--st-ink-2);
   white-space: pre-wrap;
 
   code { font: inherit; background: none; padding: 0; }
@@ -537,11 +537,11 @@ em {
 .sample {
   opacity: 0.72;
 
-  .m { font: 600 10.5px var(--font-mono); margin-right: 8px; color: var(--ink-3); }
-  .p { font-size: 12px; color: var(--ink-2); }
-  .sc { font: 500 12px var(--font-mono); color: color-mix(in oklab, var(--green) 70%, var(--ink)); }
+  .m { font: 600 10.5px var(--font-mono); margin-right: 8px; color: var(--st-ink-3); }
+  .p { font-size: 12px; color: var(--st-ink-2); }
+  .sc { font: 500 12px var(--font-mono); color: color-mix(in oklab, var(--green) 70%, var(--st-ink)); }
   .sc.bad { color: var(--red); }
-  td.mono { font-size: 12px; color: var(--ink-3); }
+  td.mono { font-size: 12px; color: var(--st-ink-3); }
 }
 
 .newkey {
@@ -549,7 +549,7 @@ em {
   align-items: center;
   gap: 8px;
   padding: 12px 14px;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   background: var(--code-bg);
   color: #e9e6df;
   font-size: 13px;
@@ -565,7 +565,7 @@ em {
   gap: 8px;
   align-items: center;
   font-size: 12.5px;
-  color: color-mix(in oklab, var(--yellow) 55%, var(--ink));
+  color: color-mix(in oklab, var(--yellow) 55%, var(--st-ink));
   margin-top: 10px;
 }
 

@@ -1,5 +1,6 @@
 import { fade } from '../engine';
 import type { CardChoreo } from '../types';
+import { lightsIn, lightsOut } from './lights';
 
 /**
  * 门缝开合（原 01 卡片部分，按定稿修改离场）：
@@ -16,6 +17,7 @@ export const hinge: CardChoreo = {
     duration: 1500,
   },
   exit(e, t) {
+    lightsOut(e, t);
     const persp = `${Math.round(e.album.offsetWidth * 2.2)}px`;
     const f = e.front;
     t.set(f.el, { perspective: persp });
@@ -52,8 +54,9 @@ export const hinge: CardChoreo = {
       ], { dur: 800, delay: 380, ease: 'linear' });
     });
     t.a(f.sheet, [
-      { clipPath: 'inset(0% 50% 0% 50% round 18px)' },
-      { clipPath: 'inset(0% 0% 0% 0% round 18px)' },
+      { clipPath: `inset(0% 50% 0% 50% round ${e.radius})` },
+      // 终点外扩 1px：裁切边落在圆角之外，收尾移除 clip-path 时边缘抗锯齿不跳
+      { clipPath: `inset(-1px -1px -1px -1px round ${e.radius})` },
     ], { dur: 700, delay: 540 });
     t.a(f.cv, [
       { transform: 'scale(1.14)', filter: 'brightness(1.8)' },
@@ -76,5 +79,7 @@ export const hinge: CardChoreo = {
       { opacity: 0, transform: 'scaleX(1.1)' },
     ], { dur: 1000, delay: 420, ease: 'brand' });
     t.a(e.bg, fade(0, 1), { dur: 900, delay: 480 });
+    // 前卡裁切展开完（540 + 700）即落阴影；后卡随各自落位
+    lightsIn(e, t, (c) => (c.slot === 0 ? 1240 : 1420 + (c.slot - 1) * 70));
   },
 };

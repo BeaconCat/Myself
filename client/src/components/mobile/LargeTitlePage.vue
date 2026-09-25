@@ -241,7 +241,7 @@ defineExpose({ scroller, scrollToTop });
 .lt-eyebrow {
   font-size: 13px;
   font-weight: 500;
-  color: var(--m-text-3);
+  color: var(--text-3);
   letter-spacing: 0.04em;
   margin-bottom: 2px;
 }
@@ -280,7 +280,7 @@ defineExpose({ scroller, scrollToTop });
     background: var(--m-glass-2);
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
-    box-shadow: 0 0.5px 0 var(--m-line-2);
+    box-shadow: 0 0.5px 0 var(--line-2);
     opacity: 0;
     transition: opacity var(--dur) var(--ease-out);
   }
@@ -309,7 +309,7 @@ defineExpose({ scroller, scrollToTop });
   background: var(--m-glass-2);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  box-shadow: 0 0.5px 0 var(--m-line-2);
+  box-shadow: 0 0.5px 0 var(--line-2);
   transition: opacity var(--dur) var(--ease-out);
 
   .scrolled & { opacity: 1; }
@@ -397,10 +397,10 @@ defineExpose({ scroller, scrollToTop });
     stroke-width: 2.4;
   }
 
-  .bg { stroke: var(--m-fill-2); }
+  .bg { stroke: var(--fill-3); }
 
   .fg {
-    stroke: var(--primary);
+    stroke: var(--ink);
     stroke-linecap: round;
     stroke-dasharray: 56.55;
   }

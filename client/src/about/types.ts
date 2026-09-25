@@ -23,8 +23,8 @@ export interface Portrait {
   src: string;
   /** 渐隐方向：left = 左缘向左渐隐（默认） */
   fade: 'left' | 'bottom' | 'none';
-  /** 圆角 px */
-  radius: number;
+  /** 圆角 px；未配置时跟随全局 --r-xl */
+  radius?: number;
   /** object-position，如 '50% 30%' */
   focus?: string;
 }

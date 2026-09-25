@@ -43,7 +43,7 @@ const emit = defineEmits<{ 'update:modelValue': [v: boolean] }>();
   &:active i { width: 33px; }
 
   &.on {
-    background: var(--primary);
+    background: var(--solid);
 
     i { transform: translateX(20px); }
     &:active i { transform: translateX(14px); }

@@ -272,7 +272,7 @@ onBeforeUnmount(() => {
   bottom: -100px;
   display: flex;
   flex-direction: column;
-  border-radius: 30px 30px 0 0;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
   background: var(--sheet);
   box-shadow: 0 -10px 40px -10px rgba(0, 0, 0, 0.4), inset 0 0.5px 0 var(--glass-line);
   pointer-events: auto;
@@ -299,7 +299,7 @@ onBeforeUnmount(() => {
   i {
     width: 38px;
     height: 5px;
-    border-radius: 3px;
+    border-radius: 999px;
     background: var(--line-2);
   }
 }

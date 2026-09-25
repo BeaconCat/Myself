@@ -67,7 +67,7 @@ const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit
   display: block;
   width: 58px;
   height: 58px;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   object-fit: cover;
   background: #050b17;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
@@ -82,7 +82,6 @@ const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit
   border-radius: 50%;
   background: var(--sc);
   border: 3px solid var(--ak-surface-hi);
-  box-shadow: 0 0 12px var(--sc);
 }
 
 .ss-state { font: 700 20px/1.2 var(--font-serif); }
@@ -90,9 +89,9 @@ const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit
 
 .ss-act {
   padding: 14px 16px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: var(--ak-sunken);
-  border: 1px solid var(--ak-line);
+  box-shadow: inset 0 0 0 1px var(--ak-line);
   font-size: 13.5px;
   line-height: 1.6;
 
@@ -115,7 +114,7 @@ const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit
   gap: 2px;
   height: 10px;
 
-  i { width: 2px; border-radius: 1px; background: var(--primary); animation: ss-eq 1s ease-in-out infinite; }
+  i { width: 2px; border-radius: var(--r-pill); background: var(--ink); animation: ss-eq 1s ease-in-out infinite; }
   i:nth-child(2) { animation-delay: -0.3s; }
   i:nth-child(3) { animation-delay: -0.6s; }
 }
@@ -128,7 +127,7 @@ const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit
   gap: 1px;
   margin-top: auto;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--ak-line);
 
   div { padding: 10px 12px; background: var(--ak-surface); }

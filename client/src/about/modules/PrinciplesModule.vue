@@ -45,10 +45,7 @@ const d = computed(() => props.mod.data as PrinciplesData);
     margin-bottom: 14px;
     font: 700 82px/1 var(--font-serif);
     letter-spacing: -0.05em;
-    background: linear-gradient(180deg, var(--ak-ink), rgba(var(--primary-rgb), 0.06) 90%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: color-mix(in oklab, var(--text) 18%, transparent);
   }
 
   h4 { margin-bottom: 10px; font: 700 21px/1.45 var(--font-serif); letter-spacing: 0.01em; }

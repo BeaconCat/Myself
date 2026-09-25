@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 分段控件：滑块弹性平移，选中文字加粗；可带计数角标。 */
+/** 分段控件：选中块 = 抬升 + 轻染，弹性平移；选中项图标着 --ink；可带计数角标。 */
 defineProps<{ modelValue: number; items: { label: string; count?: number | string }[] }>();
 const emit = defineEmits<{ 'update:modelValue': [v: number] }>();
 </script>
@@ -28,7 +28,7 @@ const emit = defineEmits<{ 'update:modelValue': [v: number] }>();
   height: 40px;
   margin: 0 20px;
   padding: 3px;
-  border-radius: 999px;
+  border-radius: var(--r-md);
   background: var(--fill);
   box-shadow: inset 0 0 0 0.5px var(--line);
 
@@ -41,13 +41,15 @@ const emit = defineEmits<{ 'update:modelValue': [v: number] }>();
     gap: 6px;
     font-size: 14px;
     color: var(--text-2);
-    border-radius: 999px;
+    border-radius: calc(var(--r-md) - 3px);
     transition: color var(--dur);
     white-space: nowrap;
 
     &.on {
-      color: var(--text);
-      font-weight: 600;
+      color: var(--lift-fg);
+      font-weight: 500;
+
+      :deep(svg) { color: var(--ink); }
     }
 
     em {
@@ -64,16 +66,11 @@ const emit = defineEmits<{ 'update:modelValue': [v: number] }>();
     bottom: 3px;
     left: 3px;
     width: calc((100% - 6px) / var(--n));
-    border-radius: 999px;
-    background: var(--elev-2);
-    box-shadow: 0 3px 10px -3px rgba(0, 0, 0, 0.45), inset 0 0 0 0.5px var(--line-2);
+    border-radius: calc(var(--r-md) - 3px);
+    background: var(--lift);
+    box-shadow: var(--lift-shadow);
     transform: translateX(calc(var(--i) * 100%));
-    transition: transform 0.45s var(--ease-spring);
+    transition: transform 0.45s var(--ease-spring), background-color var(--dur), box-shadow var(--dur);
   }
-}
-
-:root[data-mode='light'] .ma-seg .th {
-  background: #fff;
-  box-shadow: 0 3px 10px -4px rgba(20, 40, 80, 0.25);
 }
 </style>

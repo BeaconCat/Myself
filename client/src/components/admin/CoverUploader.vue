@@ -107,7 +107,7 @@ function onDropTo(i: number): void {
 .drop {
   position: relative;
   aspect-ratio: 4 / 3;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   overflow: hidden;
 
   .square & { aspect-ratio: 1; }
@@ -121,14 +121,14 @@ function onDropTo(i: number): void {
 
   img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-  &.main { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
+  &.main { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--text); }
 
   .tag {
     position: absolute;
     left: 6px;
     bottom: 6px;
     padding: 1px 7px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     font-size: 11px;
     color: #fff;
     background: rgba(10, 10, 14, 0.5);
@@ -172,7 +172,7 @@ function onDropTo(i: number): void {
 
   i { font: 500 11px ui-monospace, Consolas, monospace; font-style: normal; opacity: 0.7; }
 
-  &:hover, &.dragging { color: var(--primary); box-shadow: 0 0 0 1.5px var(--primary) inset; }
+  &:hover, &.dragging { color: var(--ink); box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--ink) 55%, transparent) inset; }
   &.dragging { transform: scale(1.03); }
 }
 
@@ -181,7 +181,7 @@ function onDropTo(i: number): void {
   height: 18px;
   border-radius: 50%;
   border: 2px solid var(--border);
-  border-top-color: var(--primary);
+  border-top-color: var(--ink);
   animation: spin 0.8s linear infinite;
 }
 

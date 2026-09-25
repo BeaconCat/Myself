@@ -113,6 +113,11 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
 </template>
 
 <style scoped lang="scss">
+/*
+ * 推门发布动画属于品牌光影（门缝光 / bloom / 地面光 / 尘埃），
+ * 按第三轮强调系统「发光只属于品牌」保留 blur 与主色外发光；门扇、门洞几何为插画尺寸，不随圆角 token。
+ * 控件（按钮、url 条、飞出卡片）仍走全局 token。
+ */
 .stage {
   position: fixed;
   inset: 0;
@@ -161,7 +166,7 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
   .hole {
     position: absolute;
     inset: 0;
-    border-radius: 6px;
+    border-radius: 6px; /* 门洞几何（品牌插画），不随圆角 token */
     background: linear-gradient(#fff, color-mix(in oklab, var(--primary) 18%, #fff));
     box-shadow: 0 0 60px 10px color-mix(in oklab, var(--primary) 50%, transparent), 0 0 160px 40px color-mix(in oklab, var(--primary) 30%, transparent);
     opacity: 0;
@@ -189,7 +194,7 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
       left: 0;
       transform-origin: left center;
       background: linear-gradient(95deg, #fdfdff 60%, #dfe3ec);
-      border-radius: 12px 3px 3px 12px;
+      border-radius: 12px 3px 3px 12px; /* 门扇几何（品牌插画），不随圆角 token */
       box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.06);
     }
 
@@ -197,7 +202,7 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
       right: 0;
       transform-origin: right center;
       background: linear-gradient(165deg, color-mix(in oklab, var(--primary) 70%, #fff), var(--primary) 40%, var(--primary-deep));
-      border-radius: 3px 12px 12px 3px;
+      border-radius: 3px 12px 12px 3px; /* 门扇几何（品牌插画），不随圆角 token */
     }
   }
 
@@ -267,7 +272,7 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
   top: 150px;
   width: 262px;
   margin-left: -131px;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: #fff;
   padding: 8px;
   color: #1e1c19;
@@ -276,7 +281,7 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
   opacity: 0;
   transition: transform 1.1s var(--ease-spring), opacity 0.5s ease-out;
 
-  .fcv { aspect-ratio: 16 / 10; border-radius: 11px; }
+  .fcv { aspect-ratio: 16 / 10; border-radius: var(--r-sm); }
   h4 { font: 600 15.5px/1.5 var(--font-serif); margin: 10px 6px 3px; }
   small { display: block; font-size: 12px; color: #8c877e; margin: 0 6px 6px; }
 }
@@ -301,7 +306,7 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
     font: 12.5px var(--font-mono);
     color: rgba(255, 255, 255, 0.8);
     padding: 6px 12px;
-    border-radius: 9px;
+    border-radius: var(--r-sm);
     background: rgba(255, 255, 255, 0.08);
     margin-bottom: 22px;
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;

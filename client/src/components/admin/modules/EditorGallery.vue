@@ -51,5 +51,5 @@ const make = (): GalleryImage => ({ src: '', scene: 'door', title: '', place: ''
 <style scoped lang="scss">
 @use './module-editor';
 
-.thumb { width: 120px; height: 38px; flex-shrink: 0; object-fit: cover; border-radius: 8px; }
+.thumb { width: 120px; height: 38px; flex-shrink: 0; object-fit: cover; border-radius: var(--r-sm); }
 </style>

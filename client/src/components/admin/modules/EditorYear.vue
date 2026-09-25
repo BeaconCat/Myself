@@ -116,7 +116,7 @@ function togglePin(i: number): void {
   border-radius: 50%;
   background: none;
 
-  &.on { background: #ffb300; border-color: #ffb300; box-shadow: 0 0 6px #ffb300; }
+  &.on { background: var(--accent-yellow); border-color: var(--accent-yellow); }
 }
 
 @media (max-width: 720px) { .months { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

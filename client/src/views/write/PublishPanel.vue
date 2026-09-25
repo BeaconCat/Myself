@@ -123,13 +123,13 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
   display: flex;
   flex-direction: column;
 
-  .cap { font-size: 12px; color: var(--ink-3); letter-spacing: 0.12em; margin-bottom: 14px; }
+  .cap { font-size: 12px; color: var(--st-ink-3); letter-spacing: 0.12em; margin-bottom: 14px; }
 
   .url {
     margin-top: auto;
     padding-top: 20px;
     font: 12px var(--font-mono);
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -140,7 +140,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 :global(:root[data-mode='dark'] .st-modal.pub .pub-l) { background: color-mix(in oklab, var(--primary) 4%, #1c1c21); }
 
 .pv-card {
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: var(--paper);
   padding: 8px;
   box-shadow: var(--sh-card-hover);
@@ -149,12 +149,12 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 
   &:hover { transform: rotate(0) translateY(-3px); }
 
-  .pcv { aspect-ratio: 16 / 10; border-radius: 11px; }
+  .pcv { aspect-ratio: 16 / 10; border-radius: var(--r-sm); }
   h4 { font: 600 17px/1.5 var(--font-serif); margin: 12px 6px 6px; }
 
   p {
     font-size: 12.5px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
     margin: 0 6px 10px;
     line-height: 1.65;
     display: -webkit-box;
@@ -163,8 +163,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
     overflow: hidden;
   }
 
-  .meta { display: flex; gap: 10px; font-size: 12px; color: var(--ink-3); margin: 0 6px 6px; }
-  .tag::before { content: '#'; color: var(--ink-4); margin-right: 2px; }
+  .meta { display: flex; gap: 10px; font-size: 12px; color: var(--st-ink-3); margin: 0 6px 6px; }
+  .tag::before { content: '#'; color: var(--st-ink-4); margin-right: 2px; }
 }
 
 .pub-r {
@@ -181,7 +181,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
   align-items: center;
   margin-bottom: 22px;
 
-  .mono { font-size: 12.5px; color: var(--ink-3); }
+  .mono { font-size: 12.5px; color: var(--st-ink-3); }
 }
 
 .opts {
@@ -206,7 +206,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    color: var(--ink-3);
+    color: var(--st-ink-3);
 
     .st-ic {
       width: 18px;
@@ -216,11 +216,11 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
       background: var(--well-2);
     }
 
-    &.ok { color: var(--ink-2); }
+    &.ok { color: var(--st-ink-2); }
 
     &.ok .st-ic {
       background: color-mix(in oklab, var(--green) 16%, var(--paper));
-      color: color-mix(in oklab, var(--green) 70%, var(--ink));
+      color: color-mix(in oklab, var(--green) 70%, var(--st-ink));
     }
   }
 }

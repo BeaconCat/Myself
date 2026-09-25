@@ -596,12 +596,12 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 2px;
   padding: 4px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: color-mix(in oklab, var(--paper) 82%, transparent);
   backdrop-filter: blur(16px) saturate(1.3);
   box-shadow: var(--sh-pop);
 
-  .st-ibtn { width: 32px; height: 32px; border-radius: 9px; }
+  .st-ibtn { width: 32px; height: 32px; border-radius: var(--r-sm); }
   .st-ibtn.tx { font: 600 13px var(--font-serif); width: auto; padding: 0 8px; }
   .sep { width: 1px; height: 18px; background: var(--line-2); margin: 0 4px; }
   .st-btn.sm { margin-left: 2px; }
@@ -617,7 +617,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   font-size: 12.5px;
-  color: var(--ink-3);
+  color: var(--st-ink-3);
   padding: 0 10px 0 4px;
   white-space: nowrap;
 
@@ -645,7 +645,7 @@ onBeforeUnmount(() => {
 .ed-cover {
   height: 0;
   margin-bottom: 0;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   overflow: hidden;
   background: var(--well);
   transition: all var(--dur-slow) var(--ease-spring);
@@ -660,16 +660,16 @@ onBeforeUnmount(() => {
   gap: 10px;
   align-items: center;
   font-size: 13px;
-  color: var(--ink-3);
+  color: var(--st-ink-3);
   margin-bottom: 18px;
 
-  .tag::before { content: '#'; color: var(--ink-4); margin-right: 2px; }
+  .tag::before { content: '#'; color: var(--st-ink-4); margin-right: 2px; }
 
   .add-tag {
-    color: var(--ink-4);
+    color: var(--st-ink-4);
     transition: color var(--dur-fast);
 
-    &:hover { color: var(--primary-ink); }
+    &:hover { color: var(--ink); }
   }
 }
 
@@ -682,20 +682,20 @@ onBeforeUnmount(() => {
   resize: none;
   padding: 0;
   margin: 0 0 28px;
-  color: var(--ink);
+  color: var(--st-ink);
   letter-spacing: 0.01em;
   overflow: hidden;
 
-  &::placeholder { color: var(--ink-4); }
+  &::placeholder { color: var(--st-ink-4); }
 }
 
 .prose {
-  caret-color: var(--primary);
+  caret-color: var(--ink);
 
   :deep(.ProseMirror) {
     min-height: 40vh;
     font: 400 18px/2 var(--font-serif);
-    color: var(--ink);
+    color: var(--st-ink);
 
     > * + * { margin-top: 0; }
     p { margin: 0 0 1.1em; }
@@ -706,7 +706,7 @@ onBeforeUnmount(() => {
       margin: 1.8em 0;
       padding: 0.2em 0 0.2em 1.5em;
       position: relative;
-      color: var(--ink);
+      color: var(--st-ink);
       font: 600 22px/1.7 var(--font-serif);
       letter-spacing: 0.04em;
       border: 0;
@@ -718,7 +718,7 @@ onBeforeUnmount(() => {
         left: -0.05em;
         top: 0.02em;
         font: 700 2.6em/1 Georgia, 'Times New Roman', serif;
-        color: var(--primary);
+        color: var(--ink);
       }
 
       p { margin: 0; }
@@ -726,7 +726,7 @@ onBeforeUnmount(() => {
 
     code { font: 14.5px var(--font-mono); background: var(--well); }
     ul, ol { padding-left: 1.2em; margin: 0 0 1.1em; }
-    li::marker { color: var(--primary); }
+    li::marker { color: var(--ink); }
     li p { margin: 0 0 0.3em; }
     img { margin: 0.6em 0; }
   }
@@ -739,9 +739,9 @@ onBeforeUnmount(() => {
   outline: 0;
   resize: vertical;
   padding: 18px 20px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: var(--well);
-  color: var(--ink);
+  color: var(--st-ink);
   font: 14px/1.9 var(--font-mono);
 }
 
@@ -754,14 +754,14 @@ onBeforeUnmount(() => {
   gap: 8px;
   align-items: center;
   font-size: 12.5px;
-  color: var(--ink-3);
+  color: var(--st-ink-3);
   padding: 8px 16px;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   background: color-mix(in oklab, var(--paper) 85%, transparent);
   backdrop-filter: blur(10px);
   transition: transform var(--dur-slow) var(--ease-spring);
 
-  .mono { font-size: 12px; color: var(--ink-2); }
+  .mono { font-size: 12px; color: var(--st-ink-2); }
   .drawer & { transform: translateX(calc(-50% - 180px)); }
 }
 
@@ -773,7 +773,7 @@ onBeforeUnmount(() => {
   bottom: 14px;
   width: 360px;
   z-index: 4;
-  border-radius: var(--r);
+  border-radius: var(--r-lg);
   background: var(--paper);
   box-shadow: var(--sh-pop);
   transform: translateX(calc(100% + 30px));
@@ -818,7 +818,7 @@ onBeforeUnmount(() => {
   button {
     position: relative;
     aspect-ratio: 4 / 3;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     overflow: hidden;
     background: var(--well-2);
     box-shadow: 0 0 0 1px var(--line);
@@ -827,7 +827,7 @@ onBeforeUnmount(() => {
     img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
     &:hover { transform: translateY(-2px); }
-    &.on { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--primary); }
+    &.on { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.5px var(--st-ink); }
     &.full { opacity: 0.45; }
   }
 
@@ -837,12 +837,13 @@ onBeforeUnmount(() => {
     top: 6px;
     min-width: 22px;
     height: 22px;
-    border-radius: 11px;
+    border-radius: var(--r-sm);
     display: grid;
     place-items: center;
     font: 600 12px var(--font-mono);
-    color: var(--on-primary);
-    background: var(--primary);
+    color: var(--on-solid);
+    background: var(--solid);
+    box-shadow: var(--btn-shadow);
     transform: scale(0);
     transition: transform var(--dur) var(--ease-bounce);
   }
@@ -850,7 +851,7 @@ onBeforeUnmount(() => {
   .on .n { transform: scale(1); }
 }
 
-.cnt { margin-right: auto; font-size: 12.5px; color: var(--ink-3); }
+.cnt { margin-right: auto; font-size: 12.5px; color: var(--st-ink-3); }
 
 .dr-b {
   flex: 1;
@@ -868,14 +869,14 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 6px;
   padding: 7px;
-  border-radius: 11px;
+  border-radius: var(--r-sm);
   background: var(--well);
   box-shadow: 0 0 0 1px var(--line) inset;
   min-height: 44px;
   align-items: center;
   cursor: text;
 
-  &:focus-within { background: var(--paper); box-shadow: 0 0 0 1px var(--primary) inset, 0 0 0 4px var(--primary-ring); }
+  &:focus-within { background: var(--paper); box-shadow: 0 0 0 1px color-mix(in oklab, var(--ink) 70%, transparent) inset, 0 0 0 3px color-mix(in oklab, var(--ink) 18%, transparent); }
 
   span {
     display: inline-flex;
@@ -883,7 +884,7 @@ onBeforeUnmount(() => {
     gap: 4px;
     height: 28px;
     padding: 0 6px 0 10px;
-    border-radius: 8px;
+    border-radius: var(--r-xs);
     background: var(--paper);
     box-shadow: 0 0 0 1px var(--line-2);
     font-size: 13px;
@@ -895,10 +896,10 @@ onBeforeUnmount(() => {
     height: 18px;
     display: grid;
     place-items: center;
-    border-radius: 5px;
-    color: var(--ink-3);
+    border-radius: var(--r-xs);
+    color: var(--st-ink-3);
 
-    &:hover { background: var(--hover); color: var(--ink); }
+    &:hover { background: var(--hover); color: var(--st-ink); }
   }
 
   input {
@@ -919,12 +920,12 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   height: 38px;
-  border-radius: 11px;
+  border-radius: var(--r-sm);
   background: var(--well);
   box-shadow: 0 0 0 1px var(--line) inset;
   padding: 0 12px;
   font: 12.5px var(--font-mono);
-  color: var(--ink-3);
+  color: var(--st-ink-3);
 
   input {
     flex: 1;
@@ -933,10 +934,10 @@ onBeforeUnmount(() => {
     outline: 0;
     background: none;
     font: 12.5px var(--font-mono);
-    color: var(--ink);
+    color: var(--st-ink);
   }
 
-  &:focus-within { box-shadow: 0 0 0 1px var(--primary) inset, 0 0 0 4px var(--primary-ring); background: var(--paper); }
+  &:focus-within { box-shadow: 0 0 0 1px color-mix(in oklab, var(--ink) 70%, transparent) inset, 0 0 0 3px color-mix(in oklab, var(--ink) 18%, transparent); background: var(--paper); }
 }
 
 .opts { display: flex; flex-direction: column; gap: 18px; }
@@ -948,7 +949,7 @@ onBeforeUnmount(() => {
   gap: 12px;
   font-size: 14px;
 
-  small { display: block; font-size: 12px; color: var(--ink-3); }
+  small { display: block; font-size: 12px; color: var(--st-ink-3); }
 }
 
 .reveal {
@@ -976,7 +977,7 @@ onBeforeUnmount(() => {
   margin: 10px 0 0;
   font-size: 12px;
   line-height: 1.6;
-  color: var(--ink-3);
+  color: var(--st-ink-3);
 
   .st-ic { margin-top: 2px; }
 }

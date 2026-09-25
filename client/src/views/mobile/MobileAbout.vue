@@ -60,7 +60,6 @@ async function refresh(): Promise<void> {
 
         <div v-else key="ok">
           <section class="ab-hero">
-            <div class="beam" aria-hidden="true" />
             <div class="ab-av m-in"><img :src="avatar" alt="" draggable="false" /></div>
             <h1 class="ab-name m-in" style="--i: 1">{{ about.name }}</h1>
             <div class="ab-handle m-in" style="--i: 2">@{{ handle }} · {{ about.tagline }}</div>
@@ -95,16 +94,6 @@ async function refresh(): Promise<void> {
   position: relative;
   padding: 18px 20px 8px;
 
-  .beam {
-    position: absolute;
-    left: -40px;
-    right: -40px;
-    top: -160px;
-    height: 460px;
-    pointer-events: none;
-    background: radial-gradient(50% 44% at 26% 40%, color-mix(in oklab, var(--primary) 24%, transparent), transparent 70%);
-  }
-
   &.sk .m-sk-line { display: block; }
 }
 
@@ -112,9 +101,9 @@ async function refresh(): Promise<void> {
   position: relative;
   width: 84px;
   height: 84px;
-  border-radius: 26px;
+  border-radius: var(--r-xl);
   overflow: hidden;
-  box-shadow: 0 18px 30px -14px color-mix(in oklab, var(--primary) 70%, black), 0 0 0 0.5px rgba(255, 255, 255, 0.14);
+  box-shadow: var(--shadow-card);
 
   img {
     width: 100%;
@@ -137,7 +126,7 @@ async function refresh(): Promise<void> {
   position: relative;
   margin-top: 2px;
   font-size: 14px;
-  color: var(--m-text-3);
+  color: var(--text-3);
 }
 
 .ab-quote {
@@ -149,7 +138,7 @@ async function refresh(): Promise<void> {
   font-weight: 700;
   letter-spacing: 0.02em;
 
-  span { color: var(--m-ink); }
+  span { color: var(--ink); }
 }
 
 .ab-bio {
@@ -168,7 +157,7 @@ async function refresh(): Promise<void> {
   :deep(.ak) {
     --ak-pad: 18px;
     --ak-gap: 14px;
-    --ak-r-lg: 22px;
+    --ak-r-lg: var(--r-xl);
   }
 
   /* 列向 flex 中 flex-basis:0 在不定高卡片里会把模块体压扁，窄屏回到内容高度 */
@@ -190,6 +179,6 @@ async function refresh(): Promise<void> {
 .sk-mod {
   margin-top: 26px;
   height: 180px;
-  border-radius: 24px;
+  border-radius: var(--r-xl);
 }
 </style>

@@ -22,7 +22,7 @@ function onFiles(e: Event): void {
   <div class="ma-as" :class="{ open }" :aria-hidden="!open">
     <div class="as-card" role="menu">
       <button class="as-row" role="menuitem" @click="emit('note')">
-        <span class="as-ic" style="--c: var(--primary); color: var(--on-primary)"><MaIcon name="bubble" /></span>
+        <span class="as-ic" style="--c: var(--solid); color: var(--on-solid)"><MaIcon name="bubble" /></span>
         <div class="as-t">
           <b>{{ t('mobileAdmin.create.note') }}</b>
           <small>{{ t('mobileAdmin.create.noteSub') }}</small>
@@ -69,12 +69,12 @@ function onFiles(e: Event): void {
 }
 
 .as-card {
-  border-radius: 28px;
+  border-radius: var(--r-xl);
   padding: 8px;
   background: var(--glass-2);
   backdrop-filter: blur(30px) saturate(180%);
   -webkit-backdrop-filter: blur(30px) saturate(180%);
-  box-shadow: inset 0 0 0 0.5px var(--glass-line), 0 30px 60px -20px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 0 0 0.5px var(--glass-line), var(--shadow-pop);
   transform-origin: 50% 125%;
   opacity: 0;
   transform: translateY(40px) scale(0.55);
@@ -92,7 +92,7 @@ function onFiles(e: Event): void {
   align-items: center;
   gap: 14px;
   padding: 12px;
-  border-radius: 20px;
+  border-radius: calc(var(--r-xl) - 8px);
   text-align: left;
   cursor: pointer;
   opacity: 0;
@@ -123,12 +123,12 @@ function onFiles(e: Event): void {
 .as-ic {
   width: 46px;
   height: 46px;
-  border-radius: 15px;
+  border-radius: var(--r-md);
   display: grid;
   place-items: center;
   color: #fff;
-  background: linear-gradient(160deg, color-mix(in oklab, var(--c) 80%, white), var(--c));
-  box-shadow: 0 8px 16px -8px var(--c);
+  background: var(--c);
+  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.1);
   flex: none;
 }
 

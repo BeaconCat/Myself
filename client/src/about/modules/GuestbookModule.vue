@@ -26,7 +26,7 @@ const total = computed(() => (d.value.total ?? d.value.items.length) + local.val
 function submit(): void {
   const text = draft.value.trim();
   if (!text) return;
-  local.value.unshift({ name: t('aboutKit.guestbook.visitor'), color: 'var(--primary)', at: t('aboutKit.guestbook.justNow'), text, likes: 0, fresh: true });
+  local.value.unshift({ name: t('aboutKit.guestbook.visitor'), color: '', at: t('aboutKit.guestbook.justNow'), text, likes: 0, fresh: true });
   draft.value = '';
   toast(t('aboutKit.guestbook.submitted'));
 }
@@ -44,7 +44,7 @@ function like(n: GuestNote, i: number): void {
 <template>
   <ModHead :title="title">{{ t('aboutKit.guestbook.count', { n: total }) }}</ModHead>
   <form class="gb-form" @submit.prevent="submit">
-    <span class="av" style="--c: var(--primary)">{{ t('aboutKit.guestbook.visitorShort') }}</span>
+    <span class="av me">{{ t('aboutKit.guestbook.visitorShort') }}</span>
     <input v-model="draft" :maxlength="MAX" :placeholder="t('aboutKit.guestbook.placeholder')" :aria-label="t('aboutKit.guestbook.placeholder')" />
     <span class="cnt">{{ draft.length }}/{{ MAX }}</span>
     <button class="ak-btn pri send" type="submit"><KitIcon name="send" :size="15" />{{ t('aboutKit.guestbook.send') }}</button>
@@ -56,7 +56,7 @@ function like(n: GuestNote, i: number): void {
   <div class="gb-wall">
     <article v-for="(n, i) in notes" :key="keyOf(n, i)" class="note" :class="{ fresh: (n as { fresh?: boolean }).fresh }">
       <header>
-        <span class="av" :style="{ '--c': n.color || 'var(--primary)' }">{{ n.name.slice(0, 1) }}</span>
+        <span class="av" :class="{ me: !n.color }" :style="{ '--c': n.color || 'var(--solid)' }">{{ n.name.slice(0, 1) }}</span>
         <b>{{ n.name }}</b>
         <time>{{ n.at }}</time>
       </header>
@@ -74,13 +74,15 @@ function like(n: GuestNote, i: number): void {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px;
-  border-radius: 15px;
+  padding: 6px;
+  border-radius: var(--r-pill);
   background: var(--ak-sunken);
-  border: 1px solid var(--ak-line);
-  transition: border-color var(--dur), box-shadow var(--dur);
+  box-shadow: inset 0 0 0 1px var(--ak-line);
+  transition: background-color var(--dur-fast), box-shadow var(--dur-fast);
 
-  &:focus-within { border-color: rgba(var(--primary-rgb), 0.55); box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.12); }
+  &:hover { box-shadow: inset 0 0 0 1px var(--ak-line-2); }
+  /* 聚焦：焦点环（--ink）是唯一允许的彩色环 */
+  &:focus-within { background: var(--elev); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink) 70%, transparent), 0 0 0 3px color-mix(in oklab, var(--ink) 18%, transparent); }
 
   .av { width: 34px; height: 34px; }
 
@@ -107,12 +109,12 @@ function like(n: GuestNote, i: number): void {
 
 .note {
   padding: 14px 16px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: var(--ak-sunken);
-  border: 1px solid var(--ak-line);
-  transition: transform var(--dur) var(--ease-out), border-color var(--dur);
+  box-shadow: inset 0 0 0 1px var(--ak-line);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur);
 
-  &:hover { border-color: var(--ak-line-2); transform: translateY(-2px); }
+  &:hover { box-shadow: inset 0 0 0 1px var(--ak-line-2); transform: translateY(-2px); }
   &.fresh { animation: gb-pop 0.6s var(--ease-spring); }
 
   header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
@@ -123,9 +125,9 @@ function like(n: GuestNote, i: number): void {
   .re {
     margin-top: 10px;
     padding: 8px 10px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     background: var(--ak-surface);
-    border: 1px solid var(--ak-line);
+    box-shadow: inset 0 0 0 1px var(--ak-line);
     font-size: 12.5px;
     color: var(--text-2);
 
@@ -158,6 +160,8 @@ function like(n: GuestNote, i: number): void {
   font: 600 12px var(--font-sans);
   color: #fff;
   background: var(--c);
+
+  &.me { color: var(--on-solid); background: var(--solid); }
 }
 
 @container (max-width: 560px) {

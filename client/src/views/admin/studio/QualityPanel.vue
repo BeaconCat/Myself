@@ -172,7 +172,7 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
   gap: 32px;
   align-items: center;
   padding: 22px 26px;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   background: var(--well);
   margin-bottom: 22px;
 }
@@ -180,14 +180,14 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
 .q-range {
   max-width: 420px;
 
-  small { display: block; font-size: 12px; color: var(--ink-3); margin-top: 8px; }
+  small { display: block; font-size: 12px; color: var(--st-ink-3); margin-top: 8px; }
 
   input[type='range'] {
     appearance: none;
     width: 100%;
     height: 6px;
-    border-radius: 3px;
-    background: linear-gradient(90deg, var(--primary) var(--p), var(--well-2) var(--p));
+    border-radius: calc(var(--r-xs) / 2);
+    background: linear-gradient(90deg, var(--ink) var(--p), var(--well-2) var(--p));
     outline: none;
 
     &::-webkit-slider-thumb {
@@ -209,7 +209,7 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
   text-align: right;
 
   b { display: block; font-size: 26px; line-height: 1.1; font-weight: 500; }
-  small { font-size: 12.5px; color: var(--ink-3); }
+  small { font-size: 12.5px; color: var(--st-ink-3); }
 }
 
 .progress {
@@ -218,16 +218,16 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
   gap: 14px;
   margin: 0 0 22px;
   font-size: 12.5px;
-  color: var(--ink-3);
+  color: var(--st-ink-3);
 
   .bar {
     flex: 1;
     height: 6px;
-    border-radius: 3px;
+    border-radius: calc(var(--r-xs) / 2);
     background: var(--well-2);
     overflow: hidden;
 
-    i { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: width var(--dur) var(--ease-out); }
+    i { display: block; height: 100%; border-radius: inherit; background: var(--ink); transition: width var(--dur) var(--ease-out); }
   }
 
   em { font-style: normal; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -238,7 +238,7 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
   gap: 14px;
   align-items: center;
   padding: 16px 18px;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   margin-bottom: 22px;
   background: color-mix(in oklab, var(--green) 8%, var(--paper));
   box-shadow: 0 0 0 1px color-mix(in oklab, var(--green) 22%, transparent) inset;
@@ -247,15 +247,15 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
   .ri {
     width: 38px;
     height: 38px;
-    border-radius: 12px;
+    border-radius: var(--r-sm);
     display: grid;
     place-items: center;
     background: color-mix(in oklab, var(--green) 16%, var(--paper));
-    color: color-mix(in oklab, var(--green) 70%, var(--ink));
+    color: color-mix(in oklab, var(--green) 70%, var(--st-ink));
   }
 
   b { display: block; font-size: 14.5px; font-weight: 500; }
-  small { font-size: 12.5px; color: var(--ink-3); margin-right: 12px; }
+  small { font-size: 12.5px; color: var(--st-ink-3); margin-right: 12px; }
 }
 
 @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } }
@@ -278,51 +278,51 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
   gap: 16px;
   align-items: center;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   cursor: pointer;
   transition: background var(--dur-fast);
 
   &:hover { background: var(--well); }
-  &.on { background: var(--primary-soft); }
+  &.on { background: var(--tint); }
 
-  img { width: 64px; height: 44px; object-fit: cover; border-radius: 8px; background: var(--well-2); display: block; }
+  img { width: 64px; height: 44px; object-fit: cover; border-radius: var(--r-xs); background: var(--well-2); display: block; }
 
   .nm {
     min-width: 0;
 
     b { display: block; font-size: 12.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    small { font-size: 12px; color: var(--ink-3); }
+    small { font-size: 12px; color: var(--st-ink-3); }
   }
 
   .fmt {
     font-size: 11.5px;
     font-weight: 500;
-    color: var(--ink-2);
+    color: var(--st-ink-2);
 
     i {
       font-style: normal;
       margin-left: 6px;
       padding: 1px 6px;
-      border-radius: 5px;
-      background: var(--primary-soft-2);
-      color: var(--primary-ink);
+      border-radius: var(--r-xs);
+      background: var(--tint);
+      color: var(--ink);
       font-size: 10.5px;
     }
   }
 
-  .size { font-size: 12px; color: var(--ink-2); text-align: right; }
+  .size { font-size: 12px; color: var(--st-ink-2); text-align: right; }
 
   .flag {
     font-size: 11.5px;
     text-align: center;
     padding: 2px 0;
-    border-radius: 6px;
-    color: var(--ink-3);
+    border-radius: var(--r-xs);
+    color: var(--st-ink-3);
     background: var(--well-2);
 
     &.yes {
       background: color-mix(in oklab, var(--yellow) 18%, var(--paper));
-      color: color-mix(in oklab, var(--yellow) 50%, var(--ink));
+      color: color-mix(in oklab, var(--yellow) 50%, var(--st-ink));
     }
   }
 }

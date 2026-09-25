@@ -1,6 +1,9 @@
 /*
  * Hero 编舞的光效层与临时元素（由编舞在运行时创建，非 scoped）。
  * 全部默认透明，静止态不可见；前缀 hc- 避免与站点样式冲突。
+ *
+ * 强调系统例外说明：这里的 blur / 主色光（溢光、地面光扇、光缝、扫光）都属于品牌母题
+ * 「门缝里透出的光」，只在切换编舞的瞬间出现，终态全透明；控件与卡片阴影不用彩色发光。
  */
 
 /* ===== 常驻光效层（HeroCarousel 内，z 与卡片 / 文字交错） ===== */
@@ -56,7 +59,7 @@
 .hc-vig {
   z-index: 59;
   inset: -2px;
-  border-radius: 24px;
+  border-radius: var(--r-xl);
   background: radial-gradient(75% 75% at 60% 50%, transparent 40%, rgba(2, 5, 12, 0.72) 100%);
 }
 
@@ -107,7 +110,7 @@
   position: absolute;
   height: 2px;
   bottom: 0.1em;
-  border-radius: 2px;
+  border-radius: var(--r-pill);
   background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 20%, transparent));
   pointer-events: none;
 }
@@ -128,7 +131,7 @@
   bottom: 0;
   left: -1px;
   width: 2px;
-  border-radius: 2px;
+  border-radius: var(--r-pill);
   background: #fff;
   box-shadow:
     0 0 10px 2px color-mix(in srgb, var(--primary) 80%, #fff),
@@ -138,7 +141,7 @@
 /* ===== 卡片：向外开的门扇（厚度 = 自由边侧面，背面暗化） ===== */
 .hc-leaf {
   --leaf-t: 9px;
-  --leaf-r: var(--radius-lg, 18px);
+  --leaf-r: var(--r-lg);
 
   position: absolute;
   top: 0;
