@@ -17,7 +17,7 @@ const d = computed(() => props.mod.data as UsesData);
       <h5>{{ g.title }}</h5>
       <ul>
         <li v-for="(it, i) in g.items" :key="i">
-          <span class="ic"><KitIcon :name="it.icon || 'link'" /></span>
+          <span class="ic"><KitIcon :name="it.icon || 'link'" :size="20" /></span>
           <span class="tx">
             <a v-if="it.url" :href="it.url" target="_blank" rel="noopener"><b>{{ it.name }}</b></a>
             <b v-else>{{ it.name }}</b>
@@ -31,7 +31,7 @@ const d = computed(() => props.mod.data as UsesData);
 </template>
 
 <style scoped lang="scss">
-.us { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 34px; }
+.us { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 28px; }
 .us.single { grid-template-columns: 1fr; }
 
 .us-g {
@@ -41,9 +41,9 @@ const d = computed(() => props.mod.data as UsesData);
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 6px;
-    font: 500 11px var(--ak-mono);
-    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+    font: 500 12.5px var(--font-sans);
+    letter-spacing: 0.04em;
     color: var(--ak-text-3);
 
     &::after { content: ''; flex: 1; height: 1px; background: var(--ak-line); }
@@ -53,10 +53,10 @@ const d = computed(() => props.mod.data as UsesData);
 
   li {
     display: grid;
-    grid-template-columns: 34px minmax(0, 1fr) auto;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
     gap: 12px;
     align-items: center;
-    padding: 10px 0;
+    padding: 11px 0;
     border-bottom: 1px solid var(--ak-line);
 
     &:last-child { border-bottom: 0; }
@@ -65,23 +65,22 @@ const d = computed(() => props.mod.data as UsesData);
   .ic {
     display: grid;
     place-items: center;
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
     border-radius: var(--r-sm);
     background: var(--ak-sunken);
-    box-shadow: inset 0 0 0 1px var(--ak-line);
     color: var(--text-2);
     transition: color var(--dur-fast), box-shadow var(--dur-fast);
   }
 
-  li:hover .ic { color: var(--text); box-shadow: inset 0 0 0 1px var(--ak-line-2); }
+  li:hover .ic { color: var(--text); background: var(--fill-2); }
 
   .tx { min-width: 0; }
-  b { display: block; font-size: 13.5px; font-weight: 500; }
-  .tx > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--ak-text-3); }
+  b { display: block; font-size: 15px; font-weight: 500; }
+  .tx > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--ak-text-3); }
   a:hover b { color: var(--ak-ink); }
 
-  em { font-size: 12px; }
+  em { font-size: 13px; }
 }
 
 @container (max-width: 560px) { .us { grid-template-columns: 1fr; } }

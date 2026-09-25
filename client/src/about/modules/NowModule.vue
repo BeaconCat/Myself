@@ -23,7 +23,7 @@ const now = useClock();
       <div class="v">
         {{ it.text }}
         <small v-if="it.note">{{ it.note }}</small>
-        <span v-if="typeof it.progress === 'number'" class="prog"><i :style="{ '--w': `${it.progress}%`, '--k': i }" /></span>
+        <span v-if="typeof it.progress === 'number'" class="prog"><span class="tr"><i :style="{ '--w': `${it.progress}%`, '--k': i }" /></span><b>{{ it.progress }}%</b></span>
       </div>
     </li>
   </ul>
@@ -31,11 +31,11 @@ const now = useClock();
 </template>
 
 <style scoped lang="scss">
-.nw { list-style: none; display: flex; flex-direction: column; margin-bottom: 14px; }
+.nw { list-style: none; display: flex; flex-direction: column; justify-content: space-between; flex: 1; margin-bottom: 16px; }
 
 .nw li {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr);
   gap: 12px;
   align-items: baseline;
   padding: 13px 0;
@@ -44,25 +44,26 @@ const now = useClock();
   &:first-child { border-top: 0; padding-top: 0; }
 }
 
-.k { font: 500 11.5px var(--ak-mono); letter-spacing: 0.04em; color: var(--ak-ink); }
+.k { font: 500 13px var(--font-sans); color: var(--ak-ink); }
 
 .v {
-  font-size: 14.5px;
-  line-height: 1.6;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.55;
 
-  small { display: block; margin-top: 3px; font-size: 12.5px; color: var(--ak-text-3); }
+  small { display: block; margin-top: 3px; font-size: 13px; font-weight: 400; color: var(--ak-text-3); }
 }
 
+/* 进度：撑满正文宽度 + 右侧等宽百分比 */
 .prog {
-  display: block;
-  max-width: 220px;
-  height: 3px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-top: 9px;
-  overflow: hidden;
-  border-radius: var(--r-pill);
-  background: var(--fill-2);
 
+  .tr { flex: 1; height: 5px; overflow: hidden; border-radius: var(--r-pill); background: var(--fill-2); }
   i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--ink); transition: width 1.2s var(--ease-out); transition-delay: calc(var(--k) * 90ms + 250ms); }
+  b { font: 500 12.5px var(--ak-mono); color: var(--text-2); font-variant-numeric: tabular-nums; }
 }
 
 .in .prog i { width: var(--w); }
@@ -72,8 +73,8 @@ const now = useClock();
   justify-content: space-between;
   margin-top: auto;
   padding-top: 12px;
-  border-top: 1px dashed var(--ak-line-2);
-  font: 400 11.5px var(--ak-mono);
+  border-top: 1px solid var(--ak-line);
+  font: 400 12.5px var(--ak-mono);
   color: var(--ak-text-3);
 }
 

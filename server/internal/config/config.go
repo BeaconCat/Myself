@@ -155,6 +155,53 @@ const defaultJSON = `{
         }
       },
       {
+        "id": "m-languages",
+        "type": "languages",
+        "span": 1,
+        "variant": "bar",
+        "data": {
+          "unit": "过去一年代码行",
+          "items": [
+            {
+              "name": "Go",
+              "percent": 38,
+              "color": "#0078ff"
+            },
+            {
+              "name": "TypeScript",
+              "percent": 27,
+              "color": "#00c853"
+            },
+            {
+              "name": "Vue",
+              "percent": 18,
+              "color": "#ffb300"
+            },
+            {
+              "name": "SCSS",
+              "percent": 9,
+              "color": "#ff0032"
+            },
+            {
+              "name": "Markdown",
+              "percent": 8,
+              "color": "#8a96ab"
+            }
+          ]
+        }
+      },
+      {
+        "id": "m-github",
+        "type": "github",
+        "span": 2,
+        "variant": "full",
+        "title": "代码",
+        "data": {
+          "showCommits": true,
+          "commitCount": 3
+        }
+      },
+      {
         "id": "m-now",
         "type": "now",
         "span": 1,
@@ -189,17 +236,6 @@ const defaultJSON = `{
         }
       },
       {
-        "id": "m-github",
-        "type": "github",
-        "span": 2,
-        "variant": "full",
-        "title": "代码",
-        "data": {
-          "showCommits": true,
-          "commitCount": 3
-        }
-      },
-      {
         "id": "m-listening",
         "type": "listening",
         "span": 1,
@@ -231,42 +267,6 @@ const defaultJSON = `{
               "artist": "Debussy",
               "at": "1 小时前",
               "scene": "sea"
-            }
-          ]
-        }
-      },
-      {
-        "id": "m-languages",
-        "type": "languages",
-        "span": 1,
-        "variant": "bar",
-        "data": {
-          "unit": "过去一年代码行",
-          "items": [
-            {
-              "name": "Go",
-              "percent": 38,
-              "color": "#0078ff"
-            },
-            {
-              "name": "TypeScript",
-              "percent": 27,
-              "color": "#00c853"
-            },
-            {
-              "name": "Vue",
-              "percent": 18,
-              "color": "#ffb300"
-            },
-            {
-              "name": "SCSS",
-              "percent": 9,
-              "color": "#ff0032"
-            },
-            {
-              "name": "Markdown",
-              "percent": 8,
-              "color": "#8a96ab"
             }
           ]
         }
@@ -925,6 +925,46 @@ const defaultJSON = `{
         }
       },
       {
+        "id": "m-skills",
+        "type": "skills",
+        "span": 1,
+        "variant": "keys",
+        "data": {
+          "groups": [
+            {
+              "title": "创作",
+              "items": [
+                "文章",
+                "随想",
+                "摄影"
+              ],
+              "star": "文章"
+            },
+            {
+              "title": "工具",
+              "items": [
+                "Markdown",
+                "主题系统",
+                "API 中心",
+                "Go",
+                "Vue"
+              ],
+              "star": "Go"
+            },
+            {
+              "title": "兴趣",
+              "items": [
+                "阅读",
+                "旅行",
+                "音乐",
+                "胶片"
+              ],
+              "star": "胶片"
+            }
+          ]
+        }
+      },
+      {
         "id": "m-stack",
         "type": "stack",
         "span": 1,
@@ -966,46 +1006,6 @@ const defaultJSON = `{
               "role": "内容规范",
               "glyph": "Md",
               "color": "#8a96ab"
-            }
-          ]
-        }
-      },
-      {
-        "id": "m-skills",
-        "type": "skills",
-        "span": 1,
-        "variant": "keys",
-        "data": {
-          "groups": [
-            {
-              "title": "创作",
-              "items": [
-                "文章",
-                "随想",
-                "摄影"
-              ],
-              "star": "文章"
-            },
-            {
-              "title": "工具",
-              "items": [
-                "Markdown",
-                "主题系统",
-                "API 中心",
-                "Go",
-                "Vue"
-              ],
-              "star": "Go"
-            },
-            {
-              "title": "兴趣",
-              "items": [
-                "阅读",
-                "旅行",
-                "音乐",
-                "胶片"
-              ],
-              "star": "胶片"
             }
           ]
         }
@@ -1054,7 +1054,7 @@ const defaultJSON = `{
       {
         "id": "m-guestbook",
         "type": "guestbook",
-        "span": 2,
+        "span": 3,
         "variant": "wall",
         "data": {
           "pageSize": 4,
@@ -1096,8 +1096,8 @@ const defaultJSON = `{
       {
         "id": "m-contact",
         "type": "contact",
-        "span": 1,
-        "variant": "card",
+        "span": 3,
+        "variant": "wide",
         "data": {
           "title": "想聊聊？",
           "text": "合作、提问，或者只是打个招呼，都欢迎。",

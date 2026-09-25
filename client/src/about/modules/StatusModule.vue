@@ -59,14 +59,15 @@ const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit
 </template>
 
 <style scoped lang="scss">
+/* 身份头像 + 状态 → 当前活动（下沉面）→ 统计条式元信息压到底部 */
 .ss { display: flex; flex-direction: column; gap: 18px; flex: 1; }
 .ss-top { display: flex; align-items: center; gap: 16px; }
 .ss-wrap { position: relative; flex: none; }
 
 .ss-av {
   display: block;
-  width: 58px;
-  height: 58px;
+  width: 64px;
+  height: 64px;
   border-radius: var(--r-lg);
   object-fit: cover;
   background: #050b17;
@@ -84,15 +85,15 @@ const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit
   border: 3px solid var(--ak-surface-hi);
 }
 
-.ss-state { font: 700 20px/1.2 var(--font-serif); }
-.ss-sub { margin-top: 4px; font-size: 13px; color: var(--text-2); }
+.ss-state { font: 700 22px/1.25 var(--font-serif); }
+.ss-sub { margin-top: 4px; font-size: 14px; color: var(--text-2); }
 
 .ss-act {
   padding: 14px 16px;
   border-radius: var(--r-md);
   background: var(--ak-sunken);
-  box-shadow: inset 0 0 0 1px var(--ak-line);
-  font-size: 13.5px;
+  font-size: 15px;
+  font-weight: 500;
   line-height: 1.6;
 
   small {
@@ -100,12 +101,11 @@ const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit
     align-items: center;
     gap: 6px;
     margin-bottom: 6px;
-    font: 500 11px var(--ak-mono);
-    letter-spacing: 0.06em;
+    font: 400 12.5px var(--font-sans);
     color: var(--ak-text-3);
   }
 
-  .ss-app { display: block; font: 400 12px var(--ak-mono); color: var(--ak-text-3); }
+  .ss-app { display: block; margin-top: 2px; font: 400 12.5px var(--ak-mono); color: var(--ak-text-3); }
 }
 
 .eq {
@@ -124,14 +124,16 @@ const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit
 .ss-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1px;
   margin-top: auto;
-  overflow: hidden;
   border-radius: var(--r-md);
-  background: var(--ak-line);
+  background: var(--fill);
 
-  div { padding: 10px 12px; background: var(--ak-surface); }
-  dt { font: 500 10.5px var(--ak-mono); letter-spacing: 0.08em; color: var(--ak-text-3); }
-  dd { margin-top: 2px; font-size: 13px; }
+  div { min-width: 0; padding: 14px 16px 12px; }
+  div + div { box-shadow: -1px 0 0 var(--ak-line); }
+  dt { font-size: 12.5px; color: var(--ak-text-3); }
+  dd { margin-top: 4px; overflow: hidden; font-size: 16px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+  dd.ak-mono { font-size: 20px; }
 }
+
+@media (prefers-reduced-motion: reduce) { .eq i { animation: none; height: 7px; } }
 </style>

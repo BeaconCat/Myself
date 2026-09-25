@@ -294,7 +294,7 @@ export default {
       now: '正在', lastActive: '最后活跃', device: '设备', justNow: '刚刚',
     },
     contact: { copy: '复制', done: '已复制', copied: '邮箱已复制' },
-    stats: { days: '运行天数', posts: '文章', notes: '随想', tags: '标签', dayUnit: '天', yearPassed: '{y} 已过' },
+    stats: { days: '运行天数', posts: '文章', notes: '随想', tags: '标签', dayUnit: '天', yearPassed: '{y} 已过', yearLeft: '还剩 {n} 天' },
     github: {
       repos: '仓库', stars: 'Stars', followers: '关注者', commits: '年提交',
       month: '{m}月', tip: '{n} 次贡献', pastYear: '过去一年 · {n} 次提交', less: '少', more: '多',
@@ -827,6 +827,33 @@ export default {
       textCopied: '已复制正文',
       rangeHint: '点选开始与结束日期',
       clearDate: '清除日期',
+    },
+  },
+  /* 桌面前台高密度（round 3 density）：统计条 / 分布图文案 */
+  dense: {
+    home: {
+      allPosts: '全部 {n} 篇文章',
+    },
+    articles: {
+      posts: '文章',
+      tags: '标签',
+      updated: '最近更新',
+      tagDist: '标签分布',
+      overview: '概览',
+    },
+    article: {
+      reading: '阅读',
+      words: '字数',
+      minutes: '分钟',
+      sections: '章节',
+      read: '已读',
+    },
+    thoughts: {
+      total: '随想',
+      media: '带图',
+      activeDays: '本月记录天',
+      moodKinds: '心情',
+      moodDist: '心情分布',
     },
   },
 };

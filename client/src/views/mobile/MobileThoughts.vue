@@ -220,8 +220,8 @@ const mediaCount = computed(() => media.value.length);
   position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  height: 40px;
-  margin: 0 20px;
+  height: 38px;
+  margin: 0 16px;
   padding: 3px;
   border-radius: var(--r-md);
   background: var(--fill);
@@ -252,7 +252,7 @@ const mediaCount = computed(() => media.value.length);
     em {
       font-style: normal;
       font-family: var(--m-font-mono);
-      font-size: 11px;
+      font-size: 12px;
       color: var(--text-3);
     }
   }
@@ -281,13 +281,13 @@ const mediaCount = computed(() => media.value.length);
   position: relative;
   display: flex;
   gap: 12px;
-  padding: 16px 18px 12px;
+  padding: 14px 16px 6px;
 
   & + &::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 70px;
+    left: 68px;
     right: 0;
     height: 0.5px;
     background: var(--line);
@@ -328,9 +328,9 @@ const mediaCount = computed(() => media.value.length);
 }
 
 .body {
-  margin-top: 5px;
-  font-size: 15.5px;
-  line-height: 1.7;
+  margin-top: 4px;
+  font-size: 15px;
+  line-height: 1.65;
   overflow-wrap: anywhere;
   user-select: text;
   -webkit-user-select: text;
@@ -368,7 +368,8 @@ const mediaCount = computed(() => media.value.length);
   overflow: hidden;
 
   &.g1 { grid-template-columns: 1fr; }
-  &.g1 .cell { aspect-ratio: 4 / 3; }
+  /* 单图收一档：16:10（原 4:3），不再占满大半屏 */
+  &.g1 .cell { aspect-ratio: 16 / 10; }
   &.g2 { grid-template-columns: 1fr 1fr; }
   &.g3 { grid-template-columns: repeat(3, 1fr); }
 
@@ -400,13 +401,13 @@ const mediaCount = computed(() => media.value.length);
 .act {
   display: flex;
   gap: 22px;
-  margin-top: 6px;
+  margin-top: 2px;
   margin-left: -6px;
 
   button {
     display: flex;
     align-items: center;
-    height: 32px;
+    height: 30px;
     padding: 0 6px;
     border-radius: var(--r-sm);
     color: var(--text-3);
@@ -416,10 +417,10 @@ const mediaCount = computed(() => media.value.length);
 }
 
 .mg-h {
-  padding: 10px 20px;
+  padding: 10px 16px;
   display: flex;
   justify-content: space-between;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-3);
 }
 

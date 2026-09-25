@@ -276,7 +276,8 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
 /* 封面视差 */
 .dt-hero {
   position: relative;
-  height: min(400px, 50vh);
+  /* 高密度：封面收一档（原 min(400px, 50vh)） */
+  height: min(340px, 42vh);
   overflow: hidden;
 }
 
@@ -295,8 +296,8 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
 
 .dt-head {
   position: relative;
-  margin-top: -120px;
-  padding: 0 22px;
+  margin-top: -110px;
+  padding: 0 18px;
 
   h1 {
     margin-top: 12px;
@@ -313,7 +314,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-2);
 
   .m-mood {
@@ -335,8 +336,8 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 20px;
-  padding: 14px 0 22px;
+  margin-top: 14px;
+  padding: 12px 0 16px;
   border-bottom: 0.5px solid var(--line);
   font-size: 14px;
 
@@ -348,7 +349,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
 
   small {
     color: var(--text-3);
-    font-size: 12.5px;
+    font-size: 13px;
   }
 }
 
@@ -759,7 +760,7 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
 
 /* 骨架 */
 .sk-hero {
-  height: min(400px, 50vh);
+  height: min(340px, 42vh);
   border-radius: 0;
 }
 

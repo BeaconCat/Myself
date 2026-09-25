@@ -29,17 +29,21 @@ const group = computed(() => d.value.groups[Math.min(tab.value, d.value.groups.l
 </template>
 
 <style scoped lang="scss">
-.fv-tabs { align-self: flex-start; margin-bottom: 14px; }
+.fv-tabs { align-self: flex-start; margin-bottom: 12px; }
 
 .fv-list {
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
 
   li {
     display: grid;
-    grid-template-columns: 22px minmax(0, 1fr) auto;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
     gap: 10px;
     align-items: baseline;
-    padding: 10px 0;
+    padding: 12px 0;
     border-top: 1px solid var(--ak-line);
     animation: ak-fade-up 0.45s var(--ease-out) both;
     animation-delay: calc(var(--k) * 50ms);
@@ -47,9 +51,9 @@ const group = computed(() => d.value.groups[Math.min(tab.value, d.value.groups.l
 
   li:first-child { border-top: 0; }
 
-  .n { font: 400 11px var(--ak-mono); color: var(--ak-text-3); }
-  b { font: 700 14.5px var(--font-serif); }
-  div span { display: block; margin-top: 2px; font-size: 12.5px; color: var(--ak-text-3); }
-  time { font: 400 11px var(--ak-mono); color: var(--ak-text-3); }
+  .n { font: 400 12.5px var(--ak-mono); color: var(--ak-text-3); }
+  b { font: 700 16px var(--font-serif); }
+  div span { display: block; margin-top: 2px; font-size: 13px; color: var(--ak-text-3); }
+  time { font: 400 12.5px var(--ak-mono); color: var(--ak-text-3); }
 }
 </style>

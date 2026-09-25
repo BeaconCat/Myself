@@ -4,8 +4,11 @@ import type { Post } from '../../api';
 import CoverArt from '../common/CoverArt.vue';
 import PostMeta from './PostMeta.vue';
 
-/** 首篇大卡：宽封面（悬停 3D 轻倾 + 光影微放大）+ 元信息 + 宋体标题 + 摘要（与移动端 .feat 同构） */
-withDefaults(defineProps<{ post: Post; ratio?: string; meta?: string }>(), { ratio: '2.1 / 1', meta: '' });
+/**
+ * 首篇封面卡：封面（悬停 3D 轻倾 + 光影微放大）与元信息 / 宋体标题 / 摘要同在一张卡内；
+ * 封面较旧版收一档（2.1:1 → 2.6:1），标题与摘要更醒目。
+ */
+withDefaults(defineProps<{ post: Post; ratio?: string; meta?: string }>(), { ratio: '2.6 / 1', meta: '' });
 
 const cover = ref<HTMLElement | null>(null);
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -34,29 +37,36 @@ function onLeave(): void {
     <div ref="cover" class="cover" :style="{ aspectRatio: ratio }">
       <CoverArt :src="post.covers[0]" :seed="post.slug" />
     </div>
-    <PostMeta class="fmeta" :post="post" :extra="meta" />
-    <h3><span>{{ post.title }}</span></h3>
-    <p v-if="post.excerpt">{{ post.excerpt }}</p>
+    <div class="info">
+      <PostMeta :post="post" :extra="meta" />
+      <h3><span>{{ post.title }}</span></h3>
+      <p v-if="post.excerpt">{{ post.excerpt }}</p>
+    </div>
   </router-link>
 </template>
 
 <style scoped lang="scss">
 .feat {
   display: block;
-  border-radius: var(--r-xl);
+  border-radius: var(--r-lg);
+  background: var(--elev);
+  box-shadow: var(--shadow-card);
   outline: none;
+  transition: box-shadow var(--dur) var(--ease-out);
 
-  &:focus-visible { box-shadow: var(--focus); }
+  &:hover { box-shadow: var(--shadow-card-hover); }
+  &:focus-visible { box-shadow: var(--shadow-card), var(--focus); }
 }
+
+.info { padding: 18px 24px 22px; }
 
 /* 封面容器：品牌光影底 + 0.5px 内描边；阴影为中性色 */
 .cover {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  border-radius: var(--r-xl);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
   background: #040914;
-  box-shadow: 0 30px 60px -36px rgb(0 0 0 / 0.8);
   transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 
   &::after {
@@ -70,20 +80,14 @@ function onLeave(): void {
   }
 }
 
-:root[data-mode='light'] .cover {
-  box-shadow: 0 30px 60px -36px rgb(16 24 40 / 0.45);
-
-  &::after { box-shadow: inset 0 0 0 0.5px rgb(16 24 40 / 0.1); }
-}
+:root[data-mode='light'] .cover::after { box-shadow: inset 0 0 0 0.5px rgb(16 24 40 / 0.1); }
 
 .feat:hover .cover :deep(.cv) { transform: scale(1.035); }
 
-.fmeta { margin-top: 20px; }
-
 h3 {
-  margin-top: 8px;
+  margin-top: 6px;
   font-family: var(--font-serif);
-  font-size: 30px;
+  font-size: 26px;
   font-weight: 700;
   line-height: 1.35;
   color: var(--text);
@@ -99,14 +103,17 @@ h3 {
 .feat:hover h3 span { background-size: 100% 1.5px; }
 
 p {
-  max-width: 60ch;
-  margin-top: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 6px;
   font-size: 15px;
-  line-height: 1.8;
+  line-height: 1.75;
   color: var(--text-2);
 }
 
 @media (max-width: 1100px) {
-  h3 { font-size: 26px; }
+  h3 { font-size: 24px; }
 }
 </style>

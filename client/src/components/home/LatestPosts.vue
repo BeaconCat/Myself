@@ -7,7 +7,8 @@ import SectionHead from './SectionHead.vue';
 import { monthDay } from './format';
 
 /**
- * 首页「最新文章」：首篇大卡（16:9 封面 + 宋体大标题）+ 右侧缩略列表（与移动端 feat + m-arow 同构）。
+ * 首页「最新文章」：7 / 5 并排等高——首篇封面卡（2:1 封面 + 信息块）
+ * + 右侧缩略列表卡（行均分高度，底部「全部 N 篇文章」入口压底）。
  * 加载中渲染同形骨架，数据到达后 rise-stagger 入场。
  */
 const props = defineProps<{ posts: Post[]; total: number; loading: boolean }>();
@@ -34,17 +35,18 @@ const sub = computed(() => {
     <!-- 同形骨架 -->
     <div v-if="loading" class="latest" aria-hidden="true">
       <div class="feat">
-        <div class="sk cover-sk" />
-        <span class="sk sk-line" style="width: 150px; margin-top: 22px" />
-        <span class="sk sk-line" style="width: 72%; height: 26px; margin-top: 14px" />
-        <span class="sk sk-line" style="width: 90%; margin-top: 14px" />
-        <span class="sk sk-line" style="width: 58%; margin-top: 8px" />
+        <div class="sk cover" />
+        <div class="info">
+          <span class="sk sk-line" style="width: 150px" />
+          <span class="sk sk-line" style="width: 72%; height: 24px; margin-top: 12px" />
+          <span class="sk sk-line" style="width: 90%; margin-top: 12px" />
+        </div>
       </div>
       <div class="list">
         <div v-for="n in 3" :key="n" class="arow">
           <div class="rt">
             <span class="sk sk-line" style="width: 120px" />
-            <span class="sk sk-line" style="width: 70%; height: 18px; margin-top: 12px" />
+            <span class="sk sk-line" style="width: 70%; height: 18px; margin-top: 10px" />
             <span class="sk sk-line" style="width: 92%; margin-top: 10px" />
           </div>
           <div class="sk thumb" />
@@ -57,16 +59,18 @@ const sub = computed(() => {
         <div class="cover">
           <CoverArt :src="feat.covers[0]" :seed="feat.slug" />
         </div>
-        <div class="meta">
-          <span v-if="feat.tags[0]" class="tag">{{ feat.tags[0] }}</span>
-          <i v-if="feat.tags[0]" class="dotsep" />
-          <span>{{ md(feat.createdAt) }}</span>
+        <div class="info">
+          <div class="meta">
+            <span v-if="feat.tags[0]" class="tag">{{ feat.tags[0] }}</span>
+            <i v-if="feat.tags[0]" class="dotsep" />
+            <span>{{ md(feat.createdAt) }}</span>
+          </div>
+          <h3><span>{{ feat.title }}</span></h3>
+          <p>{{ feat.excerpt }}</p>
         </div>
-        <h3><span>{{ feat.title }}</span></h3>
-        <p>{{ feat.excerpt }}</p>
       </router-link>
 
-      <div class="list rise-stagger">
+      <div class="list">
         <router-link v-for="p in rest" :key="p.id" :to="`/articles/${p.slug}`" class="arow">
           <div class="rt">
             <div class="meta">
@@ -81,6 +85,10 @@ const sub = computed(() => {
             <CoverArt :src="p.covers[0]" :seed="p.slug" thumb />
           </div>
         </router-link>
+        <router-link to="/articles" class="more">
+          <span>{{ t('dense.home.allPosts', { n: total }) }}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+        </router-link>
       </div>
     </div>
   </section>
@@ -89,9 +97,9 @@ const sub = computed(() => {
 <style scoped lang="scss">
 .latest {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-  gap: 56px;
-  align-items: start;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 20px;
+  align-items: stretch;
 }
 
 /* ===== 元信息：「# 标签 · 日期」纯文字 ===== */
@@ -124,20 +132,36 @@ const sub = computed(() => {
   opacity: 0.7;
 }
 
-/* ===== 首篇大卡 ===== */
-.feat {
-  display: block;
-  border-radius: var(--r-xl);
-  color: var(--text);
+/* ===== 卡面：中性，无发光 ===== */
+.feat,
+.list {
+  border-radius: var(--r-lg);
+  background: var(--elev);
+  box-shadow: var(--shadow-card);
+}
 
-  .meta { margin-top: 20px; }
+/* ===== 首篇封面卡 ===== */
+.feat {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--text);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+
+  .info {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    padding: 20px 24px 24px;
+  }
 
   h3 {
     margin-top: 8px;
     font-family: var(--font-serif);
-    font-size: 30px;
+    font-size: 24px;
     font-weight: 700;
-    line-height: 1.35;
+    line-height: 1.4;
     text-wrap: balance;
 
     span {
@@ -147,60 +171,61 @@ const sub = computed(() => {
   }
 
   p {
-    margin-top: 10px;
-    max-width: 60ch;
+    margin-top: 8px;
     font-size: 15px;
-    line-height: 1.8;
+    line-height: 1.75;
     color: var(--text-2);
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
 
+  &:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
   &:hover h3 span { background-size: 100% 1.5px; }
-  &:hover .cover { transform: translateY(-4px); box-shadow: var(--shadow-card-hover); }
   &:hover .cover :deep(.cv) { transform: scale(1.035); }
-  &:focus-visible { outline: none; box-shadow: var(--focus); }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-card), var(--focus); }
 }
 
 .cover {
   position: relative;
-  aspect-ratio: 16 / 9;
-  border-radius: var(--r-xl);
+  flex: none;
+  aspect-ratio: 2 / 1;
   overflow: hidden;
   isolation: isolate;
   background: #040914;
-  box-shadow: var(--shadow-card);
-  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 
   :deep(.cv) { transition: transform var(--dur-slow) var(--ease-out); }
 
-  /* 发丝内描边：封面与底色分界 */
+  /* 发丝分界：封面与信息块 */
   &::after {
     content: '';
     position: absolute;
     inset: 0;
     z-index: 3;
-    border-radius: inherit;
-    box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.08);
+    box-shadow: inset 0 -0.5px 0 rgb(255 255 255 / 0.08);
     pointer-events: none;
   }
 }
 
-:root[data-mode='light'] .cover::after { box-shadow: inset 0 0 0 0.5px rgb(16 24 40 / 0.1); }
+:root[data-mode='light'] .cover::after { box-shadow: inset 0 -0.5px 0 rgb(16 24 40 / 0.1); }
 
-/* ===== 缩略列表 ===== */
-.list { padding-top: 2px; }
+/* ===== 缩略列表卡 ===== */
+.list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 24px 20px;
+}
 
 .arow {
   position: relative;
   display: flex;
+  flex: 1;
   align-items: center;
-  gap: 24px;
-  margin: 0 -18px;
-  padding: 20px 18px;
-  border-radius: var(--r-lg);
+  gap: 18px;
+  margin: 0 -12px;
+  padding: 14px 12px;
+  border-radius: var(--r-md);
   color: var(--text);
   transition: background-color var(--dur-fast);
 
@@ -208,8 +233,8 @@ const sub = computed(() => {
     content: '';
     position: absolute;
     top: 0;
-    left: 18px;
-    right: 18px;
+    left: 12px;
+    right: 12px;
     height: 0.5px;
     background: var(--line-2);
     transition: opacity var(--dur-fast);
@@ -231,11 +256,14 @@ const sub = computed(() => {
 
   .t {
     display: block;
-    margin-top: 6px;
+    margin-top: 4px;
     font-family: var(--font-serif);
     font-size: 19px;
     font-weight: 700;
-    line-height: 1.45;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 
     span {
       background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
@@ -244,22 +272,21 @@ const sub = computed(() => {
   }
 
   .ex {
-    margin-top: 6px;
-    font-size: 14px;
-    line-height: 1.7;
+    margin-top: 4px;
+    font-size: 15px;
+    line-height: 1.6;
     color: var(--text-2);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
 .thumb {
   position: relative;
   flex: none;
-  width: 104px;
-  height: 104px;
+  width: 112px;
+  height: 80px;
   border-radius: var(--r-md);
   overflow: hidden;
   isolation: isolate;
@@ -268,12 +295,30 @@ const sub = computed(() => {
   :deep(.cv) { transition: transform var(--dur-slow) var(--ease-out); }
 }
 
-/* ===== 骨架几何 ===== */
-.cover-sk {
-  display: block;
-  aspect-ratio: 16 / 9;
-  border-radius: var(--r-xl);
+/* 底部入口：次按钮，压到卡片底部 */
+.more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  margin-top: 10px;
+  border-radius: var(--r-pill);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--fill);
+  transition: background var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+
+  svg { width: 18px; height: 18px; transition: transform var(--dur-fast) var(--ease-out); }
+  &:hover { background: var(--fill-2); }
+  &:hover svg { transform: translateX(2px); }
+  &:active { transform: scale(0.97); }
+  &:focus-visible { outline: none; box-shadow: var(--focus); }
 }
+
+/* ===== 骨架几何 ===== */
+.feat .sk.cover { border-radius: 0; }
 
 .feat .sk-line,
 .arow .sk-line {
@@ -284,30 +329,16 @@ const sub = computed(() => {
 .latest .sk.thumb { background: var(--fill-2); }
 
 @media (max-width: 1100px) {
-  .latest {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 32px;
-  }
+  .latest { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 
   .thumb {
-    width: 84px;
-    height: 84px;
+    width: 88px;
+    height: 68px;
   }
-
-  .arow .ex { -webkit-line-clamp: 1; }
 }
 
 @media (max-width: 768px) {
-  .latest {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-
-  .feat h3 { font-size: 24px; }
-
-  .arow {
-    gap: 16px;
-    padding: 16px 18px;
-  }
+  .latest { grid-template-columns: 1fr; }
+  .feat h3 { font-size: 22px; }
 }
 </style>

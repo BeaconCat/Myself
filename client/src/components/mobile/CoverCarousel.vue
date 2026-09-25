@@ -106,8 +106,9 @@ function date(p: Post): string {
 .hc {
   position: relative;
   margin-top: 4px;
-  --w: calc(100vw - 40px);
-  --h: min(calc(var(--w) * 1.3), 62vh);
+  /* 高密度：封面收一档（约 1:1，原 1:1.3），左右 16px 与全站移动边距一致 */
+  --w: calc(100vw - 32px);
+  --h: min(var(--w), 52vh);
 }
 
 .track {
@@ -119,7 +120,7 @@ function date(p: Post): string {
 
 .card {
   position: absolute;
-  left: 20px;
+  left: 16px;
   top: 0;
   width: var(--w);
   height: var(--h);
@@ -224,8 +225,8 @@ html.m-shell[data-mode='light'] .inner {
 
 h3 {
   font-family: var(--font-serif);
-  font-size: 27px;
-  line-height: 1.32;
+  font-size: 26px;
+  line-height: 1.3;
   font-weight: 700;
   letter-spacing: 0.01em;
   text-wrap: balance;
@@ -246,7 +247,7 @@ p {
   display: flex;
   justify-content: center;
   gap: 6px;
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .hd {

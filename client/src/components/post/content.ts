@@ -1,7 +1,9 @@
 /**
  * 内容线（文章列表 / 详情 / 随想）共享的纯函数：日期格式、阅读时长、复制。
- * 时间串形如「2026-07-04 16:20:00」（服务端本地时间），只做字符串切分，不走时区换算。
+ * 时间串形如「2026-07-04 16:20:00」，为 SQLite UTC 时间；日期展示统一经 utils/date 换算到站点时区，
+ * 与首页、后台保持一致。
  */
+import { formatDate } from '../../utils/date';
 
 export interface Ymd {
   y: number;
@@ -10,13 +12,13 @@ export interface Ymd {
 }
 
 export function ymdOf(s: string): Ymd {
-  const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+  const [y, m, d] = formatDate(s).split('-').map(Number);
   return { y, m, d };
 }
 
 /** 2026.07.04 */
 export function dotted(s: string): string {
-  return s.slice(0, 10).replaceAll('-', '.');
+  return formatDate(s).replaceAll('-', '.');
 }
 
 /** Date → YYYY-MM-DD（本地） */

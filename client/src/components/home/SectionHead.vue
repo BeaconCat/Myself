@@ -26,7 +26,7 @@ defineProps<{ title: string; sub?: string; loading?: boolean; to?: string; linkT
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 
   h2 {
     font-family: var(--font-serif);
@@ -37,7 +37,7 @@ defineProps<{ title: string; sub?: string; loading?: boolean; to?: string; linkT
 
   small {
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     font-family: var(--font-sans);
     font-size: 13px;
     font-weight: 400;
@@ -67,7 +67,7 @@ defineProps<{ title: string; sub?: string; loading?: boolean; to?: string; linkT
   gap: 5px;
   padding: 2px 0;
   border-radius: var(--r-xs);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--ink);
 
@@ -78,8 +78,8 @@ defineProps<{ title: string; sub?: string; loading?: boolean; to?: string; linkT
   }
 
   svg {
-    width: 15px;
-    height: 15px;
+    width: 18px;
+    height: 18px;
     transition: transform var(--dur) var(--ease-spring);
   }
 

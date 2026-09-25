@@ -89,7 +89,7 @@ onMounted(loadLog);
             </div>
           </div>
           <button type="button" class="st-btn g" :disabled="syncing" @click="sync">
-            <SIcon name="refresh" :size="16" :class="{ spin: syncing }" />{{ syncing ? t('studio.settings.ghSyncing') : t('studio.settings.ghSync') }}
+            <SIcon name="refresh" :size="18" :class="{ spin: syncing }" />{{ syncing ? t('studio.settings.ghSyncing') : t('studio.settings.ghSync') }}
           </button>
         </div>
         <p v-if="msg" class="msg" :class="{ err: !msg.ok }">{{ msg.text }}</p>
@@ -118,20 +118,26 @@ onMounted(loadLog);
 .w140 { width: 140px; }
 
 .panel {
-  margin-top: 16px;
-  padding: 18px 20px;
+  margin-top: 14px;
+  padding: 18px;
   border-radius: var(--r-md);
-  background: var(--well);
+  box-shadow: 0 0 0 1px var(--line-2) inset;
 }
 
 .ph { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 
+/* GitHub 数字：统计条（与首页 GitHub 卡同构） */
 .stats {
-  display: flex;
-  gap: 28px;
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-radius: var(--r-md);
+  background: var(--well);
 
-  b { display: block; font-size: 22px; font-weight: 500; line-height: 1.2; letter-spacing: -0.02em; }
-  small { font-size: 12px; color: var(--st-ink-3); }
+  .s { padding: 14px 16px 12px; min-width: 0; }
+  .s + .s { box-shadow: -1px 0 0 var(--line-2); }
+  b { display: block; font-size: 28px; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  small { display: block; margin-top: 4px; font-size: 12.5px; color: var(--st-ink-3); }
 }
 
 .spin { animation: spin 0.9s linear infinite; }
@@ -153,7 +159,7 @@ onMounted(loadLog);
     grid-template-columns: 8px 92px 1fr;
     gap: 10px;
     align-items: center;
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--st-ink-2);
 
     .st-dot { --c: var(--green); }

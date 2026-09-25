@@ -8,9 +8,15 @@ import LargeTitlePage from '../../components/mobile/LargeTitlePage.vue';
 import CoverCarousel from '../../components/mobile/CoverCarousel.vue';
 import CoverArt from '../../components/common/CoverArt.vue';
 import MIcon from '../../components/mobile/MIcon.vue';
+import AboutMeCard from '../../components/home/AboutMeCard.vue';
+import GithubStatusCard from '../../components/home/GithubStatusCard.vue';
+import type { GhStatus } from '../../components/home/format';
 import { copyText, monthDay, shell, toast } from '../../components/mobile/shell';
 
-/** 移动端首页：封面卡横滑轮播 + 最新文章 + 随想横滑预览 + 页脚订阅。 */
+/**
+ * 移动端首页：封面卡横滑轮播 + 最新文章 + 随想横滑预览 + 底部「关于我 + GitHub」简介卡
+ * （复用桌面首页的 AboutMeCard / GithubStatusCard，纵向堆叠，窄屏适配只在外层做）。
+ */
 const { t } = useI18n();
 const router = useRouter();
 const config = useConfigStore();
@@ -20,6 +26,11 @@ const latest = ref<Post[]>([]);
 const notes = ref<Note[]>([]);
 const loading = ref(true);
 const failed = ref(false);
+const postTotal = ref(0);
+const noteTotal = ref(0);
+const gh = ref<GhStatus | null>(null);
+const ghLoading = ref(true);
+const commits = computed(() => gh.value?.stats.commits ?? config.cfg.github.stats.commits);
 
 const eyebrow = computed(() => {
   const now = new Date();
@@ -38,6 +49,8 @@ async function load(): Promise<void> {
     hero.value = feed.items.length ? feed.items : list.items;
     latest.value = list.items;
     notes.value = feedNotes.items;
+    postTotal.value = list.total;
+    noteTotal.value = feedNotes.total;
   } catch {
     failed.value = true;
   } finally {
@@ -45,7 +58,25 @@ async function load(): Promise<void> {
   }
 }
 
-onMounted(load);
+/** GitHub 状态单独拉取（服务端缓存，可能较慢），不阻塞首屏内容 */
+async function loadGithub(): Promise<void> {
+  try {
+    gh.value = await api.githubStatus<GhStatus>();
+  } catch {
+    gh.value = null;
+  } finally {
+    ghLoading.value = false;
+  }
+}
+
+async function refresh(): Promise<void> {
+  await Promise.all([load(), loadGithub()]);
+}
+
+onMounted(() => {
+  void load();
+  void loadGithub();
+});
 
 function plain(md: string): string {
   return md.replace(/!\[[^\]]*]\([^)]*\)/g, '').replace(/[#>*_`~[\]]/g, '').replace(/\(([^)]*)\)/g, '').trim();
@@ -69,7 +100,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
 </script>
 
 <template>
-  <LargeTitlePage :title="config.cfg.site.title" :eyebrow="eyebrow" :refresh="load">
+  <LargeTitlePage :title="config.cfg.site.title" :eyebrow="eyebrow" :refresh="refresh">
     <template #right>
       <button class="m-icbtn m-tap" :aria-label="t('mobile.rss')" @click="copyRss"><MIcon name="rss" /></button>
     </template>
@@ -140,32 +171,30 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
           </div>
         </section>
 
-        <footer class="foot m-in" style="--i: 12">
-          <img class="mk" src="/favicon-256.png" alt="" draggable="false" />
-          <div>
-            <b>{{ config.cfg.site.title }}</b>
-            <small>{{ config.cfg.about.motto || config.cfg.site.subtitle }}</small>
-          </div>
-          <button class="rss m-tap" @click="copyRss"><MIcon name="rss" class="xs" />{{ t('mobile.subscribe') }}</button>
-        </footer>
+        <section class="sec me m-in" style="--i: 12">
+          <AboutMeCard :posts="postTotal" :notes="noteTotal" :commits="commits" />
+          <GithubStatusCard :data="gh" :loading="ghLoading" />
+        </section>
       </div>
     </Transition>
   </LargeTitlePage>
 </template>
 
 <style scoped lang="scss">
-.sec { margin-top: 34px; }
+/* 高密度：分区间距 28px、分区标题 24px 宋体、左右统一 16px 边距 */
+.sec { margin-top: 28px; }
 
 .sec-h {
   display: flex;
   align-items: baseline;
-  padding: 0 20px;
-  margin-bottom: 6px;
+  padding: 0 16px;
+  margin-bottom: 4px;
 
   h2 {
     font-family: var(--font-serif);
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 700;
+    line-height: 1.3;
   }
 
   .more {
@@ -178,22 +207,22 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
   }
 }
 
-.rows { padding: 0 4px; }
+.rows { padding: 0; }
 
 .tp {
   display: flex;
-  gap: 12px;
-  padding: 8px 20px 18px;
+  gap: 10px;
+  padding: 10px 16px 14px;
   scroll-snap-type: x mandatory;
-  scroll-padding: 0 20px;
+  scroll-padding: 0 16px;
 }
 
 .tcard {
   scroll-snap-align: start;
   flex: none;
-  width: min(268px, 72vw);
+  width: min(280px, 76vw);
   padding: 16px;
-  border-radius: var(--r-xl);
+  border-radius: var(--r-lg);
   text-align: left;
   background: var(--elev);
   box-shadow: var(--shadow-card);
@@ -202,13 +231,13 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
   gap: 12px;
 
   p {
-    font-size: 14.5px;
-    line-height: 1.7;
+    font-size: 15px;
+    line-height: 1.65;
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    min-height: 73px;
+    min-height: 74px;
   }
 
   .strip {
@@ -217,8 +246,8 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
 
     img,
     .more {
-      width: 52px;
-      height: 52px;
+      width: 56px;
+      height: 56px;
       border-radius: var(--r-sm);
       object-fit: cover;
       background: var(--fill-3);
@@ -229,7 +258,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
       place-items: center;
       font-size: 13px;
       color: var(--text-2);
-      font-family: var(--m-font-mono);
+      font-family: var(--font-mono);
     }
   }
 
@@ -237,56 +266,48 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-3);
     margin-top: auto;
+
+    .m-mood { font-size: 13px; }
   }
 }
 
-.foot {
-  margin: 34px 20px 0;
-  padding-top: 26px;
-  border-top: 0.5px solid var(--line);
+/* 底部「关于我 + GitHub」：复用桌面卡片，纵向堆叠；窄屏适配只在外层用 :deep 调整 */
+.me {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 12px;
+  padding: 0 16px;
 
-  .mk {
-    width: 34px;
-    height: 34px;
-    border-radius: var(--r-sm);
-    flex: none;
+  :deep(.me-card),
+  :deep(.gh-card) {
+    height: auto;
+    padding: 20px;
+    gap: 18px;
   }
 
-  b {
-    font-family: var(--font-serif);
-    font-size: 15px;
-    display: block;
-  }
+  /* 身份行：头像跨两行；名字与社交按钮同一行，格言落到第二行占满剩余宽度，不再被挤成两行 */
+  :deep(.me-card .head) { column-gap: 14px; row-gap: 2px; align-items: center; }
+  :deep(.me-card .av) { grid-row: 1 / span 2; width: 64px; height: 64px; }
+  :deep(.me-card .who) { display: contents; }
+  :deep(.me-card .who b) { grid-column: 2; grid-row: 1; font-size: 24px; }
+  :deep(.me-card .who q) { grid-column: 2 / -1; grid-row: 2; margin-top: 0; font-size: 14px; }
+  :deep(.me-card .soc) { grid-column: 3; grid-row: 1; align-self: center; }
+  :deep(.me-card .foot) { flex-wrap: wrap; }
+  :deep(.me-card .btn-2nd) { margin-left: auto; }
 
-  small {
-    font-size: 12px;
-    color: var(--text-3);
-  }
-
-  .rss {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: var(--fill-2);
-    font-size: 13px;
-    color: var(--text-2);
-    flex: none;
-  }
+  /* 热力图：窄屏只保留最近 22 周（从开头隐藏整列 31 x 7 格，周对齐不变），格子随宽度放大到约 11px */
+  :deep(.gh-card .heatmap > .cell:nth-child(-n + 217)) { display: none; }
+  :deep(.gh-card .activity li) { grid-template-columns: minmax(0, 1fr) auto; }
+  :deep(.gh-card .activity .a-repo) { grid-column: 1 / -1; }
 }
 
 /* 骨架 */
 .sk-card {
-  margin: 4px 20px 0;
-  height: min(calc((100vw - 40px) * 1.3), 62vh);
+  margin: 4px 16px 0;
+  height: min(calc(100vw - 32px), 52vh);
   border-radius: var(--r-xl);
 }
 
@@ -294,7 +315,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
   display: flex;
   justify-content: center;
   gap: 6px;
-  margin: 16px 0 34px;
+  margin: 14px 0 28px;
 
   span { width: 6px; height: 6px; border-radius: 999px; }
   span:first-child { width: 30px; }
@@ -304,7 +325,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 20px;
+  padding: 12px 16px;
 
   .rt {
     flex: 1;
@@ -314,9 +335,9 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
   }
 
   .thumb {
-    width: 68px;
-    height: 68px;
-    border-radius: var(--r-lg);
+    width: 76px;
+    height: 76px;
+    border-radius: var(--r-md);
     flex: none;
   }
 }

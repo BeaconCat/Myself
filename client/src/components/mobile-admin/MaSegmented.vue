@@ -26,7 +26,7 @@ const emit = defineEmits<{ 'update:modelValue': [v: number] }>();
   display: grid;
   grid-template-columns: repeat(var(--n), 1fr);
   height: 40px;
-  margin: 0 20px;
+  margin: 0 16px;
   padding: 3px;
   border-radius: var(--r-md);
   background: var(--fill);

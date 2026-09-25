@@ -17,8 +17,8 @@ import { renderWithToc, type TocItem } from '../utils/markdown';
 
 /**
  * 桌面文章详情：封面带（多封面手风琴 / 光影构成）→ 标签·日期·时长 → 宋体标题 → 导语 → 署名
- * → 正文 → 描边标签 → 上一篇 / 下一篇；右侧目录（2px 信号线 + 进度环），顶部 2px 阅读进度；
- * 窄于 1180 时目录收起为底部阅读浮条（与移动端同构）。
+ * → 正文 → 描边标签 → 上一篇 / 下一篇；右栏阅读卡（统计条 + 进度条 + 目录 2px 信号线），顶部 2px 阅读进度；
+ * 窄于 960 时右栏收起为底部阅读浮条（与移动端同构）。
  */
 const { t } = useI18n();
 const route = useRoute();
@@ -323,6 +323,8 @@ const C = 2 * Math.PI * 9;
           :active="activeId"
           :progress="rp"
           :left="left"
+          :words="words"
+          :minutes="minutes"
           @jump="scrollToId"
           @top="toTop"
         />
@@ -371,11 +373,11 @@ const C = 2 * Math.PI * 9;
 <style scoped lang="scss">
 .dt {
   --nav-h: 64px;
-  --col: 700px;
-  --toc: 220px;
-  --gap: 72px;
+  --col: 720px;
+  --toc: 300px;
+  --gap: 48px;
   --outer: min(calc(var(--col) + var(--toc) + var(--gap)), calc(100% - 80px));
-  padding: var(--nav-h) 0 120px;
+  padding: var(--nav-h) 0 64px;
   min-height: 100vh;
 }
 
@@ -407,9 +409,9 @@ const C = 2 * Math.PI * 9;
 .band {
   position: relative;
   width: var(--outer);
-  height: 360px;
-  margin: 28px auto 0;
-  border-radius: var(--r-xl);
+  height: 280px;
+  margin: 20px auto 0;
+  border-radius: var(--r-lg);
 }
 
 .cover {
@@ -452,8 +454,8 @@ const C = 2 * Math.PI * 9;
 .cbtn {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border: 0;
   border-radius: 50%;
   color: #e8ecf5;
@@ -480,7 +482,7 @@ const C = 2 * Math.PI * 9;
 }
 
 .head {
-  padding: 40px 0 0;
+  padding: 28px 0 0;
 }
 
 .meta {
@@ -516,9 +518,9 @@ const C = 2 * Math.PI * 9;
 }
 
 h1 {
-  margin-top: 14px;
+  margin-top: 10px;
   font-family: var(--font-serif);
-  font-size: 46px;
+  font-size: 40px;
   font-weight: 900;
   line-height: 1.25;
   color: var(--text);
@@ -526,11 +528,11 @@ h1 {
 }
 
 .lede {
-  margin-top: 16px;
+  margin-top: 12px;
   font-family: var(--font-serif);
-  font-size: 18.5px;
+  font-size: 18px;
   font-weight: 400;
-  line-height: 1.85;
+  line-height: 1.8;
   color: var(--text-2);
 }
 
@@ -538,21 +540,21 @@ h1 {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 26px;
-  padding-bottom: 26px;
+  margin-top: 20px;
+  padding-bottom: 20px;
   box-shadow: inset 0 -0.5px 0 var(--line-2);
-  font-size: 14px;
+  font-size: 15px;
 
   b { display: block; font-weight: 500; color: var(--text); line-height: 1.5; }
-  small { display: block; font-size: 12.5px; color: var(--text-3); }
+  small { display: block; font-size: 13px; color: var(--text-3); }
   .grow { flex: 1; }
   .words { font-size: 13px; color: var(--text-3); }
 }
 
 .av {
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   overflow: hidden;
   border-radius: 50%;
   background: #060b16;
@@ -563,7 +565,7 @@ h1 {
 
 /* ---------- 正文排版 ---------- */
 .prose {
-  padding-top: 30px;
+  padding-top: 26px;
   font-family: var(--font-serif);
   font-size: 17.5px;
   font-weight: 400;
@@ -724,8 +726,8 @@ h1 {
 
 /* ---------- 文末 ---------- */
 .end {
-  margin-top: 44px;
-  padding-top: 26px;
+  margin-top: 36px;
+  padding-top: 22px;
   box-shadow: inset 0 0.5px 0 var(--line-2);
 }
 
@@ -742,12 +744,11 @@ h1 {
 .tag-o {
   display: inline-flex;
   align-items: center;
-  height: 28px;
-  padding: 0 12px;
+  padding: 5px 12px;
   border-radius: var(--r-pill);
   font-size: 13px;
   color: var(--text-2);
-  box-shadow: inset 0 0 0 1px var(--line);
+  box-shadow: inset 0 0 0 1px var(--line-2);
   transition: color var(--dur-fast), box-shadow var(--dur-fast), background-color var(--dur-fast),
     transform var(--dur-fast) var(--ease-spring);
 
@@ -769,12 +770,12 @@ h1 {
   flex: none;
   align-items: center;
   gap: 7px;
-  height: 32px;
-  padding: 0 14px;
+  height: 38px;
+  padding: 0 16px;
   border: 0;
   border-radius: var(--r-pill);
   background: var(--fill-2);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text);
   box-shadow: inset 0 0 0 0.5px var(--line);
@@ -795,14 +796,14 @@ h1 {
 .pn {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-top: 30px;
+  gap: 20px;
+  margin-top: 22px;
 
   a {
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 14px;
+    padding: 16px;
     border-radius: var(--r-lg);
     background: var(--elev);
     box-shadow: var(--shadow-card);
@@ -832,7 +833,7 @@ h1 {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-3);
 
     :deep(.ci) { transition: transform var(--dur) var(--ease-spring); }
@@ -845,7 +846,7 @@ h1 {
     overflow: hidden;
     margin-top: 4px;
     font-family: var(--font-serif);
-    font-size: 17px;
+    font-size: 19px;
     font-weight: 700;
     line-height: 1.45;
     color: var(--text);
@@ -978,17 +979,26 @@ h1 {
   .by { box-shadow: none; }
 }
 
-.sk-av { width: 36px; height: 36px; border-radius: 50%; }
+.sk-av { width: 40px; height: 40px; border-radius: 50%; }
 .sk-prose { padding-top: 34px; --lh: 1.95em; font-size: 17.5px; }
 .sk-prose .gap { visibility: hidden; }
-.sk-toc { margin-top: 40px; font-size: 13px; }
+.sk-toc { margin-top: 28px; height: 360px; border-radius: var(--r-lg); background: var(--elev); box-shadow: var(--shadow-card); padding: 24px; font-size: 13px; }
 
 /* ---------- 响应式 ---------- */
 @media (max-width: 1300px) {
-  .dt { --gap: 56px; --toc: 200px; }
+  .dt { --gap: 40px; --toc: 280px; }
 }
 
+/* 中宽（如 1024）：保留右栏阅读卡，正文栏收窄 */
 @media (max-width: 1179px) {
+  .dt {
+    --toc: 272px;
+    --gap: 32px;
+    --outer: calc(100% - 64px);
+  }
+}
+
+@media (max-width: 959px) {
   .dt {
     --toc: 0px;
     --gap: 0px;
@@ -999,7 +1009,7 @@ h1 {
     width: min(700px, calc(100% - 64px));
   }
 
-  .band { width: min(860px, calc(100% - 64px)); height: 320px; }
+  .band { width: min(860px, calc(100% - 64px)); height: 260px; }
   .side, .sk-toc { display: none; }
   .dock { display: flex; }
 }

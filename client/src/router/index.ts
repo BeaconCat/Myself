@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory, type RouteComponent, type RouteLocationNormalized, type RouteRecordRaw } from 'vue-router';
 import { useLoadingStore } from '../stores/loading';
-import { MOBILE_QUERY } from '../composables/useDevice';
 
 import { adminChildren } from './admin';
 import { mobileAdminViews } from './mobile-admin';
@@ -55,14 +54,20 @@ export const router = createRouter({
  * （组件加载/渲染全部发生在覆盖层背后），退场前最短展示 900ms。
  */
 const COVER_MS = 700;
-/** 移动端判定（与 useDevice 同一断点） */
-const isMobileNow = (): boolean => window.matchMedia(MOBILE_QUERY).matches;
 const MIN_SHOW_MS = 900;
 let shownAt = 0;
+/** 本次导航是否在播遮罩（beforeEach 判定，afterEach 沿用，避免两处判断不一致） */
+let covering = false;
+/** 一次性跳过标记：移动端左边缘右滑返回已给出连续反馈，提交后的导航不再盖遮罩 */
+let skipCoverUntil = 0;
 
-/** 是否为需要播放遮罩的站内跳转（首屏、后台内部标签、同页 query/hash 变化都不播） */
+/** 由手势返回在触发导航前调用：紧随其后的一次导航不播遮罩 */
+export function skipNextRouteCover(): void {
+  skipCoverUntil = performance.now() + 1500;
+}
+
+/** 是否为需要播放遮罩的站内跳转（首屏、后台内部标签、同页 query/hash 变化都不播；桌面与移动端一致） */
 function playsCover(to: RouteLocationNormalized, from: RouteLocationNormalized): boolean {
-  if (isMobileNow()) return false;
   if (!from.matched.length) return false;
   if (to.meta.admin && from.meta.admin) return false;
   return to.path !== from.path;
@@ -73,14 +78,17 @@ router.beforeEach(async (to, from) => {
   if (to.meta.admin && !localStorage.getItem('myself.token')) {
     return { path: '/admin/login' };
   }
-  if (!playsCover(to, from)) return;
+  const skip = performance.now() < skipCoverUntil;
+  skipCoverUntil = 0;
+  covering = !skip && playsCover(to, from);
+  if (!covering) return;
   shownAt = performance.now();
   useLoadingStore().startRoute();
   await new Promise((resolve) => window.setTimeout(resolve, COVER_MS));
 });
 
-router.afterEach((to, from) => {
-  if (!playsCover(to, from)) return;
+router.afterEach(() => {
+  if (!covering) return;
   const loading = useLoadingStore();
   const remain = Math.max(0, MIN_SHOW_MS - (performance.now() - shownAt));
   // 揭幕 = 最短展示时间到 且 目标页数据门闩全部释放

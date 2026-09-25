@@ -117,7 +117,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 .ga {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  grid-auto-rows: 120px;
+  grid-auto-rows: clamp(110px, 12.5cqi, 150px);
   gap: 10px;
 
   button {
@@ -155,14 +155,15 @@ const pad = (n: number) => String(n).padStart(2, '0');
     justify-content: space-between;
     align-items: baseline;
     gap: 8px;
-    font-size: 12.5px;
+    font-size: 14px;
+    font-weight: 500;
     text-align: left;
     color: #fff;
     opacity: 0;
     transform: translateY(6px);
     transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
 
-    small { font: 400 10.5px var(--ak-mono); opacity: 0.7; white-space: nowrap; }
+    small { font: 400 12px var(--ak-mono); opacity: 0.75; white-space: nowrap; }
   }
 
   .g0 { grid-column: span 2; grid-row: span 2; }

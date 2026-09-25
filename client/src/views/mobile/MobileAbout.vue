@@ -48,10 +48,14 @@ async function refresh(): Promise<void> {
     <template #hero>
       <Transition name="m-swap" mode="out-in">
         <section v-if="!config.loaded" key="sk" class="ab-hero sk">
-          <span class="m-sk ab-av" />
-          <span class="m-sk m-sk-line" style="width: 52%; height: 30px; margin-top: 18px" />
-          <span class="m-sk m-sk-line" style="width: 36%; margin-top: 10px" />
-          <span class="m-sk m-sk-line" style="width: 70%; height: 24px; margin-top: 28px" />
+          <div class="ab-id">
+            <span class="m-sk ab-av" />
+            <div class="ab-who">
+              <span class="m-sk m-sk-line" style="width: 60%; height: 26px" />
+              <span class="m-sk m-sk-line" style="width: 80%; margin-top: 10px" />
+            </div>
+          </div>
+          <span class="m-sk m-sk-line" style="width: 70%; height: 24px; margin-top: 20px" />
           <span class="m-sk m-sk-line" style="width: 50%; height: 24px; margin-top: 10px" />
           <span class="m-sk m-sk-line" style="width: 92%; margin-top: 18px" />
           <span class="m-sk m-sk-line" style="width: 80%; margin-top: 8px" />
@@ -60,9 +64,13 @@ async function refresh(): Promise<void> {
 
         <div v-else key="ok">
           <section class="ab-hero">
-            <div class="ab-av m-in"><img :src="avatar" alt="" draggable="false" /></div>
-            <h1 class="ab-name m-in" style="--i: 1">{{ about.name }}</h1>
-            <div class="ab-handle m-in" style="--i: 2">@{{ handle }} · {{ about.tagline }}</div>
+            <div class="ab-id m-in">
+              <div class="ab-av"><img :src="avatar" alt="" draggable="false" /></div>
+              <div class="ab-who">
+                <h1 class="ab-name">{{ about.name }}</h1>
+                <div class="ab-handle">@{{ handle }}<template v-if="about.tagline"> · {{ about.tagline }}</template></div>
+              </div>
+            </div>
             <p v-if="motto[0]" class="ab-quote m-in" style="--i: 3">
               {{ motto[0] }}<br v-if="motto[1]" /><span>{{ motto[1] }}</span>
             </p>
@@ -92,16 +100,26 @@ async function refresh(): Promise<void> {
 <style scoped lang="scss">
 .ab-hero {
   position: relative;
-  padding: 18px 20px 8px;
+  padding: 8px 16px 4px;
 
   &.sk .m-sk-line { display: block; }
 }
 
+/* 身份行（高密度）：头像 + 名字 / 账号同一行，不再纵向各占一块 */
+.ab-id {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ab-who { flex: 1; min-width: 0; }
+
 .ab-av {
   position: relative;
-  width: 84px;
-  height: 84px;
-  border-radius: var(--r-xl);
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--r-lg);
   overflow: hidden;
   box-shadow: var(--shadow-card);
 
@@ -114,27 +132,28 @@ async function refresh(): Promise<void> {
 }
 
 .ab-name {
-  position: relative;
-  margin-top: 18px;
   font-family: var(--font-serif);
-  font-size: 32px;
+  font-size: 28px;
+  line-height: 1.2;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
 
 .ab-handle {
-  position: relative;
-  margin-top: 2px;
-  font-size: 14px;
+  margin-top: 4px;
+  font-size: 13px;
   color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ab-quote {
   position: relative;
-  margin-top: 26px;
+  margin-top: 20px;
   font-family: var(--font-serif);
-  font-size: 26px;
-  line-height: 1.55;
+  font-size: 24px;
+  line-height: 1.5;
   font-weight: 700;
   letter-spacing: 0.02em;
 
@@ -143,20 +162,20 @@ async function refresh(): Promise<void> {
 
 .ab-bio {
   position: relative;
-  margin-top: 12px;
-  font-size: 14.5px;
-  line-height: 1.8;
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 1.75;
   color: var(--text-2);
 }
 
 /* 模块流窄屏适配：只调容器与外壳间距，不改模块本身 */
 .mods {
-  padding: 18px 16px 0;
+  padding: 16px 16px 0;
   overflow-x: clip;
 
   :deep(.ak) {
-    --ak-pad: 18px;
-    --ak-gap: 14px;
+    --ak-pad: 20px;
+    --ak-gap: 12px;
     --ak-r-lg: var(--r-xl);
   }
 
@@ -168,7 +187,7 @@ async function refresh(): Promise<void> {
 }
 
 .ab-list {
-  margin: 22px 16px 0;
+  margin: 16px 16px 0;
 
   a.m-li {
     color: inherit;
@@ -177,7 +196,7 @@ async function refresh(): Promise<void> {
 }
 
 .sk-mod {
-  margin-top: 26px;
+  margin-top: 20px;
   height: 180px;
   border-radius: var(--r-xl);
 }

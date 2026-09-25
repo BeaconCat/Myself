@@ -2,7 +2,9 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { adminApi, api, thumbOf, type AdminPost, type CompressJob, type Note, type QualityItem } from '../../api';
+import {
+  adminApi, api, thumbOf, type AdminPost, type BackupInfo, type CompressJob, type MediaItem, type Note, type QualityItem,
+} from '../../api';
 import { useConfigStore } from '../../stores/config';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
@@ -14,7 +16,7 @@ import {
   WEEKDAYS, WEEK_SHORT, formatSize, greeting, parseTime, relTime, solarTerm, startOfDay, ymd,
 } from './studio/format';
 
-/** 「今天」：问候是主角，随想输入其次，其余是配角 */
+/** 「今天」：紧凑问候 + 关键数字统计条 + 随想输入 + 本周柱状图 / 待办 + 继续写作 */
 const { t } = useI18n();
 const router = useRouter();
 const config = useConfigStore();
@@ -25,18 +27,25 @@ const posts = ref<AdminPost[]>([]);
 const notes = ref<Note[]>([]);
 const quality = ref<QualityItem[] | null>(null);
 const loaded = ref(false);
+const notesTotal = ref(0);
+const media = ref<MediaItem[] | null>(null);
+const backups = ref<BackupInfo[] | null>(null);
 const composer = ref<InstanceType<typeof NoteComposer> | null>(null);
 
 async function load(): Promise<void> {
   const from = new Date(now);
   from.setDate(from.getDate() - 15);
-  const [p, n] = await Promise.all([
+  const [p, n, nt] = await Promise.all([
     adminApi.posts().catch(() => [] as AdminPost[]),
     api.notes({ pageSize: 50, from: ymd(from) }).then((r) => r.items).catch(() => [] as Note[]),
+    api.notes({ pageSize: 1 }).then((r) => r.total).catch(() => 0),
   ]);
   posts.value = p;
   notes.value = n;
+  notesTotal.value = nt;
   loaded.value = true;
+  adminApi.media().then((m) => (media.value = m)).catch(() => (media.value = []));
+  adminApi.backups().then((b) => (backups.value = b)).catch(() => (backups.value = []));
   adminApi.qualityScan()
     .then((q) => (quality.value = q.filter((i) => i.compressible)))
     .catch(() => (quality.value = []));
@@ -70,10 +79,17 @@ const lede = computed(() => {
   return t('studio.today.lede');
 });
 
+/* ===== 关键数字 ===== */
+const published = computed(() => posts.value.filter((p) => p.status === 'published').length);
+const mediaSize = computed(() => (media.value ?? []).reduce((s, m) => s + m.size, 0));
+const lastBackup = computed(() => (backups.value ?? []).reduce<BackupInfo | null>(
+  (a, b) => (!a || b.createdAt > a.createdAt ? b : a), null,
+));
+
 /* ===== 继续写作 ===== */
 const shelf = computed(() => {
-  if (drafts.value.length) return { title: t('studio.today.continue'), items: drafts.value.slice(0, 2), draft: true };
-  return { title: t('studio.today.recent'), items: posts.value.slice(0, 2), draft: false };
+  if (drafts.value.length) return { title: t('studio.today.continue'), items: drafts.value.slice(0, 3), draft: true };
+  return { title: t('studio.today.recent'), items: posts.value.slice(0, 3), draft: false };
 });
 
 function edit(p: AdminPost): void {
@@ -185,66 +201,96 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="studio view today">
-    <div class="hello">
-      <div class="date st-rise" style="--i: 0">
+    <header class="hello st-rise" style="--i: 0">
+      <div class="hl">
+        <h1>{{ greeting(now.getHours()) }}，{{ name }}。</h1>
+        <p>{{ lede }}</p>
+      </div>
+      <div class="date">
         <span class="mono">{{ dateLine }}</span>
         <span>{{ WEEKDAYS[now.getDay()] }}</span>
         <span class="term">{{ termText }}</span>
       </div>
-      <h1 class="st-rise" style="--i: 1">{{ greeting(now.getHours()) }}，{{ name }}。</h1>
-      <p class="st-rise" style="--i: 2">
-        <template v-if="siteDays">{{ t('studio.today.dayPre') }}<em>{{ siteDays }}</em>{{ t('studio.today.dayPost') }}</template>{{ lede }}
-      </p>
+    </header>
+
+    <div class="st-stats kpis st-rise" style="--i: 1; --n: 6">
+      <router-link class="st-stat" :to="{ name: 'admin-posts', query: { status: 'published' } }">
+        <span v-if="!loaded" class="sk num-sk" /><b v-else>{{ published }}</b>
+        <small>{{ t('studio.today.kPublished') }}</small>
+      </router-link>
+      <router-link class="st-stat" :to="{ name: 'admin-posts', query: { status: 'draft' } }">
+        <span v-if="!loaded" class="sk num-sk" /><b v-else>{{ drafts.length }}</b>
+        <small>{{ t('studio.today.kDrafts') }}</small>
+      </router-link>
+      <router-link class="st-stat" :to="{ name: 'admin-notes' }">
+        <span v-if="!loaded" class="sk num-sk" /><b v-else>{{ notesTotal }}</b>
+        <small>{{ t('studio.today.kNotes') }}</small>
+      </router-link>
+      <router-link class="st-stat" :to="{ name: 'admin-media' }">
+        <span v-if="media === null" class="sk num-sk" /><b v-else>{{ media.length }}</b>
+        <small>{{ t('studio.today.kMedia', { size: formatSize(mediaSize) }) }}</small>
+      </router-link>
+      <router-link class="st-stat" :to="{ name: 'admin-data' }">
+        <span v-if="backups === null" class="sk num-sk" /><b v-else>{{ backups.length }}</b>
+        <small>{{ lastBackup ? t('studio.today.kBackups', { when: relTime(lastBackup.createdAt) }) : t('studio.today.kBackupsNone') }}</small>
+      </router-link>
+      <div class="st-stat">
+        <b>{{ siteDays }}</b>
+        <small>{{ t('studio.today.kDays') }}</small>
+      </div>
     </div>
 
-    <div class="t-grid">
-      <div class="main">
-        <div class="st-rise" style="--i: 3">
-          <NoteComposer ref="composer" hint @published="onPublished" />
-        </div>
+    <div class="st-rise cmp-row" style="--i: 2">
+      <NoteComposer ref="composer" hint @published="onPublished" />
+    </div>
 
-        <div class="st-sec-t st-rise shelf-t" style="--i: 4">
-          <h2>{{ shelf.title }}</h2>
-          <router-link class="st-link" :to="{ name: 'admin-posts', query: shelf.draft ? { status: 'draft' } : {} }">
-            {{ shelf.draft ? t('studio.today.allDrafts') : t('studio.today.allPosts') }}<SIcon name="arrowR" :size="16" />
-          </router-link>
+    <div class="row">
+      <section class="st-card week st-rise" style="--i: 3">
+        <div class="st-sec-t">
+          <h2>{{ t('studio.today.weekTitle') }}</h2>
+          <span>{{ weekSub }}</span>
         </div>
-        <div class="drafts">
-          <button
-            v-for="(p, i) in shelf.items"
-            :key="p.id"
-            type="button"
-            class="draft st-rise"
-            :style="{ '--i': 5 + i }"
-            @click="edit(p)"
-          >
-            <LightCover class="dcv" :src="p.covers[0] ? thumbOf(p.covers[0]) : ''" :seed="p.slug" />
-            <span class="go"><SIcon name="arrowR" :size="16" /></span>
-            <div class="bd">
-              <h3>{{ p.title || t('studio.untitled') }}</h3>
-              <div class="meta">
-                <span class="st-badge" :class="`st-${p.status}`"><i class="st-dot" />{{ t(`studio.status.${p.status}`) }}</span>
-                <span>{{ t('studio.today.edited', { when: relTime(p.updatedAt || p.createdAt) }) }}</span>
+        <div class="st-stats" style="--n: 4">
+          <div class="st-stat"><b>{{ week.posts }}</b><small>{{ t('studio.today.wPosts') }}</small></div>
+          <div class="st-stat"><b>{{ week.notes }}</b><small>{{ t('studio.today.wNotes') }}</small></div>
+          <div class="st-stat">
+            <b :class="week.diff > 0 ? 'up' : week.diff < 0 ? 'down' : ''">{{ week.diff > 0 ? '+' : '' }}{{ week.diff }}</b>
+            <small>{{ t('studio.today.wDiff') }}</small>
+          </div>
+          <div class="st-stat"><b class="best">{{ week.best || '—' }}</b><small>{{ t('studio.today.wBest') }}</small></div>
+        </div>
+        <div class="chart">
+          <div class="st-bars" style="--n: 7; --bh: 140px">
+            <div
+              v-for="(d, i) in week.days"
+              :key="d.key"
+              class="st-bar"
+              :class="{ on: d.today, fut: d.future }"
+              :style="{ '--i': i, '--v': (d.posts + d.notes) / week.max }"
+              :title="d.future ? undefined : t('studio.today.barTip', { p: d.posts, n: d.notes })"
+            >
+              <div class="col">
+                <em v-if="!d.future && d.posts + d.notes" class="v">{{ d.posts + d.notes }}</em>
+                <div class="stack" :class="{ zero: !(d.posts + d.notes) }" :style="{ '--a': d.posts, '--b': d.notes }"><i class="a" /><i class="b" /></div>
               </div>
-              <div v-if="p.tags.length" class="tags">
-                <span v-for="tag in p.tags.slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
-              </div>
+              <span>{{ d.today ? t('studio.today.todayShort') : d.label }}</span>
             </div>
-          </button>
-          <router-link :to="{ name: 'admin-write-post' }" class="draft new st-rise" style="--i: 7">
-            <span class="pl"><SIcon name="plus" /></span>{{ t('studio.today.newOne') }}
-          </router-link>
+          </div>
+          <div class="st-legend">
+            <span><i class="sw" style="--c: var(--ink)" />{{ t('studio.today.lgPosts') }}</span>
+            <span><i class="sw" style="--c: color-mix(in oklab, var(--ink) 38%, var(--well-2))" />{{ t('studio.today.lgNotes') }}</span>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <aside class="st-rise" style="--i: 6">
+      <section class="st-card todo-card st-rise" style="--i: 4">
         <div class="st-sec-t">
           <h2>{{ t('studio.today.todo') }}</h2>
           <span v-if="loaded">{{ pending ? t('studio.today.todoLeft', { n: pending }) : t('studio.today.todoClear') }}</span>
         </div>
         <div class="todo">
           <div class="todo-i" :class="{ done: loaded && !drafts.length }" style="--c: var(--blue)">
-            <span class="ti"><SIcon :name="loaded && !drafts.length ? 'check' : 'doc'" /></span>
+            <span class="ti"><SIcon :name="loaded && !drafts.length ? 'check' : 'doc'" :size="20" /></span>
             <div class="tx">
               <b>{{ drafts.length ? t('studio.today.draftTodo', { n: drafts.length }) : t('studio.today.draftClear') }}</b>
               <small v-if="drafts.length">「{{ drafts[0].title || t('studio.untitled') }}」· {{ relTime(drafts[0].updatedAt || drafts[0].createdAt) }}</small>
@@ -256,7 +302,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="todo-i" :class="{ done: compressDone || (quality && !compressible.length) }" style="--c: var(--yellow)">
-            <span class="ti"><SIcon :name="compressDone || (quality && !compressible.length) ? 'check' : 'compress'" /></span>
+            <span class="ti"><SIcon :name="compressDone || (quality && !compressible.length) ? 'check' : 'compress'" :size="20" /></span>
             <div class="tx">
               <template v-if="job">
                 <b>{{ t('studio.today.compressing', { done: job.done, total: job.total }) }}</b>
@@ -289,7 +335,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="todo-i muted" style="--c: var(--ink)">
-            <span class="ti"><SIcon name="message" /></span>
+            <span class="ti"><SIcon name="message" :size="20" /></span>
             <div class="tx">
               <b>{{ t('studio.today.commentTodo') }}</b>
               <small>{{ t('studio.today.commentSub') }}</small>
@@ -297,32 +343,40 @@ onBeforeUnmount(() => {
             <router-link class="st-btn g sm" :to="{ name: 'admin-comments' }">{{ t('studio.view') }}</router-link>
           </div>
         </div>
+      </section>
+    </div>
 
-        <div class="week">
-          <p class="say">
-            <template v-if="week.posts && week.notes">
-              {{ t('studio.today.weekPre') }}<b>{{ week.posts }}</b>{{ t('studio.today.weekMid') }}<b>{{ week.notes }}</b>{{ t('studio.today.weekPost') }}
-            </template>
-            <template v-else-if="week.posts">{{ t('studio.today.weekPre') }}<b>{{ week.posts }}</b>{{ t('studio.today.weekPostsOnly') }}</template>
-            <template v-else-if="week.notes">{{ t('studio.today.weekPre') }}<b>{{ week.notes }}</b>{{ t('studio.today.weekNotesOnly') }}</template>
-            <template v-else>{{ t('studio.today.weekNone') }}</template>
-          </p>
-          <p class="sub">{{ weekSub }}</p>
-          <div class="bars">
-            <div
-              v-for="(d, i) in week.days"
-              :key="d.key"
-              class="b"
-              :class="{ today: d.today, fut: d.future }"
-              :style="{ '--i': i, '--h': `${d.posts + d.notes ? Math.max(8, Math.round(((d.posts + d.notes) / week.max) * 56)) : 4}px` }"
-            >
-              <em v-if="!d.future">{{ t('studio.today.barTip', { p: d.posts, n: d.notes }) }}</em>
-              <i />
-              <span>{{ d.today ? t('studio.today.todayShort') : d.label }}</span>
-            </div>
+    <div class="st-sec-t shelf-t st-rise" style="--i: 5">
+      <h2>{{ shelf.title }}</h2>
+      <router-link class="st-link" :to="{ name: 'admin-posts', query: shelf.draft ? { status: 'draft' } : {} }">
+        {{ shelf.draft ? t('studio.today.allDrafts') : t('studio.today.allPosts') }}<SIcon name="arrowR" :size="16" />
+      </router-link>
+    </div>
+    <div class="drafts">
+      <button
+        v-for="(p, i) in shelf.items"
+        :key="p.id"
+        type="button"
+        class="draft st-rise"
+        :style="{ '--i': 6 + i }"
+        @click="edit(p)"
+      >
+        <LightCover class="dcv" :src="p.covers[0] ? thumbOf(p.covers[0]) : ''" :seed="p.slug" />
+        <span class="go"><SIcon name="arrowR" :size="16" /></span>
+        <div class="bd">
+          <h3>{{ p.title || t('studio.untitled') }}</h3>
+          <div class="meta">
+            <span class="st-badge" :class="`st-${p.status}`"><i class="st-dot" />{{ t(`studio.status.${p.status}`) }}</span>
+            <span>{{ t('studio.today.edited', { when: relTime(p.updatedAt || p.createdAt) }) }}</span>
+          </div>
+          <div v-if="p.tags.length" class="tags">
+            <span v-for="tag in p.tags.slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
           </div>
         </div>
-      </aside>
+      </button>
+      <router-link :to="{ name: 'admin-write-post' }" class="draft new st-rise" :style="{ '--i': 6 + shelf.items.length }">
+        <span class="pl"><SIcon name="plus" :size="20" /></span>{{ t('studio.today.newOne') }}
+      </router-link>
     </div>
   </section>
 </template>
@@ -330,57 +384,139 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 .view {
   position: relative;
-  max-width: 1120px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 52px 64px 96px;
+  padding: 32px 48px 72px;
 }
 
+/* 问候：标题 + 一句话（左）｜ 日期与节气（右），压缩成一行高度 */
 .hello {
-  max-width: 760px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
 
-  .date {
-    font-size: 13px;
-    color: var(--st-ink-3);
-    letter-spacing: 0.08em;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .term { color: var(--ink); font-weight: 500; }
+  .hl { min-width: 0; }
 
   h1 {
-    font: 600 38px/1.3 var(--font-serif);
-    margin: 14px 0 10px;
+    font: 700 30px/1.25 var(--font-serif);
+    margin: 0 0 6px;
     letter-spacing: 0.01em;
   }
 
   p {
     margin: 0;
     color: var(--st-ink-2);
-    font: 400 16px/1.8 var(--font-serif);
+    font: 400 15px/1.6 var(--font-serif);
   }
 
-  em {
-    font-style: normal;
-    color: var(--st-ink);
-    border-bottom: 1.5px solid color-mix(in oklab, var(--ink) 35%, transparent);
-    margin: 0 2px;
+  .date {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 2px;
+    font-size: 13.5px;
+    color: var(--st-ink-3);
+    letter-spacing: 0.04em;
   }
+
+  .term { color: var(--ink); font-weight: 500; }
 }
 
-.t-grid {
+.kpis {
+  margin-bottom: 20px;
+
+  .st-stat { display: block; }
+  .st-stat:hover b { color: var(--ink); }
+}
+
+.cmp-row { margin-bottom: 20px; }
+
+/* 本周（7）｜ 待办（5）并排等高 */
+.row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 336px;
-  gap: 56px;
-  margin-top: 40px;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  align-items: stretch;
+  gap: 20px;
 }
 
-.shelf-t { margin-top: 52px; }
+.week {
+  .best { font-family: var(--font-serif); font-size: 26px; }
+  b.up { color: color-mix(in oklab, var(--green) 70%, var(--st-ink)); }
+  b.down { color: color-mix(in oklab, var(--red) 70%, var(--st-ink)); }
+  .chart { display: flex; flex-direction: column; gap: 12px; margin-top: auto; }
+  .st-legend { justify-content: flex-end; }
+  .v { font-style: normal; }
+}
 
+.todo-card .todo { display: flex; flex-direction: column; flex: 1; }
+
+.todo-i {
+  display: flex;
+  flex: 1;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+
+  &:first-child { padding-top: 0; }
+  &:last-child { border-bottom: 0; padding-bottom: 0; }
+
+  .ti {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--r-md);
+    display: grid;
+    place-items: center;
+    flex: none;
+    background: color-mix(in oklab, var(--c) 12%, var(--paper));
+    color: color-mix(in oklab, var(--c) 75%, var(--st-ink));
+    transition: background var(--dur), color var(--dur);
+  }
+
+  .tx { min-width: 0; flex: 1; }
+
+  b { display: block; font-size: 15px; font-weight: 600; line-height: 1.45; }
+
+  small {
+    display: block;
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--st-ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .st-btn { flex: none; }
+
+  .pbar {
+    height: 4px;
+    max-width: 180px;
+    margin-top: 8px;
+    overflow: hidden;
+    border-radius: calc(var(--r-xs) / 2);
+    background: var(--well-2);
+
+    i { display: block; height: 100%; background: var(--ink); border-radius: calc(var(--r-xs) / 2); transition: width 0.3s linear; }
+  }
+
+  &.done .ti {
+    background: color-mix(in oklab, var(--green) 14%, var(--paper));
+    color: color-mix(in oklab, var(--green) 70%, var(--st-ink));
+  }
+
+  &.muted b { color: var(--st-ink-2); }
+}
+
+.shelf-t { margin-top: 36px; }
+
+/* 继续写作：封面约 2:1，标题 / 状态 / 时间 / 标签在封面下同一信息块 */
 .drafts {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -388,22 +524,22 @@ onBeforeUnmount(() => {
   position: relative;
   display: flex;
   flex-direction: column;
-  border-radius: var(--r-md);
-  padding: 8px;
+  overflow: hidden;
+  border-radius: var(--r-lg);
   text-align: left;
-  transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease-out), background var(--dur-fast);
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--line-2), 0 1px 2px var(--line);
+  transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease-out);
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--sh-card-hover);
-    background: var(--paper);
+    transform: translateY(-3px);
+    box-shadow: 0 0 0 1px var(--line-2), var(--sh-card-hover);
   }
 
-  &:active { transform: translateY(-2px) scale(0.98); }
+  &:active { transform: translateY(-1px) scale(0.985); }
 
   .dcv {
-    height: 108px;
-    border-radius: var(--r-sm);
+    aspect-ratio: 2 / 1;
 
     &::after {
       content: '';
@@ -419,44 +555,51 @@ onBeforeUnmount(() => {
 
   &:hover .dcv::after { transform: translateX(100%); }
 
-  .bd { padding: 14px 6px 6px; }
+  .bd {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 10px;
+    padding: 14px 16px 16px;
+  }
 
   h3 {
-    font: 600 16px/1.5 var(--font-serif);
-    margin: 0 0 8px;
+    font: 700 17px/1.45 var(--font-serif);
+    margin: 0;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    min-height: 48px;
   }
 
   .meta {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12.5px;
+    margin-top: auto;
+    font-size: 13px;
     color: var(--st-ink-3);
+    white-space: nowrap;
   }
 
   .tags {
     display: flex;
     gap: 10px;
-    margin-top: 10px;
-    font-size: 12.5px;
+    overflow: hidden;
+    font-size: 13px;
   }
 
   .go {
     position: absolute;
-    right: 16px;
-    top: 16px;
+    right: 12px;
+    top: 12px;
     z-index: 3;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: grid;
     place-items: center;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.92);
     color: #1e1c19;
     opacity: 0;
     transform: translateX(-6px) scale(0.8);
@@ -468,17 +611,18 @@ onBeforeUnmount(() => {
   &.new {
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 12px;
+    min-height: 200px;
     color: var(--st-ink-3);
+    background: none;
     box-shadow: 0 0 0 1.5px var(--line-2) inset;
-    min-height: 230px;
-    font-size: 14px;
+    font-size: 15px;
 
     &:hover { color: var(--st-ink); box-shadow: 0 0 0 1.5px var(--line-3) inset, var(--sh-card-hover); }
 
     .pl {
-      width: 44px;
-      height: 44px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       display: grid;
       place-items: center;
@@ -490,151 +634,22 @@ onBeforeUnmount(() => {
   }
 }
 
+:root[data-mode='dark'] .draft:not(.new) { background: color-mix(in oklab, var(--paper) 55%, var(--well)); }
+
 .tag {
   color: var(--st-ink-2);
+  white-space: nowrap;
 
   &::before { content: '#'; color: var(--st-ink-4); margin-right: 2px; }
 }
 
-.todo { display: flex; flex-direction: column; }
-
-.todo-i {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
-
-  &:last-child { border-bottom: 0; }
-
-  .ti {
-    width: 38px;
-    height: 38px;
-    border-radius: var(--r-sm);
-    display: grid;
-    place-items: center;
-    flex: none;
-    background: color-mix(in oklab, var(--c) 12%, var(--paper));
-    color: color-mix(in oklab, var(--c) 75%, var(--st-ink));
-    transition: background var(--dur), color var(--dur);
-  }
-
-  .tx { min-width: 0; flex: 1; }
-
-  b { display: block; font-size: 14.5px; font-weight: 500; line-height: 1.4; }
-
-  small {
-    display: block;
-    font-size: 12.5px;
-    color: var(--st-ink-3);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .st-btn { flex: none; }
-
-  .pbar {
-    height: 4px;
-    border-radius: calc(var(--r-xs) / 2);
-    background: var(--well-2);
-    overflow: hidden;
-    margin-top: 8px;
-    max-width: 160px;
-
-    i { display: block; height: 100%; background: var(--ink); border-radius: calc(var(--r-xs) / 2); transition: width 0.3s linear; }
-  }
-
-  &.done .ti {
-    background: color-mix(in oklab, var(--green) 14%, var(--paper));
-    color: color-mix(in oklab, var(--green) 70%, var(--st-ink));
-  }
-
-  &.muted b { color: var(--st-ink-2); }
-}
-
-.week {
-  margin-top: 28px;
-  padding: 22px;
-  border-radius: var(--r-lg);
-  background: var(--well);
-
-  .say {
-    font: 500 17px/1.7 var(--font-serif);
-    margin: 0;
-
-    b { font-weight: 700; color: var(--ink); margin: 0 3px; }
-  }
-
-  .sub { font-size: 13px; color: var(--st-ink-3); margin: 6px 0 18px; }
-}
-
-.bars {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
-  align-items: end;
-  height: 84px;
-
-  .b {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    height: 100%;
-    justify-content: flex-end;
-
-    i {
-      display: block;
-      width: 100%;
-      max-width: 26px;
-      border-radius: var(--r-xs);
-      background: var(--st-ink-4);
-      height: var(--h);
-      transform-origin: bottom;
-      animation: bar-up 0.9s var(--ease-spring) both;
-      animation-delay: calc(var(--i) * 60ms + 0.3s);
-      opacity: 0.55;
-      transition: opacity var(--dur-fast);
-    }
-
-    span { font-size: 11.5px; color: var(--st-ink-3); }
-
-    em {
-      position: absolute;
-      bottom: calc(var(--h) + 30px);
-      font: 500 11px var(--font-mono);
-      font-style: normal;
-      color: var(--st-ink);
-      background: var(--paper);
-      padding: 3px 7px;
-      border-radius: var(--r-xs);
-      box-shadow: var(--sh-pop);
-      opacity: 0;
-      transform: translateY(4px);
-      transition: all var(--dur-fast) var(--ease-out);
-      white-space: nowrap;
-      pointer-events: none;
-    }
-
-    &:hover i { opacity: 1; }
-    &:hover em { opacity: 1; transform: none; }
-
-    &.today {
-      i { background: var(--ink); opacity: 1; }
-      span { color: var(--ink); font-weight: 500; }
-    }
-
-    &.fut i { height: 4px; background: none; box-shadow: 0 0 0 1px var(--line-3) inset; opacity: 1; }
-  }
-}
-
-@keyframes bar-up { from { transform: scaleY(0); } }
-
 @media (max-width: 1180px) {
-  .view { padding: 40px 36px 80px; }
-  .t-grid { grid-template-columns: 1fr; }
-  .drafts { grid-template-columns: repeat(2, 1fr); }
+  .view { padding: 28px 32px 64px; }
+  .hello { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .kpis { --n: 3 !important; }
+  .kpis .st-stat:nth-child(4) { box-shadow: 0 -1px 0 var(--line-2); }
+  .kpis .st-stat:nth-child(n + 5) { box-shadow: -1px 0 0 var(--line-2), 0 -1px 0 var(--line-2); }
+  .row { grid-template-columns: 1fr; }
+  .drafts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

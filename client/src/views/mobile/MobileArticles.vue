@@ -85,7 +85,8 @@ watch(
     loading.value = true;
     /* 已滚过大标题则停在 chips 吸顶处，否则保持原位 */
     const sc = page.value?.scroller;
-    if (sc && sc.scrollTop > 90) sc.scrollTo({ top: 90 });
+    const pin = sc?.querySelector<HTMLElement>('.lt-extra')?.offsetTop ?? 60;
+    if (sc && sc.scrollTop > pin) sc.scrollTo({ top: pin });
     await reload();
   },
 );
@@ -172,9 +173,9 @@ function open(p: Post): void {
       <div v-if="loading" key="sk" class="sk">
         <span class="m-sk m-sk-line grp-sk" />
         <div class="m-sk feat-sk" />
-        <span class="m-sk m-sk-line" style="width: 36%; height: 10px; margin: 14px 20px 0" />
-        <span class="m-sk m-sk-line" style="width: 78%; height: 20px; margin: 10px 20px 0" />
-        <span class="m-sk m-sk-line" style="width: 88%; margin: 10px 20px 22px" />
+        <span class="m-sk m-sk-line" style="width: 36%; height: 10px; margin: 12px 16px 0" />
+        <span class="m-sk m-sk-line" style="width: 78%; height: 20px; margin: 10px 16px 0" />
+        <span class="m-sk m-sk-line" style="width: 88%; margin: 10px 16px 14px" />
         <div v-for="n in 3" :key="n" class="sk-row">
           <div class="rt">
             <span class="m-sk m-sk-line" style="width: 40%; height: 10px" />
@@ -233,7 +234,7 @@ function open(p: Post): void {
 .chips {
   display: flex;
   gap: 8px;
-  padding: 0 20px;
+  padding: 0 16px;
 }
 
 /* chip：未选中 = 1px 描边空心；选中 = 抬升 + 轻染 + 前置 4px 主色圆点 */
@@ -241,8 +242,8 @@ function open(p: Post): void {
 
 .chip {
   flex: none;
-  height: 36px;
-  padding: 0 15px;
+  height: 34px;
+  padding: 0 14px;
   border-radius: 999px;
   display: flex;
   align-items: center;
@@ -270,7 +271,7 @@ function open(p: Post): void {
   em {
     font-style: normal;
     font-family: var(--m-font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-3);
 
     &:empty { display: none; }
@@ -287,11 +288,11 @@ function open(p: Post): void {
   }
 }
 
-.al { padding: 0 4px; }
+.al { padding: 0; }
 
 .grp {
-  padding: 14px 16px 8px;
-  font-size: 12.5px;
+  padding: 12px 16px 8px;
+  font-size: 13px;
   color: var(--text-3);
   letter-spacing: 0.06em;
 }
@@ -299,20 +300,21 @@ function open(p: Post): void {
 .feat {
   display: block;
   width: calc(100% - 32px);
-  margin: 4px 16px 18px;
+  margin: 2px 16px 10px;
   text-align: left;
 
+  /* 封面收一档：约 2:1（原 218px 固定高） */
   .fc {
     position: relative;
-    height: 218px;
+    aspect-ratio: 2 / 1;
     border-radius: var(--r-xl);
     overflow: hidden;
     box-shadow: var(--shadow-card);
   }
 
   .meta {
-    margin-top: 14px;
-    font-size: 12.5px;
+    margin-top: 12px;
+    font-size: 13px;
     color: var(--text-3);
 
     em {
@@ -326,38 +328,26 @@ function open(p: Post): void {
   }
 
   h3 {
-    margin-top: 6px;
+    margin-top: 4px;
     font-family: var(--font-serif);
-    font-size: 23px;
-    line-height: 1.38;
+    font-size: 22px;
+    line-height: 1.36;
     font-weight: 700;
   }
 
   p {
-    margin-top: 6px;
-    font-size: 14px;
-    line-height: 1.7;
+    margin-top: 4px;
+    font-size: 15px;
+    line-height: 1.6;
     color: var(--text-2);
-  }
-}
-
-.m-arow {
-  .thumb {
-    width: 84px;
-    height: 84px;
-    border-radius: var(--r-lg);
-  }
-
-  b { font-size: 16.5px; }
-
-  .ex {
-    white-space: normal;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
-    line-height: 1.55;
+    overflow: hidden;
   }
 }
+
+/* 列表行：缩略 + 标题 + 一行摘要 + 元信息（公共 .m-arow，高密度行高） */
 
 .sentinel { height: 1px; }
 
@@ -368,12 +358,12 @@ function open(p: Post): void {
   display: block;
   width: 84px;
   height: 10px;
-  margin: 16px 20px 12px;
+  margin: 14px 16px 10px;
 }
 
 .feat-sk {
-  margin: 0 20px;
-  height: 218px;
+  margin: 0 16px;
+  aspect-ratio: 2 / 1;
   border-radius: var(--r-xl);
 }
 
@@ -383,7 +373,7 @@ function open(p: Post): void {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 20px;
+  padding: 13px 16px;
 
   .rt {
     flex: 1;
@@ -393,9 +383,9 @@ function open(p: Post): void {
   }
 
   .thumb {
-    width: 84px;
-    height: 84px;
-    border-radius: var(--r-lg);
+    width: 76px;
+    height: 76px;
+    border-radius: var(--r-md);
     flex: none;
   }
 }

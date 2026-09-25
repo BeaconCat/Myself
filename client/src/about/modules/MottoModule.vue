@@ -20,7 +20,7 @@ const chars = computed(() => [...(d.value.text ?? '')]);
 .mo {
   position: relative;
   overflow: hidden;
-  padding: 90px 0 110px;
+  padding: 56px 0 84px;
   text-align: center;
 
   /* 品牌光影例外：收尾处的一束门缝光（地面光晕 + 竖向光束）属于品牌母题，允许主色辉光 */
@@ -42,14 +42,14 @@ const chars = computed(() => [...(d.value.text ?? '')]);
     left: 50%;
     bottom: 0;
     width: 2px;
-    height: 120px;
+    height: 96px;
     translate: -50% 0;
     border-radius: var(--r-pill);
     background: linear-gradient(transparent, #fff);
     box-shadow: 0 0 18px 3px rgba(var(--primary-rgb), 0.7);
   }
 
-  p { position: relative; font: 700 clamp(30px, 6.5cqi, 76px)/1.2 var(--font-serif); letter-spacing: 0.06em; }
+  p { position: relative; font: 700 clamp(30px, 5.6cqi, 64px)/1.2 var(--font-serif); letter-spacing: 0.06em; }
 
   p span {
     display: inline-block;
@@ -60,7 +60,7 @@ const chars = computed(() => [...(d.value.text ?? '')]);
     transition-delay: calc(var(--k) * 70ms + 150ms);
   }
 
-  small { position: relative; display: block; margin-top: 22px; font: 500 12px var(--ak-mono); letter-spacing: 0.2em; color: var(--ak-text-3); }
+  small { position: relative; display: block; margin-top: 18px; font: 500 13px var(--ak-mono); letter-spacing: 0.2em; color: var(--ak-text-3); }
 }
 
 :root[data-mode='light'] .mo::after { background: linear-gradient(transparent, var(--primary)); }

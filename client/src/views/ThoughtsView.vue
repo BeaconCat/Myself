@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { Note } from '../api';
+import { api, type Note } from '../api';
 import ImageViewer, { type OriginRect } from '../components/media/ImageViewer.vue';
 import NoteCard from '../components/thoughts/NoteCard.vue';
 import MediaWall from '../components/thoughts/MediaWall.vue';
@@ -15,7 +15,8 @@ import { useConfigStore } from '../stores/config';
 
 /**
  * 桌面随想：信息流 / 媒体 segmented（抬升 + 轻染，选中块在两项间 morph）+ 搜索 + 日期范围；
- * 控制条吸顶毛玻璃；右栏日历（有随想的日子一个小点，点击筛选该天）+ 心情列表（点击按心情搜索）。
+ * 控制条吸顶毛玻璃；右栏合并为一张概览卡：统计条（随想 / 带图 / 本月记录天 / 心情种类）
+ * → 月历（有随想的日子着色，点击筛选该天）→ 心情分布条形图（点击按心情搜索）。
  */
 const { t } = useI18n();
 const config = useConfigStore();
@@ -74,6 +75,28 @@ function pickDay(day: string): void {
   else feed.setRange(day, day);
 }
 
+/* ---------- 右栏统计条 ---------- */
+const noteTotal = ref<number | null>(null);
+const mediaTotal = ref<number | null>(null);
+
+async function loadTotals(): Promise<void> {
+  const [all, media] = await Promise.all([
+    api.notes({ pageSize: 1 }).catch(() => null),
+    api.notes({ pageSize: 1, media: true }).catch(() => null),
+  ]);
+  noteTotal.value = all?.total ?? 0;
+  mediaTotal.value = media?.total ?? 0;
+}
+
+const monthDays = computed(() => [...index.days.value].filter((d) => d.startsWith(railMonth.value)).length);
+const moodMax = computed(() => Math.max(1, ...index.moods.value.map((m) => m.count)));
+const railStats = computed(() => [
+  { k: t('dense.thoughts.total'), v: noteTotal.value },
+  { k: t('dense.thoughts.media'), v: mediaTotal.value },
+  { k: t('dense.thoughts.activeDays'), v: loadedOnce.value ? monthDays.value : null },
+  { k: t('dense.thoughts.moodKinds'), v: loadedOnce.value ? index.moods.value.length : null },
+]);
+
 function pickMood(mood: string): void {
   keyword.value = keyword.value.trim() === mood ? '' : mood;
   void feed.reload();
@@ -107,6 +130,7 @@ onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onResize);
   void index.loadMoods();
+  void loadTotals();
   void nextTick(() => placeLift(true));
   /* 字体到位后按钮宽度会变，再校准一次 */
   void document.fonts?.ready.then(() => placeLift(true));
@@ -213,31 +237,41 @@ onBeforeUnmount(() => {
           <div ref="sentinel" class="sentinel" aria-hidden="true" />
         </div>
 
-        <!-- 右栏：日历 + 心情 -->
-        <aside class="rail rise-stagger">
+        <!-- 右栏概览卡：统计条 → 月历 → 心情分布 -->
+        <aside class="rail rise">
           <div class="card">
+            <div class="stats">
+              <div v-for="s in railStats" :key="s.k" class="stat">
+                <strong v-if="s.v !== null">{{ s.v }}</strong>
+                <span v-else class="sk num-sk" />
+                <small>{{ s.k }}</small>
+              </div>
+            </div>
             <MonthCalendar
               v-model:month="railMonth"
+              class="rail-cal"
               :marks="index.days.value"
               :from="singleDay"
               :to="singleDay"
               only-marked
               @pick="pickDay"
             />
-          </div>
-          <div v-if="index.moods.value.length" class="card">
-            <h6>{{ t('content.thoughts.moods') }}<small>{{ t('content.thoughts.moodKinds', { n: index.moods.value.length }) }}</small></h6>
-            <div class="moods">
-              <button
-                v-for="m in index.moods.value"
-                :key="m.name"
-                type="button"
-                :class="{ on: keyword.trim() === m.name }"
-                @click="pickMood(m.name)"
-              >
-                <span class="tag">{{ m.name }}</span><em>{{ m.count }}</em>
-              </button>
-            </div>
+            <template v-if="index.moods.value.length">
+              <h6>{{ t('dense.thoughts.moodDist') }}<small>{{ t('content.thoughts.moodKinds', { n: index.moods.value.length }) }}</small></h6>
+              <div class="moods">
+                <button
+                  v-for="m in index.moods.value"
+                  :key="m.name"
+                  type="button"
+                  :class="{ on: keyword.trim() === m.name }"
+                  @click="pickMood(m.name)"
+                >
+                  <span class="tag">{{ m.name }}</span>
+                  <span class="track"><i :style="{ width: `${(m.count / moodMax) * 100}%` }" /></span>
+                  <em>{{ m.count }}</em>
+                </button>
+              </div>
+            </template>
           </div>
         </aside>
       </div>
@@ -257,41 +291,45 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 .thoughts {
   --nav-h: 64px;
-  padding: 64px 0 96px;
+  padding: 64px 0 64px;
   min-height: 100vh;
   /* 控制条毛玻璃底横向铺满视口，超出部分裁掉（clip 不建滚动容器，不影响 sticky） */
   overflow-x: clip;
 }
 
 .wrap {
-  width: min(1040px, calc(100% - 80px));
+  width: min(1200px, calc(100% - 80px));
   margin-inline: auto;
 }
 
+/* 页首：标题与副标题同一行，基线对齐 */
 .ph {
-  padding: 64px 0 28px;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 36px 0 14px;
 
   h1 {
     font-family: var(--font-serif);
-    font-size: 52px;
+    font-size: 40px;
     font-weight: 900;
-    line-height: 1.12;
+    line-height: 1.2;
     letter-spacing: 0.01em;
     color: var(--text);
   }
 
   p {
-    margin-top: 12px;
     font-size: 15px;
     color: var(--text-2);
   }
 }
 
+/* 8 / 4 两栏 */
 .th-grid {
   display: grid;
-  grid-template-columns: minmax(0, 640px) 300px;
-  justify-content: space-between;
-  gap: 64px;
+  grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+  gap: 40px;
 }
 
 .feed { min-width: 0; }
@@ -362,12 +400,12 @@ onBeforeUnmount(() => {
     align-items: center;
     justify-content: center;
     gap: 7px;
-    height: 32px;
+    height: 34px;
     padding: 0 16px;
     border: 0;
     border-radius: max(2px, calc(var(--r-md) - var(--pad)));
     background: none;
-    font-size: 13.5px;
+    font-size: 14px;
     color: var(--text-2);
     transition: color var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
 
@@ -462,7 +500,7 @@ onBeforeUnmount(() => {
 }
 
 .list-end {
-  padding: 36px 0 0;
+  padding: 28px 0 0;
   text-align: center;
   font-size: 12px;
   letter-spacing: 0.12em;
@@ -474,64 +512,136 @@ onBeforeUnmount(() => {
 /* ---------- 右栏 ---------- */
 .rail {
   position: sticky;
-  top: calc(var(--nav-h) + 24px);
+  top: calc(var(--nav-h) + 16px);
   align-self: start;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
   padding-top: 12px;
 }
 
+/* 概览卡：一张卡装下统计条 / 月历 / 心情分布，分段间距 20px */
 .card {
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
   border-radius: var(--r-lg);
   background: var(--elev);
   box-shadow: var(--shadow-card);
 }
 
-:root[data-mode='dark'] .card {
-  background: linear-gradient(180deg, color-mix(in oklab, var(--surface) 90%, white), var(--surface) 70%);
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-radius: var(--r-md);
+  background: var(--fill);
+}
+
+.stat {
+  min-width: 0;
+  padding: 16px 16px 14px;
+
+  &:nth-child(2n) { box-shadow: -1px 0 0 var(--line); }
+  &:nth-child(3) { box-shadow: 0 -1px 0 var(--line); }
+  &:nth-child(4) { box-shadow: -1px 0 0 var(--line), 0 -1px 0 var(--line); }
+
+  strong {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 30px;
+    line-height: 1.1;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  small {
+    display: block;
+    margin-top: 6px;
+    font-size: 12.5px;
+    color: var(--text-3);
+    white-space: nowrap;
+  }
+}
+
+.num-sk { display: block; width: 50%; height: 33px; border-radius: var(--r-xs); }
+
+.rail-cal {
+  --cal-h: 38px;
+  margin-top: 20px;
 }
 
 h6 {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 14px;
-  font-size: 13px;
-  font-weight: 500;
+  margin: 20px 0 8px;
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 700;
   color: var(--text);
 
-  small { font-size: 12px; font-weight: 400; color: var(--text-3); }
+  small { font-family: var(--font-sans); font-size: 13px; font-weight: 400; color: var(--text-3); }
 }
 
+/* 心情分布：名称 | 撑满剩余宽度的条 | 计数；整行可点，选中 = 抬升 + 轻染 */
 .moods {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 
   button {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 72px) minmax(0, 1fr) 28px;
     align-items: center;
-    justify-content: space-between;
-    height: 36px;
+    gap: 12px;
+    height: 38px;
     margin: 0 -10px;
     padding: 0 10px;
     border: 0;
     border-radius: var(--r-sm);
     background: none;
-    font-size: 13.5px;
+    font-size: 14px;
     color: var(--text-2);
+    text-align: left;
     transition: background-color var(--dur-fast), color var(--dur-fast);
 
     &:hover { background: var(--fill); color: var(--text); }
     &:focus-visible { outline: none; box-shadow: var(--focus); }
-    &.on { background: var(--lift); color: var(--lift-fg); box-shadow: var(--lift-shadow); }
+
+    &.on {
+      background: var(--lift);
+      color: var(--lift-fg);
+      box-shadow: var(--lift-shadow);
+
+      i { background: var(--ink); }
+    }
+  }
+
+  .tag {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .track {
+    height: 8px;
+    overflow: hidden;
+    border-radius: var(--r-pill);
+    background: var(--fill-2);
+  }
+
+  i {
+    display: block;
+    height: 100%;
+    min-width: 8px;
+    border-radius: inherit;
+    background: color-mix(in oklab, var(--primary) 70%, var(--fill-2));
+    transition: width var(--dur-slow) var(--ease-out), background-color var(--dur);
   }
 
   em {
     font-style: normal;
     font-family: var(--font-mono);
-    font-size: 11.5px;
+    font-size: 13px;
+    text-align: right;
     color: var(--text-3);
   }
 }
@@ -549,7 +659,7 @@ h6 {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr);
   gap: 16px;
-  padding: 26px 0;
+  padding: 18px 0;
 
   & + & { box-shadow: inset 0 0.5px 0 var(--line); }
 }
@@ -564,16 +674,16 @@ h6 {
   margin-top: 14px;
   border-radius: var(--r-lg);
 
-  &.wide { width: 100%; max-width: 560px; aspect-ratio: 16 / 10; }
+  &.wide { width: 100%; max-width: 600px; aspect-ratio: 2 / 1; }
 }
 
 /* ---------- 响应式 ---------- */
-@media (max-width: 1300px) {
-  .th-grid { grid-template-columns: minmax(0, 1fr) 280px; gap: 48px; }
+@media (max-width: 1100px) {
+  .wrap { width: calc(100% - 64px); }
+  .th-grid { grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; }
 }
 
-@media (max-width: 1100px) {
-  .wrap { width: min(680px, calc(100% - 64px)); }
+@media (max-width: 900px) {
   .th-grid { grid-template-columns: minmax(0, 1fr); }
   .rail { display: none; }
 }

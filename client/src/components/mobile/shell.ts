@@ -23,7 +23,7 @@ export const shell = reactive({
   tab: 'home' as TabName,
   /** 重复点当前 tab：页面监听后滚回顶部 */
   scrollTopSeq: 0,
-  /** 品牌 loading 结束（页面入场动画等它） */
+  /** 首屏遮罩（AppLoading）开始退场（舞台入场动画等它） */
   booted: false,
   toast: { text: '', sub: '', seq: 0 },
 });

@@ -596,7 +596,7 @@ kbd {
   display: flex;
   align-items: baseline;
   padding: 14px 12px 8px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.06em;
   color: var(--text-3);
@@ -638,8 +638,8 @@ kbd {
 
 .kk-ic {
   flex: none;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   border-radius: var(--r-sm);
@@ -653,8 +653,8 @@ kbd {
 .kk-th {
   position: relative;
   flex: none;
-  width: 52px;
-  height: 40px;
+  width: 60px;
+  height: 44px;
   overflow: hidden;
   border-radius: var(--r-sm);
   isolation: isolate;
@@ -669,7 +669,7 @@ kbd {
   b {
     display: block;
     font-family: var(--font-serif);
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     line-height: 1.4;
     overflow: hidden;
@@ -683,19 +683,19 @@ kbd {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--text-3);
   }
 }
 
-.kk-plain { font-size: 14.5px; font-weight: 500; }
+.kk-plain { font-size: 15px; font-weight: 500; }
 
 .kk-note {
   display: block;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 400;
   line-height: 1.5;
 }

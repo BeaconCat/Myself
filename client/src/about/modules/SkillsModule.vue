@@ -22,7 +22,7 @@ const d = computed(() => props.mod.data as SkillsData);
 </template>
 
 <style scoped lang="scss">
-.skl { display: flex; flex-direction: column; gap: 18px; }
+.skl { display: flex; flex-direction: column; gap: 20px; }
 
 .skl-g {
   h5 {
@@ -30,12 +30,12 @@ const d = computed(() => props.mod.data as SkillsData);
     align-items: baseline;
     justify-content: space-between;
     margin-bottom: 10px;
-    font: 700 14px var(--font-serif);
+    font: 700 16px var(--font-serif);
 
-    small { font: 400 11px var(--ak-mono); color: var(--ak-text-3); }
+    small { font: 400 12.5px var(--ak-mono); color: var(--ak-text-3); }
   }
 
-  > div { display: flex; flex-wrap: wrap; gap: 6px; }
+  > div { display: flex; flex-wrap: wrap; gap: 8px; }
 }
 
 .ak-chip { cursor: default; }

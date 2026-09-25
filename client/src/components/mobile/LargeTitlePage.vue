@@ -37,7 +37,7 @@ let saved = 0;
 let active = true;
 
 const scrolled = computed(() => y.value > 6);
-const titled = computed(() => y.value > (props.large ? 46 : 120));
+const titled = computed(() => y.value > (props.large ? 36 : 120));
 
 function onScroll(): void {
   const el = scroller.value;
@@ -177,8 +177,10 @@ defineExpose({ scroller, scrollToTop });
       <div class="lt-body" :class="{ releasing }" :style="pull ? { transform: `translateY(${pull}px)` } : undefined">
         <div v-if="large" class="lt-block" :style="pull ? { transform: `scale(${1 + pull / 900})` } : undefined">
           <div v-if="eyebrow" class="lt-eyebrow">{{ eyebrow }}</div>
-          <h1 class="lt">{{ title }}</h1>
-          <p v-if="sub" class="lt-sub">{{ sub }}</p>
+          <div class="lt-row">
+            <h1 class="lt">{{ title }}</h1>
+            <p v-if="sub" class="lt-sub">{{ sub }}</p>
+          </div>
         </div>
         <slot name="hero" />
         <div v-if="slots.extra" ref="extraEl" class="lt-extra">
@@ -232,9 +234,9 @@ defineExpose({ scroller, scrollToTop });
 
 .lt-tail { height: calc(var(--m-safe-b) + 120px); }
 
-/* 大标题 */
+/* 大标题（高密度：标题与副标题同一基线行，放不下时副标题换到下一行） */
 .lt-block {
-  padding: 2px 20px 14px;
+  padding: 0 16px 10px;
   transform-origin: left center;
 }
 
@@ -243,14 +245,22 @@ defineExpose({ scroller, scrollToTop });
   font-weight: 500;
   color: var(--text-3);
   letter-spacing: 0.04em;
-  margin-bottom: 2px;
+  margin-bottom: 0;
+}
+
+.lt-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 12px;
 }
 
 .lt {
+  flex: none;
   font-family: var(--font-serif);
-  font-size: 34px;
+  font-size: 30px;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.3;
   letter-spacing: 0.01em;
   transition: opacity var(--dur) var(--ease-out);
 
@@ -258,10 +268,11 @@ defineExpose({ scroller, scrollToTop });
 }
 
 .lt-sub {
-  margin-top: 6px;
-  font-size: 14px;
-  color: var(--text-2);
-  line-height: 1.6;
+  flex: 1 1 12em;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.55;
 }
 
 /* 吸顶附加栏 */

@@ -54,8 +54,8 @@ const readingCount = computed(() => d.value.items.filter((b) => b.status === 'åœ
 <style scoped lang="scss">
 .bs {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 250px;
-  gap: 26px;
+  grid-template-columns: minmax(0, 1fr) clamp(200px, 36cqi, 270px);
+  gap: 20px;
   align-items: end;
 }
 
@@ -144,12 +144,11 @@ const readingCount = computed(() => d.value.items.filter((b) => b.status === 'åœ
   padding: 18px;
   border-radius: var(--r-md);
   background: var(--ak-sunken);
-  box-shadow: inset 0 0 0 1px var(--ak-line);
 
-  small { font: 500 11px var(--ak-mono); letter-spacing: 0.06em; color: var(--ak-ink); }
-  b { display: block; margin: 6px 0 2px; font: 700 21px/1.35 var(--font-serif); }
-  span { font-size: 13px; color: var(--text-2); }
-  p { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ak-line); font: 400 13.5px/1.75 var(--font-serif); color: var(--text-2); }
+  small { font: 500 12.5px var(--font-sans); color: var(--ak-ink); }
+  b { display: block; margin: 6px 0 2px; font: 700 22px/1.35 var(--font-serif); }
+  span { font-size: 14px; color: var(--text-2); }
+  p { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ak-line); font: 400 15px/1.75 var(--font-serif); color: var(--text-2); }
 }
 
 .bs-anim { display: flex; flex-direction: column; flex: 1; animation: ak-fade-up 0.45s var(--ease-out); }
@@ -160,14 +159,14 @@ const readingCount = computed(() => d.value.items.filter((b) => b.status === 'åœ
   gap: 10px;
   margin-top: auto;
   padding-top: 12px;
-  font: 400 11px var(--ak-mono);
+  font: 500 12.5px var(--ak-mono);
   color: var(--ak-text-3);
 
-  i { position: relative; flex: 1; height: 3px; overflow: hidden; border-radius: var(--r-pill); background: var(--ak-line); }
+  i { position: relative; flex: 1; height: 5px; overflow: hidden; border-radius: var(--r-pill); background: var(--ak-line); }
   i::after { content: ''; position: absolute; inset: 0; width: var(--w); background: var(--ink); }
 }
 
-@container (max-width: 600px) {
+@container (max-width: 500px) {
   .bs { grid-template-columns: 1fr; }
   .shelf { height: 200px; padding-top: 24px; }
   .bs-card { min-height: 0; }

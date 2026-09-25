@@ -29,8 +29,8 @@ const d = computed(() => props.mod.data as PrinciplesData);
   li {
     position: relative;
     list-style: none;
-    padding: 26px 28px 6px 0;
-    margin-right: 28px;
+    padding: 20px 24px 4px 0;
+    margin-right: 24px;
     border-right: 1px solid var(--ak-line);
     opacity: 0;
     transform: translateY(14px);
@@ -42,17 +42,19 @@ const d = computed(() => props.mod.data as PrinciplesData);
 
   .n {
     display: block;
-    margin-bottom: 14px;
-    font: 700 82px/1 var(--font-serif);
+    margin-bottom: 10px;
+    font: 700 52px/1 var(--font-serif);
     letter-spacing: -0.05em;
     color: color-mix(in oklab, var(--text) 18%, transparent);
   }
 
-  h4 { margin-bottom: 10px; font: 700 21px/1.45 var(--font-serif); letter-spacing: 0.01em; }
-  p { font-size: 13.5px; line-height: 1.8; color: var(--text-2); }
+  h4 { margin-bottom: 8px; font: 700 21px/1.45 var(--font-serif); letter-spacing: 0.01em; }
+  p { font-size: 15px; line-height: 1.75; color: var(--text-2); }
 }
 
 .in .pr li { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) { .pr li { opacity: 1; transform: none; transition: none; } }
 
 @container (max-width: 900px) {
   .pr { grid-template-columns: 1fr 1fr; }
@@ -75,14 +77,14 @@ const d = computed(() => props.mod.data as PrinciplesData);
     display: grid;
     grid-template-columns: 150px 1fr;
     align-items: baseline;
-    padding: 26px 0;
+    padding: 20px 0;
     margin: 0;
     border-right: 0;
     border-bottom: 1px solid var(--ak-line);
   }
 
-  .n { margin: 0; font-size: 64px; }
-  h4 { font-size: 30px; }
+  .n { margin: 0; font-size: 52px; }
+  h4 { font-size: 26px; }
 }
 
 @container (max-width: 460px) {

@@ -5,7 +5,8 @@ import ContentIcon from '../post/ContentIcon.vue';
 import { isoDay } from '../post/content';
 
 /**
- * 月历（周一起始）：有随想的日子标 3px 小点；选中 = 抬升 + 轻染（点转 --ink）；今天细描边。
+ * 月历（周一起始）：有随想的日子主色轻染成热力格 + 3px 小点；选中 = 抬升 + 轻染（点转 --ink）；今天细描边。
+ * 格高由 --cal-h 控制（默认 34px，右栏放大）。
  * 区间模式下起止之间铺一层 --fill-2 连续底。
  */
 const props = withDefaults(
@@ -78,8 +79,8 @@ function disabled(c: Cell): boolean {
     <div class="cal-h">
       <b>{{ title }}</b>
       <div class="nv">
-        <button type="button" :aria-label="t('content.thoughts.prevMonth')" @click="shift(-1)"><ContentIcon name="chevL" size="xs" /></button>
-        <button type="button" :aria-label="t('content.thoughts.nextMonth')" :disabled="!canNext" @click="shift(1)"><ContentIcon name="chevR" size="xs" /></button>
+        <button type="button" :aria-label="t('content.thoughts.prevMonth')" @click="shift(-1)"><ContentIcon name="chevL" /></button>
+        <button type="button" :aria-label="t('content.thoughts.nextMonth')" :disabled="!canNext" @click="shift(1)"><ContentIcon name="chevR" /></button>
       </div>
     </div>
     <div class="cal">
@@ -99,15 +100,15 @@ function disabled(c: Cell): boolean {
   justify-content: space-between;
   margin-bottom: 10px;
 
-  b { font-size: 14px; font-weight: 500; color: var(--text); }
+  b { font-size: 15px; font-weight: 600; color: var(--text); }
 
   .nv { display: flex; gap: 2px; }
 
   button {
     display: grid;
     place-items: center;
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border: 0;
     border-radius: 50%;
     background: none;
@@ -123,27 +124,31 @@ function disabled(c: Cell): boolean {
 .cal {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  row-gap: 2px;
+  gap: 3px;
   text-align: center;
 
   .w {
-    padding-bottom: 6px;
-    font-size: 11px;
+    padding-bottom: 4px;
+    font-size: 12px;
     color: var(--text-3);
   }
 
   button {
     position: relative;
-    height: 34px;
+    height: var(--cal-h, 34px);
     border: 0;
     border-radius: var(--r-sm);
     background: none;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-3);
     transition: background-color var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
 
-    &.has { color: var(--text); }
+    /* 有随想：主色轻染成热力格（数据信号，无发光） */
+    &.has {
+      color: var(--text);
+      background: color-mix(in oklab, var(--primary) 18%, var(--fill));
+    }
 
     /* 有随想：底部 3px 小点 */
     &.has::after {
@@ -159,6 +164,7 @@ function disabled(c: Cell): boolean {
     }
 
     &:hover { background: var(--fill-2); color: var(--text); }
+    &.has:hover { background: color-mix(in oklab, var(--primary) 28%, var(--fill)); }
     &.today { box-shadow: inset 0 0 0 1px var(--line-2); }
 
     /* 区间中段：连续浅底（去掉圆角让它连成条） */

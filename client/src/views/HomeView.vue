@@ -152,7 +152,7 @@ onMounted(() => {
 .page {
   max-width: 1248px;
   margin: 0 auto;
-  padding: 64px 24px 80px;
+  padding: 64px 24px 56px;
 }
 
 /* ===== Hero 舞台：高度随内容（约 min(78vh, 720px)），内容垂直居中，无外框 ===== */
@@ -250,15 +250,14 @@ onMounted(() => {
   }
 }
 
-.block { margin-top: 96px; }
-.hero-wrap + .block { margin-top: 24px; }
+.block { margin-top: 60px; }
+.hero-wrap + .block { margin-top: 20px; }
 
 .me {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   align-items: stretch;
   gap: 20px;
-  margin-top: 72px;
 }
 
 @media (max-width: 1100px) {
@@ -285,7 +284,7 @@ onMounted(() => {
     .deck { width: min(100% - 92px, 300px); }
   }
 
-  .block { margin-top: 72px; }
+  .block { margin-top: 56px; }
 }
 
 @media (max-width: 768px) {

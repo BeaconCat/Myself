@@ -150,7 +150,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <p>{{ t('studio.posts.desc') }}</p>
       </div>
       <div class="act">
-        <router-link class="st-btn p" :to="{ name: 'admin-write-post' }"><SIcon name="plus" :size="16" />{{ t('studio.posts.new') }}</router-link>
+        <router-link class="st-btn p" :to="{ name: 'admin-write-post' }"><SIcon name="plus" :size="18" />{{ t('studio.posts.new') }}</router-link>
       </div>
     </div>
 
@@ -162,7 +162,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       </div>
       <span class="sp" />
       <label class="st-field search">
-        <SIcon name="search" :size="16" />
+        <SIcon name="search" :size="18" />
         <input ref="searchEl" v-model="query" :placeholder="t('studio.posts.search')" />
         <kbd class="st-kbd">/</kbd>
       </label>
@@ -180,7 +180,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <DoorArt />
       <h4>{{ query ? t('studio.posts.emptyQuery', { q: query }) : t('studio.posts.empty') }}</h4>
       <p>{{ t('studio.posts.emptySub') }}</p>
-      <router-link class="st-btn p" :to="{ name: 'admin-write-post' }"><SIcon name="pen" :size="16" />{{ t('studio.posts.writeOne') }}</router-link>
+      <router-link class="st-btn p" :to="{ name: 'admin-write-post' }"><SIcon name="pen" :size="18" />{{ t('studio.posts.writeOne') }}</router-link>
     </div>
 
     <div v-else-if="layout === 'grid'" :key="`g-${filter}`" class="pgrid">
@@ -192,20 +192,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         @click="edit(p)"
       >
         <LightCover class="pcv" :src="p.covers[0] ? thumbOf(p.covers[0]) : ''" :seed="p.slug">
-          <span class="st-badge glass" :class="`st-${p.status}`"><i class="st-dot" />{{ t(`studio.status.${p.status}`) }}</span>
-          <span v-if="p.pinned" class="pin" :title="t('studio.pinned')"><SIcon name="pin" :size="15" /></span>
+          <span v-if="p.pinned" class="pin" :title="t('studio.pinned')"><SIcon name="pin" :size="16" /></span>
         </LightCover>
         <div class="bd">
           <h3>{{ p.title || t('studio.untitled') }}</h3>
           <p>{{ p.excerpt || t('studio.posts.noExcerpt') }}</p>
           <div class="meta">
-            <span v-for="tag in p.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
+            <span class="st-badge" :class="`st-${p.status}`"><i class="st-dot" />{{ t(`studio.status.${p.status}`) }}</span>
             <span class="mono">{{ dateText(p.createdAt) }}</span>
-            <span class="sp" />
+            <span class="tags"><span v-for="tag in p.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span></span>
+            <span class="more" @click.stop><PopMenu :items="menu(p)" /></span>
           </div>
-        </div>
-        <div class="more" @click.stop>
-          <PopMenu :items="menu(p)" />
         </div>
       </article>
     </div>
@@ -229,7 +226,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       >
         <LightCover class="rcv" :src="p.covers[0] ? thumbOf(p.covers[0]) : ''" :seed="p.slug" />
         <div class="tt">
-          <h3><SIcon v-if="p.pinned" name="pin" :size="14" class="pin-i" />{{ p.title || t('studio.untitled') }}</h3>
+          <h3><SIcon v-if="p.pinned" name="pin" :size="16" class="pin-i" />{{ p.title || t('studio.untitled') }}</h3>
           <small>/{{ p.slug }}</small>
         </div>
         <span class="tags"><span v-for="tag in p.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span></span>
@@ -244,51 +241,52 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
 <style scoped lang="scss">
 .view {
-  max-width: 1120px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 52px 64px 96px;
+  padding: 32px 48px 72px;
 }
 
 .toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 
   .chips { display: flex; gap: 6px; flex-wrap: wrap; }
   .sp { flex: 1; }
 
   .search {
-    width: 240px;
-    min-height: 34px;
-
-    input { height: 32px; }
+    width: 260px;
   }
 }
 
 .pgrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 22px 18px;
+  align-items: stretch;
+  gap: 18px;
 }
 
+/* 卡片：封面约 2:1 满幅，标题 / 摘要 / 状态·日期·标签·菜单 在封面下同一信息块 */
 .pcard {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-radius: var(--r-lg);
-  padding: 8px;
   cursor: pointer;
-  transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease-out), background var(--dur-fast);
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--line-2), 0 1px 2px var(--line);
+  transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease-out);
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--sh-card-hover);
-    background: var(--paper);
+    transform: translateY(-3px);
+    box-shadow: 0 0 0 1px var(--line-2), var(--sh-card-hover);
   }
 
   .pcv {
-    aspect-ratio: 16 / 10;
-    border-radius: var(--r-sm);
+    aspect-ratio: 2 / 1;
 
     &::after {
       content: '';
@@ -307,15 +305,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   &:hover .pcv::after { transform: translateX(110%); }
   &:hover .pcv :deep(img) { transform: scale(1.04); }
 
-  .st-badge { position: absolute; left: 12px; top: 12px; z-index: 3; }
-
   .pin {
     position: absolute;
     right: 12px;
     top: 12px;
     z-index: 3;
-    width: 26px;
-    height: 26px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: grid;
     place-items: center;
@@ -323,44 +319,52 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     color: #1e1c19;
   }
 
-  .bd { padding: 14px 6px 6px; }
+  .bd {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 16px 18px 12px;
+  }
 
-  h3 { font: 600 17.5px/1.5 var(--font-serif); margin: 0 0 6px; }
-
-  p {
-    margin: 0 0 12px;
-    font-size: 13.5px;
-    line-height: 1.65;
-    color: var(--st-ink-3);
+  h3 {
+    font: 700 19px/1.45 var(--font-serif);
+    margin: 0 0 6px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    min-height: 44px;
+  }
+
+  p {
+    margin: 0 0 12px;
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: var(--st-ink-2);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .meta {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 12.5px;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
     color: var(--st-ink-3);
-    min-height: 30px;
+    white-space: nowrap;
 
-    .mono { font-size: 11.5px; }
-    .sp { flex: 1; }
+    .mono { font-size: 12.5px; }
+    .tags { display: flex; gap: 8px; min-width: 0; overflow: hidden; flex: 1; }
   }
 
-  .more {
-    position: absolute;
-    right: 10px;
-    bottom: 10px;
-    opacity: 0;
-    transition: opacity var(--dur-fast);
-  }
-
-  &:hover .more, .more:focus-within { opacity: 1; }
+  .more { flex: none; margin-right: -8px; }
 }
+
+:root[data-mode='dark'] .pcard { background: color-mix(in oklab, var(--paper) 55%, var(--well)); }
 
 .tag {
   color: var(--st-ink-2);
@@ -369,7 +373,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   &::before { content: '#'; color: var(--st-ink-4); margin-right: 2px; }
 }
 
-$cols: 84px minmax(0, 1fr) 140px 90px 96px 88px 36px;
+$cols: 96px minmax(0, 1fr) 150px 96px 100px 92px 38px;
 
 .plist { display: flex; flex-direction: column; }
 
@@ -378,7 +382,7 @@ $cols: 84px minmax(0, 1fr) 140px 90px 96px 88px 36px;
   grid-template-columns: $cols;
   gap: 18px;
   padding: 0 12px 10px;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--st-ink-4);
   letter-spacing: 0.06em;
   border-bottom: 1px solid var(--line);
@@ -392,18 +396,18 @@ $cols: 84px minmax(0, 1fr) 140px 90px 96px 88px 36px;
   grid-template-columns: $cols;
   align-items: center;
   gap: 18px;
-  padding: 10px 12px;
+  padding: 12px;
   border-radius: var(--r-md);
   cursor: pointer;
   transition: background var(--dur-fast);
 
   &:hover { background: var(--well); }
 
-  .rcv { height: 52px; border-radius: var(--r-sm); }
+  .rcv { aspect-ratio: 2 / 1; border-radius: var(--r-sm); }
   .tt { min-width: 0; }
 
   h3 {
-    font: 600 15.5px/1.4 var(--font-serif);
+    font: 700 16.5px/1.4 var(--font-serif);
     margin: 0 0 3px;
     white-space: nowrap;
     overflow: hidden;
@@ -416,7 +420,7 @@ $cols: 84px minmax(0, 1fr) 140px 90px 96px 88px 36px;
   .pin-i { color: var(--ink); }
 
   small {
-    font: 12px var(--font-mono);
+    font: 12.5px var(--font-mono);
     color: var(--st-ink-3);
     display: block;
     overflow: hidden;
@@ -424,12 +428,12 @@ $cols: 84px minmax(0, 1fr) 140px 90px 96px 88px 36px;
     white-space: nowrap;
   }
 
-  .tags { display: flex; gap: 8px; font-size: 12.5px; overflow: hidden; }
-  .num { font: 500 12px var(--font-mono); color: var(--st-ink-3); text-align: right; }
+  .tags { display: flex; gap: 8px; font-size: 13px; overflow: hidden; }
+  .num { font: 500 12.5px var(--font-mono); color: var(--st-ink-3); text-align: right; }
 }
 
 @media (max-width: 1180px) {
-  .view { padding: 40px 36px 80px; }
+  .view { padding: 28px 32px 64px; }
   .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

@@ -6,7 +6,7 @@ import type { ModProps } from './props';
 import CountUp from '../parts/CountUp.vue';
 import ModHead from '../parts/ModHead.vue';
 
-/** 年度回顾（year）：按年切换 —— 四个大数 + 12 个月柱状图（峰值发光、未来月虚线、黄点标大事）+ 高光 */
+/** 年度回顾（year）：按年切换 —— 大号年份 + 统计条 + 撑满宽度的 12 个月柱状图（峰值实色、未来月虚线、黄点标大事）+ 高光 */
 const props = defineProps<ModProps>();
 const d = computed(() => props.mod.data as YearData);
 const { t } = useI18n();
@@ -39,8 +39,8 @@ const bars = computed(() => {
   <div v-if="Y" :key="year" class="yr">
     <div class="yr-top">
       <div class="yr-big">{{ year }}<small>{{ Y.sub }}</small></div>
-      <div class="yr-nums">
-        <div v-for="([k, v], i) in Y.nums" :key="i"><b><CountUp :value="Number(v) || 0" /></b><span>{{ k }}</span></div>
+      <div class="ak-statbar yr-nums" :style="{ '--n': Y.nums.length || 4 }">
+        <div v-for="([k, v], i) in Y.nums" :key="i" class="ak-stat"><b><CountUp :value="Number(v) || 0" /></b><span>{{ k }}</span></div>
       </div>
     </div>
     <div class="yr-chart" :data-metric="d.metric">
@@ -60,34 +60,28 @@ const bars = computed(() => {
 </template>
 
 <style scoped lang="scss">
-.yr { animation: ak-fade-up 0.45s var(--ease-out); }
+.yr { display: flex; flex-direction: column; flex: 1; animation: ak-fade-up 0.45s var(--ease-out); }
 
-.yr-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 22px; }
+.yr-top { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 28px; margin-bottom: 20px; }
 
 .yr-big {
-  font: 700 64px/0.9 var(--font-serif);
+  font: 700 56px/0.95 var(--font-serif);
   letter-spacing: -0.04em;
 
-  small { display: block; margin-top: 12px; font: 400 13px var(--font-sans); letter-spacing: 0; color: var(--ak-text-3); }
+  small { display: block; margin-top: 10px; font: 400 13px var(--font-sans); letter-spacing: 0; color: var(--ak-text-3); }
 }
 
-.yr-nums {
-  display: grid;
-  grid-template-columns: repeat(4, auto);
-  gap: 0 28px;
+.yr-nums { width: 100%; max-width: 640px; justify-self: end; }
 
-  b { display: block; font: 500 28px/1 var(--ak-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
-  > div > span { font-size: 12px; color: var(--ak-text-3); }
-}
-
+/* 柱状图撑满模块宽度：柱子随列宽放大（不设上限），数值 12px 等宽 */
 .yr-chart {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 10px;
   align-items: end;
-  height: 150px;
-  padding-top: 24px;
+  height: 190px;
+  padding-top: 26px;
   border-bottom: 1px solid var(--ak-line-2);
 
   .c { position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
@@ -95,7 +89,6 @@ const bars = computed(() => {
   .b {
     position: relative;
     width: 100%;
-    max-width: 44px;
     height: var(--h);
     border-radius: var(--r-xs) var(--r-xs) calc(var(--r-xs) * 0.4) calc(var(--r-xs) * 0.4);
     background: color-mix(in oklab, var(--primary) 36%, var(--fill-2));
@@ -109,8 +102,8 @@ const bars = computed(() => {
     &.peak { background: color-mix(in oklab, var(--primary) 80%, var(--fill-2)); }
   }
 
-  .v { position: absolute; top: -19px; left: 50%; translate: -50% 0; font: 500 10.5px var(--ak-mono); color: var(--ak-text-3); }
-  .peak .v { color: var(--ak-ink); }
+  .v { position: absolute; top: -21px; left: 50%; translate: -50% 0; font: 500 12.5px var(--ak-mono); color: var(--text-2); }
+  .peak .v { color: var(--ak-ink); font-weight: 600; }
 }
 
 .in .yr-chart .b { animation: yr-grow 1s var(--ease-out) both; animation-delay: calc(var(--k) * 60ms); }
@@ -119,10 +112,10 @@ const bars = computed(() => {
 
 .yr-mo {
   display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 10px;
   margin-top: 8px;
-  font: 400 10.5px var(--ak-mono);
+  font: 400 12px var(--ak-mono);
   color: var(--ak-text-3);
   text-align: center;
 
@@ -131,8 +124,8 @@ const bars = computed(() => {
   .pin::before {
     content: '';
     display: inline-block;
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
     margin-right: 4px;
     border-radius: 50%;
     vertical-align: middle;
@@ -143,18 +136,19 @@ const bars = computed(() => {
 .yr-hl {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
-  margin-top: 22px;
+  margin-top: auto;
+  padding-top: 20px;
 
-  li { font-size: 13px; line-height: 1.65; color: var(--text-2); }
+  li { font-size: 15px; line-height: 1.6; color: var(--text); }
 
   b {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 4px;
-    font: 500 11px var(--ak-mono);
+    font: 500 12.5px var(--ak-mono);
     letter-spacing: 0.04em;
     color: var(--ak-text-3);
 
@@ -162,13 +156,17 @@ const bars = computed(() => {
   }
 }
 
+@container (max-width: 760px) {
+  .yr-top { grid-template-columns: 1fr; gap: 16px; }
+  .yr-nums { max-width: none; }
+}
+
 @container (max-width: 640px) {
-  .yr-top { flex-direction: column; }
-  .yr-nums { grid-template-columns: repeat(2, auto); gap: 14px 28px; }
   .yr-hl { grid-template-columns: 1fr; gap: 12px; }
-  .yr-big { font-size: 48px; }
+  .yr-big { font-size: 44px; }
+  .yr-chart { height: 160px; }
   .yr-chart, .yr-mo { gap: 4px; }
   .yr-chart .v { display: none; }
-  .yr-mo { font-size: 9px; }
+  .yr-mo { font-size: 10px; }
 }
 </style>

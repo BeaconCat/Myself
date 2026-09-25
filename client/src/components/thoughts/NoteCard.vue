@@ -73,7 +73,7 @@ function openAt(e: MouseEvent, i: number): void {
 
       <div class="act">
         <button type="button" class="ab" :aria-label="t('content.thoughts.copyText')" :title="t('content.thoughts.copyText')" @click="emit('copy', note)">
-          <ContentIcon name="copy" size="s" />
+          <ContentIcon name="copy" />
         </button>
       </div>
     </div>
@@ -86,7 +86,7 @@ function openAt(e: MouseEvent, i: number): void {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr);
   gap: 16px;
-  padding: 26px 0 18px;
+  padding: 18px 0 10px;
 
   & + &::before {
     content: '';
@@ -209,17 +209,17 @@ function openAt(e: MouseEvent, i: number): void {
   display: grid;
   gap: 4px;
   max-width: 540px;
-  margin-top: 14px;
+  margin-top: 12px;
   overflow: hidden;
   isolation: isolate;
   border-radius: var(--r-lg);
 
-  &.n1 { grid-template-columns: 1fr; max-width: 560px; }
-  &.n1 .cell { aspect-ratio: 16 / 10; }
+  &.n1 { grid-template-columns: 1fr; max-width: 600px; }
+  &.n1 .cell { aspect-ratio: 2 / 1; }
   &.n2 { grid-template-columns: 1fr 1fr; }
   &.n3 { grid-template-columns: repeat(3, 1fr); }
-  &.n4 { grid-template-columns: 1fr 1fr; max-width: 420px; }
-  &.n9 { grid-template-columns: repeat(3, 1fr); max-width: 460px; }
+  &.n4 { grid-template-columns: 1fr 1fr; max-width: 480px; }
+  &.n9 { grid-template-columns: repeat(3, 1fr); max-width: 520px; }
 }
 
 .cell {
@@ -239,14 +239,14 @@ function openAt(e: MouseEvent, i: number): void {
 .act {
   display: flex;
   gap: 4px;
-  margin: 10px 0 0 -8px;
+  margin: 6px 0 0 -9px;
 }
 
 .ab {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: 0;
   border-radius: 50%;
   background: none;

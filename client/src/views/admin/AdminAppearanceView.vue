@@ -210,7 +210,7 @@ onBeforeUnmount(() => {
       </div>
       <div class="act">
         <button type="button" class="st-btn" :class="dirty ? 'p' : 'g'" :disabled="busy || !dirty" @click="save">
-          <SIcon name="check" :size="16" />{{ dirty ? t('studio.save') : t('studio.saved') }}
+          <SIcon name="check" :size="18" />{{ dirty ? t('studio.save') : t('studio.saved') }}
         </button>
       </div>
     </div>
@@ -238,13 +238,13 @@ onBeforeUnmount(() => {
             @dragleave="dragOver = -1"
             @drop="onDrop(i)"
           >
-            <span class="ok"><SIcon name="check" :size="16" /></span>
+            <span class="ok"><SIcon name="check" :size="18" /></span>
             <span v-if="i >= cfg.theme.displayCount" class="lock">{{ t('studio.appearance.adminOnly') }}</span>
             <b>{{ p.name.split('·')[0].trim() }}</b>
-            <small class="mono">{{ (p.name.split('·')[1] ?? '').trim() }} {{ p.primary.toUpperCase() }}</small>
+            <small><span>{{ (p.name.split('·')[1] ?? '').trim() }}</span><span class="mono">{{ p.primary.toUpperCase() }}</span></small>
           </button>
           <button v-if="presets.length < 10" type="button" class="swatch add" @click="addPreset">
-            <SIcon name="plus" :size="16" />{{ t('studio.appearance.newPalette') }}
+            <SIcon name="plus" :size="18" />{{ t('studio.appearance.newPalette') }}
           </button>
         </div>
 
@@ -261,9 +261,9 @@ onBeforeUnmount(() => {
           <div class="st-opt">
             <div>{{ t('studio.appearance.display') }}<small>{{ t('studio.appearance.displaySub') }}</small></div>
             <div class="st-stepper">
-              <button type="button" :disabled="cfg.theme.displayCount <= 1" @click="stepDisplay(-1)"><SIcon name="minus" :size="16" /></button>
+              <button type="button" :disabled="cfg.theme.displayCount <= 1" @click="stepDisplay(-1)"><SIcon name="minus" :size="18" /></button>
               <span>{{ cfg.theme.displayCount }}</span>
-              <button type="button" :disabled="cfg.theme.displayCount >= Math.min(4, presets.length)" @click="stepDisplay(1)"><SIcon name="plus" :size="16" /></button>
+              <button type="button" :disabled="cfg.theme.displayCount >= Math.min(4, presets.length)" @click="stepDisplay(1)"><SIcon name="plus" :size="18" /></button>
             </div>
           </div>
           <div class="st-opt">
@@ -276,6 +276,8 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+        <div class="pair">
+        <div>
         <h2>{{ t('studio.appearance.mode') }}</h2>
         <p class="desc">{{ t('studio.appearance.modeDesc') }}</p>
         <div class="modes">
@@ -289,6 +291,8 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
+        </div>
+        <div>
         <h2>{{ t('studio.appearance.radius') }}</h2>
         <p class="desc">{{ t('studio.appearance.radiusDesc') }}</p>
         <div class="radius">
@@ -319,7 +323,8 @@ onBeforeUnmount(() => {
             </button>
           </div>
         </div>
-
+        </div>
+        </div>
       </div>
 
       <div class="pv-wrap">
@@ -356,7 +361,7 @@ onBeforeUnmount(() => {
             <span class="st-chip on">{{ t('studio.appearance.radiusChipOn') }}</span>
             <span class="st-chip">{{ t('studio.appearance.radiusChip') }}</span>
           </div>
-          <label class="st-field"><SIcon name="search" :size="16" /><input :placeholder="t('studio.appearance.radiusInput')" /></label>
+          <label class="st-field"><SIcon name="search" :size="18" /><input :placeholder="t('studio.appearance.radiusInput')" /></label>
           <div class="d-card">
             <LightCover class="d-cv" kind="door" />
             <div><b>{{ t('studio.appearance.radiusCard') }}</b><small>{{ t('studio.appearance.radiusCardMeta') }}</small></div>
@@ -375,17 +380,17 @@ onBeforeUnmount(() => {
         <div class="rule">
           <small>{{ t('studio.appearance.heroCount') }}</small>
           <div class="st-stepper">
-            <button type="button" :disabled="cfg.hero.count <= 1" @click="stepCount(-1)"><SIcon name="minus" :size="16" /></button>
+            <button type="button" :disabled="cfg.hero.count <= 1" @click="stepCount(-1)"><SIcon name="minus" :size="18" /></button>
             <span>{{ cfg.hero.count }}</span>
-            <button type="button" :disabled="cfg.hero.count >= 10" @click="stepCount(1)"><SIcon name="plus" :size="16" /></button>
+            <button type="button" :disabled="cfg.hero.count >= 10" @click="stepCount(1)"><SIcon name="plus" :size="18" /></button>
           </div>
         </div>
         <div class="rule">
           <small>{{ t('studio.appearance.heroInterval') }}</small>
           <div class="st-stepper">
-            <button type="button" :disabled="cfg.hero.intervalMs <= 1000" @click="stepInterval(-1)"><SIcon name="minus" :size="16" /></button>
+            <button type="button" :disabled="cfg.hero.intervalMs <= 1000" @click="stepInterval(-1)"><SIcon name="minus" :size="18" /></button>
             <span>{{ intervalSec }}s</span>
-            <button type="button" :disabled="cfg.hero.intervalMs >= 10000" @click="stepInterval(1)"><SIcon name="plus" :size="16" /></button>
+            <button type="button" :disabled="cfg.hero.intervalMs >= 10000" @click="stepInterval(1)"><SIcon name="plus" :size="18" /></button>
           </div>
         </div>
         <div class="rule">
@@ -415,35 +420,35 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .view {
-  max-width: 1120px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 52px 64px 96px;
+  padding: 32px 48px 72px;
 }
 
-h2 { font: 600 18px var(--font-serif); margin: 0 0 6px; }
-.desc { font-size: 13.5px; color: var(--st-ink-3); margin: 0 0 18px; }
+h2 { font: 700 22px/1.3 var(--font-serif); margin: 0 0 4px; }
+.desc { font-size: 14px; color: var(--st-ink-3); margin: 0 0 14px; }
 
 .ap {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
-  gap: 48px;
+  grid-template-columns: minmax(0, 1fr) 440px;
+  gap: 32px;
   align-items: start;
 }
 
 .swatches {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
   margin-bottom: 14px;
 }
 
 .swatch {
   position: relative;
-  height: 118px;
+  height: 104px;
   border-radius: var(--r-lg);
   overflow: hidden;
   text-align: left;
-  padding: 14px 16px;
+  padding: 12px 14px;
   color: var(--fg, #fff);
   display: flex;
   flex-direction: column;
@@ -460,7 +465,17 @@ h2 { font: 600 18px var(--font-serif); margin: 0 0 6px; }
   &.over { transform: scale(1.04); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--st-ink-4); }
 
   b { font: 700 24px/1 var(--font-serif); }
-  small { font-size: 11px; opacity: 0.82; margin-top: 6px; display: block; letter-spacing: 0.02em; }
+  small {
+    display: flex;
+    flex-direction: column;
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.35;
+    opacity: 0.85;
+    letter-spacing: 0.02em;
+
+    span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
 
   .ok {
     position: absolute;
@@ -498,9 +513,9 @@ h2 { font: 600 18px var(--font-serif); margin: 0 0 6px; }
     box-shadow: 0 0 0 1.5px var(--line-2) inset;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    flex-direction: row;
-    font-size: 14px;
+    gap: 6px;
+    flex-direction: column;
+    font-size: 13.5px;
 
     &:hover { color: var(--ink); }
   }
@@ -555,21 +570,32 @@ h2 { font: 600 18px var(--font-serif); margin: 0 0 6px; }
 
     span { transition: opacity var(--dur-fast); }
 
-    small { display: block; font-size: 11px; color: var(--st-ink-3); line-height: 1.2; }
-    b { font-size: 12px; font-weight: 500; }
+    small { display: block; font-size: 12px; color: var(--st-ink-3); line-height: 1.2; }
+    b { font-size: 13px; font-weight: 500; }
   }
 }
 
 .pe-enter-active, .pe-leave-active { transition: all var(--dur) var(--ease-out); }
 .pe-enter-from, .pe-leave-to { opacity: 0; transform: translateY(-6px); }
 
-.opts { margin: 8px 0 40px; }
+.opts { margin: 4px 0 28px; }
+
+/* 默认模式 ｜ 圆角 并排等高 */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 20px;
+
+  > div { display: flex; flex-direction: column; min-width: 0; }
+  .desc { min-height: 2.9em; }
+}
 
 .modes {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 40px;
+  gap: 10px;
+  flex: 1;
 }
 
 .mode-c {
@@ -583,10 +609,10 @@ h2 { font: 600 18px var(--font-serif); margin: 0 0 6px; }
   &:active { transform: scale(0.97); }
   &.on { background: var(--lift); box-shadow: var(--lift-shadow); }
 
-  span { font-size: 13.5px; font-weight: 500; padding: 0 4px; }
+  span { font-size: 14px; font-weight: 500; padding: 0 4px; }
 
   .mini {
-    height: 74px;
+    height: 68px;
     border-radius: var(--r-sm);
     margin-bottom: 10px;
     position: relative;
@@ -604,22 +630,22 @@ h2 { font: 600 18px var(--font-serif); margin: 0 0 6px; }
 
 /* ---------- 圆角 ---------- */
 .radius {
-  padding: 16px 18px 14px;
+  flex: 1;
+  padding: 14px 16px;
   border-radius: var(--r-md);
   background: var(--well);
-  margin-bottom: 40px;
 
   .r-top {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--st-ink-2);
 
-    b { font-size: 13px; font-weight: 500; color: var(--st-ink); }
+    b { font: 600 22px/1 var(--font-mono); color: var(--st-ink); }
   }
 
-  .r-presets { display: flex; gap: 8px; margin-top: 12px; }
+  .r-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 }
 
 .r-range {
@@ -672,7 +698,7 @@ h2 { font: 600 18px var(--font-serif); margin: 0 0 6px; }
 .pv-cap {
   display: flex;
   justify-content: space-between;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--st-ink-3);
   margin-bottom: 10px;
 }
@@ -773,7 +799,7 @@ h2 { font: 600 18px var(--font-serif); margin: 0 0 6px; }
 }
 
 /* ---------- 控件示意（随圆角实时变化） ---------- */
-.demo-cap { margin-top: 22px; }
+.demo-cap { margin-top: 18px; }
 
 .demo {
   display: grid;
@@ -806,33 +832,35 @@ h2 { font: 600 18px var(--font-serif); margin: 0 0 6px; }
 
 /* ---------- 首页轮播 ---------- */
 .hero-sec {
-  margin-top: 64px;
-  padding-top: 40px;
+  margin-top: 40px;
+  padding-top: 28px;
   border-top: 1px solid var(--line);
+
+  > .st-sec-t { margin-bottom: 4px; }
 }
 
 .rules {
   display: flex;
-  gap: 36px;
+  gap: 32px;
   flex-wrap: wrap;
   align-items: flex-end;
-  padding: 18px 22px;
+  padding: 16px 20px;
   border-radius: var(--r-lg);
   background: var(--well);
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 
-  .rule small { display: block; font-size: 12.5px; color: var(--st-ink-3); margin-bottom: 8px; }
+  .rule small { display: block; font-size: 13px; color: var(--st-ink-3); margin-bottom: 8px; }
   .st-stepper { background: var(--paper); }
 }
 
 .mixer-wrap {
   border-radius: var(--r-lg);
-  padding: 18px;
+  padding: 16px;
   box-shadow: 0 0 0 1px var(--line-2);
 }
 
 @media (max-width: 1180px) {
-  .view { padding: 40px 36px 80px; }
+  .view { padding: 28px 32px 64px; }
   .ap { grid-template-columns: 1fr; }
   .pv-wrap { position: static; }
 }

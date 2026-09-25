@@ -118,14 +118,14 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 </template>
 
 <style scoped lang="scss">
+/* 身份区（高密度）：去掉整屏留白，名字 / 一句话 / 自述 / 统计条式状态 / 社交紧凑成一个信息块，形象图收一档 */
 .pf {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 32px;
+  gap: 40px;
   align-items: center;
-  min-height: 600px;
-  padding: 96px 0 40px;
+  padding: 36px 0 4px;
 
   &.plain { grid-template-columns: minmax(0, 1fr); }
 }
@@ -135,20 +135,20 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 .pf-kicker {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 26px;
-  font: 500 12px/1 var(--ak-mono);
-  letter-spacing: 0.14em;
+  gap: 12px;
+  margin-bottom: 18px;
+  font: 500 12.5px/1 var(--ak-mono);
+  letter-spacing: 0.12em;
   color: var(--ak-text-3);
   text-transform: uppercase;
 
-  i { width: 44px; height: 1px; background: var(--line-2); }
+  i { width: 36px; height: 1px; background: var(--line-2); }
 }
 
 .pf-hi {
   display: block;
-  margin-bottom: 14px;
-  font: 500 22px/1.2 var(--font-serif);
+  margin-bottom: 10px;
+  font: 500 20px/1.2 var(--font-serif);
   letter-spacing: 0.04em;
   color: var(--text-2);
 }
@@ -156,7 +156,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 .pf-name {
   position: relative;
   white-space: nowrap;
-  font: 700 clamp(40px, var(--fit, 17cqi), 148px) / 0.95 var(--font-serif);
+  font: 700 clamp(40px, var(--fit, 15cqi), 120px) / 0.98 var(--font-serif);
   letter-spacing: -0.035em;
   color: var(--text);
 
@@ -175,31 +175,32 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 @keyframes pf-sheen { from { background-position: 100% 0; } to { background-position: 0 0; } }
 
 .pf-lede {
-  margin: 30px 0 16px;
-  font: 500 clamp(18px, 3.1cqi, 26px) / 1.55 var(--font-serif);
+  margin: 20px 0 10px;
+  font: 600 clamp(18px, 2.9cqi, 24px) / 1.5 var(--font-serif);
   letter-spacing: 0.02em;
 
   em { font-style: normal; color: var(--ak-ink); }
 }
 
-.pf-bio { max-width: 560px; font-size: 15.5px; line-height: 1.9; color: var(--text-2); }
+.pf-bio { max-width: 660px; font-size: 15px; line-height: 1.8; color: var(--text-2); }
 
+/* 状态行 = 统计条写法：下沉面等分格，标签 12.5px 三级灰，值 17px（时间 20px 等宽） */
 .pf-status {
-  display: flex;
-  flex-wrap: wrap;
-  margin: 34px 0 30px;
-  border-top: 1px solid var(--ak-line);
-  border-bottom: 1px solid var(--ak-line);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, max-content));
+  margin: 22px 0 20px;
+  border-radius: var(--r-md);
+  background: var(--fill);
 
-  > div { padding: 14px 28px 14px 0; margin-right: 28px; border-right: 1px solid var(--ak-line); }
-  > div:last-child { border-right: 0; margin-right: 0; }
+  > div { min-width: 0; padding: 14px 22px 12px 18px; }
+  > div + div { box-shadow: -1px 0 0 var(--ak-line); }
 
-  dt { margin-bottom: 9px; font: 500 11px/1 var(--ak-mono); letter-spacing: 0.1em; color: var(--ak-text-3); }
-  dd { display: flex; align-items: center; gap: 8px; font-size: 14px; white-space: nowrap; }
+  dt { margin-bottom: 6px; font-size: 12.5px; line-height: 1.3; color: var(--ak-text-3); }
+  dd { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 17px; font-weight: 600; white-space: nowrap; }
 
-  .clock { font: 500 15px var(--ak-mono); font-variant-numeric: tabular-nums; }
+  .clock { font: 600 20px var(--ak-mono); font-variant-numeric: tabular-nums; }
   .clock s { text-decoration: none; opacity: 0.45; }
-  .dayp { font-size: 12px; color: var(--ak-text-3); }
+  .dayp { font-size: 13px; font-weight: 400; color: var(--ak-text-3); }
 }
 
 .pf-social {
@@ -211,7 +212,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
     height: 40px;
     padding: 0 18px 0 15px;
 
-    .ak-mono { font-size: 11.5px; font-weight: 400; color: var(--ak-text-3); }
+    .ak-mono { font-size: 12px; font-weight: 400; color: var(--ak-text-3); }
 
     &.pri .ak-mono { color: color-mix(in oklab, var(--on-solid) 68%, transparent); }
   }
@@ -220,7 +221,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 /* ---------- 形象图：圆角 + 渐隐融入背景 ---------- */
 .pf-portrait {
   position: relative;
-  width: clamp(300px, 36cqi, 440px);
+  width: clamp(240px, 29cqi, 360px);
   aspect-ratio: 440 / 540;
   margin: 0;
   animation: pf-portrait-in 1.2s 0.15s var(--ease-out) both;
@@ -273,7 +274,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 }
 
 @container (max-width: 820px) {
-  .pf { grid-template-columns: 1fr; min-height: 0; padding: 24px 0 8px; gap: 24px; }
+  .pf { grid-template-columns: 1fr; padding: 20px 0 4px; gap: 20px; }
 
   .pf-portrait {
     order: -1;
@@ -289,8 +290,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 }
 
 @container (max-width: 560px) {
-  .pf-status { flex-direction: column; }
-  .pf-status > div { border-right: 0; margin: 0; padding: 12px 0; border-bottom: 1px solid var(--ak-line); }
-  .pf-status > div:last-child { border-bottom: 0; }
+  .pf-status { grid-template-columns: 1fr; }
+  .pf-status > div + div { box-shadow: 0 -1px 0 var(--ak-line); }
 }
 </style>

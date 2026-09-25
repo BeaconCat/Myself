@@ -191,7 +191,7 @@ onMounted(load);
         <p>{{ t('studio.api.descPre') }}<span class="mono hk">X-Api-Key</span>{{ t('studio.api.descPost') }}</p>
       </div>
       <div class="act">
-        <button type="button" class="st-btn p" @click="openCreate"><SIcon name="plus" :size="16" />{{ t('studio.api.new') }}</button>
+        <button type="button" class="st-btn p" @click="openCreate"><SIcon name="plus" :size="18" />{{ t('studio.api.new') }}</button>
       </div>
     </div>
 
@@ -208,7 +208,7 @@ onMounted(load);
           <h4>{{ k.name }}</h4>
           <div class="kv2">
             <span class="mono">{{ k.prefix }}…</span>
-            <button type="button" :title="t('studio.api.copyPrefix')" @click="copy(k.prefix)"><SIcon name="copy" :size="14" /></button>
+            <button type="button" :title="t('studio.api.copyPrefix')" @click="copy(k.prefix)"><SIcon name="copy" :size="16" /></button>
             <span v-if="sessionKeys.some((s) => s.id === k.id)" class="fresh">{{ t('studio.api.thisSession') }}</span>
           </div>
           <div class="scopes"><span>{{ t('studio.api.scopePosts') }}</span><span>{{ t('studio.api.scopeNotes') }}</span></div>
@@ -231,7 +231,7 @@ onMounted(load);
           <h2>{{ t('studio.api.quick') }}</h2>
           <StSeg v-model="lang" :options="[{ value: 'curl', label: 'cURL' }, { value: 'js', label: 'JavaScript' }]" />
         </div>
-        <pre class="code"><code>{{ code }}</code><button type="button" class="st-ibtn cp" :title="t('studio.copy')" @click="copy(code)"><SIcon name="copy" :size="16" /></button></pre>
+        <pre class="code"><code>{{ code }}</code><button type="button" class="st-ibtn cp" :title="t('studio.copy')" @click="copy(code)"><SIcon name="copy" :size="18" /></button></pre>
       </div>
       <div>
         <div class="st-sec-t"><h2>{{ t('studio.api.endpoints') }}</h2></div>
@@ -250,7 +250,7 @@ onMounted(load);
       </div>
       <div class="auth">
         <label class="st-field sel">
-          <SIcon name="key" :size="16" />
+          <SIcon name="key" :size="18" />
           <select v-model="testerKey">
             <option value="">{{ t('studio.api.noSessionKey') }}</option>
             <option v-for="s in sessionKeys" :key="s.id" :value="s.key">{{ s.name }}</option>
@@ -266,13 +266,13 @@ onMounted(load);
             <code>{{ e.path }}</code>
             <span class="d">{{ e.desc }}</span>
             <span class="au" :class="e.auth">{{ e.auth === 'none' ? t('studio.api.authNone') : e.auth === 'jwt' ? 'JWT' : 'APIKey' }}</span>
-            <SIcon name="chevronD" :size="14" class="chev" />
+            <SIcon name="chevronD" :size="16" class="chev" />
           </button>
           <div v-if="openId === epId(e)" class="ep-body">
             <label class="st-field mono-in"><span class="suffix">URL</span><input v-model="reqPath" spellcheck="false" /></label>
             <label v-if="['POST', 'PUT'].includes(e.method)" class="st-field ta mono-in"><textarea v-model="reqBody" rows="6" spellcheck="false" /></label>
             <div class="send">
-              <button type="button" class="st-btn p sm" :disabled="testing" @click="send(e)"><SIcon name="play" :size="14" />{{ testing ? t('studio.api.sending') : t('studio.api.send') }}</button>
+              <button type="button" class="st-btn p sm" :disabled="testing" @click="send(e)"><SIcon name="play" :size="16" />{{ testing ? t('studio.api.sending') : t('studio.api.send') }}</button>
               <span v-if="resp" class="status" :class="{ ok: resp.status > 0 && resp.status < 400 }"><i class="st-dot" />HTTP {{ resp.status }} · {{ resp.ms }} ms</span>
             </div>
             <pre v-if="resp" class="code resp"><code>{{ resp.text }}</code></pre>
@@ -286,8 +286,8 @@ onMounted(load);
       <div class="st-sec-t">
         <h2>{{ t('studio.api.prompt') }}</h2>
         <span class="acts">
-          <button type="button" class="st-btn g sm" @click="copy(prompt)"><SIcon name="copy" :size="14" />{{ t('studio.copy') }}</button>
-          <button type="button" class="st-btn g sm" @click="downloadPrompt"><SIcon name="download" :size="14" />{{ t('studio.api.download') }}</button>
+          <button type="button" class="st-btn g sm" @click="copy(prompt)"><SIcon name="copy" :size="16" />{{ t('studio.copy') }}</button>
+          <button type="button" class="st-btn g sm" @click="downloadPrompt"><SIcon name="download" :size="16" />{{ t('studio.api.download') }}</button>
         </span>
       </div>
       <p class="note">{{ t('studio.api.promptHint') }}</p>
@@ -328,8 +328,8 @@ onMounted(load);
         <div class="mi ok"><SIcon name="check" :size="22" /></div>
         <h3>{{ t('studio.api.createdTitle', { name: created.name }) }}</h3>
         <p>{{ t('studio.api.createdDesc') }}</p>
-        <div class="newkey"><span class="mono">{{ created.key }}</span><button type="button" class="st-ibtn" :title="t('studio.copy')" @click="copy(created.key)"><SIcon name="copy" :size="16" /></button></div>
-        <div class="warnline"><SIcon name="lock" :size="16" />{{ t('studio.api.onlyOnce') }}</div>
+        <div class="newkey"><span class="mono">{{ created.key }}</span><button type="button" class="st-ibtn" :title="t('studio.copy')" @click="copy(created.key)"><SIcon name="copy" :size="18" /></button></div>
+        <div class="warnline"><SIcon name="lock" :size="18" />{{ t('studio.api.onlyOnce') }}</div>
         <div class="ft">
           <button type="button" class="st-btn p" @click="createOpen = false">{{ t('studio.api.savedIt') }}</button>
         </div>
@@ -340,22 +340,38 @@ onMounted(load);
 
 <style scoped lang="scss">
 .view {
-  max-width: 1120px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 52px 64px 96px;
+  padding: 32px 48px 72px;
 }
 
 .hk { font-size: 13px; padding: 1px 6px; border-radius: var(--r-xs); background: var(--well); margin: 0 3px; }
 
-.keys { display: flex; flex-direction: column; gap: 12px; margin-bottom: 48px; }
-.keys-empty { padding: 32px 0 40px; }
+.keys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 32px; }
+/* 无 Key：压成一条横向提示卡，不占整屏 */
+.keys-empty {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 20px;
+  align-items: center;
+  text-align: left;
+  padding: 18px 22px;
+  margin-bottom: 28px;
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 1px var(--line-2);
+
+  :deep(.door-art) { grid-row: 1 / 3; width: 72px; height: 72px; }
+  h4 { margin: 0 0 2px; align-self: end; }
+  p { margin: 0; align-self: start; }
+}
 
 .key {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 140px 120px auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto auto auto;
   align-items: center;
-  gap: 18px;
-  padding: 18px 20px;
+  gap: 16px;
+  padding: 16px 18px;
   border-radius: var(--r-md);
   box-shadow: 0 0 0 1px var(--line-2);
   transition: box-shadow var(--dur);
@@ -364,26 +380,26 @@ onMounted(load);
 
   .ki { width: 44px; height: 44px; border-radius: var(--r-md); display: grid; place-items: center; background: var(--tint); color: var(--ink); }
   .kn { min-width: 0; }
-  h4 { margin: 0 0 4px; font: 600 15.5px var(--font-serif); }
+  h4 { margin: 0 0 4px; font: 700 17px/1.35 var(--font-serif); }
 
   .kv2 {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--st-ink-3);
 
-    button { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--r-xs); color: var(--st-ink-3); }
+    button { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-xs); color: var(--st-ink-3); }
     button:hover { background: var(--hover); color: var(--st-ink); }
 
     .fresh { font-size: 11px; padding: 1px 7px; border-radius: var(--r-xs); background: color-mix(in oklab, var(--green) 14%, var(--paper)); color: color-mix(in oklab, var(--green) 70%, var(--st-ink)); }
   }
 
   .scopes { display: flex; gap: 5px; margin-top: 8px; }
-  .scopes span { font-size: 11.5px; padding: 2px 8px; border-radius: var(--r-xs); background: var(--well); color: var(--st-ink-2); }
+  .scopes span { font-size: 12.5px; padding: 3px 10px; border-radius: var(--r-pill); box-shadow: 0 0 0 1px var(--line-2) inset; color: var(--st-ink-2); }
 
-  .lu { font-size: 13px; }
-  .lu small { display: block; font-size: 11.5px; color: var(--st-ink-3); margin-top: 3px; }
+  .lu { font-size: 14px; white-space: nowrap; }
+  .lu small { display: block; font-size: 12.5px; color: var(--st-ink-3); margin-top: 3px; }
 }
 
 .code {
@@ -407,16 +423,20 @@ onMounted(load);
 
 .api-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 40px;
-  margin-bottom: 56px;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  align-items: stretch;
+  gap: 20px;
+  margin-bottom: 36px;
+
+  > div { display: flex; flex-direction: column; min-width: 0; }
+  .code { flex: 1; }
 }
 
 em {
   font-style: normal;
   font-weight: 600;
-  font-size: 10.5px;
-  width: 48px;
+  font-size: 11.5px;
+  width: 54px;
   flex: none;
   text-align: center;
   padding: 2px 0;
@@ -433,12 +453,12 @@ em {
   display: flex;
   flex-direction: column;
 
-  div { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font: 12.5px var(--font-mono); color: var(--st-ink-2); }
+  div { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); font: 13.5px var(--font-mono); color: var(--st-ink-2); }
 }
 
-.note { font-size: 12.5px; color: var(--st-ink-3); line-height: 1.7; margin: 14px 0 0; }
+.note { font-size: 13px; color: var(--st-ink-3); line-height: 1.7; margin: 12px 0 0; }
 
-.tester { margin-bottom: 56px; }
+.tester { margin-bottom: 36px; }
 
 .auth {
   display: grid;
@@ -447,7 +467,7 @@ em {
   align-items: center;
   margin-bottom: 16px;
 
-  small { font-size: 12px; color: var(--st-ink-3); line-height: 1.5; }
+  small { font-size: 13px; color: var(--st-ink-3); line-height: 1.5; }
 }
 
 .eps { display: flex; flex-direction: column; gap: 6px; }
@@ -469,12 +489,12 @@ em {
 
     &:hover { background: var(--well); }
 
-    code { font: 12.5px var(--font-mono); color: var(--st-ink); white-space: nowrap; }
-    .d { flex: 1; min-width: 0; font-size: 13px; color: var(--st-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    code { font: 13.5px var(--font-mono); color: var(--st-ink); white-space: nowrap; }
+    .d { flex: 1; min-width: 0; font-size: 14px; color: var(--st-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .au {
-      font-size: 11px;
-      padding: 1px 7px;
+      font-size: 12px;
+      padding: 2px 9px;
       border-radius: var(--r-xs);
       background: var(--well-2);
       color: var(--st-ink-3);
@@ -515,7 +535,7 @@ em {
 
 @keyframes body-in { from { opacity: 0; transform: translateY(-4px); } }
 
-.prompt-sec { margin-bottom: 56px; }
+.prompt-sec { margin-bottom: 36px; }
 .prompt-sec .acts { display: flex; gap: 8px; }
 
 .prompt {
@@ -525,7 +545,7 @@ em {
   padding: 18px 20px;
   border-radius: var(--r-md);
   background: var(--well);
-  font: 12.5px/1.8 var(--font-mono);
+  font: 13px/1.8 var(--font-mono);
   color: var(--st-ink-2);
   white-space: pre-wrap;
 
@@ -570,8 +590,9 @@ em {
 }
 
 @media (max-width: 1180px) {
-  .view { padding: 40px 36px 80px; }
+  .view { padding: 28px 32px 64px; }
   .api-grid { grid-template-columns: 1fr; }
+  .keys { grid-template-columns: 1fr; }
   .auth { grid-template-columns: 1fr 1fr; }
   .auth small { grid-column: 1 / -1; }
 }

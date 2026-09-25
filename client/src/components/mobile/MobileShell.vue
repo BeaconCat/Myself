@@ -18,11 +18,14 @@ import SideDrawer from './SideDrawer.vue';
 import TabBarFloating from './TabBarFloating.vue';
 import SearchOverlay from './SearchOverlay.vue';
 import IslandToast from './IslandToast.vue';
-import MobileSplash from './MobileSplash.vue';
+import { useLoadingStore } from '../../stores/loading';
+import { skipNextRouteCover } from '../../router';
 import './mobile.scss';
 
 /**
  * 移动端前台外壳：抽屉层 + 舞台层（一级 tab 页 KeepAlive + 详情推入层）+ 悬浮胶囊底栏 + 全屏搜索 + 灵动岛。
+ *
+ * 首屏与路由切换沿用桌面的 AppLoading / RouteLoading（App.vue 渲染；左边缘手势返回不播路由遮罩）。
  *
  * 导航模型（iOS 式）：
  * - tab 之间：方向感知的横向滑动 + 淡入（按底栏顺序判定左右）。
@@ -161,6 +164,8 @@ onMounted(() => {
         pushDragging.value = false;
         if (vx > 0.35 || dx > window.innerWidth * 0.33) {
           push.value = 0;
+          // 手势已给出连续反馈：提交后的返回导航不再盖路由遮罩
+          skipNextRouteCover();
           goBack();
         } else {
           push.value = 1;
@@ -173,6 +178,21 @@ onMounted(() => {
     },
   });
 });
+
+/* ---------- 首屏 / 路由遮罩（与桌面共用 AppLoading / RouteLoading） ---------- */
+const loading = useLoadingStore();
+/* 首屏遮罩开始圆形收缩时舞台同步入场（AppLoading 在 bootDone 后 250ms 开始退场） */
+let bootTimer = 0;
+watch(
+  () => loading.bootDone,
+  (done) => {
+    if (!done || shell.booted) return;
+    bootTimer = window.setTimeout(() => { shell.booted = true; }, 250);
+  },
+  { immediate: true },
+);
+/** 幕布在屏上：页面错峰入场暂停，揭幕时再播 */
+const covered = computed(() => !shell.booted || loading.routeLoading);
 
 /* 抽屉打开时路由变化（标签跳转等）自动收起 */
 watch(() => route.fullPath, () => { if (shell.dp) closeDrawer(); });
@@ -199,6 +219,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   detach?.();
   window.clearTimeout(popTimer);
+  window.clearTimeout(bootTimer);
   html.classList.remove('m-shell');
   if (viewport) viewport.content = viewportBefore;
   shell.dp = 0;
@@ -207,7 +228,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="root" class="m-root" :class="{ booted: shell.booted, 'drawer-open': shell.dp > 0.5 }">
+  <div ref="root" class="m-root" :class="{ booted: shell.booted, covered, 'drawer-open': shell.dp > 0.5 }">
     <SideDrawer :class="{ dragging: shell.drawerDragging }" :style="{ '--m-dp': shell.dp }" />
 
     <div class="stage" :class="{ dragging: shell.drawerDragging }" :style="{ '--m-dp': shell.dp }">
@@ -259,7 +280,6 @@ onBeforeUnmount(() => {
 
     <SearchOverlay />
     <IslandToast />
-    <MobileSplash />
   </div>
 </template>
 
@@ -273,6 +293,9 @@ onBeforeUnmount(() => {
 }
 
 /* 舞台：抽屉拉开时右移 + 缩小后退 + 圆角 */
+/* 幕布（首屏 / 路由遮罩）在屏上时，页面错峰入场停在首帧，揭幕后再播 */
+.m-root.covered :deep(.m-in) { animation-play-state: paused; }
+
 .stage {
   --m-dw: min(272px, 70vw);
   position: absolute;

@@ -71,14 +71,22 @@ const stats = computed(() => {
   const total = items.value.reduce((s, i) => s + i.size, 0);
   let posts = 0;
   let notes = 0;
+  let postsN = 0;
+  let notesN = 0;
   for (const it of items.value) {
     const r = refs.value[it.url] ?? [];
-    if (r.some((x) => x.kind === 'post')) posts += it.size;
-    else if (r.length) notes += it.size;
+    if (r.some((x) => x.kind === 'post')) {
+      posts += it.size;
+      postsN += 1;
+    } else if (r.length) {
+      notes += it.size;
+      notesN += 1;
+    }
   }
   const other = Math.max(0, total - posts - notes);
+  const otherN = Math.max(0, items.value.length - postsN - notesN);
   const pct = (n: number) => (total ? `${(n / total) * 100}%` : '0%');
-  return { total, posts, notes, other, pct };
+  return { total, posts, notes, other, pct, postsN, notesN, otherN };
 });
 
 async function upload(files: File[]): Promise<void> {
@@ -158,37 +166,41 @@ onMounted(() => {
           @update:model-value="setTab"
         />
         <button v-if="tab === 'library'" type="button" class="st-btn p" :disabled="uploading" @click="fileInput?.click()">
-          <SIcon name="upload" :size="16" />{{ uploading ? t('studio.media.uploading') : t('studio.media.upload') }}
+          <SIcon name="upload" :size="18" />{{ uploading ? t('studio.media.uploading') : t('studio.media.upload') }}
         </button>
       </div>
     </div>
 
     <template v-if="tab === 'library'">
-      <div class="stats-row">
-        <div class="stat"><b class="mono">{{ items.length }}</b><small>{{ t('studio.media.statCount') }}</small></div>
-        <div class="stat"><b class="mono">{{ sizeParts(stats.total)[0] }}<span class="u">{{ sizeParts(stats.total)[1] }}</span></b><small>{{ t('studio.media.statSize') }}</small></div>
+      <section class="st-card overview st-rise">
+        <div class="st-stats" style="--n: 5">
+          <div class="st-stat"><b>{{ items.length }}</b><small>{{ t('studio.media.statCount') }}</small></div>
+          <div class="st-stat"><b>{{ sizeParts(stats.total)[0] }}<span class="u">{{ sizeParts(stats.total)[1] }}</span></b><small>{{ t('studio.media.statSize') }}</small></div>
+          <div class="st-stat"><b>{{ sizeParts(stats.posts)[0] }}<span class="u">{{ sizeParts(stats.posts)[1] }}</span></b><small>{{ t('studio.media.sPosts', { n: stats.postsN }) }}</small></div>
+          <div class="st-stat"><b>{{ sizeParts(stats.notes)[0] }}<span class="u">{{ sizeParts(stats.notes)[1] }}</span></b><small>{{ t('studio.media.sNotes', { n: stats.notesN }) }}</small></div>
+          <button type="button" class="st-stat" :disabled="!compressCount" @click="setTab('optimize')">
+            <b :class="{ warn: compressCount }">{{ compressCount }}</b><small>{{ t('studio.media.sZip') }}</small>
+          </button>
+        </div>
         <div class="usage">
           <div class="ub">
             <i :style="{ width: stats.pct(stats.posts), background: 'var(--ink)' }" />
             <i :style="{ width: stats.pct(stats.notes), background: 'color-mix(in oklab, var(--ink) 45%, var(--well-2))' }" />
             <i :style="{ width: stats.pct(stats.other), background: 'var(--line-3)' }" />
           </div>
-          <div class="lg">
-            <span><i class="st-dot" style="--c: var(--ink)" />{{ t('studio.media.lgPosts', { size: formatSize(stats.posts) }) }}</span>
-            <span><i class="st-dot" style="--c: color-mix(in oklab, var(--ink) 45%, var(--well-2))" />{{ t('studio.media.lgNotes', { size: formatSize(stats.notes) }) }}</span>
-            <span><i class="st-dot" style="--c: var(--line-3)" />{{ t('studio.media.lgOther', { size: formatSize(stats.other) }) }}</span>
-            <button v-if="compressCount" type="button" class="zip-link" @click="setTab('optimize')">
-              <i class="st-dot" style="--c: var(--yellow)" />{{ t('studio.media.lgZip', { n: compressCount }) }}
-            </button>
+          <div class="st-legend">
+            <span><i class="sw" style="--c: var(--ink)" />{{ t('studio.media.lgPosts', { size: formatSize(stats.posts) }) }}</span>
+            <span><i class="sw" style="--c: color-mix(in oklab, var(--ink) 45%, var(--well-2))" />{{ t('studio.media.lgNotes', { size: formatSize(stats.notes) }) }}</span>
+            <span><i class="sw" style="--c: var(--line-3)" />{{ t('studio.media.lgOther', { size: formatSize(stats.other) }) }}</span>
           </div>
         </div>
-      </div>
+      </section>
 
       <div v-if="loaded && !items.length" class="st-empty">
         <DoorArt />
         <h4>{{ t('studio.media.empty') }}</h4>
         <p>{{ t('studio.media.emptySub') }}</p>
-        <button type="button" class="st-btn p" @click="fileInput?.click()"><SIcon name="upload" :size="16" />{{ t('studio.media.upload') }}</button>
+        <button type="button" class="st-btn p" @click="fileInput?.click()"><SIcon name="upload" :size="18" />{{ t('studio.media.upload') }}</button>
       </div>
 
       <div class="masonry">
@@ -222,69 +234,46 @@ onMounted(() => {
 <style scoped lang="scss">
 .view {
   position: relative;
-  max-width: 1120px;
+  max-width: 1280px;
   min-height: 100%;
   margin: 0 auto;
-  padding: 52px 64px 96px;
+  padding: 32px 48px 72px;
 }
 
-.stats-row {
-  display: flex;
-  gap: 40px;
-  margin: -8px 0 30px;
-  padding-bottom: 26px;
-  border-bottom: 1px solid var(--line);
-}
+.overview { margin-bottom: 22px; gap: 16px; }
 
-.stat {
-  b { display: block; font-size: 26px; line-height: 1.1; font-weight: 500; letter-spacing: -0.03em; }
-  small { font-size: 12.5px; color: var(--st-ink-3); }
-  .u { font: 400 14px var(--font-sans); color: var(--st-ink-3); margin-left: 3px; letter-spacing: 0; }
-}
+.overview .st-stat:disabled { cursor: default; }
+.overview .st-stat:disabled:hover { background: none; }
+.overview b.warn { color: color-mix(in oklab, var(--yellow) 55%, var(--st-ink)); }
 
+/* 空间构成：撑满整宽的分段条 */
 .usage {
-  flex: 1;
-  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 
   .ub {
     display: flex;
-    height: 8px;
+    height: 12px;
     border-radius: var(--r-xs);
     overflow: hidden;
     background: var(--well-2);
-    margin: 8px 0 8px;
 
     i { height: 100%; transition: width var(--dur-slow) var(--ease-out); }
-  }
-
-  .lg {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    font-size: 12px;
-    color: var(--st-ink-3);
-
-    span, button { display: inline-flex; align-items: center; gap: 5px; }
-  }
-
-  .zip-link {
-    color: color-mix(in oklab, var(--yellow) 50%, var(--st-ink));
-    transition: gap var(--dur) var(--ease-spring);
-
-    &:hover { gap: 8px; }
+    i + i { box-shadow: -2px 0 0 var(--paper); }
   }
 }
 
 .masonry {
-  columns: 4 200px;
-  column-gap: 14px;
+  columns: 5 180px;
+  column-gap: 12px;
 }
 
 .mtile {
   position: relative;
   display: block;
   width: 100%;
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   break-inside: avoid;
   border-radius: var(--r-md);
   overflow: hidden;
@@ -306,7 +295,7 @@ onMounted(() => {
     justify-content: space-between;
     align-items: flex-end;
     gap: 10px;
-    font-size: 12px;
+    font-size: 13px;
     color: #fff;
     background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
     opacity: 0;
@@ -315,7 +304,7 @@ onMounted(() => {
     text-align: left;
 
     .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .mono { font-size: 11px; opacity: 0.8; flex: none; }
+    .mono { font-size: 12px; opacity: 0.85; flex: none; }
   }
 
   &:hover .cap { opacity: 1; transform: none; }
@@ -324,10 +313,10 @@ onMounted(() => {
     position: absolute;
     right: 10px;
     top: 10px;
-    height: 22px;
-    padding: 0 8px;
+    height: 24px;
+    padding: 0 9px;
     border-radius: var(--r-sm);
-    font: 500 11px/22px var(--font-sans);
+    font: 500 12px/24px var(--font-sans);
     background: rgba(255, 179, 0, 0.92);
     color: #1e1c19;
 
@@ -357,6 +346,6 @@ onMounted(() => {
 .veil-enter-from, .veil-leave-to { opacity: 0; }
 
 @media (max-width: 1180px) {
-  .view { padding: 40px 36px 80px; }
+  .view { padding: 28px 32px 64px; }
 }
 </style>

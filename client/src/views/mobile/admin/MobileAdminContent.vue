@@ -325,7 +325,7 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
   max-height: 0;
   overflow: hidden;
   opacity: 0;
-  margin: 0 20px;
+  margin: 0 16px;
   transition: max-height 0.4s var(--ease-sheet), opacity 0.3s;
 
   &.open {
@@ -393,7 +393,7 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 20px;
+  padding: 12px 16px;
   text-align: left;
   cursor: pointer;
 
@@ -401,7 +401,7 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
     content: '';
     position: absolute;
     top: 0;
-    left: 84px;
+    left: 80px;
     right: 0;
     height: 0.5px;
     background: var(--line);

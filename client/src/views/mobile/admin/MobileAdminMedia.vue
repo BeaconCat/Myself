@@ -352,9 +352,9 @@ async function removeItem(m: MediaItem): Promise<void> {
 label.icbtn { cursor: pointer; }
 
 .store {
-  margin: 4px 16px 0;
-  padding: 16px 18px;
-  border-radius: var(--r-xl);
+  margin: 2px 16px 0;
+  padding: 18px;
+  border-radius: var(--r-lg);
   background: var(--elev);
   box-shadow: var(--shadow-card);
 
@@ -364,19 +364,24 @@ label.icbtn { cursor: pointer; }
     gap: 8px;
   }
 
+  /* 数字优先：占用总量用大号等宽数字 */
   b {
-    font-family: var(--font-serif);
-    font-size: 24px;
+    font-family: var(--font-mono);
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
 
   small {
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--text-3);
   }
 
   .bar {
     display: flex;
-    height: 8px;
+    height: 10px;
     margin-top: 12px;
     border-radius: 999px;
     overflow: hidden;
@@ -397,7 +402,7 @@ label.icbtn { cursor: pointer; }
     flex-wrap: wrap;
     gap: 6px 14px;
     margin-top: 10px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-2);
 
     span::before {
@@ -427,7 +432,7 @@ label.icbtn { cursor: pointer; }
   background: var(--fill);
   box-shadow: inset 0 0 0 0.5px var(--line);
   color: var(--text);
-  font-size: 13.5px;
+  font-size: 14.5px;
   text-align: left;
 
   .sq-ic {
@@ -478,7 +483,7 @@ label.icbtn { cursor: pointer; }
     padding: 1px 5px;
     border-radius: 999px;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 11px;
     color: rgba(255, 255, 255, 0.92);
     background: rgb(0 0 0 / 0.42);
     backdrop-filter: blur(6px);

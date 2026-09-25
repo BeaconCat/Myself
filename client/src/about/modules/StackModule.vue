@@ -30,40 +30,42 @@ const { t } = useI18n();
 </template>
 
 <style scoped lang="scss">
-.sx { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.sx { display: grid; grid-template-columns: minmax(0, 1fr); align-content: space-between; flex: 1; gap: 4px; }
 
 .it {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   min-width: 0;
-  padding: 10px;
+  padding: 6px 10px;
+  margin: 0 -10px;
   border-radius: var(--r-md);
-  transition: background-color var(--dur-fast), box-shadow var(--dur-fast);
+  transition: background-color var(--dur-fast);
 
-  &:hover { background: var(--ak-sunken); box-shadow: inset 0 0 0 1px var(--ak-line); }
+  &:hover { background: var(--ak-sunken); }
 }
 
 .g {
   display: grid;
   place-items: center;
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--r-sm);
-  font: 600 12.5px var(--ak-mono);
+  font: 600 14px var(--ak-mono);
   /* 字形保留一点品牌色相，底与描边中性 */
   color: color-mix(in oklab, var(--c) 60%, var(--text));
   background: var(--fill);
-  box-shadow: inset 0 0 0 1px var(--ak-line);
 }
 
 .tx {
   min-width: 0;
 
-  b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 500; line-height: 1.3; }
-  span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--ak-text-3); }
+  b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 500; line-height: 1.35; }
+  span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--ak-text-3); }
 }
 
-@container (min-width: 560px) { .sx { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* 窄模块（4 栏）单列铺满高度；中等宽度两列；宽模块四列 */
+@container (min-width: 420px) { .sx { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; } }
+@container (min-width: 680px) { .sx { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 </style>

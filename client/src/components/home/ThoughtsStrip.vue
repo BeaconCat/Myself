@@ -127,13 +127,14 @@ function open(): void {
 
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 340px;
+  /* 一屏恰好 4 张（窄屏 3 张）铺满内容栏，不留半张孤卡 */
+  grid-auto-columns: calc((100% - 60px) / 4);
   gap: 20px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   /* 上下留出悬停上浮与阴影的空间；左右不出血 */
-  padding: 6px 0 30px;
+  padding: 6px 0 24px;
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent 100%);
   mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent 100%);
   transition: --fade-l var(--dur) var(--ease-out), --fade-r var(--dur) var(--ease-out);
@@ -148,8 +149,8 @@ function open(): void {
   scroll-snap-align: start;
   display: flex;
   flex-direction: column;
-  min-height: 248px;
-  padding: 22px 22px 18px;
+  min-height: 212px;
+  padding: 20px 24px;
   border-radius: var(--r-lg);
   background: var(--elev);
   box-shadow: var(--shadow-card);
@@ -168,12 +169,12 @@ function open(): void {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--text-3);
   }
 
   p {
-    margin-top: 14px;
+    margin-top: 12px;
     font-size: 15px;
     line-height: 1.8;
     display: -webkit-box;
@@ -208,8 +209,8 @@ function open(): void {
   img,
   .more,
   .sk {
-    width: 56px;
-    height: 56px;
+    width: 60px;
+    height: 60px;
     border-radius: var(--r-sm);
     flex: none;
     object-fit: cover;
@@ -231,10 +232,10 @@ function open(): void {
   gap: 6px;
   margin-top: auto;
   padding-top: 16px;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-3);
 
-  svg { width: 14px; height: 14px; }
+  svg { width: 18px; height: 18px; }
 }
 
 /* 末尾「查看全部」：凹陷面，不抬升 */
@@ -282,8 +283,8 @@ function open(): void {
 }
 
 .ib {
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 38px;
   border: 0;
   border-radius: 50%;
   display: grid;
@@ -292,11 +293,15 @@ function open(): void {
   background: var(--fill);
   transition: background-color var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
 
-  svg { width: 16px; height: 16px; }
+  svg { width: 18px; height: 18px; }
 
   &:hover { color: var(--text); background: var(--fill-2); }
   &:active { transform: scale(0.94); }
   &:focus-visible { outline: none; box-shadow: var(--focus); }
+}
+
+@media (max-width: 1100px) {
+  .hscroll { grid-auto-columns: calc((100% - 40px) / 3); }
 }
 
 @media (max-width: 768px) {
