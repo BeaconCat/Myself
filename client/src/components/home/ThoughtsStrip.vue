@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { thumbOf, type Note } from '../../api';
@@ -7,7 +7,7 @@ import SectionHead from './SectionHead.vue';
 import { monthDay, plainText } from './format';
 
 /** 首页「随想」横向预览：卡片横滑（吸附），左右按钮翻页，末尾一张「查看全部」 */
-defineProps<{ notes: Note[]; total: number; loading: boolean }>();
+const props = defineProps<{ notes: Note[]; total: number; loading: boolean }>();
 
 const { t } = useI18n();
 const router = useRouter();
@@ -24,6 +24,36 @@ function page(dir: -1 | 1): void {
   const step = (card?.offsetWidth ?? 340) + 20;
   el.scrollBy({ left: dir * step * Math.max(1, Math.floor(el.clientWidth / step) - 1), behavior: 'smooth' });
 }
+
+/*
+ * 边缘渐隐：横滑区收在内容栏宽度内，只在该方向还有内容可滚时，对应边缘做不透明度渐隐
+ * （滚到最左则左侧不隐，滚到最右则右侧不隐），避免卡片硬切或溢出内容栏。
+ */
+const fadeL = ref(false);
+const fadeR = ref(false);
+
+function updateFade(): void {
+  const el = scroller.value;
+  if (!el) return;
+  fadeL.value = el.scrollLeft > 2;
+  fadeR.value = el.scrollLeft < el.scrollWidth - el.clientWidth - 2;
+}
+
+let ro: ResizeObserver | null = null;
+watch(scroller, (el, old) => {
+  old?.removeEventListener('scroll', updateFade);
+  ro?.disconnect();
+  if (!el) return;
+  el.addEventListener('scroll', updateFade, { passive: true });
+  ro = new ResizeObserver(updateFade);
+  ro.observe(el);
+  void nextTick(updateFade);
+});
+watch(() => props.notes.length, () => void nextTick(updateFade));
+onBeforeUnmount(() => {
+  scroller.value?.removeEventListener('scroll', updateFade);
+  ro?.disconnect();
+});
 
 function open(): void {
   void router.push('/thoughts');
@@ -51,7 +81,7 @@ function open(): void {
       </div>
     </div>
 
-    <div v-else ref="scroller" v-reveal class="hscroll rise-stagger">
+    <div v-else ref="scroller" v-reveal class="hscroll rise-stagger" :class="{ 'fade-l': fadeL, 'fade-r': fadeR }">
       <div
         v-for="n in notes"
         :key="n.id"
@@ -87,9 +117,13 @@ function open(): void {
 </template>
 
 <style scoped lang="scss">
-/* 横滑出血到视口两侧，吸附起点与内容栏左缘对齐 */
+/* 横滑收在内容栏宽度内（与其他区块左右对齐）；两侧按可滚方向做不透明度渐隐 */
+@property --fade-l { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --fade-r { syntax: '<length>'; inherits: false; initial-value: 0px; }
+
 .hscroll {
-  --bleed: max(24px, calc((100vw - 1200px) / 2));
+  --fade-l: 0px;
+  --fade-r: 0px;
 
   display: grid;
   grid-auto-flow: column;
@@ -97,10 +131,15 @@ function open(): void {
   gap: 20px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  scroll-padding-inline: var(--bleed);
   scrollbar-width: none;
-  margin-inline: calc(50% - 50vw);
-  padding: 6px var(--bleed) 30px;
+  /* 上下留出悬停上浮与阴影的空间；左右不出血 */
+  padding: 6px 0 30px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent 100%);
+  transition: --fade-l var(--dur) var(--ease-out), --fade-r var(--dur) var(--ease-out);
+
+  &.fade-l { --fade-l: 72px; }
+  &.fade-r { --fade-r: 72px; }
 
   &::-webkit-scrollbar { display: none; }
 }

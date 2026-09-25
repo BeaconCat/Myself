@@ -320,13 +320,6 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <h2>{{ t('studio.appearance.brand') }}</h2>
-        <p class="desc">{{ t('studio.appearance.brandDesc') }}</p>
-        <div class="brand-row">
-          <div class="bs"><i style="--c: var(--red)" /><i style="--c: var(--yellow)" /><i style="--c: var(--blue)" /></div>
-          <span>{{ t('studio.appearance.brandNames') }}</span>
-          <span class="mono">#FF0032 · #FFB300 · #0078FF</span>
-        </div>
       </div>
 
       <div class="pv-wrap">
@@ -656,20 +649,6 @@ h2 { font: 600 18px var(--font-serif); margin: 0 0 6px; }
   &:focus-visible::-webkit-slider-thumb { box-shadow: var(--focus); }
 }
 
-.brand-row {
-  display: flex;
-  gap: 18px;
-  align-items: center;
-  padding: 16px 18px;
-  border-radius: var(--r-md);
-  background: var(--well);
-  font-size: 13px;
-  color: var(--st-ink-2);
-
-  .bs { display: flex; gap: 6px; }
-  .bs i { width: 22px; height: 22px; border-radius: var(--r-xs); background: var(--c); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08) inset; }
-  .mono { color: var(--st-ink-3); font-size: 11.5px; }
-}
 
 /* ---------- 预览 ---------- */
 .pv-wrap { position: sticky; top: 24px; }
