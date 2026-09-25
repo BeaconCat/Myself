@@ -73,6 +73,8 @@ const immersive = computed(() => route.name === 'admin-write-post');
 /* ===== 侧栏选中块：抬升 + 轻染，在项之间 morph（前缘快、后缘慢） ===== */
 const navEl = ref<HTMLElement | null>(null);
 const ind = ref({ top: 0, bottom: 0, down: true, show: false });
+/** 尺寸变化引起的重定位不播 morph，直接落位 */
+const snap = ref(false);
 
 function moveInd(): void {
   const nav = navEl.value;
@@ -90,6 +92,27 @@ function moveInd(): void {
   };
 }
 watch(active, () => void nextTick(moveInd));
+
+/*
+ * 选中块用 top + bottom 定位，bottom 依赖导航总高度。进出沉浸写作时侧栏收起/展开、
+ * 计数加载、字体就绪都会改变导航高度，而当前项可能不变（写作页归属「文章」），
+ * 所以要在导航尺寸变化时无动画地重新落位，否则会残留旧的 bottom 把块拉长。
+ */
+function reflowInd(): void {
+  snap.value = true;
+  moveInd();
+  requestAnimationFrame(() => requestAnimationFrame(() => (snap.value = false)));
+}
+let navRo: ResizeObserver | null = null;
+watch(navEl, (el) => {
+  navRo?.disconnect();
+  if (!el) return;
+  navRo = new ResizeObserver(reflowInd);
+  navRo.observe(el);
+});
+watch(() => route.name, (n, o) => {
+  if (n === 'admin-write-post' || o === 'admin-write-post') void nextTick(reflowInd);
+});
 
 /* ===== 主题：深浅 + 色盘（View Transition 圆形扩散） ===== */
 const palettes = computed(() =>
@@ -146,6 +169,7 @@ onBeforeUnmount(() => {
   delete document.documentElement.dataset.studio;
   window.removeEventListener('resize', moveInd);
   window.removeEventListener('keydown', onKey);
+  navRo?.disconnect();
 });
 </script>
 
@@ -167,7 +191,7 @@ onBeforeUnmount(() => {
       <nav ref="navEl" class="nav">
         <div
           class="nav-ind"
-          :class="{ show: ind.show, up: !ind.down }"
+          :class="{ show: ind.show, up: !ind.down, snap }"
           :style="{ top: `${ind.top}px`, bottom: `${ind.bottom}px` }"
         />
         <template v-for="(g, gi) in GROUPS" :key="gi">
@@ -193,9 +217,9 @@ onBeforeUnmount(() => {
             <b>{{ displayName }}</b>
             <small>{{ t('studio.role') }}</small>
           </div>
-          <a class="ext" href="/" target="_blank" rel="noopener" :title="t('studio.viewSite')">
+          <router-link class="ext" to="/" :title="t('studio.viewSite')">
             <SIcon name="external" :size="16" />
-          </a>
+          </router-link>
           <button type="button" class="ext" :title="t('studio.logout')" @click="logout">
             <SIcon name="logout" :size="16" />
           </button>
@@ -378,6 +402,8 @@ onBeforeUnmount(() => {
     padding: 0 6px;
   }
 }
+
+.nav-ind.snap { transition: none !important; }
 
 .nav-ind {
   position: absolute;
