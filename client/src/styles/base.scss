@@ -82,3 +82,16 @@ html:not(.vt-contract)::view-transition-new(root) {
     transition-delay: 0s !important;
   }
 }
+
+/* 叠加式主题揭幕（utils/themeReveal.ts）：快照层冻结，不播任何动画/过渡；
+   揭幕期间真实页面关闭颜色过渡，洞里直接是新主题终态 */
+.theme-reveal-layer,
+.theme-reveal-layer * {
+  animation: none !important;
+  transition: none !important;
+  caret-color: transparent !important;
+}
+html.theme-revealing,
+html.theme-revealing *:not(.theme-reveal-layer *) {
+  transition-property: transform, opacity !important;
+}

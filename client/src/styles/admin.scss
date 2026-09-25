@@ -734,13 +734,6 @@
   stroke-linejoin: round;
 }
 
-/* 主题切换圆形扩散（仅 Studio 触发时启用） */
-html.st-vt::view-transition-old(root),
-html.st-vt::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-
 /* 全局确认框（stores/dialog）在 Studio 内的换肤 */
 html[data-studio] .modal-mask {
   background: color-mix(in oklab, color-mix(in oklab, var(--primary) 30%, #4d3a22) 30%, rgba(20, 16, 10, 0.12));
