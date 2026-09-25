@@ -254,10 +254,15 @@ onMounted(() => {
 .hero-wrap + .block { margin-top: 24px; }
 
 .me {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  align-items: stretch;
   gap: 20px;
   margin-top: 72px;
+}
+
+@media (max-width: 1100px) {
+  .me { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 900px) {
