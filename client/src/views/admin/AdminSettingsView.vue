@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { settle, stableJson } from './studio/state';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -22,7 +23,7 @@ const loaded = ref(false);
 const busy = ref(false);
 
 /** 只比较本页负责的字段 */
-const mine = () => JSON.stringify([cfg.site, cfg.loading, cfg.thoughts, cfg.covers, cfg.timezone, cfg.github]);
+const mine = () => stableJson([cfg.site, cfg.loading, cfg.thoughts, cfg.covers, cfg.timezone, cfg.github]);
 const dirty = computed(() => loaded.value && mine() !== snapshot.value);
 
 const SECTIONS = ['site', 'loading', 'content', 'timezone', 'github', 'account'] as const;
@@ -42,7 +43,7 @@ async function load(): Promise<void> {
   } catch {
     toast(t('studio.loadFailed'), { icon: 'x' });
   }
-  await nextTick();
+  await settle();
   snapshot.value = mine();
   loaded.value = true;
 }

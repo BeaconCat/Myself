@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { settle, stableJson } from './studio/state';
+import { migrateInPlace } from '../../about/migrate';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -31,7 +33,7 @@ const pickerOpen = ref(false);
 const expanded = ref('');
 const identityOpen = ref(false);
 
-const dirty = computed(() => loaded.value && JSON.stringify(about) !== snapshot.value);
+const dirty = computed(() => loaded.value && stableJson(about) !== snapshot.value);
 
 async function load(): Promise<void> {
   try {
@@ -41,8 +43,10 @@ async function load(): Promise<void> {
   } catch {
     toast(t('studio.loadFailed'), { icon: 'x' });
   }
-  await nextTick();
-  snapshot.value = JSON.stringify(about);
+  // 先把旧结构模块就地迁移到新结构，展开编辑时不再因迁移而显示「未保存」
+  about.modules.forEach((m) => migrateInPlace(m));
+  await settle();
+  snapshot.value = stableJson(about);
   loaded.value = true;
 }
 
@@ -51,7 +55,7 @@ async function save(): Promise<void> {
   busy.value = true;
   try {
     await adminApi.saveSettings({ about: JSON.parse(JSON.stringify(about)) });
-    snapshot.value = JSON.stringify(about);
+    snapshot.value = stableJson(about);
     await config.load();
     toast(t('studio.about.saved'));
   } catch {
