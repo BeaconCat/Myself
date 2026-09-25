@@ -216,3 +216,11 @@ export function wipe(m: { img: string; from: string; to: string }): Keyframe[] {
     { ...base, maskPosition: `${m.to} 0`, webkitMaskPosition: `${m.to} 0` },
   ];
 }
+
+/** 行内容盒（去掉遮罩安全区 padding）：扫光轨道 / 基线按真实字宽定位 */
+export function inkBox(inner: HTMLElement): { left: number; width: number } {
+  const cs = getComputedStyle(inner);
+  const pl = parseFloat(cs.paddingLeft) || 0;
+  const pr = parseFloat(cs.paddingRight) || 0;
+  return { left: inner.offsetLeft + pl, width: inner.offsetWidth - pl - pr };
+}

@@ -157,15 +157,56 @@ onMounted(() => {
 
 /* ===== Hero 舞台：高度随内容（约 min(78vh, 720px)），内容垂直居中，无外框 ===== */
 .hero-wrap {
+  position: relative;
+  isolation: isolate;
   height: min(78vh, 720px);
   min-height: 540px;
   display: grid;
   align-items: center;
 
+  /*
+   * 舞台加深：自页面顶端起一层由上而下的轻微暗角，出舞台后柔和回到页面底色。
+   * 通栏用 border-image 外延（外延只算墨迹溢出，不产生横向滚动）；上方外延覆盖导航区，下方外延承接渐变尾巴。
+   */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    border-image: linear-gradient(180deg, var(--hero-shade-0) 0%, var(--hero-shade-1) 42%, transparent 100%) fill 0 / / 64px 100vw 160px;
+  }
+
+  /* 卡组背后一团很淡的中性体积光（非主色），给卡组一个「被照亮的空间」 */
+  &::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    top: 4%;
+    bottom: -8%;
+    left: 40%;
+    right: 0;
+    pointer-events: none;
+    background: radial-gradient(closest-side, var(--hero-vol), transparent);
+  }
+
   &.empty {
     height: auto;
     min-height: 0;
   }
+}
+
+/* 舞台加深 token：深色压暗、浅色轻压一层冷灰；体积光一律中性 */
+.page {
+  --hero-shade-0: rgb(0 0 0 / 0.34);
+  --hero-shade-1: rgb(0 0 0 / 0.16);
+  --hero-vol: rgb(200 212 235 / 0.085);
+}
+
+:root[data-mode='light'] .page {
+  --hero-shade-0: rgb(28 36 58 / 0.075);
+  --hero-shade-1: rgb(28 36 58 / 0.035);
+  --hero-vol: rgb(255 255 255 / 0.75);
 }
 
 .hero-sk {
@@ -224,6 +265,12 @@ onMounted(() => {
     height: auto;
     min-height: 0;
     padding: 24px 0 8px;
+
+    &::after {
+      left: -10%;
+      right: -10%;
+      top: 38%;
+    }
   }
 
   .hero-sk {

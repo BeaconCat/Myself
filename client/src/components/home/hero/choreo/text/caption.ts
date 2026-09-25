@@ -1,4 +1,4 @@
-import { fade } from '../engine';
+import { fade, inkBox } from '../engine';
 import type { TextChoreo } from '../types';
 
 /**
@@ -37,7 +37,8 @@ export const caption: TextChoreo = {
   enter(e, t) {
     const l0 = e.lines[0];
     if (l0) {
-      const bl = t.make(l0.ln, 'hc-baseline', { left: `${l0.inner.offsetLeft}px`, width: `${l0.inner.offsetWidth}px` });
+      const ib = inkBox(l0.inner);
+      const bl = t.make(l0.ln, 'hc-baseline', { left: `${ib.left}px`, width: `${ib.width}px` });
       t.a(bl, [
         { transform: 'scaleX(0)', transformOrigin: '0% 50%', opacity: 1 },
         { transform: 'scaleX(1)', transformOrigin: '0% 50%', opacity: 1, offset: 0.42 },

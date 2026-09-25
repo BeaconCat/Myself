@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CoverArt, { coverKindOf } from './CoverArt.vue';
-import { EASE } from './choreo/engine';
-import { F, makeGeom, tf } from './choreo/geom';
-import type { CardEl, CardEls } from './choreo/types';
+import { F, hBounds, makeGeom, tf } from './choreo/geom';
+import { getRotateChoreo } from './choreo';
+import { reversePlan } from './choreo/rotate/shared';
+import type { CardEl, CardEls, RotateCard, RotateGeo, RotatePlan } from './choreo/types';
 import { prefersReducedMotion } from './useHeroChoreo';
 
 interface Rect {
@@ -41,7 +42,9 @@ const props = withDefaults(defineProps<{
   busy?: boolean;
   /** 组内轮转动画倍速 */
   speed?: number;
-}>(), { leaving: false, busy: false, speed: 1 });
+  /** 组内切换编舞 id（rotate 注册表） */
+  rotateAnim?: string;
+}>(), { leaving: false, busy: false, speed: 1, rotateAnim: undefined });
 
 const emit = defineEmits<{
   /** 相册轮转：点击后排卡 / lightbox 切换 / 关闭落地后归位 */
@@ -73,7 +76,40 @@ const mq = window.matchMedia('(max-width: 900px)');
 function measure(): void {
   mobile.value = mq.matches;
   if (zoneEl.value) albumW.value = zoneEl.value.offsetWidth || albumW.value;
+  placeSteps();
 }
+
+/*
+ * 左右切换按钮：按卡组静止姿态的真实投影包围（choreo/geom 的 hBounds）贴在两侧、垂直居中；
+ * 视口放不下时向内收，但不压前卡（最多叠在后排卡上）。
+ */
+const STEP_BTN = 40;
+const STEP_GAP = 14;
+const stepPos = ref<{ prev: number; next: number } | null>(null);
+
+function placeSteps(): void {
+  const zone = zoneEl.value;
+  const n = Math.min(props.covers.length, 3);
+  if (!zone || n < 2) return;
+  const W = zone.offsetWidth;
+  if (!W) return;
+  const g = makeGeom(W, mq.matches);
+  const all = hBounds(Array.from({ length: n }, (_, s) => g.T(s)), W, W * 0.75);
+  const front = hBounds([g.T(0)], W, W * 0.75);
+  const cx = W / 2;
+  const r = zone.getBoundingClientRect();
+  const k = r.width / W || 1;
+  const vw = document.documentElement.clientWidth;
+  const minL = (12 - r.left) / k;
+  const maxR = (vw - 12 - r.left) / k;
+  let prev = Math.max(cx + all.l - STEP_GAP - STEP_BTN, minL);
+  prev = Math.min(prev, cx + front.l - 8 - STEP_BTN);
+  let next = Math.min(cx + all.r + STEP_GAP, maxR - STEP_BTN);
+  next = Math.max(next, cx + front.r + 8);
+  stepPos.value = { prev: Math.round(prev), next: Math.round(next) };
+}
+
+watch(() => props.covers.length, () => void nextTick(placeSteps));
 
 /** 相册卡位置：0 前排，1 右上后排，2 左下后排 */
 function slotOf(i: number, photo = props.photoIndex): number {
@@ -91,53 +127,37 @@ function restStyle(i: number): Record<string, string> {
 }
 
 /*
- * ===== 组内轮转：前卡「后退 → 让位 → 归队」，其余卡错峰晋升一位 =====
- * 旧实现的生涩来自两点：① photoIndex 一变，restStyle 立即把前卡 z-index 降到最底，
- * 它此刻仍在最前位置，于是第一帧就被后卡「啪」地盖住；② 退场位移只有 40px 且用回弹曲线，
- * 读起来像闪了一下。现在：
- *   - 离场前卡在关键帧里自带 zIndex：前 34% 仍压在最上层，同时原地后退、缩小、变暗；
- *     在最暗最小的那一刻交换层级（此时晋升卡已接近到位，交换被「从它身后穿过」掩盖），
- *     再沿弧线滑入后排槽位；
- *   - 晋升卡按目标槽位错峰 70ms 出发，用无回弹的品牌缓动，整组读作一次连贯的洗牌。
+ * ===== 组内轮转：编舞来自 rotate 注册表（choreo/rotate/*） =====
+ * 编舞只描述「前进一位」；后退一位 = 以新旧状态互换后的前进方案做时间倒放。
+ * photoIndex 一变，restStyle 立即给出新槽位的 inline 样式；动画用 fill: backwards，
+ * 首帧 = 旧槽位（含 zIndex），末帧 = 新槽位，结束后由 inline 样式无缝接手。
  */
 const rot: Record<number, Animation | undefined> = {};
-const ROT_MS = 900;
-const ROT_STAGGER = 70;
 
 watch(() => props.photoIndex, (now, before) => {
   const len = props.covers.length;
   if (len < 2 || props.leaving || prefersReducedMotion()) return;
-  const g = geo.value;
-  const topZ = g.restZ(0) + 5;
+  const back = len > 2 && (before - now + len) % len === 1;
+  // 倒放：把「now → before 的前进」算出来再倒着播
+  const [a, b] = back ? [now, before] : [before, now];
+  const choreo = getRotateChoreo(props.rotateAnim);
+  const g: RotateGeo = { ...geo.value, len, W: albumW.value, H: albumW.value * 0.75 };
+  const plans: { i: number; p: RotatePlan }[] = [];
   for (let i = 0; i < len; i++) {
-    const el = cardEls[i];
-    if (!el || flights[i]) continue;
-    const from = slotOf(i, before);
-    const to = slotOf(i, now);
+    if (!cardEls[i] || flights[i]) continue;
+    const from = slotOf(i, a);
+    const to = slotOf(i, b);
     if (from === to) continue;
+    const role: RotateCard['role'] = from === 0 ? 'out' : to === 0 ? 'in' : 'shift';
+    plans.push({ i, p: choreo.plan({ from, to, role }, g) });
+  }
+  const win = Math.max(0, ...plans.map(({ p }) => (p.delay ?? 0) + p.dur));
+  for (const { i, p: raw } of plans) {
+    const p = back ? reversePlan(raw, win) : raw;
     rot[i]?.cancel();
-    const leavingFront = from === 0;
-    const kf: Keyframe[] = leavingFront
-      ? [
-        { transform: g.T(0), filter: F(1), zIndex: topZ, easing: EASE.brand },
-        // 原地后退：仍在最上层，缩小变暗，给晋升卡让出视线
-        { transform: g.T(0, { dx: -26 * g.k, dy: 10 * g.k, dz: -60 * g.k, ds: 0.9 }), filter: F(0.72), zIndex: topZ, offset: 0.34 },
-        // 最暗最小处交换层级，随后沿弧线归队
-        { transform: g.T(0, { dx: -30 * g.k, dy: 12 * g.k, dz: -70 * g.k, ds: 0.88 }), filter: F(0.7), zIndex: g.restZ(to), offset: 0.36, easing: EASE.expoOut },
-        { transform: g.T(to), filter: F(g.bright(to)), zIndex: g.restZ(to) },
-      ]
-      : [
-        { transform: g.T(from), filter: F(g.bright(from)) },
-        { transform: g.T(to), filter: F(g.bright(to)) },
-      ];
-    const a = el.animate(kf, {
-      duration: ROT_MS,
-      delay: leavingFront ? 0 : to * ROT_STAGGER,
-      easing: leavingFront ? 'linear' : EASE.brand,
-      fill: 'backwards',
-    });
-    a.playbackRate = props.speed;
-    rot[i] = a;
+    const anim = cardEls[i]!.animate(p.kf, { duration: p.dur, delay: p.delay ?? 0, easing: 'linear', fill: 'backwards' });
+    anim.playbackRate = props.speed;
+    rot[i] = anim;
   }
 });
 
@@ -540,6 +560,7 @@ onMounted(() => {
   ro = new ResizeObserver(measure);
   if (zoneEl.value) ro.observe(zoneEl.value);
   mq.addEventListener('change', measure);
+  window.addEventListener('resize', placeSteps);
   window.addEventListener('keydown', onKey);
   window.addEventListener('wheel', onWheel, { passive: false });
 });
@@ -547,6 +568,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   ro?.disconnect();
   mq.removeEventListener('change', measure);
+  window.removeEventListener('resize', placeSteps);
   window.removeEventListener('keydown', onKey);
   window.removeEventListener('wheel', onWheel);
   Object.values(rot).forEach((a) => a?.cancel());
@@ -610,13 +632,27 @@ defineExpose({ els });
       </Teleport>
     </div>
 
-    <!-- 悬停左右切换 -->
+    <!-- 悬停 / 键盘聚焦时出现的上一张 / 下一张（中性玻璃圆钮，线性箭头与全站 24 网格图标同一画法） -->
     <template v-if="covers.length > 1 && !leaving">
-      <button class="step prev" aria-label="上一张" @click.stop="emit('step', -1)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+      <button
+        type="button"
+        class="step prev"
+        :style="stepPos ? { left: `${stepPos.prev}px` } : undefined"
+        :aria-label="t('heroLab.prevCover')"
+        :title="t('heroLab.prevCover')"
+        @click.stop="emit('step', -1)"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5.5 8.5 12l6.5 6.5" /></svg>
       </button>
-      <button class="step next" aria-label="下一张" @click.stop="emit('step', 1)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+      <button
+        type="button"
+        class="step next"
+        :style="stepPos ? { left: `${stepPos.next}px` } : undefined"
+        :aria-label="t('heroLab.nextCover')"
+        :title="t('heroLab.nextCover')"
+        @click.stop="emit('step', 1)"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
       </button>
     </template>
 
@@ -809,57 +845,90 @@ defineExpose({ els });
 .album-card.fly.airborne .card-glow { opacity: 0; }
 .album-card.fly.homing .card-glow { opacity: 1; }
 
-/* 左右切换按钮（在 album-zone 上，无 3D 变形） */
+/*
+ * 左右切换按钮（在 album-zone 上，无 3D 变形）：中性玻璃圆钮，无彩色发光。
+ * 水平位置由 placeSteps 按卡组投影计算（inline left），这里给回退值；样式全部显式声明，不依赖外部按钮重置。
+ */
 .step {
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
+  left: -56px;
   z-index: 40;
+  box-sizing: border-box;
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  margin: -20px 0 0;
+  padding: 0;
   border: 0;
-  box-shadow: inset 0 0 0 0.5px var(--line-2), 0 4px 12px -6px rgb(0 0 0 / 0.4);
+  border-radius: 50%;
+  appearance: none;
+  font: inherit;
+  line-height: 0;
   background: var(--glass);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: inset 0 0 0 0.5px var(--line-2), var(--btn-shadow);
   color: var(--text);
   display: grid;
   place-items: center;
+  cursor: pointer;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out), background var(--dur-fast);
+  transform: scale(0.92);
+  transition:
+    opacity var(--dur-fast) ease,
+    transform var(--dur) var(--ease-spring),
+    background-color var(--dur-fast) ease;
 
-  svg { width: 18px; height: 18px; }
+  svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform var(--dur) var(--ease-spring);
+  }
 
-  &.prev { left: -56px; }
-  &.next { right: -56px; }
+  &.next { left: auto; right: -56px; }
 
   &:hover {
     background: var(--fill-3);
-    transform: translateY(-50%) scale(1.06);
+    transform: scale(1.06);
   }
 
-  &:active { transform: translateY(-50%) scale(0.97); }
-  &:focus-visible { box-shadow: var(--focus); }
+  &.prev:hover svg { transform: translateX(-1.5px); }
+  &.next:hover svg { transform: translateX(1.5px); }
+
+  &:active { transform: scale(0.97); transition-duration: 0.08s; }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 0.5px var(--line-2), var(--focus);
+  }
 }
 
-.album-zone:hover .step {
+/* inline left 生效时撤掉 right 回退 */
+.step.next[style*='left'] { right: auto; }
+
+.album-zone:hover .step,
+.album-zone:focus-within .step,
+.step:focus-visible {
   opacity: 1;
   pointer-events: auto;
+  transform: scale(1);
 }
 
-@media (max-width: 900px) {
+.album-zone:hover .step:hover { transform: scale(1.06); }
+.album-zone .step:active { transform: scale(0.97); }
+
+@media (max-width: 900px), (hover: none) {
   .step {
     opacity: 1;
     pointer-events: auto;
-    width: 32px;
-    height: 32px;
-
-    svg { width: 15px; height: 15px; }
-
-    &.prev { left: -40px; }
-    &.next { right: -40px; }
+    transform: none;
   }
 }
 </style>

@@ -2,9 +2,9 @@ import type { ChoreoRun, Rect } from './engine';
 import type { DeckGeom } from './geom';
 
 /**
- * Hero 编舞契约：左侧文字动效与右侧卡组动效是两个独立注册表，可任意搭配。
+ * Hero 编舞契约：左侧文字动效、右侧卡组动效、组内三张卡的轮转是三个独立注册表，可任意搭配。
  *
- * - 前台 HeroCarousel 按站点配置 hero.textAnim / hero.cardAnim 取用；
+ * - 前台 HeroCarousel 按站点配置 hero.textAnim / hero.cardAnim / hero.rotateAnim 取用；
  * - 后台「外观 → 首页轮播」通过 HeroMixer.vue 实时预览并保存组合。
  */
 
@@ -27,7 +27,11 @@ export type TextChoreoId = 'lightscan' | 'dolly' | 'shift' | 'caption' | 'glow';
 /** 卡组动效 id（与 CARD_CHOREOS 保持一致） */
 export type CardChoreoId = 'hinge' | 'dolly' | 'shared' | 'parallax' | 'door';
 
+/** 组内切换 id（与 ROTATE_CHOREOS 保持一致） */
+export type RotateChoreoId = 'lift' | 'fan' | 'shuffle' | 'flip' | 'slide' | 'orbit' | 'recede';
+
 export const DEFAULT_TEXT_CHOREO: TextChoreoId = 'lightscan';
+export const DEFAULT_ROTATE_CHOREO: RotateChoreoId = 'lift';
 export const DEFAULT_CARD_CHOREO: CardChoreoId = 'hinge';
 
 /* ===== 运行时契约（编舞实现与 Hero 组件之间） ===== */
@@ -132,4 +136,40 @@ export interface CardChoreo {
   chrome?: 'rail';
   exit: (e: CardEls, t: ChoreoCtx) => void;
   enter: (e: CardEls, t: ChoreoCtx) => void;
+}
+
+/* ===== 组内切换（同一篇文章的 1–3 张卡轮转一位） ===== */
+
+/**
+ * 参与轮转的一张卡（编舞只写「前进一位」：out 0→末位，in 1→0，shift 其余前移一位；
+ * 后退由 HeroDeck 把前进方案按时间倒放得到，编舞无需关心方向）
+ */
+export interface RotateCard {
+  from: number;
+  to: number;
+  role: 'out' | 'in' | 'shift';
+}
+
+export interface RotateGeo extends DeckGeom {
+  /** 组内卡数（2 或 3） */
+  len: number;
+  /** 相册布局盒宽高（未变换） */
+  W: number;
+  H: number;
+}
+
+/**
+ * 一张卡的轮转方案：关键帧首帧 = 旧槽位静止态，末帧 = 新槽位静止态（transform / filter / zIndex / opacity），
+ * 收尾时 inline 静止样式无缝接手。分段缓动写在关键帧 easing 上，且只用 cubic-bezier / linear（倒放需要）。
+ * 层级：out 卡在交换时刻之前一直是最上层，交换必须落在它「侧立 / 透明 / 与其他卡无重叠」的那一帧。
+ */
+export interface RotatePlan {
+  kf: Keyframe[];
+  dur: number;
+  delay?: number;
+}
+
+export interface RotateChoreo {
+  meta: ChoreoMeta & { id: RotateChoreoId };
+  plan: (c: RotateCard, g: RotateGeo) => RotatePlan;
 }

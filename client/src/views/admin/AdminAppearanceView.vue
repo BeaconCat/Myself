@@ -8,7 +8,7 @@ import { useDialogStore } from '../../stores/dialog';
 import { applyRadius, useThemeStore } from '../../stores/theme';
 import { derivePalette } from '../../themes/derive';
 import HeroMixer from '../../components/home/hero/HeroMixer.vue';
-import type { CardChoreoId, TextChoreoId } from '../../components/home/hero/choreo/types';
+import type { CardChoreoId, RotateChoreoId, TextChoreoId } from '../../components/home/hero/choreo/types';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
 import StSwitch from './studio/StSwitch.vue';
@@ -249,10 +249,10 @@ onBeforeUnmount(() => {
         </div>
 
         <Transition name="pe">
-          <div v-if="editingPreset" :key="editingPreset.id" class="p-edit">
+          <div v-if="editingPreset" class="p-edit">
             <label class="st-field"><input v-model="editingPreset.name" :placeholder="t('studio.appearance.pName')" /></label>
-            <label class="color"><input v-model="editingPreset.primary" type="color" /><span><small>{{ t('studio.appearance.primary') }}</small><b class="mono">{{ editingPreset.primary }}</b></span></label>
-            <label class="color"><input v-model="editingPreset.primaryDeep" type="color" /><span><small>{{ t('studio.appearance.deep') }}</small><b class="mono">{{ editingPreset.primaryDeep }}</b></span></label>
+            <label class="color"><i class="sw" :style="{ background: editingPreset.primary }" /><input v-model="editingPreset.primary" type="color" /><span><small>{{ t('studio.appearance.primary') }}</small><b class="mono">{{ editingPreset.primary }}</b></span></label>
+            <label class="color"><i class="sw" :style="{ background: editingPreset.primaryDeep }" /><input v-model="editingPreset.primaryDeep" type="color" /><span><small>{{ t('studio.appearance.deep') }}</small><b class="mono">{{ editingPreset.primaryDeep }}</b></span></label>
             <button type="button" class="st-ibtn ring" :disabled="presets.length <= 1" :title="t('studio.delete')" @click="removePreset(editingPreset)"><SIcon name="trash" /></button>
           </div>
         </Transition>
@@ -405,6 +405,8 @@ onBeforeUnmount(() => {
           :card="cfg.hero.cardAnim"
           @update:text="(v: string) => (cfg.hero.textAnim = v as TextChoreoId)"
           @update:card="(v: string) => (cfg.hero.cardAnim = v as CardChoreoId)"
+          :rotate="cfg.hero.rotateAnim"
+          @update:rotate="(v: string) => (cfg.hero.rotateAnim = v as RotateChoreoId)"
         />
       </div>
     </div>
@@ -516,28 +518,42 @@ h2 { font: 600 18px var(--font-serif); margin: 0 0 6px; }
 
   .st-field { background: var(--paper); }
 
+  /* 色块容器撑满行高，四边等距；色块为正方形，颜色切换走过渡（原生取色器透明覆盖在色块上） */
   .color {
+    --pad: 6px;
+
+    position: relative;
+    align-self: stretch;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 10px 4px 4px;
+    gap: 10px;
+    padding: var(--pad) 14px var(--pad) var(--pad);
     border-radius: var(--r-sm);
     background: var(--paper);
     box-shadow: 0 0 0 1px var(--line) inset;
     cursor: pointer;
 
+    .sw {
+      height: 100%;
+      aspect-ratio: 1;
+      flex: none;
+      border-radius: max(2px, calc(var(--r-sm) - var(--pad)));
+      box-shadow: 0 0 0 1px rgb(0 0 0 / 0.08) inset;
+      transition: background-color var(--dur) var(--ease-out);
+    }
+
     input {
-      width: 30px;
-      height: 30px;
+      position: absolute;
+      inset: var(--pad) auto var(--pad) var(--pad);
+      aspect-ratio: 1;
+      height: calc(100% - var(--pad) * 2);
       padding: 0;
       border: 0;
-      border-radius: var(--r-xs);
-      background: none;
+      opacity: 0;
       cursor: pointer;
     }
 
-    input::-webkit-color-swatch-wrapper { padding: 0; }
-    input::-webkit-color-swatch { border: 0; border-radius: var(--r-xs); }
+    span { transition: opacity var(--dur-fast); }
 
     small { display: block; font-size: 11px; color: var(--st-ink-3); line-height: 1.2; }
     b { font-size: 12px; font-weight: 500; }

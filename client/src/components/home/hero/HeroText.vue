@@ -105,6 +105,28 @@ async function split(): Promise<void> {
   lastWidth = rootEl.value?.offsetWidth ?? 0;
   measuring.value = false;
   await nextTick();
+  snap();
+}
+
+/*
+ * 像素对齐：编舞期间行 / 字会被提升为合成层，合成层按整像素栅格化；
+ * 若静止态文字落在小数像素上，动画结束交还 DOM 的那一帧会出现半像素「跳动」。
+ * 这里把整层文字平移到设备像素网格上（行高也按设备像素取整，见样式），
+ * 让合成层与静止态栅格化结果一致。移动端（切换时叠放居中）与离场层不处理。
+ */
+const narrow = window.matchMedia('(max-width: 900px)');
+
+function snap(): void {
+  const el = rootEl.value;
+  if (!el || props.leaving) return;
+  const dpr = window.devicePixelRatio || 1;
+  el.style.setProperty('--px', `${1 / dpr}px`);
+  el.style.translate = '';
+  if (narrow.matches) return;
+  const r = el.getBoundingClientRect();
+  const fx = (r.left * dpr - Math.round(r.left * dpr)) / dpr;
+  const fy = (r.top * dpr - Math.round(r.top * dpr)) / dpr;
+  if (Math.abs(fx) > 0.01 || Math.abs(fy) > 0.01) el.style.translate = `${-fx.toFixed(3)}px ${-fy.toFixed(3)}px`;
 }
 
 function resplit(): Promise<void> {
@@ -116,6 +138,7 @@ function resplit(): Promise<void> {
 const readyPromise = resplit();
 
 let ro: ResizeObserver | null = null;
+let pageRo: ResizeObserver | null = null;
 let roTimer = 0;
 let ready = false;
 /** 冻结期间积压的重拆请求 */
@@ -145,6 +168,11 @@ onMounted(() => {
     roTimer = window.setTimeout(requestSplit, 120);
   });
   if (rootEl.value) ro.observe(rootEl.value);
+  // 视口 / 滚动条变化会让整页水平居中偏移半像素：宽度不变也要重新对齐
+  pageRo = new ResizeObserver(() => {
+    if (ready && !props.frozen) snap();
+  });
+  pageRo.observe(document.documentElement);
   void readyPromise.then(() => {
     ready = true;
     if (dirty) {
@@ -159,6 +187,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   ro?.disconnect();
+  pageRo?.disconnect();
   window.clearTimeout(roTimer);
 });
 
@@ -289,17 +318,18 @@ defineExpose({ els, ready: settled, resplit });
   font-family: var(--font-serif);
   font-weight: 900;
   font-size: clamp(30px, 3.9vw, 52px);
-  line-height: 1.2;
+  /* 行高按设备像素取整（--px = 1 / devicePixelRatio，HeroText 写入）：每行都落在像素网格上 */
+  line-height: round(1.2em, var(--px, 1px));
   letter-spacing: 0.005em;
   /* 测量态按平衡换行分组：避免「API / 中心」这种末行孤字 */
   text-wrap: balance;
-  min-height: 2.4em;
+  min-height: calc(2 * round(1.2em, var(--px, 1px)));
   width: 100%;
 }
 
 .hero-excerpt {
   font-size: 16px;
-  line-height: 1.8;
+  line-height: round(1.8em, var(--px, 1px));
   color: var(--text-2);
   max-width: 30em;
   width: 100%;
@@ -309,14 +339,21 @@ defineExpose({ els, ready: settled, resplit });
 .ln {
   display: block;
   position: relative;
-  padding: 0.08em 0 0.12em;
-  margin: -0.08em 0 -0.12em;
 }
 
 .ln-in {
   display: inline-block;
   white-space: nowrap;
   transform-origin: 0 60%;
+  /*
+   * 遮罩安全区：行遮罩（mask）作用在 border-box 上，字形上伸 / 下伸（y、g、标点）会伸出行高。
+   * 上下各留 0.26em、左右 0.12em，再用等量负 margin 抵消：布局、基线与字距完全不变。
+   */
+  --pad-y: round(0.26em, var(--px, 1px));
+  --pad-x: round(0.12em, var(--px, 1px));
+
+  padding: var(--pad-y) var(--pad-x);
+  margin: calc(-1 * var(--pad-y)) calc(-1 * var(--pad-x));
 }
 
 .w,

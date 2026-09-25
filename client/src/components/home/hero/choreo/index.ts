@@ -1,14 +1,17 @@
 /**
- * Hero 编舞注册表：文字与卡组两个独立注册表，任意搭配。
- * id 与 types.ts 的 TextChoreoId / CardChoreoId 一一对应。
+ * Hero 编舞注册表：文字、卡组、组内切换三个独立注册表，任意搭配。
+ * id 与 types.ts 的 TextChoreoId / CardChoreoId / RotateChoreoId 一一对应。
  */
 import { fade } from './engine';
 import {
   DEFAULT_CARD_CHOREO,
+  DEFAULT_ROTATE_CHOREO,
   DEFAULT_TEXT_CHOREO,
   type CardChoreo,
   type CardChoreoId,
   type ChoreoMeta,
+  type RotateChoreo,
+  type RotateChoreoId,
   type TextChoreo,
   type TextChoreoId,
 } from './types';
@@ -22,6 +25,13 @@ import { dolly as cardDolly } from './card/dolly';
 import { hinge } from './card/hinge';
 import { parallax } from './card/parallax';
 import { shared } from './card/shared';
+import { fan } from './rotate/fan';
+import { flip } from './rotate/flip';
+import { lift } from './rotate/lift';
+import { orbit } from './rotate/orbit';
+import { recede } from './rotate/recede';
+import { shuffle } from './rotate/shuffle';
+import { slide } from './rotate/slide';
 
 const TEXT: Record<TextChoreoId, TextChoreo> = {
   lightscan,
@@ -39,8 +49,28 @@ const CARD: Record<CardChoreoId, CardChoreo> = {
   door,
 };
 
+const ROTATE: Record<RotateChoreoId, RotateChoreo> = {
+  lift,
+  recede,
+  fan,
+  shuffle,
+  flip,
+  slide,
+  orbit,
+};
+
 export const TEXT_CHOREOS: ChoreoMeta[] = Object.values(TEXT).map((c) => c.meta);
 export const CARD_CHOREOS: ChoreoMeta[] = Object.values(CARD).map((c) => c.meta);
+export const ROTATE_CHOREOS: ChoreoMeta[] = Object.values(ROTATE).map((c) => c.meta);
+
+export function isRotateChoreoId(id: unknown): id is RotateChoreoId {
+  return typeof id === 'string' && id in ROTATE;
+}
+
+/** 按 id 取组内切换实现；未知 id 回落默认 */
+export function getRotateChoreo(id: unknown): RotateChoreo {
+  return ROTATE[isRotateChoreoId(id) ? id : DEFAULT_ROTATE_CHOREO];
+}
 
 export function isTextChoreoId(id: unknown): id is TextChoreoId {
   return typeof id === 'string' && id in TEXT;
