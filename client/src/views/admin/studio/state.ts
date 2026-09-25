@@ -1,4 +1,4 @@
-import { reactive } from 'vue';
+import { nextTick, reactive } from 'vue';
 import { adminApi, api } from '../../../api';
 import { revealOrigin, themeReveal } from '../../../utils/themeReveal';
 
@@ -40,4 +40,24 @@ export async function copyText(text: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * 未保存检测用的稳定序列化：数字字符串与数字视为相等、undefined 字段忽略，
+ * 避免表单控件把 "10" 规范成 10 等无意义差异触发「离开确认」。
+ */
+export function stableJson(v: unknown): string {
+  return JSON.stringify(v, (_k, val: unknown) => {
+    if (typeof val === 'string' && val.trim() !== '' && !Number.isNaN(Number(val)) && /^-?\d+(\.\d+)?$/.test(val.trim())) {
+      return Number(val);
+    }
+    return val;
+  });
+}
+
+/** 等子组件挂载并完成初始化（v-model 规范化、默认值回填）后再拍快照 */
+export async function settle(): Promise<void> {
+  await nextTick();
+  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+  await nextTick();
 }

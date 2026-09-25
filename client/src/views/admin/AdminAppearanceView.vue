@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi } from '../../api';
@@ -14,7 +14,7 @@ import SIcon from './studio/SIcon.vue';
 import StSwitch from './studio/StSwitch.vue';
 import StSeg from './studio/StSeg.vue';
 import LightCover from './studio/LightCover.vue';
-import { themeTransition } from './studio/state';
+import { themeTransition, settle, stableJson } from './studio/state';
 import { toast } from './studio/toast';
 
 /**
@@ -32,7 +32,7 @@ const snapshot = ref('');
 const loaded = ref(false);
 const busy = ref(false);
 const editing = ref('');
-const dirty = computed(() => loaded.value && JSON.stringify(cfg) !== snapshot.value);
+const dirty = computed(() => loaded.value && stableJson(cfg) !== snapshot.value);
 
 async function load(): Promise<void> {
   try {
@@ -43,8 +43,8 @@ async function load(): Promise<void> {
   } catch {
     toast(t('studio.loadFailed'), { icon: 'x' });
   }
-  await nextTick();
-  snapshot.value = JSON.stringify(cfg);
+  await settle();
+  snapshot.value = stableJson(cfg);
   loaded.value = true;
 }
 
@@ -54,7 +54,7 @@ async function save(): Promise<void> {
   try {
     cfg.theme.displayCount = Math.min(4, Math.max(1, cfg.theme.displayCount));
     await adminApi.saveSettings(JSON.parse(JSON.stringify(cfg)));
-    snapshot.value = JSON.stringify(cfg);
+    snapshot.value = stableJson(cfg);
     await config.load();
     theme.init();
     toast(t('studio.appearance.saved'));
