@@ -35,7 +35,8 @@ const natural = reactive({ w: 1, h: 1 });
 const display = reactive({ w: 1, h: 1 });
 /** 原图像素坐标 */
 const box = reactive({ x: 0, y: 0, w: 0, h: 0 });
-const ratio = ref(0);
+/** 当前裁切比例：null = 未进入裁切（不显示裁切框），0 = 自由比例 */
+const ratio = ref<number | null>(null);
 const busy = ref(false);
 const active = ref(false);
 
@@ -59,7 +60,7 @@ async function loadOriginal(): Promise<void> {
   const it = item.value;
   if (!it) return;
   loadingImg.value = true;
-  ratio.value = 0;
+  ratio.value = null;
   try {
     const blob = await adminApi.mediaOriginal(it.name);
     if (item.value?.name !== it.name) return;
@@ -178,7 +179,12 @@ function endDrag(): void {
 }
 
 const animating = ref(false);
+/** 点击比例：进入裁切并套用该比例；再点已选中的比例则退出裁切（隐藏裁切框） */
 function setRatio(r: number): void {
+  if (ratio.value === r) {
+    ratio.value = null;
+    return;
+  }
   ratio.value = r;
   if (!r) return;
   let w = natural.w * 0.84;
@@ -261,7 +267,7 @@ onBeforeUnmount(() => {
           <div class="v-img" :class="{ ready: !loadingImg }">
             <img ref="imgEl" :src="src || thumbOf(item.url)" alt="" draggable="false" @load="onImgLoad" />
             <div
-              v-if="!loadingImg"
+              v-if="!loadingImg && ratio !== null"
               class="crop"
               :class="{ act: active, anim: animating }"
               :style="boxStyle"
@@ -282,7 +288,7 @@ onBeforeUnmount(() => {
               />
               <span class="sz mono">{{ Math.round(box.w) }} × {{ Math.round(box.h) }}</span>
             </div>
-            <span v-else class="spin" />
+            <span v-if="loadingImg" class="spin" />
           </div>
         </div>
 
@@ -316,7 +322,7 @@ onBeforeUnmount(() => {
             <p v-if="!itemRefs.length">{{ t('studio.media.unused') }}</p>
           </div>
           <div class="acts">
-            <button type="button" class="st-btn p" :disabled="busy || loadingImg" @click="applyCrop"><SIcon name="crop" :size="16" />{{ t('studio.media.applyCrop') }}</button>
+            <button type="button" class="st-btn p" :disabled="busy || loadingImg || ratio === null" @click="applyCrop"><SIcon name="crop" :size="16" />{{ t('studio.media.applyCrop') }}</button>
             <a class="st-ibtn ring" :href="item.url" :download="item.name" :title="t('studio.media.download')"><SIcon name="download" /></a>
             <button type="button" class="st-ibtn ring" :disabled="busy" :title="t('studio.delete')" @click="remove"><SIcon name="trash" /></button>
           </div>
