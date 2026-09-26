@@ -796,7 +796,7 @@ h1 {
 .pn {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: var(--card-gap);
   margin-top: 22px;
 
   a {
@@ -804,13 +804,13 @@ h1 {
     align-items: center;
     gap: 16px;
     padding: 16px;
-    border-radius: var(--r-lg);
-    background: var(--elev);
-    box-shadow: var(--shadow-card);
+    border-radius: var(--card-r);
+    background: var(--card-bg);
+    box-shadow: var(--card-shadow);
     transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 
-    &:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
-    &:focus-visible { outline: none; box-shadow: var(--shadow-card), var(--focus); }
+    &:hover { transform: translateY(var(--card-rise)); box-shadow: var(--card-shadow-hover); }
+    &:focus-visible { outline: none; box-shadow: var(--card-shadow), var(--focus); }
   }
 
   .nx { flex-direction: row-reverse; text-align: right; }
@@ -856,7 +856,18 @@ h1 {
   .nx:hover small :deep(.ci) { transform: translateX(3px); }
 }
 
-:root[data-mode='dark'] .pn a {
+/* 简洁风格：上一篇 / 下一篇去卡面，顶部一条发丝线，悬停只让缩略图微放大 */
+:root[data-style='clean'] .pn a {
+  padding: 18px 0 0;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 var(--line);
+
+  &:hover { box-shadow: inset 0 1px 0 var(--line-2); }
+  &:hover b { color: var(--ink); }
+  &:focus-visible { box-shadow: var(--focus); }
+}
+
+:root[data-mode='dark']:not([data-style='clean']) .pn a {
   background: linear-gradient(180deg, color-mix(in oklab, var(--surface) 90%, white), var(--surface) 70%);
 }
 
@@ -982,7 +993,7 @@ h1 {
 .sk-av { width: 40px; height: 40px; border-radius: 50%; }
 .sk-prose { padding-top: 34px; --lh: 1.95em; font-size: 17.5px; }
 .sk-prose .gap { visibility: hidden; }
-.sk-toc { margin-top: 28px; height: 360px; border-radius: var(--r-lg); background: var(--elev); box-shadow: var(--shadow-card); padding: 24px; font-size: 13px; }
+.sk-toc { margin-top: 28px; height: 360px; border-radius: var(--card-r); background: var(--card-bg); box-shadow: var(--card-shadow); padding: var(--card-pad); font-size: 13px; }
 
 /* ---------- 响应式 ---------- */
 @media (max-width: 1300px) {

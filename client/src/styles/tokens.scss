@@ -108,3 +108,62 @@
     color-mix(in srgb, var(--primary) 85%, #fff)
   );
 }
+
+/* ======================================================================
+   界面风格（与 mode × palette 正交）：:root[data-style] 由 stores/theme.ts 写入。
+   cards（默认）= 高密度卡片：抬升面 + 中性卡片投影 + 统计条底色。
+   clean        = 透明背景简洁版式：区块无底色无投影、最多 1px 发丝线分隔，
+                  统计条为无底色纯数字行，分区留白更舒展。
+   组件只引用这些 token；个别结构差异在组件内用 :root[data-style='clean'] 覆盖。
+   ====================================================================== */
+:root {
+  --card-bg: var(--elev);
+  --card-shadow: var(--shadow-card);
+  --card-shadow-hover: var(--shadow-card-hover);
+  /* 卡片悬停上浮距离 */
+  --card-rise: -3px;
+  --card-r: var(--r-lg);
+  /* 卡片内边距（大 / 小）；clean 下内容与栏线对齐，内边距归零 */
+  --card-pad: 24px;
+  --card-pad-sm: 20px;
+  /* 卡片内封面圆角：cards 下由卡片裁切（0），clean 下封面自带圆角 */
+  --card-cover-r: 0px;
+  /* 卡片之间的栅格间距 */
+  --card-gap: 20px;
+
+  /* 统计条 */
+  --statbar-bg: var(--fill);
+  --statbar-r: var(--r-md);
+  --stat-pad: 16px 16px 14px;
+  --stat-sep: -1px 0 0 var(--line);
+  --stat-gap: 0px;
+  --statbar-pad: 0px;
+  /* clean 下统计行上下各一条发丝线 */
+  --statbar-shadow: none;
+
+  /* 页面分区间距 / 分区标题到内容 */
+  --section-gap: 60px;
+  --section-head-gap: 20px;
+}
+
+:root[data-style='clean'] {
+  --card-bg: transparent;
+  --card-shadow: none;
+  --card-shadow-hover: none;
+  --card-rise: 0px;
+  --card-pad: 0px;
+  --card-pad-sm: 0px;
+  --card-cover-r: var(--r-lg);
+  --card-gap: 40px;
+
+  --statbar-bg: transparent;
+  --statbar-r: 0px;
+  --stat-pad: 0px;
+  --stat-sep: none;
+  --stat-gap: 24px;
+  --statbar-pad: 16px 0 14px;
+  --statbar-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line);
+
+  --section-gap: 96px;
+  --section-head-gap: 28px;
+}

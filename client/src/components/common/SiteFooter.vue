@@ -60,6 +60,12 @@ const links = [
   color: var(--text-3);
 }
 
+/* 简洁风格：页脚与内容之间留白更舒展 */
+:root[data-style='clean'] .site-footer {
+  margin-top: 120px;
+  padding: 40px 0 44px;
+}
+
 .in {
   width: min(1200px, calc(100% - 80px));
   margin-inline: auto;

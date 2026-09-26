@@ -124,12 +124,21 @@ const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit
 .ss-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: var(--stat-gap);
   margin-top: auto;
-  border-radius: var(--r-md);
-  background: var(--fill);
+  padding: var(--statbar-pad);
+  border-radius: var(--statbar-r);
+  background: var(--statbar-bg);
+  box-shadow: var(--statbar-shadow);
 
   div { min-width: 0; padding: 14px 16px 12px; }
   div + div { box-shadow: -1px 0 0 var(--ak-line); }
+
+  /* 简洁风格：纯数字行 */
+  :root[data-style='clean'] & {
+    div { padding: 0; }
+    div + div { box-shadow: none; }
+  }
   dt { font-size: 12.5px; color: var(--ak-text-3); }
   dd { margin-top: 4px; overflow: hidden; font-size: 16px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
   dd.ak-mono { font-size: 20px; }

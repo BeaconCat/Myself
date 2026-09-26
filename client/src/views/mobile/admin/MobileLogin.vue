@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
- * 移动端登录：logo + 衬线大标题 + iOS 分组输入框 + 实底主按钮；错误时卡片抖动，成功后中性光圈放大转场进入后台。
+ * 移动端登录：logo + 衬线大标题 + iOS 分组输入框 + 实底主按钮；错误时卡片抖动。
+ * 验证通过：表单原位切到「验证通过」态（输入行右侧对勾、按钮换文案带对勾），立即跳转后台，
+ * 由路由遮罩盖住整页一起离场；欢迎提示在揭幕开始时弹出。
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -8,6 +10,7 @@ import { useI18n } from 'vue-i18n';
 import { adminApi } from '../../../api';
 import { useAuthStore } from '../../../stores/auth';
 import { useConfigStore } from '../../../stores/config';
+import { REVEAL_EVENT } from '../../../stores/loading';
 import MaIcon from '../../../components/mobile-admin/MaIcon.vue';
 import MaIsland from '../../../components/mobile-admin/MaIsland.vue';
 import MaRing from '../../../components/mobile-admin/MaRing.vue';
@@ -41,7 +44,7 @@ function shake(): void {
 const success = ref(false);
 const error = ref('');
 
-const canSubmit = computed(() => !!username.value && !!password.value && !busy.value);
+const canSubmit = computed(() => !!username.value && !!password.value && !busy.value && !success.value);
 
 async function submit(): Promise<void> {
   if (!canSubmit.value) return;
@@ -51,10 +54,9 @@ async function submit(): Promise<void> {
     auth.setToken(await adminApi.login(username.value, password.value));
     success.value = true;
     (document.activeElement as HTMLElement | null)?.blur();
-    window.setTimeout(() => {
-      void router.replace('/admin');
-      window.setTimeout(() => toast(t('mobileAdmin.login.welcome'), config.cfg.about.name || ''), 500);
-    }, 520);
+    const name = config.cfg.about.name || '';
+    window.addEventListener(REVEAL_EVENT, () => toast(t('mobileAdmin.login.welcome'), name), { once: true });
+    void router.replace('/admin');
   } catch {
     error.value = t('mobileAdmin.login.failed');
     shake();
@@ -72,7 +74,6 @@ onBeforeUnmount(() => document.documentElement.classList.remove('ma-lock'));
   <div class="ma-root ml" :class="{ success }">
     <main class="ml-main">
       <div class="brand">
-        <span class="halo" aria-hidden="true" />
         <img class="logo" src="/favicon-256.png" alt="" draggable="false" />
       </div>
       <h1>{{ t('mobileAdmin.login.title') }}</h1>
@@ -90,7 +91,9 @@ onBeforeUnmount(() => document.documentElement.classList.remove('ma-lock'));
               spellcheck="false"
               enterkeyhint="next"
               :placeholder="t('mobileAdmin.login.username')"
+              :readonly="success"
             />
+            <MaIcon v-if="success" class="ok" data-live name="check" :size="18" />
           </label>
           <label class="row">
             <MaIcon name="lock" :size="19" />
@@ -100,16 +103,24 @@ onBeforeUnmount(() => document.documentElement.classList.remove('ma-lock'));
               autocomplete="current-password"
               enterkeyhint="go"
               :placeholder="t('mobileAdmin.login.password')"
+              :readonly="success"
             />
-            <button type="button" class="eye tap" :aria-label="t('mobileAdmin.login.reveal')" @click="reveal = !reveal">
+            <MaIcon v-if="success" class="ok" data-live name="check" :size="18" />
+            <button v-else type="button" class="eye tap" :aria-label="t('mobileAdmin.login.reveal')" @click="reveal = !reveal">
               <MaIcon name="eye" :size="18" :class="{ off: !reveal }" />
             </button>
           </label>
         </div>
         <p class="err" :class="{ on: !!error }" role="alert">{{ error }}</p>
-        <button class="go tap" type="submit" :disabled="!canSubmit">
-          <MaRing v-if="busy" indeterminate :size="18" :stroke="2.2" class="go-ring" />
-          <span>{{ busy ? t('mobileAdmin.login.loggingIn') : t('mobileAdmin.login.submit') }}</span>
+        <button class="go tap" :class="{ passed: success }" type="submit" :disabled="!canSubmit">
+          <template v-if="success">
+            <span>{{ t('mobileAdmin.login.verified') }}</span>
+            <MaIcon class="go-ok" name="check" data-live :size="18" />
+          </template>
+          <template v-else>
+            <MaRing v-if="busy" indeterminate :size="18" :stroke="2.2" class="go-ring" />
+            <span>{{ busy ? t('mobileAdmin.login.loggingIn') : t('mobileAdmin.login.submit') }}</span>
+          </template>
         </button>
       </form>
 
@@ -165,17 +176,6 @@ html.ma-lock body {
     border-radius: var(--r-xl);
     box-shadow: var(--shadow-card);
     transition: transform 0.6s var(--ease-sheet);
-  }
-
-  /* 成功转场用的中性光圈（不带主色、不发光），平时隐藏 */
-  .halo {
-    position: absolute;
-    inset: -30px;
-    border-radius: 50%;
-    background: var(--fill-2);
-    opacity: 0;
-    transform: scale(0.6);
-    transition: transform 0.7s var(--ease-sheet), opacity 0.7s;
   }
 }
 
@@ -297,18 +297,18 @@ h1 {
   color: var(--text-3);
 }
 
-/* 登录成功：门光放大，内容淡出 */
-.success {
-  .brand .halo { transform: scale(3.2); opacity: 1; }
-  .brand .logo { transform: scale(1.08); }
-
-  h1,
-  .sub,
-  .card,
-  .back {
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: opacity 0.35s, transform 0.45s var(--ease-sheet);
-  }
+/* 验证通过：原位对勾（信号色 --ink 弹入），按钮保持 --solid 实底不减淡；整页随路由遮罩离场 */
+.ok {
+  color: var(--ink);
+  animation: ok-pop var(--dur) var(--ease-spring) both;
 }
+
+.go.passed {
+  opacity: 1;
+  box-shadow: var(--btn-shadow);
+
+  .go-ok { animation: ok-pop var(--dur) var(--ease-spring) both; }
+}
+
+@keyframes ok-pop { from { opacity: 0; transform: scale(0.4); } }
 </style>

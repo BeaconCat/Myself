@@ -16,9 +16,9 @@ export function useHeroRotation(items: Ref<HeroItem[]>, swap: (next: number) => 
   const item = computed(() => items.value[itemIndex.value] ?? items.value[0]);
   const covers = computed(() => (item.value?.covers ?? []).slice(0, 3));
 
-  /** 幕布（首屏 / 路由 loading）仍在屏上：动效与计时都等揭幕 */
+  /** 幕布（首屏 / 路由 loading）盖住：动效与计时都等揭幕开始（与遮罩退场同帧开演） */
   const loadingStore = useLoadingStore();
-  const curtainDown = computed(() => loadingStore.bootOverlayVisible || loadingStore.routeOverlayVisible);
+  const curtainDown = computed(() => loadingStore.curtain);
 
   function wrap(i: number): number {
     const n = items.value.length || 1;

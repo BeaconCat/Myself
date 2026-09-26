@@ -71,10 +71,10 @@ onBeforeUnmount(() => window.removeEventListener('resize', placeBar));
   display: flex;
   flex-direction: column;
   margin-top: 28px;
-  padding: 24px;
-  border-radius: var(--r-lg);
-  background: var(--elev);
-  box-shadow: var(--shadow-card);
+  padding: var(--card-pad);
+  border-radius: var(--card-r);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
   font-size: 14px;
 }
 
@@ -82,13 +82,16 @@ onBeforeUnmount(() => window.removeEventListener('resize', placeBar));
 .stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-radius: var(--r-md);
-  background: var(--fill);
+  gap: var(--stat-gap);
+  padding: var(--statbar-pad);
+  border-radius: var(--statbar-r);
+  background: var(--statbar-bg);
+  box-shadow: var(--statbar-shadow);
 }
 
 .stat {
   min-width: 0;
-  padding: 16px 16px 14px;
+  padding: var(--stat-pad);
 
   &:nth-child(2n) { box-shadow: -1px 0 0 var(--line); }
   &:nth-child(3) { box-shadow: 0 -1px 0 var(--line); }
@@ -113,6 +116,9 @@ onBeforeUnmount(() => window.removeEventListener('resize', placeBar));
     color: var(--text-3);
   }
 }
+
+/* 简洁风格：纯数字行，不画格线 */
+:root[data-style='clean'] .stat { box-shadow: none; }
 
 /* 阅读进度：撑满卡宽的细条 + 剩余时间 */
 .rd {

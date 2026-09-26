@@ -98,7 +98,7 @@ const sub = computed(() => {
 .latest {
   display: grid;
   grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  gap: 20px;
+  gap: var(--card-gap);
   align-items: stretch;
 }
 
@@ -135,9 +135,9 @@ const sub = computed(() => {
 /* ===== 卡面：中性，无发光 ===== */
 .feat,
 .list {
-  border-radius: var(--r-lg);
-  background: var(--elev);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--card-r);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
 }
 
 /* ===== 首篇封面卡 ===== */
@@ -153,7 +153,7 @@ const sub = computed(() => {
     display: flex;
     flex: 1;
     flex-direction: column;
-    padding: 20px 24px 24px;
+    padding: 20px var(--card-pad) var(--card-pad);
   }
 
   h3 {
@@ -181,16 +181,17 @@ const sub = computed(() => {
     overflow: hidden;
   }
 
-  &:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
+  &:hover { transform: translateY(var(--card-rise)); box-shadow: var(--card-shadow-hover); }
   &:hover h3 span { background-size: 100% 1.5px; }
   &:hover .cover :deep(.cv) { transform: scale(1.035); }
-  &:focus-visible { outline: none; box-shadow: var(--shadow-card), var(--focus); }
+  &:focus-visible { outline: none; box-shadow: var(--card-shadow), var(--focus); }
 }
 
 .cover {
   position: relative;
   flex: none;
   aspect-ratio: 2 / 1;
+  border-radius: var(--card-cover-r);
   overflow: hidden;
   isolation: isolate;
   background: #040914;
@@ -214,7 +215,7 @@ const sub = computed(() => {
 .list {
   display: flex;
   flex-direction: column;
-  padding: 8px 24px 20px;
+  padding: 8px var(--card-pad) 20px;
 }
 
 .arow {
@@ -317,8 +318,28 @@ const sub = computed(() => {
   &:focus-visible { outline: none; box-shadow: var(--focus); }
 }
 
+/* ===== 简洁风格：封面自带圆角与发丝描边，信息块与列表直接落在页面底色上 ===== */
+:root[data-style='clean'] {
+  .feat {
+    overflow: visible;
+    border-radius: 0;
+
+    .info { padding-bottom: 0; }
+    &:hover .cover { transform: translateY(-3px); }
+  }
+
+  .cover {
+    transition: transform var(--dur) var(--ease-out);
+    &::after { border-radius: inherit; box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.08); }
+  }
+
+  .list { padding-top: 0; padding-bottom: 0; }
+}
+
+:root[data-mode='light'][data-style='clean'] .cover::after { box-shadow: inset 0 0 0 0.5px rgb(16 24 40 / 0.1); }
+
 /* ===== 骨架几何 ===== */
-.feat .sk.cover { border-radius: 0; }
+.feat .sk.cover { border-radius: var(--card-cover-r); }
 
 .feat .sk-line,
 .arow .sk-line {

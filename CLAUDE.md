@@ -20,7 +20,7 @@
 - 关于页：模块化组件库（`about/`，26 种模块，12 栏 bento，`span/variant/title/hidden`），旧配置经 `about/migrate.ts` 读取时迁移；默认模块唯一来源 `about/default-modules.json`，改后运行 `python scripts/sync_about_defaults.py` 同步到 Go 默认配置
 
 ## 主题系统
-- 两层：`mode`（light/dark）×`palette`（季节色盘）
+- 三维正交：`mode`（light/dark）×`palette`（季节色盘）×`style`（`cards` 高密度卡片 / `clean` 透明背景简洁）；风格 token 在 `styles/tokens.scss` 末尾（`--card-*` `--statbar-*` `--section-gap` 等），站点默认 `theme.defaultStyle`，`theme.allowUserStyle` 控制访客切换
 - 品牌常量（所有主题贯穿）：`--accent-red:#ff0032` `--accent-yellow:#ffb300` `--accent-blue:#0078ff`
 - 内置四季预设：spring / summer / autumn / winter，由后端站点配置 `theme.presets` 下发（每组仅 primary / primaryDeep）
 - 色盘运行时派生：`client/src/themes/derive.ts` 从主色推导整套 light+dark 变量并注入，不维护独立色盘文件；后台可自定义最多 10 组预设
@@ -32,6 +32,7 @@
 - 统一 motion tokens：时长 `--dur-fast:.2s / --dur:.35s / --dur-slow:.6s`，
   缓动 `--ease-out:cubic-bezier(.2,.8,.3,1)`、回弹 `--ease-spring:cubic-bezier(.2,.8,.3,1.2)`
 - 尊重 `prefers-reduced-motion`
+- 交接原则：loading 退场与页面入场重叠（揭幕开始即放开页面动画，`stores/loading.ts` 的 curtain）；揭幕前须目标页已挂载 + 数据门闩（holdRoute）清零 + 首帧渲染，6s 兜底；后台内部切页离场与入场同时进行，不播遮罩
 - 首页 Hero 轮播：左文右卡，切换编舞见上文注册表；组内多卡数秒轮转
 
 ## 后端规范

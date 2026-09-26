@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, type Tag } from '../../api';
 import { useConfigStore } from '../../stores/config';
-import { useThemeStore, type Mode } from '../../stores/theme';
+import { useThemeStore, type Mode, type UiStyle } from '../../stores/theme';
 import { circularReveal } from '../../utils/circularReveal';
 import MIcon from './MIcon.vue';
 import { closeDrawer, copyText, shell, toast } from './shell';
@@ -40,6 +40,11 @@ function origin(e: MouseEvent): { x: number; y: number } {
 function setMode(mode: Mode, e: MouseEvent): void {
   if (theme.mode === mode) return;
   circularReveal(origin(e), () => theme.setMode(mode), mode === 'light' ? 'expand' : 'contract');
+}
+
+function setStyle(style: UiStyle, e: MouseEvent): void {
+  if (theme.style === style) return;
+  circularReveal(origin(e), () => theme.setStyle(style), style === 'clean' ? 'expand' : 'contract');
 }
 
 function setPalette(id: string, e: MouseEvent): void {
@@ -83,6 +88,21 @@ function openGithub(): void {
       </button>
       <button class="m-tap" :class="{ on: theme.mode === 'dark' }" @click="setMode('dark', $event)">
         <MIcon name="moon" class="s" />{{ t('mobile.dark') }}
+      </button>
+    </div>
+    <div
+      v-if="theme.allowUserStyle"
+      class="seg2 style"
+      role="group"
+      :aria-label="t('theme.style')"
+      :style="{ '--i': theme.style === 'clean' ? 1 : 0 }"
+    >
+      <span class="th" aria-hidden="true" />
+      <button class="m-tap" :class="{ on: theme.style === 'cards' }" :aria-pressed="theme.style === 'cards'" @click="setStyle('cards', $event)">
+        <MIcon name="cards" class="s" />{{ t('theme.styleCards') }}
+      </button>
+      <button class="m-tap" :class="{ on: theme.style === 'clean' }" :aria-pressed="theme.style === 'clean'" @click="setStyle('clean', $event)">
+        <MIcon name="clean" class="s" />{{ t('theme.styleClean') }}
       </button>
     </div>
     <div v-if="theme.allowUserPalette" class="pals">
@@ -257,6 +277,8 @@ function openGithub(): void {
     transition: transform var(--dur) var(--ease-spring), background-color var(--dur), box-shadow var(--dur);
   }
 }
+
+.seg2.style { margin-top: 10px; }
 
 .pals {
   display: grid;

@@ -48,17 +48,23 @@ function onLeave(): void {
 <style scoped lang="scss">
 .feat {
   display: block;
-  border-radius: var(--r-lg);
-  background: var(--elev);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--card-r);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
   outline: none;
   transition: box-shadow var(--dur) var(--ease-out);
 
-  &:hover { box-shadow: var(--shadow-card-hover); }
-  &:focus-visible { box-shadow: var(--shadow-card), var(--focus); }
+  &:hover { box-shadow: var(--card-shadow-hover); }
+  &:focus-visible { box-shadow: var(--card-shadow), var(--focus); }
 }
 
-.info { padding: 18px 24px 22px; }
+.info { padding: 18px var(--card-pad) 22px; }
+
+/* 简洁风格：封面四角圆、无卡底，信息块直接落在页面底色上 */
+:root[data-style='clean'] {
+  .info { padding-bottom: 6px; }
+  .cover { border-radius: var(--r-lg); }
+}
 
 /* 封面容器：品牌光影底 + 0.5px 内描边；阴影为中性色 */
 .cover {

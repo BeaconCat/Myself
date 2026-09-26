@@ -10,13 +10,6 @@
   transition: none;
 }
 
-.app-shell.is-leaving .route-view {
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 0.14s ease, transform 0.14s ease;
-  pointer-events: none;
-}
-
 /* ======================================================================
    骨架：.sk 同形骨架块；.sk-line 文字行
    ====================================================================== */
@@ -60,20 +53,6 @@
   border-radius: var(--r-xs);
 }
 
-/* 就地骨架（原型 data-sk）：页面用 holdRoute 按住期间，真实元素原地变骨架，几何天然一致 */
-.app-shell.is-pending [data-sk] {
-  color: transparent !important;
-  background: linear-gradient(100deg, var(--fill-2) 35%, var(--fill-3) 50%, var(--fill-2) 65%) 0 0 / 300% 100% !important;
-  box-shadow: none !important;
-  border-radius: var(--r-xs);
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  pointer-events: none;
-  animation: sk-pos 1.35s var(--ease-out) infinite;
-
-  * { visibility: hidden; }
-}
-
 @keyframes sk-pos {
   from { background-position: 100% 0; }
   to { background-position: 0 0; }
@@ -115,7 +94,18 @@
   }
 }
 
+/* 幕布盖住期间：已进入视口的 reveal 停在起始态（transition 不受 animation-play-state 控制），
+   揭幕开始的同一帧规则失效，过渡随遮罩退场一起播放；移动端外壳同理 */
+.app-shell.covered .reveal.reveal-in,
+.m-root.covered .reveal.reveal-in {
+  opacity: 0;
+  transform: translateY(28px);
+}
+
+.m-root.covered :is(.rise, .rise-stagger > *) {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .sk:not(:has(> *))::after,
-  .app-shell.is-pending [data-sk] { animation: none; }
+  .sk:not(:has(> *))::after { animation: none; }
 }

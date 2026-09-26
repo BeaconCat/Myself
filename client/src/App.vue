@@ -14,8 +14,11 @@ import MobileShell from './components/mobile/MobileShell.vue';
 const loading = useLoadingStore();
 /** 路由加载时页面整体缩小 10%（模糊变暗由 RouteLoading 的遮罩层承担） */
 const shrunk = computed(() => loading.routeLoading);
-/** 幕布落下（首屏/路由遮罩仍在屏上）：页面动画整体暂停，遮罩完全离屏才播 */
-const covered = computed(() => loading.bootOverlayVisible || loading.routeOverlayVisible);
+/**
+ * 幕布盖住（首屏/路由遮罩完全遮挡）：页面入场动画按住在首帧；
+ * 遮罩开始退场的同一帧即放开，入场与退场重叠交接（见 stores/loading.ts）。
+ */
+const covered = computed(() => loading.curtain);
 
 /** 后台等 bare 页面不渲染前台导航 / 页脚 / 搜索 */
 const route = useRoute();
@@ -41,11 +44,9 @@ watch(shrunk, (on) => {
   >
     <NavBar v-if="!bare" />
     <div class="route-view">
-      <router-view v-slot="{ Component }">
-        <transition name="page" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
+      <!-- 换页发生在路由遮罩背后，不再套 out-in 过渡：旧页根节点自带的 transition 会被 Vue 当成离场时长，
+           白白推迟新页挂载；入场由遮罩揭幕 + 页面自身 rise / reveal 承担 -->
+      <router-view />
     </div>
     <SiteFooter v-if="!bare" />
     <SearchPalette v-if="!bare" />

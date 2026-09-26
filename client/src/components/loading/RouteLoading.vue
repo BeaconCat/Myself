@@ -8,6 +8,7 @@ import { useConfigStore } from '../../stores/config';
  * 进场：模糊+变暗层浮现（页面同时被 App 缩小 10%），纯色层从上往下切下覆盖全屏，
  *       中央文本 + 旋转指示器。
  * 退场：整个 Loading（含模糊层）被容器 clip-path 裁切，随纯色层向下丝滑消失。
+ * 交接：routeLoading 变 false 即「揭幕开始」—— 本组件同帧开始退场，新页入场动画同帧开播（stores/loading.ts）。
  */
 const loading = useLoadingStore();
 const config = useConfigStore();
@@ -15,6 +16,7 @@ const config = useConfigStore();
 type Stage = 'idle' | 'enter' | 'leave';
 const stage = ref<Stage>('idle');
 const LEAVE_MS = 700;
+const reduced = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 watch(
   () => loading.routeLoading,
@@ -25,9 +27,9 @@ watch(
       stage.value = 'leave';
       window.setTimeout(() => {
         if (stage.value === 'leave') stage.value = 'idle';
-        // 遮罩彻底离屏，放行页面动画
+        // 遮罩彻底离屏（页面入场早在揭幕开始时已开播）
         loading.routeOverlayVisible = false;
-      }, LEAVE_MS);
+      }, reduced() ? 0 : LEAVE_MS);
     }
   },
 );

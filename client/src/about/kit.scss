@@ -154,15 +154,18 @@
   .ak-statbar {
     display: grid;
     grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
-    border-radius: var(--r-md);
-    background: var(--fill);
+    gap: var(--stat-gap);
+    padding: var(--statbar-pad);
+    border-radius: var(--statbar-r);
+    background: var(--statbar-bg);
+    box-shadow: var(--statbar-shadow);
   }
 
   .ak-stat {
     min-width: 0;
-    padding: 16px 16px 14px;
+    padding: var(--stat-pad);
 
-    & + & { box-shadow: -1px 0 0 var(--line); }
+    & + & { box-shadow: var(--stat-sep); }
 
     > b {
       display: block;
@@ -417,7 +420,7 @@
 }
 
 /* 深色卡面：自上而下的中性明度渐变（不含主色）；浅色为纯白 --elev */
-:root[data-mode='dark'] .ak .ak-m.card {
+:root[data-mode='dark']:not([data-style='clean']) .ak .ak-m.card {
   background: linear-gradient(180deg, var(--ak-surface-hi), var(--surface) 70%);
 }
 
@@ -428,6 +431,32 @@
 
   &:hover { background: color-mix(in oklab, var(--bg) 50%, white); }
   &:focus-visible { box-shadow: var(--focus); }
+}
+
+/* ---------- 简洁风格（:root[data-style='clean']） ----------
+ * 模块去卡面：无底色、无投影、无指针高光，只在顶部留一条 1px 发丝线；
+ * 模块间距放宽；统计条为纯数字行（见 tokens.scss 的 --stat* / --statbar*）。
+ * --ak-surface 退为页面底色，供时间轴圆点等「挖空」小件继续与底色融合。 */
+:root[data-style='clean'] .ak {
+  --ak-gap: 40px;
+  --ak-surface: var(--bg);
+  --ak-surface-hi: var(--bg);
+  --ak-shadow: none;
+  --ak-shadow-hover: none;
+
+  .ak-sec { row-gap: 36px; }
+
+  .ak-m.card {
+    padding: 22px 0 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: inset 0 1px 0 var(--line);
+
+    &::before { display: none; }
+    &:hover { transform: none; box-shadow: inset 0 1px 0 var(--line-2); }
+  }
+
+  .ak-stat { box-shadow: none; }
 }
 
 @keyframes ak-ping {
@@ -447,6 +476,7 @@
 
 @media (max-width: 640px) {
   .ak { --ak-pad: 20px; --ak-gap: 14px; }
+  :root[data-style='clean'] .ak { --ak-gap: 28px; }
   .ak .ak-sec > [data-span] { grid-column: 1 / -1; }
 }
 

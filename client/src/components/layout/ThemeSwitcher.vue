@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useThemeStore } from '../../stores/theme';
+import { useThemeStore, type UiStyle } from '../../stores/theme';
 import { useAuthStore } from '../../stores/auth';
 import { adminApi } from '../../api';
 import { circularReveal } from '../../utils/circularReveal';
@@ -13,6 +13,9 @@ const auth = useAuthStore();
 
 /** 关闭访客换肤只影响访客：管理员永远保留色盘条 */
 const showPalettes = computed(() => theme.allowUserPalette || auth.loggedIn);
+/** 界面风格切换同理：关闭访客切换时管理员仍可见 */
+const showStyle = computed(() => theme.allowUserStyle || auth.loggedIn);
+const solo = computed(() => !showPalettes.value && !showStyle.value);
 
 function origin(e: MouseEvent) {
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -31,6 +34,13 @@ function onPalette(e: MouseEvent, id: string): void {
   persistAsDefault({ defaultPaletteId: id });
 }
 
+/** 界面风格：卡片 ⇄ 简洁，圆形揭幕与深浅切换同一套过渡 */
+function onStyle(e: MouseEvent, style: UiStyle): void {
+  if (style === theme.style) return;
+  circularReveal(origin(e), () => theme.setStyle(style, auth.loggedIn), style === 'clean' ? 'expand' : 'contract');
+  persistAsDefault({ defaultStyle: style });
+}
+
 function onMode(e: MouseEvent): void {
   const toLight = theme.mode === 'dark';
   circularReveal(origin(e), () => theme.toggleMode(), toLight ? 'expand' : 'contract');
@@ -40,7 +50,7 @@ function onMode(e: MouseEvent): void {
 
 <template>
   <!-- 仅深浅切换时收成正圆按钮 -->
-  <div class="switcher" :class="{ solo: !showPalettes }">
+  <div class="switcher" :class="{ solo }">
     <template v-if="showPalettes">
       <button
         v-for="p in theme.allPalettes"
@@ -55,6 +65,27 @@ function onMode(e: MouseEvent): void {
       />
       <span class="divider" />
     </template>
+    <div
+      v-if="showStyle"
+      class="style-seg"
+      role="group"
+      :aria-label="t('theme.style')"
+      :style="{ '--i': theme.style === 'clean' ? 1 : 0 }"
+    >
+      <span class="thumb" aria-hidden="true" />
+      <button
+        v-for="s in (['cards', 'clean'] as const)"
+        :key="s"
+        type="button"
+        :class="{ on: theme.style === s }"
+        :title="s === 'cards' ? t('theme.toCards') : t('theme.toClean')"
+        :aria-label="s === 'cards' ? t('theme.styleCards') : t('theme.styleClean')"
+        :aria-pressed="theme.style === s"
+        @click="onStyle($event, s)"
+      >
+        <UiIcon :name="s" class="style-icon" />
+      </button>
+    </div>
     <button
       class="mode-btn"
       :title="theme.mode === 'light' ? t('theme.dark') : t('theme.light')"
@@ -144,6 +175,58 @@ function onMode(e: MouseEvent): void {
   height: 18px;
   margin: 0 4px 0 6px;
   background: var(--line-2);
+}
+
+/* 界面风格：两格迷你 segmented，选中 = 抬升 + 轻染，滑块在两格之间 morph */
+.style-seg {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px 30px;
+  height: 32px;
+  padding: 2px;
+  margin-right: 2px;
+  border-radius: min(var(--r-pill), calc(var(--nav-r-in, 16px) - 2px));
+  background: var(--fill);
+  box-shadow: inset 0 0 0 0.5px var(--line);
+
+  button {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: inherit;
+    background: none;
+    color: var(--text-3);
+    transition: color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+
+    &:hover { color: var(--text); }
+    &:active { transform: scale(0.9); }
+    &.on { color: var(--ink); }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--focus);
+    }
+  }
+
+  .thumb {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    width: 30px;
+    border-radius: inherit;
+    background: var(--lift);
+    box-shadow: var(--lift-shadow);
+    transform: translateX(calc(var(--i, 0) * 100%));
+    transition: transform var(--dur) var(--ease-spring);
+  }
+}
+
+.style-icon {
+  width: 16px;
+  height: 16px;
 }
 
 /* 深浅切换：中性图标按钮 */

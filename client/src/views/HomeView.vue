@@ -250,14 +250,14 @@ onMounted(() => {
   }
 }
 
-.block { margin-top: 60px; }
+.block { margin-top: var(--section-gap); }
 .hero-wrap + .block { margin-top: 20px; }
 
 .me {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   align-items: stretch;
-  gap: 20px;
+  gap: var(--card-gap);
 }
 
 @media (max-width: 1100px) {
@@ -285,6 +285,7 @@ onMounted(() => {
   }
 
   .block { margin-top: 56px; }
+  :root[data-style='clean'] .block { margin-top: 80px; }
 }
 
 @media (max-width: 768px) {

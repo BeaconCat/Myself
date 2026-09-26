@@ -24,8 +24,10 @@ const defaultJSON = `{
   "theme": {
     "defaultPaletteId": "summer",
     "defaultMode": "dark",
+    "defaultStyle": "cards",
     "autoSwitch": "off",
     "allowUserPalette": true,
+    "allowUserStyle": true,
     "displayCount": 4,
     "radius": 10,
     "presets": [

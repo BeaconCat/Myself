@@ -31,8 +31,12 @@ export interface SiteConfig {
   theme: {
     defaultPaletteId: string;
     defaultMode: 'light' | 'dark';
+    /** 默认界面风格：cards = 高密度卡片；clean = 透明背景简洁版式 */
+    defaultStyle: 'cards' | 'clean';
     autoSwitch: 'off' | 'season';
     allowUserPalette: boolean;
+    /** 是否允许访客自行切换界面风格 */
+    allowUserStyle: boolean;
     displayCount: number;
     presets: ThemePreset[];
     /** 全局圆角基准（px，0–24，默认 10）；前台、移动端、后台共用 */
@@ -79,8 +83,10 @@ export const FALLBACK_CONFIG: SiteConfig = {
   theme: {
     defaultPaletteId: 'summer',
     defaultMode: 'dark',
+    defaultStyle: 'cards',
     autoSwitch: 'off',
     allowUserPalette: true,
+    allowUserStyle: true,
     displayCount: 4,
     radius: 10,
     presets: [

@@ -520,8 +520,15 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
   padding: 14px;
   border-radius: var(--r-xl);
   text-align: left;
-  background: var(--elev);
-  box-shadow: var(--shadow-card);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+
+  /* 简洁风格：去卡面，上方一条发丝线 */
+  :root[data-style='clean'] & {
+    padding: 16px 0 0;
+    border-radius: 0;
+    box-shadow: inset 0 1px 0 var(--line);
+  }
 
   .nt { flex: 1; min-width: 0; }
 

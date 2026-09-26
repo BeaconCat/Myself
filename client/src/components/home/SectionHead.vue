@@ -26,7 +26,7 @@ defineProps<{ title: string; sub?: string; loading?: boolean; to?: string; linkT
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: var(--section-head-gap);
 
   h2 {
     font-family: var(--font-serif);

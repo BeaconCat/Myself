@@ -183,6 +183,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
 <style scoped lang="scss">
 /* 高密度：分区间距 28px、分区标题 24px 宋体、左右统一 16px 边距 */
 .sec { margin-top: 28px; }
+:root[data-style='clean'] .sec { margin-top: 40px; }
 
 .sec-h {
   display: flex;
@@ -222,10 +223,10 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
   flex: none;
   width: min(280px, 76vw);
   padding: 16px;
-  border-radius: var(--r-lg);
+  border-radius: var(--card-r);
   text-align: left;
-  background: var(--elev);
-  box-shadow: var(--shadow-card);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -274,6 +275,19 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
   }
 }
 
+/* 简洁风格：随想卡去卡面，卡间一条竖向发丝线 */
+:root[data-style='clean'] {
+  .tp { gap: 0; }
+
+  .tcard {
+    padding: 2px 16px 4px;
+    border-radius: 0;
+    box-shadow: inset 1px 0 0 var(--line);
+
+    &:first-child { padding-left: 0; box-shadow: none; }
+  }
+}
+
 /* 底部「关于我 + GitHub」：复用桌面卡片，纵向堆叠；窄屏适配只在外层用 :deep 调整 */
 .me {
   display: flex;
@@ -286,6 +300,16 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
     height: auto;
     padding: 20px;
     gap: 18px;
+  }
+
+  /* 简洁风格：两块之间一条发丝线，内容与页边对齐 */
+  :root[data-style='clean'] & {
+    gap: 28px;
+
+    :deep(.me-card),
+    :deep(.gh-card) { padding: 0; }
+
+    :deep(.gh-card) { padding-top: 24px; border-radius: 0; box-shadow: inset 0 1px 0 var(--line); }
   }
 
   /* 身份行：头像跨两行；名字与社交按钮同一行，格言落到第二行占满剩余宽度，不再被挤成两行 */

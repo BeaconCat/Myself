@@ -4,12 +4,15 @@ import type { Palette, PaletteColors } from '../themes/types';
 import { useConfigStore } from './config';
 
 export type Mode = 'light' | 'dark';
+/** 界面风格：cards = 高密度卡片（默认）；clean = 透明背景简洁版式。与 mode × palette 正交 */
+export type UiStyle = 'cards' | 'clean';
 
 const STORAGE_KEY = 'myself.theme';
 
 interface Persisted {
   mode: Mode | '';
   paletteId: string;
+  style?: UiStyle | '';
 }
 
 function loadPersisted(): Persisted {
@@ -40,6 +43,15 @@ function apply(colors: PaletteColors, mode: Mode, paletteId: string): void {
   root.style.setProperty('--ink', colors.ink);
 }
 
+function isStyle(v: unknown): v is UiStyle {
+  return v === 'cards' || v === 'clean';
+}
+
+/** 界面风格写到 :root[data-style]，tokens.scss 按它切换卡片 / 统计条 / 分区间距 token */
+function applyStyle(style: UiStyle): void {
+  document.documentElement.dataset.style = style;
+}
+
 /** 圆角基准（px，0–24）：tokens.scss 按比例派生 --r-xs…--r-xl 与兼容的 --radius / --radius-lg */
 export function applyRadius(base: number): void {
   const v = Number.isFinite(base) ? Math.min(24, Math.max(0, base)) : 10;
@@ -59,6 +71,7 @@ export const useThemeStore = defineStore('theme', {
   state: () => ({
     mode: 'dark' as Mode,
     paletteId: 'summer',
+    style: 'cards' as UiStyle,
   }),
   getters: {
     /** 访客可见色盘（配置驱动，主题色对派生整套） */
@@ -72,6 +85,9 @@ export const useThemeStore = defineStore('theme', {
     },
     allowUserPalette(): boolean {
       return useConfigStore().cfg.theme.allowUserPalette;
+    },
+    allowUserStyle(): boolean {
+      return useConfigStore().cfg.theme.allowUserStyle ?? true;
     },
   },
   actions: {
@@ -90,6 +106,10 @@ export const useThemeStore = defineStore('theme', {
         ? paletteId
         : this.allPalettes[0]?.id ?? 'summer';
 
+      const defStyle: UiStyle = isStyle(cfg.defaultStyle) ? cfg.defaultStyle : 'cards';
+      this.style = this.allowUserStyle && isStyle(saved.style) ? saved.style : defStyle;
+      applyStyle(this.style);
+
       apply(this.palette[this.mode], this.mode, this.paletteId);
       applyRadius(useConfigStore().cfg.theme.radius ?? 10);
     },
@@ -100,6 +120,14 @@ export const useThemeStore = defineStore('theme', {
     toggleMode() {
       this.setMode(this.mode === 'light' ? 'dark' : 'light');
     },
+    setStyle(style: UiStyle, isAdmin = false) {
+      if (!this.allowUserStyle && !isAdmin) return;
+      this.style = style;
+      this.persistAndApply();
+    },
+    toggleStyle(isAdmin = false) {
+      this.setStyle(this.style === 'cards' ? 'clean' : 'cards', isAdmin);
+    },
     setPalette(id: string, isAdmin = false) {
       if (!this.allowUserPalette && !isAdmin) return;
       this.paletteId = id;
@@ -108,8 +136,9 @@ export const useThemeStore = defineStore('theme', {
     persistAndApply() {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ mode: this.mode, paletteId: this.paletteId }),
+        JSON.stringify({ mode: this.mode, paletteId: this.paletteId, style: this.style }),
       );
+      applyStyle(this.style);
       apply(this.palette[this.mode], this.mode, this.paletteId);
     },
   },
