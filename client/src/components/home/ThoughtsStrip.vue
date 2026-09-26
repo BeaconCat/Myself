@@ -151,19 +151,20 @@ function open(): void {
   flex-direction: column;
   min-height: 212px;
   padding: 20px 24px;
-  border-radius: var(--r-lg);
-  background: var(--elev);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--card-r);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
   color: var(--text);
   cursor: pointer;
-  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out),
+    background-color var(--dur-fast);
 
   &:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-card-hover);
+    transform: translateY(var(--card-rise));
+    box-shadow: var(--card-shadow-hover);
   }
 
-  &:focus-visible { outline: none; box-shadow: var(--shadow-card), var(--focus); }
+  &:focus-visible { outline: none; box-shadow: var(--card-shadow), var(--focus); }
 
   .top {
     display: flex;
@@ -184,7 +185,7 @@ function open(): void {
   }
 }
 
-:root[data-mode='dark'] .tcard:not(.all) {
+:root[data-mode='dark']:not([data-style='clean']) .tcard:not(.all) {
   background: linear-gradient(180deg, color-mix(in oklab, var(--surface) 90%, white), var(--surface) 70%);
 }
 
@@ -279,7 +280,7 @@ function open(): void {
     height: 12px;
   }
 
-  &:hover { transform: none; box-shadow: var(--shadow-card); }
+  &:hover { transform: none; box-shadow: var(--card-shadow); }
 }
 
 .ib {
@@ -300,12 +301,44 @@ function open(): void {
   &:focus-visible { outline: none; box-shadow: var(--focus); }
 }
 
+/* 简洁风格：透明无框，卡与卡之间一条竖向发丝线；悬停只轻染底色 */
+:root[data-style='clean'] {
+  .hscroll {
+    gap: 0;
+    grid-auto-columns: 25%;
+    padding: 4px 0 8px;
+  }
+
+  .tcard {
+    min-height: 196px;
+    padding: 2px 24px 4px;
+    border-radius: 0;
+    box-shadow: inset 1px 0 0 var(--line);
+
+    &:first-child { padding-left: 0; box-shadow: none; }
+    &:hover { box-shadow: inset 1px 0 0 var(--line); background: none; }
+    &:first-child:hover { box-shadow: none; }
+    &:hover p { color: var(--ink); }
+    &:focus-visible { box-shadow: var(--focus); }
+  }
+
+  .tcard p { transition: color var(--dur-fast); }
+
+  .tcard.all {
+    background: none;
+    &:hover { background: none; }
+    &:hover .go { background: var(--fill-2); }
+  }
+}
+
 @media (max-width: 1100px) {
   .hscroll { grid-auto-columns: calc((100% - 40px) / 3); }
+  :root[data-style='clean'] .hscroll { grid-auto-columns: calc(100% / 3); }
 }
 
 @media (max-width: 768px) {
   .hscroll { grid-auto-columns: min(300px, 78vw); }
+  :root[data-style='clean'] .hscroll { grid-auto-columns: min(280px, 72vw); }
   .ib { display: none; }
 }
 </style>

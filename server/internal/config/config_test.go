@@ -46,3 +46,14 @@ func TestMigrateAboutModules(t *testing.T) {
 		t.Fatal("empty modules should fall back to defaults")
 	}
 }
+
+// 界面风格默认值：cards，且允许访客切换。
+func TestDefaultThemeStyle(t *testing.T) {
+	theme := Sub(Default(), "theme")
+	if got := Str(theme, "defaultStyle"); got != "cards" {
+		t.Fatalf("theme.defaultStyle = %q, want cards", got)
+	}
+	if !Bool(theme, "allowUserStyle") {
+		t.Fatal("theme.allowUserStyle should default to true")
+	}
+}

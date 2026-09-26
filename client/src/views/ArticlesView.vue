@@ -389,10 +389,10 @@ onBeforeUnmount(() => {
 .panel {
   display: flex;
   flex-direction: column;
-  padding: 24px;
-  border-radius: var(--r-lg);
-  background: var(--elev);
-  box-shadow: var(--shadow-card);
+  padding: var(--card-pad);
+  border-radius: var(--card-r);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
 
   h6 {
     display: flex;
@@ -411,15 +411,18 @@ onBeforeUnmount(() => {
 .stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-radius: var(--r-md);
-  background: var(--fill);
+  gap: var(--stat-gap);
+  padding: var(--statbar-pad);
+  border-radius: var(--statbar-r);
+  background: var(--statbar-bg);
+  box-shadow: var(--statbar-shadow);
 }
 
 .stat {
   min-width: 0;
-  padding: 16px 16px 14px;
+  padding: var(--stat-pad);
 
-  & + & { box-shadow: -1px 0 0 var(--line); }
+  & + & { box-shadow: var(--stat-sep); }
 
   strong {
     display: block;
@@ -442,6 +445,14 @@ onBeforeUnmount(() => {
 }
 
 .num-sk { display: block; width: 60%; height: 33px; border-radius: var(--r-xs); }
+
+/* 简洁风格：页首更舒展；右栏概览去卡面，只留左侧一条发丝线与主栏分隔 */
+:root[data-style='clean'] {
+  .ph { padding: 52px 0 22px; }
+  .side { padding: 14px 0 0 28px; box-shadow: inset 1px 0 0 var(--line); }
+  .grp-h { padding-top: 30px; }
+  .feat { margin-bottom: 20px; }
+}
 
 /* 标签分布：名称 | 撑满剩余宽度的条 | 计数；整行可点筛选，选中 = 抬升 + 轻染 */
 .dist {

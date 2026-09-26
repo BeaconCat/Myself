@@ -663,6 +663,7 @@ const studio = {
     hide: '隐藏密码',
     enter: '进入工作室',
     busy: '正在验证…',
+    verified: '验证通过',
     failed: '用户名或密码不正确',
     back: '回到站点',
   },

@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { adminApi } from '../../api';
 import { FALLBACK_CONFIG, useConfigStore, type SiteConfig, type ThemePreset } from '../../stores/config';
 import { useDialogStore } from '../../stores/dialog';
-import { applyRadius, useThemeStore } from '../../stores/theme';
+import { applyRadius, useThemeStore, type UiStyle } from '../../stores/theme';
 import { derivePalette } from '../../themes/derive';
 import HeroMixer from '../../components/home/hero/HeroMixer.vue';
 import type { CardChoreoId, RotateChoreoId, TextChoreoId } from '../../components/home/hero/choreo/types';
@@ -43,6 +43,9 @@ async function load(): Promise<void> {
   } catch {
     toast(t('studio.loadFailed'), { icon: 'x' });
   }
+  // 旧配置没有界面风格字段：在快照前补默认值，避免误报「未保存」
+  if (cfg.theme.defaultStyle !== 'clean') cfg.theme.defaultStyle = 'cards';
+  if (typeof cfg.theme.allowUserStyle !== 'boolean') cfg.theme.allowUserStyle = true;
   await settle();
   snapshot.value = stableJson(cfg);
   loaded.value = true;
@@ -124,6 +127,13 @@ function onDrop(i: number): void {
 function setMode(m: 'light' | 'dark', e: MouseEvent): void {
   cfg.theme.defaultMode = m;
   if (theme.mode !== m) themeTransition(e, () => theme.setMode(m));
+}
+
+/* ===== 界面风格：cards / clean，与模式同样即时预览（Studio 自身不随风格变化） ===== */
+const STYLES = ['cards', 'clean'] as const;
+function setStyle(s: UiStyle, e: MouseEvent): void {
+  cfg.theme.defaultStyle = s;
+  if (theme.style !== s) themeTransition(e, () => theme.setStyle(s, true));
 }
 
 const autoSeason = computed({
@@ -324,6 +334,33 @@ onBeforeUnmount(() => {
           </div>
         </div>
         </div>
+        </div>
+
+        <div class="style-blk">
+          <h2>{{ t('theme.styleDefault') }}</h2>
+          <p class="desc">{{ t('theme.styleDesc') }}</p>
+          <div class="modes styles">
+            <button
+              v-for="s in STYLES"
+              :key="s"
+              type="button"
+              class="mode-c"
+              :class="{ on: cfg.theme.defaultStyle === s }"
+              :aria-pressed="cfg.theme.defaultStyle === s"
+              @click="setStyle(s, $event)"
+            >
+              <div class="smini" :class="s" aria-hidden="true">
+                <i class="h" /><i class="k1" /><i class="k2" />
+              </div>
+              <span>{{ s === 'cards' ? t('theme.styleCards') : t('theme.styleClean') }}<small>{{ s === 'cards' ? t('theme.styleCardsSub') : t('theme.styleCleanSub') }}</small></span>
+            </button>
+          </div>
+          <div class="opts">
+            <div class="st-opt">
+              <div>{{ t('theme.allowUserStyle') }}<small>{{ t('theme.allowUserStyleSub') }}</small></div>
+              <StSwitch v-model="cfg.theme.allowUserStyle" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -625,6 +662,60 @@ h2 { font: 700 22px/1.3 var(--font-serif); margin: 0 0 4px; }
 
     &.light { background: color-mix(in oklab, var(--primary) 5%, #f5f6f8); .a { background: #e3e5ea; } .b { background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05); } }
     &.dark { background: color-mix(in oklab, var(--primary) 8%, #0b1220); .a { background: #1a2438; } .b { background: #101a2e; } }
+  }
+}
+
+/* ---------- 界面风格：缩略示意 ---------- */
+.style-blk { margin-top: 28px; }
+.style-blk .opts { margin: 10px 0 0; }
+
+.mode-c span small {
+  margin-left: 8px;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--st-ink-3, var(--text-3));
+}
+
+/* 示意：标题条 + 两块内容（右块含统计条）。cards = 抬升卡面 + 统计底色；clean = 透明 + 发丝线 */
+.smini {
+  position: relative;
+  height: 68px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--well, var(--fill));
+
+  i { position: absolute; border-radius: var(--r-xs); }
+  .h { left: 10px; top: 9px; width: 36%; height: 6px; background: var(--line-2); }
+  .k1 { left: 10px; top: 22px; width: calc(58% - 14px); bottom: 9px; }
+  .k2 { right: 10px; top: 22px; width: calc(42% - 14px); bottom: 9px; }
+
+  &.cards {
+    .k1, .k2 { background: var(--elev); box-shadow: var(--shadow-card); }
+    .k2::after {
+      content: '';
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      top: 6px;
+      height: 16px;
+      border-radius: var(--r-xs);
+      background: var(--fill-2);
+    }
+  }
+
+  &.clean {
+    .k1, .k2 { border-radius: 0; background: none; box-shadow: inset 0 1px 0 var(--line-2); }
+    .k1::after, .k2::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 20%;
+      top: 8px;
+      height: 3px;
+      border-radius: var(--r-pill);
+      background: var(--line-2);
+    }
   }
 }
 

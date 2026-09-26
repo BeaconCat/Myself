@@ -11,7 +11,11 @@ import LightCover from './studio/LightCover.vue';
 import '@fontsource/noto-serif-sc/400.css';
 import '@fontsource/noto-serif-sc/600.css';
 
-/** 登录 · Studio：左侧门缝光，右侧纸面表单；成功后推门进入「今天」 */
+/**
+ * 登录 · Studio：左侧门缝光，右侧纸面表单。
+ * 验证通过：表单原位切到「验证通过」态（输入框右侧对勾、按钮换文案带对勾），
+ * 同时立即跳转后台，由路由遮罩盖住整张卡片一起离场，不再单独播卡片退场。
+ */
 const { t } = useI18n();
 const router = useRouter();
 const auth = useAuthStore();
@@ -24,16 +28,18 @@ const error = ref('');
 const busy = ref(false);
 /** 表单卡片：报错抖动用 WAAPI 单独播放，不替换 CSS 入场动画（否则移除抖动类时入场会重播） */
 const cardEl = ref<HTMLElement | null>(null);
-const entering = ref(false);
+/** 验证通过：表单锁定为只读并显示对勾，等待路由遮罩接走 */
+const verified = ref(false);
 
 async function submit(): Promise<void> {
-  if (busy.value) return;
+  if (busy.value || verified.value) return;
   busy.value = true;
   error.value = '';
   try {
     auth.setToken(await adminApi.login(username.value, password.value));
-    entering.value = true;
-    window.setTimeout(() => void router.push({ name: 'admin-today' }), 520);
+    verified.value = true;
+    (document.activeElement as HTMLElement | null)?.blur();
+    void router.push({ name: 'admin-today' });
   } catch {
     error.value = t('studio.login.failed');
     shake();
@@ -66,7 +72,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="studio login" :class="{ entering }">
+  <main class="studio login" :class="{ verified }">
     <div ref="cardEl" class="card">
       <div class="art">
         <LightCover class="door" kind="door" />
@@ -82,21 +88,27 @@ onBeforeUnmount(() => {
 
         <label>
           <span class="st-flabel">{{ t('studio.login.user') }}</span>
-          <span class="st-field"><SIcon name="user" :size="16" /><input v-model="username" autocomplete="username" required autofocus /></span>
+          <span class="st-field">
+            <SIcon name="user" :size="16" />
+            <input v-model="username" autocomplete="username" required autofocus :readonly="verified" />
+            <SIcon v-if="verified" class="ok" data-live name="check" :size="16" />
+          </span>
         </label>
         <label>
           <span class="st-flabel">{{ t('studio.login.pass') }}</span>
           <span class="st-field">
             <SIcon name="lock" :size="16" />
-            <input v-model="password" :type="show ? 'text' : 'password'" autocomplete="current-password" required />
-            <button type="button" class="eye" :title="show ? t('studio.login.hide') : t('studio.login.show')" @click="show = !show">
+            <input v-model="password" :type="show ? 'text' : 'password'" autocomplete="current-password" required :readonly="verified" />
+            <SIcon v-if="verified" class="ok" data-live name="check" :size="16" />
+            <button v-else type="button" class="eye" :title="show ? t('studio.login.hide') : t('studio.login.show')" @click="show = !show">
               <SIcon :name="show ? 'eyeOff' : 'eye'" :size="16" />
             </button>
           </span>
         </label>
         <p class="err" :class="{ on: !!error }">{{ error || '&nbsp;' }}</p>
-        <button type="submit" class="st-btn p lg go" :disabled="busy">
-          {{ busy ? t('studio.login.busy') : t('studio.login.enter') }}<SIcon name="arrowR" :size="16" />
+        <button type="submit" class="st-btn p lg go" :class="{ passed: verified }" :disabled="busy || verified">
+          <template v-if="verified">{{ t('studio.login.verified') }}<SIcon name="check" :size="16" data-live /></template>
+          <template v-else>{{ busy ? t('studio.login.busy') : t('studio.login.enter') }}<SIcon name="arrowR" :size="16" /></template>
         </button>
         <a class="back st-link" href="/"><SIcon name="arrowL" :size="14" />{{ t('studio.login.back') }}</a>
       </form>
@@ -125,13 +137,6 @@ onBeforeUnmount(() => {
   background: var(--paper);
   box-shadow: var(--sh-paper);
   overflow: hidden;
-
-
-  .entering & {
-    transition: transform 0.5s var(--ease-out), opacity 0.5s var(--ease-out);
-    transform: scale(1.03);
-    opacity: 0;
-  }
 }
 
 
@@ -197,7 +202,19 @@ onBeforeUnmount(() => {
   }
 
   .back { align-self: center; font-size: 12.5px; margin-top: 4px; }
+
+  /* 验证通过：对勾用信号色 --ink 弹入；按钮保持 --solid 实底，禁用态不减淡 */
+  .ok { color: var(--ink); animation: ok-pop var(--dur) var(--ease-spring) both; }
+
+  .go.passed {
+    opacity: 1;
+    cursor: default;
+
+    .st-ic { color: inherit; animation: ok-pop var(--dur) var(--ease-spring) both; }
+  }
 }
+
+@keyframes ok-pop { from { opacity: 0; transform: scale(0.4); } }
 
 @media (max-width: 860px) {
   .card { grid-template-columns: 1fr; width: min(420px, 100%); }

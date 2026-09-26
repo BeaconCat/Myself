@@ -309,7 +309,9 @@ function open(p: Post): void {
     aspect-ratio: 2 / 1;
     border-radius: var(--r-xl);
     overflow: hidden;
-    box-shadow: var(--shadow-card);
+    box-shadow: var(--card-shadow);
+
+    :root[data-style='clean'] & { box-shadow: none; }
   }
 
   .meta {

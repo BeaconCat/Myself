@@ -1,11 +1,21 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useLoadingStore } from '../../stores/loading';
 import { useConfigStore } from '../../stores/config';
+import { routeMounted } from '../../router';
 
-/** 首屏加载：文本 + 进度条，完成后 clip-path 圆形收缩退场（Nebula Inspector 同款） */
+/**
+ * 首屏加载：文本 + 进度条，完成后 clip-path 圆形收缩退场（Nebula Inspector 同款）。
+ * 交接：bootDone 后等首屏页面挂载 + 数据门闩清零再揭幕；收缩开始的同一帧 bootCovered=false，
+ * 页面入场与收缩重叠播放，而不是等圆形完全收完。
+ */
 const loading = useLoadingStore();
 const config = useConfigStore();
+const router = useRouter();
+
+const SHRINK_MS = 1100;
+const reduced = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const fadeOut = ref(false);
 const removed = ref(false);
@@ -13,18 +23,22 @@ const removed = ref(false);
 watch(
   () => loading.bootDone,
   (done) => {
-    if (!done) return;
-    window.setTimeout(() => {
-      fadeOut.value = true;
-      window.setTimeout(() => {
-        removed.value = true;
-        // 遮罩完全消失后才放行页面动画
-        loading.bootOverlayVisible = false;
-      }, 1400);
-    }, 250);
+    if (done) loading.revealBoot(() => routeMounted(router.currentRoute.value));
   },
-  // 若加载在组件挂载前已完成（缓存命中极快），立即触发退场
+  // 若加载在组件挂载前已完成（缓存命中极快），立即开始查验
   { immediate: true },
+);
+
+watch(
+  () => loading.bootCovered,
+  (covered) => {
+    if (covered) return;
+    fadeOut.value = true;
+    window.setTimeout(() => {
+      removed.value = true;
+      loading.bootOverlayVisible = false;
+    }, reduced() ? 0 : SHRINK_MS);
+  },
 );
 </script>
 
@@ -49,15 +63,17 @@ watch(
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  clip-path: circle(200% at 50% 50%);
+  clip-path: circle(75% at 50% 50%);
 
   &.fade-out {
-    animation: boot-clip-shrink 1.3s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+    animation: boot-clip-shrink 1.05s cubic-bezier(0.45, 0, 0.25, 1) forwards;
   }
 }
 
+/* 起点 75%：circle() 百分比基准为 √(w²+h²)/√2，角点距中心约 70.7%，
+   75% 刚好盖满视口 —— 收缩第一帧起就可见，与页面入场同步开始，不会先空转半程 */
 @keyframes boot-clip-shrink {
-  0% { clip-path: circle(200% at 50% 50%); }
+  0% { clip-path: circle(75% at 50% 50%); }
   100% { clip-path: circle(0% at 50% 50%); }
 }
 

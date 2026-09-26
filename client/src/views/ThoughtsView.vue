@@ -509,6 +509,13 @@ onBeforeUnmount(() => {
 
 .sentinel { height: 1px; }
 
+/* 简洁风格：右栏概览去卡面，左侧一条发丝线与信息流分隔；统计为纯数字行 */
+:root[data-style='clean'] {
+  .ph { padding: 52px 0 22px; }
+  .rail { padding-left: 28px; box-shadow: inset 1px 0 0 var(--line); }
+  .stat { box-shadow: none; }
+}
+
 /* ---------- 右栏 ---------- */
 .rail {
   position: sticky;
@@ -521,22 +528,25 @@ onBeforeUnmount(() => {
 .card {
   display: flex;
   flex-direction: column;
-  padding: 24px;
-  border-radius: var(--r-lg);
-  background: var(--elev);
-  box-shadow: var(--shadow-card);
+  padding: var(--card-pad);
+  border-radius: var(--card-r);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
 }
 
 .stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-radius: var(--r-md);
-  background: var(--fill);
+  gap: var(--stat-gap);
+  padding: var(--statbar-pad);
+  border-radius: var(--statbar-r);
+  background: var(--statbar-bg);
+  box-shadow: var(--statbar-shadow);
 }
 
 .stat {
   min-width: 0;
-  padding: 16px 16px 14px;
+  padding: var(--stat-pad);
 
   &:nth-child(2n) { box-shadow: -1px 0 0 var(--line); }
   &:nth-child(3) { box-shadow: 0 -1px 0 var(--line); }

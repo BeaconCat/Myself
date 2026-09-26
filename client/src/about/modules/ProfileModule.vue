@@ -188,12 +188,21 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 .pf-status {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, max-content));
+  gap: var(--stat-gap);
   margin: 22px 0 20px;
-  border-radius: var(--r-md);
-  background: var(--fill);
+  padding: var(--statbar-pad);
+  border-radius: var(--statbar-r);
+  background: var(--statbar-bg);
+  box-shadow: var(--statbar-shadow);
 
   > div { min-width: 0; padding: 14px 22px 12px 18px; }
   > div + div { box-shadow: -1px 0 0 var(--ak-line); }
+
+  /* 简洁风格：纯数字行 */
+  :root[data-style='clean'] & {
+    > div { padding: 0 20px 0 0; }
+    > div + div { box-shadow: none; }
+  }
 
   dt { margin-bottom: 6px; font-size: 12.5px; line-height: 1.3; color: var(--ak-text-3); }
   dd { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 17px; font-weight: 600; white-space: nowrap; }

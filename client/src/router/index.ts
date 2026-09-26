@@ -1,8 +1,17 @@
-import { createRouter, createWebHistory, type RouteComponent, type RouteLocationNormalized, type RouteRecordRaw } from 'vue-router';
+import {
+  createRouter,
+  createWebHistory,
+  isNavigationFailure,
+  NavigationFailureType,
+  type RouteComponent,
+  type RouteLocationNormalized,
+  type RouteRecordRaw,
+} from 'vue-router';
+import { MOBILE_QUERY } from '../composables/useDevice';
 import { useLoadingStore } from '../stores/loading';
 
 import { adminChildren } from './admin';
-import { mobileAdminViews } from './mobile-admin';
+import { mobileAdminLogin, mobileAdminViews } from './mobile-admin';
 import { mobilePublicViews } from './mobile-public';
 
 type Lazy = () => Promise<RouteComponent>;
@@ -50,11 +59,18 @@ export const router = createRouter({
 });
 
 /**
- * 路由 Loading：先播覆盖动画，纯色层完整盖住全屏后才放行导航
- * （组件加载/渲染全部发生在覆盖层背后），退场前最短展示 900ms。
+ * 路由 Loading 时序（ms 以点击为 0）：
+ *   0      startRoute：遮罩进场（模糊层 0–300，纯色层 120–670），同时并行预取目标页分包
+ *   700    遮罩盖满 且 分包就绪 → 放行导航（旧页卸载、新页挂载都发生在遮罩背后）
+ *   ≥900   目标页已挂载 + 数据门闩清零 + 最短展示到 → 下一帧揭幕
+ *   揭幕   遮罩开始下滑退场（700ms），同帧放开新页入场动画（reveal / rise / Hero）
+ * 任一条件卡住 6s 兜底强制揭幕。
  */
+const reduced = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const COVER_MS = 700;
 const MIN_SHOW_MS = 900;
+/** 预取兜底：网络极慢时不无限等待（路由自身仍会继续加载） */
+const PRELOAD_CAP_MS = 6000;
 let shownAt = 0;
 /** 本次导航是否在播遮罩（beforeEach 判定，afterEach 沿用，避免两处判断不一致） */
 let covering = false;
@@ -73,6 +89,46 @@ function playsCover(to: RouteLocationNormalized, from: RouteLocationNormalized):
   return to.path !== from.path;
 }
 
+/** 路由懒加载函数（非已解析组件对象） */
+function isLazy(c: unknown): c is Lazy {
+  return typeof c === 'function' && !('__vccOpts' in c) && !('props' in c) && !('displayName' in c);
+}
+
+/**
+ * 并行预取目标页分包：路由记录上的懒加载组件（按当前设备取命名视图），
+ * 以及外壳内部 defineAsyncComponent 包装的布局（后台布局 / 登录页），
+ * 与遮罩进场同时下载，盖满时通常已就绪。
+ */
+function preload(to: RouteLocationNormalized): Promise<unknown> {
+  const mobile = window.matchMedia(MOBILE_QUERY).matches;
+  const jobs: Promise<unknown>[] = [];
+  for (const rec of to.matched) {
+    const comps = rec.components ?? {};
+    const c = (mobile ? comps.mobile : undefined) ?? comps.default;
+    if (isLazy(c)) jobs.push(c());
+  }
+  if (to.meta.admin) {
+    jobs.push(mobile ? import('../views/mobile/admin/MobileAdminLayout.vue') : import('../views/admin/AdminLayout.vue'));
+  }
+  if (to.name === 'admin-login') {
+    jobs.push(mobile ? mobileAdminLogin() : import('../views/admin/AdminLoginView.vue'));
+  }
+  if (!jobs.length) return Promise.resolve();
+  const settled = Promise.allSettled(jobs);
+  return Promise.race([settled, new Promise((r) => window.setTimeout(r, PRELOAD_CAP_MS))]);
+}
+
+/**
+ * 目标页挂载探针：叶子路由记录已有组件实例（router-view 挂载后登记），
+ * 或外壳自报已挂载（移动端外壳不经 router-view 渲染 tab / 详情）。
+ */
+export function routeMounted(to: RouteLocationNormalized): boolean {
+  if (useLoadingStore().pageMounted) return true;
+  const leaf = to.matched[to.matched.length - 1];
+  if (!leaf) return true;
+  return Object.values(leaf.instances).some(Boolean);
+}
+
 router.beforeEach(async (to, from) => {
   // 后台鉴权
   if (to.meta.admin && !localStorage.getItem('myself.token')) {
@@ -81,16 +137,30 @@ router.beforeEach(async (to, from) => {
   const skip = performance.now() < skipCoverUntil;
   skipCoverUntil = 0;
   covering = !skip && playsCover(to, from);
-  if (!covering) return;
+  const ready = preload(to);
+  if (!covering) {
+    await ready;
+    return;
+  }
   shownAt = performance.now();
   useLoadingStore().startRoute();
-  await new Promise((resolve) => window.setTimeout(resolve, COVER_MS));
+  const cover = reduced() ? 0 : COVER_MS;
+  await Promise.all([ready, new Promise((resolve) => window.setTimeout(resolve, cover))]);
+  if (import.meta.env.DEV) performance.mark('route:covered');
 });
 
-router.afterEach(() => {
-  if (!covering) return;
+router.afterEach((to, _from, failure) => {
   const loading = useLoadingStore();
-  const remain = Math.max(0, MIN_SHOW_MS - (performance.now() - shownAt));
-  // 揭幕 = 最短展示时间到 且 目标页数据门闩全部释放
-  loading.scheduleFinish(performance.now() + remain);
+  // 未播遮罩（或上一次播遮罩的导航被本次不播遮罩的导航取代时仍需收尾）
+  if (!covering && !loading.routeLoading) return;
+  // 被更新的导航取代：由新导航负责揭幕
+  if (isNavigationFailure(failure, NavigationFailureType.cancelled)) return;
+  if (failure) {
+    // 导航被拦下（守卫返回 false 等）：停在原页，直接揭幕
+    loading.finishRoute();
+    return;
+  }
+  const min = reduced() ? 200 : MIN_SHOW_MS;
+  const remain = Math.max(0, min - (performance.now() - shownAt));
+  loading.scheduleFinish(performance.now() + remain, () => routeMounted(to));
 });

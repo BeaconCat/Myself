@@ -138,8 +138,24 @@ function logout(): void {
   void router.push('/admin/login');
 }
 
-/* ===== 滚动容器：换页回到顶部 ===== */
+/* ===== 页面切换：离场与入场同时进行（不播路由遮罩） ===== */
 const scroller = ref<HTMLElement | null>(null);
+
+/**
+ * 离场页脱离文档流叠放在原视觉位置（绝对定位，按当前滚动量上移），
+ * 入场页从顶部正常排版，二者交叉播放。Vue 对同一 Transition 内的换页先触发 leave 再触发 enter，
+ * 所以这里读到的滚动量仍是旧页的。
+ */
+function pinLeaving(el: Element): void {
+  const node = el as HTMLElement;
+  const top = node.offsetTop - (scroller.value?.scrollTop ?? 0);
+  node.style.position = 'absolute';
+  node.style.top = `${top}px`;
+  node.style.left = '0';
+  node.style.right = '0';
+}
+
+/** 入场页：回到顶部 */
 function resetScroll(): void {
   if (scroller.value) scroller.value.scrollTop = 0;
 }
@@ -253,7 +269,7 @@ onBeforeUnmount(() => {
       <div class="today-glow" :class="{ on: route.name === 'admin-today' }" />
       <div ref="scroller" class="scroll">
         <router-view v-slot="{ Component, route: r }">
-          <transition name="st-view" mode="out-in" @before-enter="resetScroll">
+          <transition name="st-view" @before-leave="pinLeaving" @before-enter="resetScroll">
             <component :is="Component" :key="String(r.name)" />
           </transition>
         </router-view>
@@ -311,6 +327,9 @@ onBeforeUnmount(() => {
   overflow: hidden;
   transition: opacity var(--dur) var(--ease-out), transform var(--dur-slow) var(--ease-out);
 }
+
+/* 退出沉浸写作：侧栏列宽先展开一段再显形，避免窄列里文字折行的中间帧（进入沉浸时立即淡出） */
+.app:not(.immersive) .side { transition-delay: 0.22s, 0s; }
 
 .brand {
   display: flex;
@@ -638,10 +657,18 @@ onBeforeUnmount(() => {
 
 /* ---------- 页面过渡：淡入 + 轻微上移 ---------- */
 .st-view-enter-active { animation: view-in var(--dur-slow) var(--ease-out) both; }
-.st-view-leave-active { animation: view-out 0.18s ease-in both; }
+/* 离场页叠放在上层淡出（pinLeaving 已设绝对定位），入场页同时在下层升起 */
+.st-view-leave-active {
+  z-index: 2;
+  pointer-events: none;
+  animation: view-out var(--dur) var(--ease-out) both;
+}
+/* 沉浸写作页离场：纸面轻缩淡出，与列表入场、侧栏回位同时进行 */
+.editor.st-view-leave-active { animation-name: view-out-zoom; }
 
 @keyframes view-in { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } }
 @keyframes view-out { to { opacity: 0; transform: translateY(-6px); filter: blur(3px); } }
+@keyframes view-out-zoom { to { opacity: 0; transform: scale(0.97); } }
 
 @media (max-width: 860px) {
   .app { grid-template-columns: 1fr; }

@@ -181,18 +181,33 @@ onMounted(() => {
 
 /* ---------- 首屏 / 路由遮罩（与桌面共用 AppLoading / RouteLoading） ---------- */
 const loading = useLoadingStore();
-/* 首屏遮罩开始圆形收缩时舞台同步入场（AppLoading 在 bootDone 后 250ms 开始退场） */
-let bootTimer = 0;
+/* 首屏遮罩开始圆形收缩的同一帧舞台入场（揭幕开始，stores/loading.ts） */
 watch(
-  () => loading.bootDone,
-  (done) => {
-    if (!done || shell.booted) return;
-    bootTimer = window.setTimeout(() => { shell.booted = true; }, 250);
+  () => loading.bootCovered,
+  (c) => { if (!c) shell.booted = true; },
+  { immediate: true },
+);
+/** 幕布盖住：页面错峰入场按住在首帧，揭幕开始即播（与遮罩退场重叠） */
+const covered = computed(() => !shell.booted || loading.curtain);
+
+/*
+ * 挂载探针：外壳直接渲染 tab / 详情（不经 router-view，路由记录不登记实例），
+ * 目标异步页分包解析 + 渲染一轮后自报已挂载，揭幕据此等页面真正上屏。
+ */
+watch(
+  // 带上 name：首屏初始导航前 fullPath 已是 '/'（START_LOCATION），只看 fullPath 会漏掉首次解析
+  () => [route.fullPath, route.name],
+  async () => {
+    const name = route.name;
+    const comp = isTab(name) ? TAB_VIEWS[name] : name === 'article' ? ArticleView : null;
+    if (!comp) return;
+    const loader = (comp as { __asyncLoader?: () => Promise<unknown> }).__asyncLoader;
+    await loader?.().catch(() => undefined);
+    await nextTick();
+    loading.markPageMounted();
   },
   { immediate: true },
 );
-/** 幕布在屏上：页面错峰入场暂停，揭幕时再播 */
-const covered = computed(() => !shell.booted || loading.routeLoading);
 
 /* 抽屉打开时路由变化（标签跳转等）自动收起 */
 watch(() => route.fullPath, () => { if (shell.dp) closeDrawer(); });
@@ -219,7 +234,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   detach?.();
   window.clearTimeout(popTimer);
-  window.clearTimeout(bootTimer);
   html.classList.remove('m-shell');
   if (viewport) viewport.content = viewportBefore;
   shell.dp = 0;

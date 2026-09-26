@@ -26,6 +26,8 @@ const P: Record<string, string> = {
   tag: '<path d="M3.8 12.6V5.4a1.6 1.6 0 0 1 1.6-1.6h7.2l7.6 7.6a1.6 1.6 0 0 1 0 2.3l-6.9 6.9a1.6 1.6 0 0 1-2.3 0z"/><circle cx="8.4" cy="8.4" r="1.3"/>',
   check: '<path d="m5.5 12.5 4.2 4.2 8.8-9.2"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  cards: '<rect x="4" y="4.5" width="7" height="6.5" rx="1.6"/><rect x="13" y="4.5" width="7" height="6.5" rx="1.6"/><rect x="4" y="13" width="7" height="6.5" rx="1.6"/><rect x="13" y="13" width="7" height="6.5" rx="1.6"/>',
+  clean: '<path d="M4 6.5h16M4 12h10M4 17.5h13"/>',
   arrowUp: '<path d="M12 19V5M6.5 10.5 12 5l5.5 5.5"/>',
   history: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9"/><path d="M4.5 4.8V9h4.2M12 8v4.2l2.8 1.8"/>',
 };

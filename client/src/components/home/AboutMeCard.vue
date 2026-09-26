@@ -79,10 +79,10 @@ const ghUrl = computed(() => `https://github.com/${config.cfg.github.username}`)
   flex-direction: column;
   gap: 22px;
   height: 100%;
-  padding: 24px;
-  border-radius: var(--r-lg);
-  background: var(--elev);
-  box-shadow: var(--shadow-card);
+  padding: var(--card-pad);
+  border-radius: var(--card-r);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
 }
 
 .head {
@@ -145,15 +145,18 @@ const ghUrl = computed(() => `https://github.com/${config.cfg.github.username}`)
 .stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-radius: var(--r-md);
-  background: var(--fill);
+  gap: var(--stat-gap);
+  padding: var(--statbar-pad);
+  border-radius: var(--statbar-r);
+  background: var(--statbar-bg);
+  box-shadow: var(--statbar-shadow);
 }
 
 .stat {
-  padding: 16px 16px 14px;
+  padding: var(--stat-pad);
   min-width: 0;
 
-  & + & { box-shadow: -1px 0 0 var(--line); }
+  & + & { box-shadow: var(--stat-sep); }
 
   strong {
     display: block;
@@ -226,4 +229,6 @@ const ghUrl = computed(() => `https://github.com/${config.cfg.github.username}`)
   .stat:nth-child(3) { box-shadow: 0 -1px 0 var(--line); }
   .stat:nth-child(4) { box-shadow: -1px 0 0 var(--line), 0 -1px 0 var(--line); }
 }
+/* 简洁风格：纯数字行，窄屏换行时不画格线 */
+:root[data-style='clean'] .stat { box-shadow: none; }
 </style>
