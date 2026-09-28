@@ -3,4 +3,5 @@ bin/
 *.exe
 web/dist/*
 !web/dist/.keep
-uploads/thumbs/
+backups/
+uploads/
