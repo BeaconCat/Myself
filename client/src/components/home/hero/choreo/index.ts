@@ -25,12 +25,8 @@ import { dolly as cardDolly } from './card/dolly';
 import { hinge } from './card/hinge';
 import { parallax } from './card/parallax';
 import { shared } from './card/shared';
-import { fan } from './rotate/fan';
-import { flip } from './rotate/flip';
 import { lift } from './rotate/lift';
-import { orbit } from './rotate/orbit';
 import { recede } from './rotate/recede';
-import { shuffle } from './rotate/shuffle';
 import { slide } from './rotate/slide';
 
 const TEXT: Record<TextChoreoId, TextChoreo> = {
@@ -52,11 +48,7 @@ const CARD: Record<CardChoreoId, CardChoreo> = {
 const ROTATE: Record<RotateChoreoId, RotateChoreo> = {
   lift,
   recede,
-  fan,
-  shuffle,
-  flip,
   slide,
-  orbit,
 };
 
 export const TEXT_CHOREOS: ChoreoMeta[] = Object.values(TEXT).map((c) => c.meta);

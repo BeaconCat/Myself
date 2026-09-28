@@ -28,7 +28,7 @@ export type TextChoreoId = 'lightscan' | 'dolly' | 'shift' | 'caption' | 'glow';
 export type CardChoreoId = 'hinge' | 'dolly' | 'shared' | 'parallax' | 'door';
 
 /** 组内切换 id（与 ROTATE_CHOREOS 保持一致） */
-export type RotateChoreoId = 'lift' | 'fan' | 'shuffle' | 'flip' | 'slide' | 'orbit' | 'recede';
+export type RotateChoreoId = 'lift' | 'slide' | 'recede';
 
 export const DEFAULT_TEXT_CHOREO: TextChoreoId = 'lightscan';
 export const DEFAULT_ROTATE_CHOREO: RotateChoreoId = 'lift';
