@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { api } from '../api';
 import type { CardChoreoId, RotateChoreoId, TextChoreoId } from '../components/home/hero/choreo/types';
 import DEFAULT_ABOUT_MODULES from '../about/default-modules.json';
+import { normalizeIdentity, type Identity } from '../about/identity';
 
 /**
  * 关于页可排序模块（data 结构由模块注册表约定，见 about/types.ts）。
@@ -65,14 +66,9 @@ export interface SiteConfig {
     insecureTls: boolean;
     stats: { repos: number; stars: number; followers: number; commits: number };
   };
-  about: {
-    avatar: string;
-    name: string;
-    tagline: string;
-    bio: string;
+  /** 站点身份字段见 about/identity.ts（全站唯一来源）；modules 为关于页模块 */
+  about: Identity & {
     skills: string[];
-    foundedAt: string;
-    motto: string;
     modules: AboutModule[];
   };
 }
@@ -111,11 +107,20 @@ export const FALLBACK_CONFIG: SiteConfig = {
   about: {
     avatar: '',
     name: 'Myself',
+    hello: '你好，我是',
     tagline: '开源个人博客引擎',
-    bio: '这里是 Myself 的默认介绍，可在后台「关于管理」修改。',
+    bio: '这里是 Myself 的默认介绍。前往后台「身份」写下你自己的故事：你是谁、在做什么、热爱什么。',
     skills: ['写作', '摄影', '编程'],
     foundedAt: '2026-01-01',
     motto: '记录本身，就是意义。',
+    mottoSign: '',
+    status: { doing: '', city: '', tz: 8 },
+    links: [
+      { name: 'GitHub', handle: '@your-github', icon: 'github', url: 'https://github.com/your-github', primary: true },
+      { name: '邮件', handle: 'hi@example.com', icon: 'mail', url: 'mailto:hi@example.com' },
+      { name: 'RSS', handle: '/feed', icon: 'rss', url: '/feed' },
+    ],
+    portrait: { src: '', fade: 'left' },
     modules: DEFAULT_ABOUT_MODULES as AboutModule[],
   },
 };
@@ -133,7 +138,9 @@ export const useConfigStore = defineStore('config', {
   actions: {
     async load() {
       try {
-        this.cfg = await api.siteConfig<SiteConfig>();
+        const cfg = await api.siteConfig<SiteConfig>();
+        normalizeIdentity(cfg.about);
+        this.cfg = cfg;
       } catch { /* 后端未启动时用回退配置 */ }
       this.loaded = true;
       document.title = this.cfg.site.title;

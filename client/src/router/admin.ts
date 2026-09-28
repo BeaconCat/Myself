@@ -17,6 +17,7 @@ export const adminChildren: AdminChild[] = [
   { path: 'write/note', name: 'admin-write-note', component: () => import('../views/write/WriteNoteView.vue') },
   { path: 'notes', name: 'admin-notes', component: () => import('../views/admin/AdminNotesView.vue') },
   { path: 'media', name: 'admin-media', component: () => import('../views/admin/AdminMediaView.vue') },
+  { path: 'identity', name: 'admin-identity', component: () => import('../views/admin/AdminIdentityView.vue') },
   { path: 'about', name: 'admin-about', component: () => import('../views/admin/AdminAboutView.vue') },
   { path: 'appearance', name: 'admin-appearance', component: () => import('../views/admin/AdminAppearanceView.vue') },
   { path: 'settings', name: 'admin-settings', component: () => import('../views/admin/AdminSettingsView.vue') },

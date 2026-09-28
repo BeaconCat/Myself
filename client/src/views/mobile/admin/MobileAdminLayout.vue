@@ -101,7 +101,7 @@ function goBack(): void {
   else void router.replace({ name: 'admin-settings' });
 }
 
-const FALLBACK_TITLES = ['admin-about', 'admin-appearance', 'admin-settings', 'admin-apikeys', 'admin-data', 'admin-comments', 'admin-users'];
+const FALLBACK_TITLES = ['admin-identity', 'admin-about', 'admin-appearance', 'admin-settings', 'admin-apikeys', 'admin-data', 'admin-comments', 'admin-users'];
 function fallbackTitle(r: RouteLocationNormalizedLoaded): string {
   const n = nameOf(r);
   return FALLBACK_TITLES.includes(n) ? t(`mobileAdmin.route.${n}`) : t('mobileAdmin.route.other');

@@ -78,7 +78,8 @@ interface Entry {
 const siteEntries: Entry[] = [
   { name: 'admin-settings', icon: 'gear', color: '#0078ff', query: { full: '1' } },
   { name: 'admin-appearance', icon: 'palette', color: '#ffb300' },
-  { name: 'admin-about', icon: 'user', color: '#12b76a' },
+  { name: 'admin-identity', icon: 'user', color: '#7a5af8' },
+  { name: 'admin-about', icon: 'grid', color: '#12b76a' },
   { name: 'admin-comments', icon: 'comment', color: '#ff7a1a' },
   { name: 'admin-users', icon: 'users', color: '#5b6b86' },
   { name: 'admin-data', icon: 'database', color: '#0b8aa8' },

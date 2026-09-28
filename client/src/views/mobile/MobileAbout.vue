@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useConfigStore } from '../../stores/config';
 import AboutModules from '../../about/AboutModules.vue';
+import { plainText } from '../../about/identity';
 import LargeTitlePage from '../../components/mobile/LargeTitlePage.vue';
 import MIcon from '../../components/mobile/MIcon.vue';
 import { copyText, toast } from '../../components/mobile/shell';
@@ -68,7 +69,7 @@ async function refresh(): Promise<void> {
               <div class="ab-av"><img :src="avatar" alt="" draggable="false" /></div>
               <div class="ab-who">
                 <h1 class="ab-name">{{ about.name }}</h1>
-                <div class="ab-handle">@{{ handle }}<template v-if="about.tagline"> · {{ about.tagline }}</template></div>
+                <div class="ab-handle">@{{ handle }}<template v-if="about.tagline"> · {{ plainText(about.tagline) }}</template></div>
               </div>
             </div>
             <p v-if="motto[0]" class="ab-quote m-in" style="--i: 3">
@@ -78,7 +79,7 @@ async function refresh(): Promise<void> {
           </section>
 
           <div class="mods m-in" style="--i: 5">
-            <AboutModules :modules="about.modules ?? []" />
+            <AboutModules :modules="about.modules ?? []" :about="about" />
           </div>
 
           <div class="m-list ab-list m-in" style="--i: 6">
@@ -183,7 +184,8 @@ async function refresh(): Promise<void> {
   :deep(.ak-m.card > .ak-body) { flex: 1 0 auto; }
   :deep(.ak-m.card:hover) { transform: none; }
   /* 身份由上方移动端原生身份区承担（移动原型设计），模块流里的桌面身份模块不重复显示 */
-  :deep(.ak-m.m-profile) { display: none; }
+  /* 身份与格言已在顶部英雄区呈现，模块流里不重复 */
+  :deep(.ak-m.m-profile), :deep(.ak-m.m-motto) { display: none; }
 }
 
 .ab-list {

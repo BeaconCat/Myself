@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { settle, stableJson } from './studio/state';
 import { migrateModules } from '../../about/migrate';
+import { injectIdentity, normalizeIdentity, plainText } from '../../about/identity';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -32,7 +33,6 @@ const loaded = ref(false);
 const busy = ref(false);
 const pickerOpen = ref(false);
 const expanded = ref('');
-const identityOpen = ref(false);
 
 const dirty = computed(() => loaded.value && stableJson(about) !== snapshot.value);
 
@@ -46,6 +46,7 @@ async function load(): Promise<void> {
   }
   // 与前台同一套迁移：旧结构模块归一，并补出前台会合成的身份区 / 收尾格言，
   // 让后台列表与前台所见一致；快照在迁移之后取，未改动时不显示「未保存」
+  normalizeIdentity(about);
   about.modules = migrateModules(about.modules, about);
   await settle();
   snapshot.value = stableJson(about);
@@ -67,24 +68,13 @@ async function save(): Promise<void> {
   }
 }
 
-/* ===== 头像 ===== */
-const avatarInput = ref<HTMLInputElement | null>(null);
-const avatarBusy = ref(false);
-async function onAvatar(e: Event): Promise<void> {
-  const input = e.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = '';
-  if (!file || avatarBusy.value) return;
-  avatarBusy.value = true;
-  try {
-    const [up] = await adminApi.uploadMedia([file]);
-    if (up) about.avatar = up.url;
-  } finally {
-    avatarBusy.value = false;
-  }
+/* ===== 模块 ===== */
+/** 卡片摘要：身份区 / 格言的内容来自站点身份，先注入再取摘要 */
+function summaryOf(mod: AboutModule): string {
+  const meta = metaOf(mod.type);
+  return plainText(meta?.summary(injectIdentity(mod, about).data)) || meta?.desc || '';
 }
 
-/* ===== 模块 ===== */
 function addModules(types: string[]): void {
   const added = types.map((type) => createModule(type));
   about.modules.push(...added);
@@ -353,33 +343,17 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
       </div>
     </div>
 
-    <!-- 站点身份：问候、建站天数与头像来源 -->
-    <div class="identity st-rise" :class="{ open: identityOpen }">
-      <button type="button" class="av" :disabled="avatarBusy" :title="t('studio.about.avatar')" @click="avatarInput?.click()">
-        <img :src="about.avatar || '/favicon-256.png'" alt="" />
-        <span><SIcon name="upload" :size="18" /></span>
-      </button>
-      <input ref="avatarInput" type="file" accept="image/*" hidden @change="onAvatar" />
+    <!-- 站点身份：只读摘要，内容在「身份」页统一编辑 -->
+    <div class="identity st-rise">
+      <img class="av" :src="about.avatar || '/favicon-256.png'" alt="" />
       <div class="id-main">
         <b>{{ about.name || 'Myself' }}</b>
-        <small>{{ about.tagline }} · {{ t('studio.about.since', { d: about.foundedAt }) }}</small>
+        <small>{{ plainText(about.tagline) }} · {{ t('studio.about.since', { d: about.foundedAt }) }}</small>
       </div>
       <span class="count">{{ t('studio.about.count', { n: about.modules.length, v: visibleCount }) }}</span>
-      <button type="button" class="st-btn g sm" @click="identityOpen = !identityOpen">
-        {{ identityOpen ? t('studio.about.collapse') : t('studio.about.editIdentity') }}
-        <SIcon name="chevronD" :size="16" class="chev" />
-      </button>
-      <div class="id-form">
-        <div>
-          <div class="grid2">
-            <label><span class="st-flabel">{{ t('studio.about.name') }}</span><span class="st-field"><input v-model="about.name" /></span></label>
-            <label><span class="st-flabel">{{ t('studio.about.tagline') }}</span><span class="st-field"><input v-model="about.tagline" /></span></label>
-            <label><span class="st-flabel">{{ t('studio.about.founded') }}</span><span class="st-field"><input v-model="about.foundedAt" type="date" /></span></label>
-            <label><span class="st-flabel">{{ t('studio.about.motto') }}</span><span class="st-field"><input v-model="about.motto" /></span></label>
-          </div>
-          <label><span class="st-flabel">{{ t('studio.about.bio') }}</span><span class="st-field ta"><textarea v-model="about.bio" rows="2" /></span></label>
-        </div>
-      </div>
+      <router-link class="st-btn g sm" :to="{ name: 'admin-identity' }" :title="t('studio.about.identityHint')">
+        <SIcon name="user" :size="16" />{{ t('studio.about.editIdentity') }}
+      </router-link>
     </div>
 
     <div ref="grid" class="mods" :class="{ arranging: draggingId || resizingId, ordering: draggingId }">
@@ -407,7 +381,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
           <PopMenu :items="menu(mod)" />
         </div>
         <div v-if="expanded !== mod.id" class="mb" @click="toggleExpand(mod)">
-          <p class="sum">{{ metaOf(mod.type)?.summary(mod.data) || metaOf(mod.type)?.desc }}</p>
+          <p class="sum">{{ summaryOf(mod) }}</p>
           <p class="desc">{{ metaOf(mod.type)?.desc }}</p>
         </div>
         <div v-else class="ed">
@@ -440,7 +414,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
         <b>{{ titleOf(draggingMod) }}</b>
       </div>
       <div class="mb">
-        <p class="sum">{{ metaOf(draggingMod.type)?.summary(draggingMod.data) || metaOf(draggingMod.type)?.desc }}</p>
+        <p class="sum">{{ summaryOf(draggingMod) }}</p>
         <p class="desc">{{ metaOf(draggingMod.type)?.desc }}</p>
       </div>
     </div>
@@ -456,7 +430,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
   padding: 32px 48px 72px;
 }
 
-/* ---------- 身份条 ---------- */
+/* ---------- 身份条（只读摘要） ---------- */
 .identity {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
@@ -468,27 +442,11 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
   margin-bottom: 28px;
 
   .av {
-    position: relative;
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    overflow: hidden;
+    object-fit: cover;
     box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--line-2);
-
-    img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-    span {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      color: #fff;
-      background: rgba(0, 0, 0, 0.45);
-      opacity: 0;
-      transition: opacity var(--dur-fast);
-    }
-
-    &:hover span { opacity: 1; }
   }
 
   .id-main {
@@ -499,29 +457,6 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
   }
 
   .count { font-size: 12.5px; color: var(--st-ink-3); }
-  .chev { transition: transform var(--dur) var(--ease-spring); }
-  &.open .chev { transform: rotate(180deg); }
-
-  .id-form {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows var(--dur) var(--ease-out);
-
-    > div { overflow: hidden; min-height: 0; }
-  }
-
-  &.open .id-form { grid-template-rows: 1fr; }
-
-  .grid2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    padding-top: 18px;
-    margin-bottom: 14px;
-  }
-
-  label { display: block; }
 }
 
 /* ---------- 积木 ---------- */
