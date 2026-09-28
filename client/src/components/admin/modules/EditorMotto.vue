@@ -4,7 +4,7 @@ import type { AboutModule } from '../../../stores/config';
 import { MOTTO_FLOURISHES, type MottoData } from '../../../about/types';
 import { useModuleData } from './useModuleData';
 
-/** 格言：一句话 + 署名小字 + 收尾装饰（印章时可填印文） */
+/** 格言：一句话 + 署名小字 + 收尾装饰 */
 const props = defineProps<{ mod: AboutModule }>();
 const d = useModuleData<MottoData>(() => props.mod);
 const { t } = useI18n();
@@ -28,10 +28,6 @@ const { t } = useI18n();
         >{{ t(`aboutKit.ed.flourish_${f}`) }}</button>
       </div>
     </div>
-    <label v-if="d.flourish === 'seal'" class="fld">
-      <span>{{ t('aboutKit.ed.seal') }}</span>
-      <input v-model="d.seal" class="a-input" style="max-width: 260px" type="text" maxlength="4" :placeholder="t('aboutKit.ed.sealHint')" />
-    </label>
   </div>
 </template>
 

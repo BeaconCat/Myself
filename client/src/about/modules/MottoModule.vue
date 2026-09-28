@@ -1,34 +1,32 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { MottoData } from '../types';
+import { MOTTO_FLOURISHES, type MottoData } from '../types';
 import type { ModProps } from './props';
 
 /**
  * 格言（motto）：closing = 页尾整行宋体大字逐字模糊浮现 + 可选收尾装饰（data.flourish）；card = 卡片变体（不带装饰）。
- * 收尾装饰：line 落款线 / horizon 地平线 / ink 墨痕 / seal 印章 / quote 引号 / none。
+ * 收尾装饰：line 落款线 / horizon 地平线 / quote 引号（包住整句两端）/ none。
  * 装饰在文字浮现完成后接续入场（--n = 字数），颜色全部取语义 token，深浅模式自动适配。
  */
 const props = defineProps<ModProps>();
 const d = computed(() => props.mod.data as MottoData);
 const chars = computed(() => [...(d.value.text ?? '')]);
-const fx = computed(() => (props.variant === 'card' ? 'none' : d.value.flourish ?? 'line'));
-const seal = computed(() => [...(d.value.seal?.trim() || chars.value[0] || '')].slice(0, 4));
+const fx = computed(() => {
+  if (props.variant === 'card') return 'none';
+  const f = d.value.flourish ?? 'line';
+  return (MOTTO_FLOURISHES as string[]).includes(f) ? f : 'line';
+});
 </script>
 
 <template>
   <div class="mo" :class="[`fx-${fx}`, { 'card-v': variant === 'card' }]" :style="{ '--n': chars.length }">
-    <span v-if="fx === 'quote'" class="mo-quote" aria-hidden="true">&ldquo;</span>
     <p>
       <span class="mo-line">
+        <span v-if="fx === 'quote'" class="mo-q open" aria-hidden="true">&ldquo;</span>
         <span v-for="(ch, i) in chars" :key="i" class="ch" :style="{ '--k': i }">{{ ch }}</span>
-        <span v-if="fx === 'seal' && seal.length" class="mo-seal" :class="`n${seal.length}`" aria-hidden="true">
-          <b v-for="(c, i) in seal" :key="i">{{ c }}</b>
-        </span>
+        <span v-if="fx === 'quote'" class="mo-q close" aria-hidden="true">&rdquo;</span>
       </span>
     </p>
-    <svg v-if="fx === 'ink'" class="mo-ink" viewBox="0 0 320 22" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M2 14.5C38 9.8 84 8.2 132 8.6c52 .4 101 2.6 150 4.3 13 .5 26 1.2 36 2.3-9 2.6-24 3.4-39 3.1-49-1.1-98-3.9-147-3.9-47 0-89 1.8-127 4.3-3 .2-4.4-3.1-1-3.6z" />
-    </svg>
     <span v-if="fx === 'horizon'" class="mo-horizon" aria-hidden="true"><i /></span>
     <small v-if="d.sign">{{ d.sign }}</small>
   </div>
@@ -134,72 +132,22 @@ const seal = computed(() => [...(d.value.seal?.trim() || chars.value[0] || '')].
   i { transform: none; }
 }
 
-/* ---------- ink 墨痕：一笔毛笔横画自左向右写出，墨色取 --ak-ink ---------- */
-.fx-ink { padding-bottom: 64px; }
-
-.mo-ink {
-  display: block;
-  width: min(360px, 56%);
-  height: 26px;
-  margin: 12px auto 0;
-  fill: var(--ak-ink);
-  opacity: 0.85;
-  clip-path: inset(0 100% 0 0);
-  transition: clip-path 0.9s cubic-bezier(0.55, 0.1, 0.25, 1) var(--after);
-}
-
-.in .mo-ink { clip-path: inset(0 0 0 0); }
-
-/* ---------- seal 印章：句末钤一方朱印（品牌红 --accent-red），盖下时由大到小落定；悬挂在句末，不参与居中 ---------- */
+/* ---------- quote 引号：一对超大宋体引号挂在整句两端（左上 / 右下），不参与居中 ---------- */
 .mo-line { position: relative; }
 
-.mo-seal {
+.mo-q {
   position: absolute;
-  left: 100%;
-  bottom: 0.14em;
-  display: inline-grid;
-  grid-template-columns: 1fr;
-  place-items: center;
-  width: 0.72em;
-  height: 0.72em;
-  margin-left: 0.22em;
-  border-radius: 0.08em;
-  background: var(--accent-red);
-  color: #fff;
-  font-size: 1em;
-  letter-spacing: 0;
-  opacity: 0;
-  transform: rotate(-6deg) scale(1.6);
-  transition: opacity 0.25s ease-out var(--after), transform 0.45s var(--ease-spring) var(--after);
-
-  b { font: 700 0.46em/1 var(--font-serif); }
-
-  /* 二至四字：竖排两列，右列先读 */
-  &.n2 b { font-size: 0.3em; }
-  &.n2 { grid-template-columns: 1fr; gap: 0.02em; }
-  &.n3, &.n4 { grid-template-columns: 1fr 1fr; grid-auto-flow: column; grid-template-rows: 1fr 1fr; direction: rtl; padding: 0.05em; }
-  &.n3 b, &.n4 b { font-size: 0.26em; }
-}
-
-.in .mo-seal { opacity: 0.92; transform: rotate(-6deg); }
-
-/* ---------- quote 引号：一枚超大宋体引号淡淡压在句首上方 ---------- */
-.fx-quote { padding-top: 76px; }
-
-.mo-quote {
-  position: absolute;
-  left: 50%;
-  top: 10px;
-  translate: -50% 0;
-  font: 700 150px/1 var(--font-serif);
+  font: 700 1.7em/1 var(--font-serif);
   color: var(--line-2);
   pointer-events: none;
   opacity: 0;
-  transform: translateY(-14px);
-  transition: opacity 0.9s var(--ease-out) 0.1s, transform 0.9s var(--ease-out) 0.1s;
+  transition: opacity 0.9s var(--ease-out), transform 0.9s var(--ease-out);
+
+  &.open { right: 100%; top: -0.18em; margin-right: 0.04em; transform: translate(-10px, -6px); transition-delay: 0.1s; }
+  &.close { left: 100%; bottom: -0.52em; margin-left: -0.3em; transform: translate(10px, 6px); transition-delay: var(--after); }
 }
 
-.in .mo-quote { opacity: 1; transform: none; }
+.in .mo-q { opacity: 1; transform: none; }
 
 /* ---------- card 卡片变体：左对齐小字号，不带装饰 ---------- */
 .mo.card-v {
@@ -213,9 +161,7 @@ const seal = computed(() => [...(d.value.seal?.trim() || chars.value[0] || '')].
 
 @media (prefers-reduced-motion: reduce) {
   .mo *, .mo::before, .mo::after, .mo *::before { transition: none !important; }
-  .mo .ch, .mo-quote { opacity: 1; filter: none; transform: none; }
+  .mo .ch, .mo-q { opacity: 1; filter: none; transform: none; }
   .fx-line::before, .fx-line::after, .mo-horizon i, .mo-horizon::before { transform: none; opacity: 1; }
-  .mo-ink { clip-path: none; }
-  .mo-seal { opacity: 0.92; transform: rotate(-6deg); }
 }
 </style>

@@ -8,6 +8,7 @@ import { adminApi } from '../../api';
 import { useConfigStore, type AboutModule, type SiteConfig } from '../../stores/config';
 import { useDialogStore } from '../../stores/dialog';
 import { createModule, metaOf, spanOf, titleOf } from '../../about/registry';
+import type { Span } from '../../about/types';
 import { MODULE_EDITORS } from '../../components/admin/modules';
 import ModuleFrame from '../../components/admin/modules/ModuleFrame.vue';
 import ModulePicker from '../../components/admin/ModulePicker.vue';
@@ -119,84 +120,192 @@ function menu(mod: AboutModule) {
   return [
     { icon: expanded.value === mod.id ? 'chevronD' : 'pen', label: expanded.value === mod.id ? t('studio.about.collapse') : t('studio.edit'), run: () => toggleExpand(mod) },
     { icon: mod.hidden ? 'eye' : 'eyeOff', label: mod.hidden ? t('studio.about.show') : t('studio.about.hide'), run: () => toggleHidden(mod) },
+    ...spanItems(mod),
     { icon: 'trash', label: t('studio.delete'), danger: true, divider: true, run: () => void removeModule(mod) },
   ];
 }
 
-/* ===== 拖拽排序：指针拖动 + FLIP ===== */
+/* ===== 网格排版：拖动排序（幽灵卡 + 占位）与右缘拖柄改宽 ===== */
 const grid = ref<HTMLElement | null>(null);
 const draggingId = ref('');
-let drag: { el: HTMLElement; gx: number; gy: number } | null = null;
+const resizingId = ref('');
+const ghost = ref<HTMLElement | null>(null);
+const ghostBox = reactive({ w: 0, h: 0, x: 0, y: 0 });
+
+const draggingMod = computed(() => about.modules.find((m) => m.id === draggingId.value) ?? null);
 
 function cards(): HTMLElement[] {
-  return grid.value ? [...grid.value.querySelectorAll<HTMLElement>('.mod[data-id]')] : [];
+  return grid.value ? [...grid.value.querySelectorAll<HTMLElement>(':scope > [data-id]')] : [];
 }
 
-function place(e: PointerEvent): void {
-  if (!drag || !grid.value) return;
-  const gr = grid.value.getBoundingClientRect();
-  drag.el.style.transform = `translate(${e.clientX - drag.gx - gr.left - drag.el.offsetLeft}px, ${e.clientY - drag.gy - gr.top - drag.el.offsetTop}px) rotate(-0.6deg) scale(1.01)`;
+/** 布局矩形：offset 系坐标不受 FLIP 动画的 transform 影响，命中检测因此不会来回抖 */
+function layoutRect(el: HTMLElement): { l: number; t: number; r: number; b: number } {
+  return { l: el.offsetLeft, t: el.offsetTop, r: el.offsetLeft + el.offsetWidth, b: el.offsetTop + el.offsetHeight };
 }
 
-function onGripDown(e: PointerEvent, mod: AboutModule): void {
-  const el = (e.currentTarget as HTMLElement).closest<HTMLElement>('.mod');
-  if (!el) return;
-  e.preventDefault();
-  expanded.value = '';
-  const r = el.getBoundingClientRect();
-  drag = { el, gx: e.clientX - r.left, gy: e.clientY - r.top };
-  draggingId.value = mod.id;
-  el.style.transition = 'none';
-  window.addEventListener('pointermove', onMove);
-  window.addEventListener('pointerup', onUp, { once: true });
-  place(e);
-}
-
-let moving = false;
-async function onMove(e: PointerEvent): Promise<void> {
-  if (!drag) return;
-  place(e);
-  if (moving) return;
-  const target = cards().find((c) => {
-    if (c === drag!.el) return false;
-    const r = c.getBoundingClientRect();
-    return e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom;
-  });
-  if (!target) return;
-  const from = about.modules.findIndex((m) => m.id === draggingId.value);
-  const to = about.modules.findIndex((m) => m.id === target.dataset.id);
-  if (from < 0 || to < 0) return;
-  moving = true;
+/** FLIP：记录旧位置 → 变更 → 从旧位置补间到新位置 */
+async function flip(change: () => void): Promise<void> {
   const first = new Map(cards().map((c) => [c.dataset.id!, c.getBoundingClientRect()]));
-  const [m] = about.modules.splice(from, 1);
-  about.modules.splice(to, 0, m);
+  change();
   await nextTick();
   for (const c of cards()) {
-    if (c === drag?.el) continue;
     const f = first.get(c.dataset.id!);
     if (!f) continue;
     const l = c.getBoundingClientRect();
     const dx = f.left - l.left;
     const dy = f.top - l.top;
-    if (dx || dy) {
-      c.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 450, easing: 'cubic-bezier(.2,.8,.3,1.2)' });
-    }
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+    c.getAnimations().forEach((an) => an.cancel());
+    c.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.8,.3,1)' });
   }
-  place(e);
-  moving = false;
 }
 
-function onUp(): void {
-  window.removeEventListener('pointermove', onMove);
+/** 最近的滚动容器（后台主面板自己滚动，不一定是 window） */
+function scroller(el: HTMLElement | null): HTMLElement {
+  for (let n = el?.parentElement; n; n = n.parentElement) {
+    const oy = getComputedStyle(n).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight) return n;
+  }
+  return document.scrollingElement as HTMLElement;
+}
+
+interface DragState { gx: number; gy: number; x: number; y: number; scroll: HTMLElement; raf: number; last: number }
+let drag: DragState | null = null;
+
+function onGripDown(e: PointerEvent, mod: AboutModule): void {
+  const el = (e.currentTarget as HTMLElement).closest<HTMLElement>('.mod');
+  if (!el || e.button !== 0) return;
+  e.preventDefault();
+  expanded.value = '';
+  const r = el.getBoundingClientRect();
+  ghostBox.w = r.width;
+  ghostBox.h = r.height;
+  ghostBox.x = r.left;
+  ghostBox.y = r.top;
+  drag = { gx: e.clientX - r.left, gy: e.clientY - r.top, x: e.clientX, y: e.clientY, scroll: scroller(grid.value), raf: 0, last: 0 };
+  // 拖动期间网格改为按顺序排列（不回填），插入位置才可预期；切换本身走 FLIP
+  void flip(() => { draggingId.value = mod.id; });
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
+  drag.raf = requestAnimationFrame(tick);
+}
+
+function onMove(e: PointerEvent): void {
   if (!drag) return;
-  const el = drag.el;
+  drag.x = e.clientX;
+  drag.y = e.clientY;
+}
+
+/** 每帧：幽灵卡跟手、贴边自动滚动、按指针落在哪张卡的左 / 右半区决定插到它前 / 后 */
+function tick(): void {
+  if (!drag) return;
+  const { x, y } = drag;
+  if (ghost.value) ghost.value.style.transform = `translate(${x - drag.gx}px, ${y - drag.gy}px) rotate(-0.8deg)`;
+
+  const sc = drag.scroll;
+  const sr = sc === document.scrollingElement ? { top: 0, bottom: window.innerHeight } : sc.getBoundingClientRect();
+  const edge = 80;
+  if (y < sr.top + edge) sc.scrollTop -= Math.ceil((sr.top + edge - y) / 5);
+  else if (y > sr.bottom - edge) sc.scrollTop += Math.ceil((y - (sr.bottom - edge)) / 5);
+
+  const now = performance.now();
+  if (grid.value && now - drag.last > 80) {
+    const gr = grid.value.getBoundingClientRect();
+    const px = x - gr.left;
+    const py = y - gr.top;
+    const from = about.modules.findIndex((m) => m.id === draggingId.value);
+    for (const c of cards()) {
+      const id = c.dataset.id!;
+      if (id === draggingId.value) continue;
+      const rc = layoutRect(c);
+      if (px < rc.l || px > rc.r || py < rc.t || py > rc.b) continue;
+      let to = about.modules.findIndex((m) => m.id === id);
+      const after = px > (rc.l + rc.r) / 2;
+      if (after && to < from) to += 1;
+      if (!after && to > from) to -= 1;
+      if (to !== from && from >= 0 && to >= 0) {
+        drag.last = now;
+        void flip(() => {
+          const [m] = about.modules.splice(from, 1);
+          about.modules.splice(to, 0, m);
+        });
+      }
+      break;
+    }
+  }
+  drag.raf = requestAnimationFrame(tick);
+}
+
+async function onUp(): Promise<void> {
+  window.removeEventListener('pointermove', onMove);
+  window.removeEventListener('pointerup', onUp);
+  window.removeEventListener('pointercancel', onUp);
+  if (!drag) return;
+  cancelAnimationFrame(drag.raf);
   drag = null;
-  el.style.transition = 'transform .5s cubic-bezier(.2,.8,.3,1.2), box-shadow .35s';
-  el.style.transform = '';
-  window.setTimeout(() => {
-    draggingId.value = '';
-    el.style.transition = '';
-  }, 500);
+  // 幽灵卡落回占位框，再换回真卡
+  const g = ghost.value;
+  const slot = grid.value?.querySelector<HTMLElement>('.slot');
+  if (g && slot) {
+    const to = slot.getBoundingClientRect();
+    const anim = g.animate(
+      [{ transform: g.style.transform }, { transform: `translate(${to.left}px, ${to.top}px)` }],
+      { duration: 300, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' },
+    );
+    await anim.finished.catch(() => undefined);
+  }
+  // 松手后恢复与前台一致的 dense 回填
+  await flip(() => { draggingId.value = ''; });
+}
+
+/* ---------- 改宽：右缘拖柄按 1/3 · 2/3 · 整行吸附（只落在模块支持的宽度上） ---------- */
+function setSpan(mod: AboutModule, span: Span): void {
+  if (spanOf(mod) === span) return;
+  void flip(() => { mod.span = span; });
+}
+
+function spanItems(mod: AboutModule) {
+  const spans = metaOf(mod.type)?.spans ?? [];
+  if (spans.length < 2) return [];
+  return spans.map((sp, i) => ({
+    icon: spanOf(mod) === sp ? 'check' : 'grid',
+    label: t(`studio.about.span${sp}`),
+    divider: i === 0,
+    run: () => setSpan(mod, sp),
+  }));
+}
+
+function resizable(mod: AboutModule): boolean {
+  return (metaOf(mod.type)?.spans.length ?? 0) > 1;
+}
+
+function onResizeDown(e: PointerEvent, mod: AboutModule): void {
+  const el = (e.currentTarget as HTMLElement).closest<HTMLElement>('.mod');
+  const meta = metaOf(mod.type);
+  if (!el || !grid.value || !meta || e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+  resizingId.value = mod.id;
+  const gs = getComputedStyle(grid.value);
+  const cols = gs.gridTemplateColumns.split(' ').length;
+  const gap = parseFloat(gs.columnGap) || 0;
+  const colW = (grid.value.clientWidth - gap * (cols - 1)) / cols;
+  const move = (ev: PointerEvent): void => {
+    const left = el.getBoundingClientRect().left;
+    const want = Math.max(1, Math.min(cols, Math.round((ev.clientX - left + gap) / (colW + gap))));
+    const span = meta.spans.reduce((a, b) => (Math.abs(b - want) < Math.abs(a - want) ? b : a));
+    setSpan(mod, span);
+  };
+  const up = (): void => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    window.removeEventListener('pointercancel', up);
+    resizingId.value = '';
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
 }
 
 onBeforeRouteLeave(async () => {
@@ -223,6 +332,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey);
   window.removeEventListener('pointermove', onMove);
+  if (drag) cancelAnimationFrame(drag.raf);
 });
 
 const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).length);
@@ -272,12 +382,14 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
       </div>
     </div>
 
-    <div ref="grid" class="mods">
+    <div ref="grid" class="mods" :class="{ arranging: draggingId || resizingId, ordering: draggingId }">
+      <template v-for="mod in about.modules" :key="mod.id">
+      <!-- 拖动中：原位显示同宽占位框，真卡以幽灵卡形式跟手 -->
+      <div v-if="draggingId === mod.id" class="slot" :class="spanClass(mod)" :data-id="mod.id" :style="{ minHeight: `${ghostBox.h}px` }" />
       <div
-        v-for="mod in about.modules"
-        :key="mod.id"
+        v-else
         class="mod"
-        :class="[spanClass(mod), { off: mod.hidden, open: expanded === mod.id, dragging: draggingId === mod.id }]"
+        :class="[spanClass(mod), { off: mod.hidden, open: expanded === mod.id, resizing: resizingId === mod.id }]"
         :data-id="mod.id"
       >
         <div class="mh">
@@ -306,11 +418,31 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
             <button type="button" class="st-btn q sm" @click="expanded = ''">{{ t('studio.about.collapse') }}</button>
           </div>
         </div>
+        <span
+          v-if="resizable(mod) && expanded !== mod.id"
+          class="rsz"
+          :title="t('studio.about.resize')"
+          @pointerdown="onResizeDown($event, mod)"
+        ><i /></span>
       </div>
+      </template>
 
-      <button type="button" class="mod addm span-1" @click="pickerOpen = true">
+      <button type="button" class="mod addm" @click="pickerOpen = true">
         <SIcon name="plus" />{{ t('studio.about.add') }}
       </button>
+    </div>
+
+    <!-- 幽灵卡：fixed 定位跟手，只画头部与摘要 -->
+    <div v-if="draggingMod" ref="ghost" class="mod ghost" :style="{ width: `${ghostBox.w}px`, height: `${ghostBox.h}px`, transform: `translate(${ghostBox.x}px, ${ghostBox.y}px)` }">
+      <div class="mh">
+        <span class="grip"><SIcon name="grip" :size="18" /></span>
+        <span class="mi"><svg class="st-ic" width="16" height="16" viewBox="0 0 24 24"><path :d="metaOf(draggingMod.type)?.icon ?? ''" /></svg></span>
+        <b>{{ titleOf(draggingMod) }}</b>
+      </div>
+      <div class="mb">
+        <p class="sum">{{ metaOf(draggingMod.type)?.summary(draggingMod.data) || metaOf(draggingMod.type)?.desc }}</p>
+        <p class="desc">{{ metaOf(draggingMod.type)?.desc }}</p>
+      </div>
     </div>
 
     <ModulePicker v-if="pickerOpen" :existing="about.modules.map((m) => m.type)" @close="pickerOpen = false" @add="addModules" />
@@ -400,6 +532,11 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
   gap: 16px;
 }
 
+/* 与前台一致：按顺序排列并 dense 回填空格；拖动排序期间按纯顺序排列，插入位置可预期 */
+.mods { grid-auto-flow: row dense; }
+.mods.arranging { user-select: none; cursor: grabbing; }
+.mods.ordering { grid-auto-flow: row; }
+
 .span-1 { grid-column: span 1; }
 .span-2 { grid-column: span 2; }
 .span-3 { grid-column: span 3; }
@@ -416,13 +553,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
 
   &:hover { box-shadow: 0 0 0 1px var(--line-3), var(--sh-card-hover); }
 
-  &.dragging {
-    z-index: 5;
-    box-shadow: 0 0 0 1.5px var(--line-3), var(--shadow-pop);
-    user-select: none;
-
-    .grip { cursor: grabbing; }
-  }
+  &.resizing { box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--ink) 55%, transparent); }
 
   &.open { box-shadow: 0 0 0 1px color-mix(in oklab, var(--ink) 55%, transparent), 0 0 0 3px color-mix(in oklab, var(--ink) 16%, transparent); }
 
@@ -513,12 +644,68 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
 
 @keyframes ed-in { from { opacity: 0; transform: translateY(-6px); } }
 
+/* 占位框：与被拖卡片同宽同高的虚线槽，主色轻染 */
+.slot {
+  border-radius: var(--r-lg);
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
+  box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--ink) 45%, transparent) inset;
+  background-image: repeating-linear-gradient(-45deg, transparent 0 10px, color-mix(in oklab, var(--ink) 5%, transparent) 10px 20px);
+}
+
+/* 幽灵卡：浮在最上层跟手，抬升阴影；不参与布局 */
+.ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+  box-shadow: 0 0 0 1.5px var(--line-3), var(--shadow-pop);
+  will-change: transform;
+  animation: ghost-lift 0.22s var(--ease-out);
+}
+
+@keyframes ghost-lift { from { box-shadow: 0 0 0 1px var(--line-2); } }
+
+/* 改宽拖柄：右缘一条竖向握把，悬停卡片时浮现 */
+.rsz {
+  position: absolute;
+  top: 50%;
+  right: -7px;
+  width: 14px;
+  height: 44px;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  cursor: ew-resize;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity var(--dur-fast);
+
+  i {
+    width: 5px;
+    height: 28px;
+    border-radius: var(--r-pill);
+    background: var(--paper);
+    box-shadow: 0 0 0 1px var(--line-3), 0 2px 6px var(--line-2);
+    transition: background var(--dur-fast), height var(--dur-fast) var(--ease-spring);
+  }
+
+  &:hover i { height: 36px; background: var(--ink); box-shadow: none; }
+}
+
+.mod:hover .rsz,
+.mod.resizing .rsz { opacity: 1; }
+.mod.resizing .rsz i { height: 36px; background: var(--ink); box-shadow: none; }
+
+/* 添加模块：网格末尾整行细条，不参与 dense 回填 */
 .addm {
+  grid-column: 1 / -1;
   align-items: center;
   justify-content: center;
   flex-direction: row;
   gap: 8px;
-  min-height: 104px;
+  min-height: 64px;
   box-shadow: 0 0 0 1.5px var(--line-2) inset;
   background: transparent;
   color: var(--st-ink-3);

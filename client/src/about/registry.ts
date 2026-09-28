@@ -311,7 +311,7 @@ export const MODULE_REGISTRY: ModuleMeta[] = [
   {
     type: 'motto',
     name: '格言',
-    desc: '页尾收束：整行宋体大字逐字浮现，收尾装饰六选一（落款线 / 地平线 / 墨痕 / 印章 / 引号 / 无）；卡片变体可放进网格',
+    desc: '页尾收束：整行宋体大字逐字浮现，收尾装饰四选一（落款线 / 地平线 / 引号 / 无）；卡片变体可放进网格',
     icon: 'M8 10c0-2 1.5-4 4-4M8 10v4h4v-4H8ZM16 10c0-2 1.5-4 4-4M16 10v4h4v-4h-4Z',
     group: '喜好',
     variants: [{ id: 'closing', label: '收尾大字' }, { id: 'card', label: '卡片' }],
