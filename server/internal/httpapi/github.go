@@ -344,19 +344,34 @@ func (s *Server) githubStatus(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
+	// 最近一分钟内刚失败过：不再向外拉取，直接回退（防止匿名刷新耗尽配额）
+	s.ghMu.Lock()
+	recentFail := s.ghFailKey == key && time.Since(s.ghFailAt) < time.Minute
+	s.ghMu.Unlock()
+	if recentFail {
+		if cached.data != nil && cached.key == key {
+			writeJSON(w, http.StatusOK, withData(map[string]any{"mode": "api", "cached": true, "stale": true}, cached.data))
+			return
+		}
+		writeJSON(w, http.StatusOK, manualPayload(cfg, "fetch_failed"))
+		return
+	}
+
 	// 缓存过期瞬间的并发请求合并为一次拉取
 	result, err, _ := s.ghFlight.Do(key, func() (any, error) {
 		return s.fetchAndCache(cfg, key, "拉取成功")
 	})
 	data, _ := result.(*githubData)
 	if err != nil {
-		s.logSync(false, err.Error())
-		// 拉取失败回退：旧缓存 → 手填数字
+		s.ghMu.Lock()
+		s.ghFailAt, s.ghFailKey = time.Now(), key
+		s.ghMu.Unlock()
+		// 拉取失败回退：旧缓存 → 手填数字（错误详情只进同步日志，不对外暴露）
 		if cached.data != nil && cached.key == key {
 			writeJSON(w, http.StatusOK, withData(map[string]any{"mode": "api", "cached": true, "stale": true}, cached.data))
 			return
 		}
-		writeJSON(w, http.StatusOK, manualPayload(cfg, err.Error()))
+		writeJSON(w, http.StatusOK, manualPayload(cfg, "fetch_failed"))
 		return
 	}
 	writeJSON(w, http.StatusOK, withData(map[string]any{"mode": "api", "cached": false}, data))

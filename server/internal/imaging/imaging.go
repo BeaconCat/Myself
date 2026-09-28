@@ -26,6 +26,12 @@ type Info struct {
 	HasAlpha bool
 }
 
+// MaxPixels 可解码的最大像素数（约 4000 万，≈ 8K×5K）。超限的图在解码前拒绝，防止解压炸弹耗尽内存。
+const MaxPixels = 40_000_000
+
+// ErrTooLarge 图片像素数超限。
+var ErrTooLarge = fmt.Errorf("image exceeds %d pixels", MaxPixels)
+
 // Ext 返回小写扩展名（含点）。
 func Ext(name string) string {
 	return strings.ToLower(filepath.Ext(name))
@@ -54,6 +60,9 @@ func Meta(path string) (Info, error) {
 	if err != nil {
 		return Info{}, err
 	}
+	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > MaxPixels {
+		return Info{}, ErrTooLarge
+	}
 	return Info{Width: cfg.Width, Height: cfg.Height, HasAlpha: modelHasAlpha(cfg.ColorModel)}, nil
 }
 
@@ -72,8 +81,11 @@ func modelHasAlpha(m color.Model) bool {
 	return false
 }
 
-// Decode 按扩展名解码整张图。
+// Decode 按扩展名解码整张图；先读文件头校验尺寸，超限直接拒绝。
 func Decode(path string) (image.Image, error) {
+	if _, err := Meta(path); err != nil {
+		return nil, err
+	}
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err

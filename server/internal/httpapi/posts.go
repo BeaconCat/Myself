@@ -40,8 +40,8 @@ func (s *Server) listPosts(w http.ResponseWriter, r *http.Request) {
 		args = append(args, `%"`+strings.ReplaceAll(tag, `"`, "")+`"%`)
 	}
 	if q != "" {
-		where = append(where, "(title LIKE ? OR excerpt LIKE ? OR content_md LIKE ?)")
-		like := "%" + q + "%"
+		where = append(where, `(title LIKE ? ESCAPE '\' OR excerpt LIKE ? ESCAPE '\' OR content_md LIKE ? ESCAPE '\')`)
+		like := likeArg(q)
 		args = append(args, like, like, like)
 	}
 	whereSQL := strings.Join(where, " AND ")
@@ -125,8 +125,8 @@ func (s *Server) listNotes(w http.ResponseWriter, r *http.Request) {
 	where := []string{"1=1"}
 	var args []any
 	if q != "" {
-		where = append(where, "(content_md LIKE ? OR mood LIKE ?)")
-		like := "%" + q + "%"
+		where = append(where, `(content_md LIKE ? ESCAPE '\' OR mood LIKE ? ESCAPE '\')`)
+		like := likeArg(q)
 		args = append(args, like, like)
 	}
 	if qs.Get("media") == "1" {
@@ -186,4 +186,11 @@ func (s *Server) placeholderImage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 	_, _ = w.Write([]byte(svg))
+}
+
+// likeArg 把搜索词转成 LIKE 参数：转义 \ % _，最长 100 个字符。
+func likeArg(q string) string {
+	q = limitRunes(q, 100)
+	q = strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(q)
+	return "%" + q + "%"
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 
+	"myself/server/internal/config"
 	"myself/server/internal/store"
 )
 
@@ -54,7 +55,11 @@ type cdata struct {
 	Text string `xml:",cdata"`
 }
 
-func siteBase(r *http.Request) string {
+// siteBase 站点根地址：优先后台配置的 site.url（初始化时填写），未配置时才按请求推断。
+func (s *Server) siteBase(r *http.Request) string {
+	if u, _ := config.Sub(s.Config.Get(), "site")["url"].(string); strings.HasPrefix(u, "http") {
+		return strings.TrimRight(u, "/")
+	}
 	scheme := "http"
 	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
 		scheme = "https"
@@ -70,7 +75,7 @@ func (s *Server) rssFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cfg := s.Config.Typed()
-	base := siteBase(r)
+	base := s.siteBase(r)
 	loc, err := time.LoadLocation(cfg.Timezone)
 	if err != nil {
 		loc = time.UTC

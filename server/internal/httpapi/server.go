@@ -42,9 +42,14 @@ type Server struct {
 	ghCache   githubCache
 	ghSyncLog []syncEntry
 	ghFlight  singleflight.Group
+	ghFailAt  time.Time
+	ghFailKey string
 
 	thumbsDir string
 	jobs      *jobRegistry
+	limiter   *attemptLimiter
+	thumbs    singleflight.Group
+	backupMu  sync.Mutex
 }
 
 // New 构造 Server 并准备目录。
@@ -54,11 +59,16 @@ func New(d Deps) *Server {
 		originalsDir: filepath.Join(d.UploadDir, ".originals"),
 		thumbsDir:    filepath.Join(d.UploadDir, "thumbs"),
 		jobs:         newJobRegistry(),
+		limiter:      newAttemptLimiter(),
 	}
-	for _, dir := range []string{s.originalsDir, s.thumbsDir, d.BackupDir} {
+	for _, dir := range []string{s.originalsDir, s.thumbsDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			log.Fatalf("[myself-server] mkdir %s: %v", dir, err)
 		}
+	}
+	// 备份含数据库（JWT 密钥、口令哈希）：仅属主可读
+	if err := os.MkdirAll(d.BackupDir, 0o700); err != nil {
+		log.Fatalf("[myself-server] mkdir %s: %v", d.BackupDir, err)
 	}
 	return s
 }
@@ -82,6 +92,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /feed.xml", s.rssFeed)
 	mux.HandleFunc("GET "+p+"/github-status", s.githubStatus)
 	mux.HandleFunc("POST "+p+"/auth/login", s.login)
+	mux.HandleFunc("GET "+p+"/setup", s.setupStatus)
+	mux.HandleFunc("POST "+p+"/setup", s.setup)
 
 	// 管理员
 	mux.HandleFunc("PUT "+p+"/auth/password", admin(s.changePassword))
@@ -131,7 +143,7 @@ func (s *Server) Handler() http.Handler {
 	if s.Frontend != nil {
 		mux.Handle("/", s.Frontend)
 	}
-	return recoverMiddleware(logMiddleware(mux))
+	return recoverMiddleware(securityHeaders(logMiddleware(mux)))
 }
 
 // logMiddleware 访问日志：方法 路径 状态 耗时。
@@ -156,17 +168,22 @@ func (w *statusWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
+// uploadsHandler 素材直链：只接受单段、通过 safeName 且扩展名在白名单内的文件名；
+// 不列目录，不暴露点目录（.originals）与子目录（含 Windows 8.3 短名绕过）。
 func (s *Server) uploadsHandler() http.Handler {
-	fs := http.FileServer(http.Dir(s.UploadDir))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, seg := range strings.Split(r.URL.Path, "/") {
-			if strings.HasPrefix(seg, ".") {
-				http.NotFound(w, r)
-				return
-			}
+		name := safeName(r.URL.Path)
+		if name == "" || strings.HasPrefix(name, ".") || !allowedExt[strings.ToLower(filepath.Ext(name))] {
+			http.NotFound(w, r)
+			return
+		}
+		p := filepath.Join(s.UploadDir, name)
+		if st, err := os.Stat(p); err != nil || st.IsDir() {
+			http.NotFound(w, r)
+			return
 		}
 		w.Header().Set("Cache-Control", "public, max-age=86400")
-		fs.ServeHTTP(w, r)
+		http.ServeFile(w, r, p)
 	})
 }
 
@@ -183,11 +200,15 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// requireAuth Bearer Token 校验。
+// requireAuth Bearer Token 校验。仍在用历史默认口令时只放行改密接口。
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if _, err := s.Auth.Verify(r.Header.Get("Authorization")); err != nil {
 			writeError(w, http.StatusUnauthorized, "unauthorized")
+			return
+		}
+		if s.Auth.MustChange() && !(r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/auth/password")) {
+			writeError(w, http.StatusForbidden, "must_change_password")
 			return
 		}
 		next(w, r)

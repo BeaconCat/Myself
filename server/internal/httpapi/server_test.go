@@ -28,6 +28,7 @@ type env struct {
 	srv   *httptest.Server
 	token string
 	root  string
+	auth  *auth.Service
 }
 
 func newEnv(t *testing.T) *env {
@@ -38,9 +39,6 @@ func newEnv(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	if err := db.SeedIfEmpty(); err != nil {
-		t.Fatal(err)
-	}
 	a := auth.New(db)
 	if err := a.Init(); err != nil {
 		t.Fatal(err)
@@ -53,17 +51,27 @@ func newEnv(t *testing.T) *env {
 	})
 	ts := httptest.NewServer(s.Handler())
 	t.Cleanup(ts.Close)
-	e := &env{t: t, srv: ts, root: root}
+	e := &env{t: t, srv: ts, root: root, auth: a}
 	var res struct {
 		Token string `json:"token"`
 	}
-	e.call(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "admin", "password": "myself-admin"}, &res, http.StatusOK)
+	// 首次启动初始化：初始化码 + 管理员 + Demo 数据
+	e.call(http.MethodPost, "/api/v1/setup", map[string]any{
+		"code": a.SetupCode(), "username": "admin", "password": testPassword, "demo": true,
+		"site": map[string]any{"title": "Myself"},
+	}, &res, http.StatusOK)
+	if res.Token == "" {
+		t.Fatal("setup returned empty token")
+	}
+	e.call(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "admin", "password": testPassword}, &res, http.StatusOK)
 	if res.Token == "" {
 		t.Fatal("login returned empty token")
 	}
 	e.token = res.Token
 	return e
 }
+
+const testPassword = "correct-horse-9"
 
 func (e *env) do(method, path string, body io.Reader, headers map[string]string) *http.Response {
 	e.t.Helper()
@@ -110,7 +118,7 @@ func TestPublicEndpoints(t *testing.T) {
 	e := newEnv(t)
 	var list pagedPosts
 	e.call(http.MethodGet, "/api/v1/posts?pageSize=2", nil, &list, http.StatusOK)
-	if list.Total != 4 || len(list.Items) != 2 {
+	if list.Total != 6 || len(list.Items) != 2 {
 		t.Fatalf("posts: total=%d items=%d", list.Total, len(list.Items))
 	}
 	var tags []store.TagCount
@@ -165,7 +173,7 @@ func TestExternalChannel(t *testing.T) {
 		ID  int64  `json:"id"`
 		Key string `json:"key"`
 	}
-	e.call(http.MethodPost, "/api/v1/admin/apikeys", map[string]string{"name": "bot"}, &key, http.StatusCreated)
+	e.call(http.MethodPost, "/api/v1/admin/apikeys", map[string]string{"name": "bot", "scope": "full"}, &key, http.StatusCreated)
 	if !strings.HasPrefix(key.Key, "myk_") {
 		t.Fatalf("key: %q", key.Key)
 	}
@@ -307,7 +315,7 @@ func TestFeedAndBackup(t *testing.T) {
 	if err := xml.NewDecoder(res.Body).Decode(&doc); err != nil {
 		t.Fatal(err)
 	}
-	if doc.Channel.Title != "Myself" || len(doc.Channel.Items) != 4 || !strings.Contains(doc.Channel.Items[0].Link, "/articles/") {
+	if doc.Channel.Title != "Myself" || len(doc.Channel.Items) != 6 || !strings.Contains(doc.Channel.Items[0].Link, "/articles/") {
 		t.Fatalf("feed content: %+v", doc.Channel)
 	}
 
@@ -326,4 +334,141 @@ func TestFeedAndBackup(t *testing.T) {
 
 func itoa(n int64) string {
 	return strconv.FormatInt(n, 10)
+}
+
+func TestSetupOnlyOnce(t *testing.T) {
+	e := newEnv(t)
+	var st struct {
+		NeedsSetup bool `json:"needsSetup"`
+	}
+	e.call(http.MethodGet, "/api/v1/setup", nil, &st, http.StatusOK)
+	if st.NeedsSetup {
+		t.Fatal("still needs setup after setup")
+	}
+	e.call(http.MethodPost, "/api/v1/setup", map[string]any{"code": "X", "username": "evil", "password": "whatever-123"}, nil, http.StatusConflict)
+}
+
+func TestSetupRequiresCode(t *testing.T) {
+	root := t.TempDir()
+	db, err := store.Open(filepath.Join(root, "data"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	a := auth.New(db)
+	if err := a.Init(); err != nil {
+		t.Fatal(err)
+	}
+	s := New(Deps{DB: db, Auth: a, Config: config.New(db), UploadDir: filepath.Join(root, "u"), BackupDir: filepath.Join(root, "b"), DataDir: filepath.Join(root, "data")})
+	ts := httptest.NewServer(s.Handler())
+	t.Cleanup(ts.Close)
+	e := &env{t: t, srv: ts, root: root}
+	body := map[string]any{"code": "WRONG000", "username": "admin", "password": "long-enough-1"}
+	for i := 0; i < 5; i++ {
+		e.call(http.MethodPost, "/api/v1/setup", body, nil, http.StatusForbidden)
+	}
+	// 连续失败后按 IP 锁定，正确的码也要等锁定结束
+	body["code"] = a.SetupCode()
+	e.call(http.MethodPost, "/api/v1/setup", body, nil, http.StatusTooManyRequests)
+	var public config.Map
+	e.call(http.MethodGet, "/api/v1/site-config", nil, &public, http.StatusOK)
+	if public["needsSetup"] != true {
+		t.Fatal("site-config should report needsSetup")
+	}
+}
+
+func TestLoginLockout(t *testing.T) {
+	e := newEnv(t)
+	e.token = ""
+	for i := 0; i < 5; i++ {
+		e.call(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "admin", "password": "nope-nope"}, nil, http.StatusUnauthorized)
+	}
+	e.call(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "admin", "password": testPassword}, nil, http.StatusTooManyRequests)
+}
+
+func TestPasswordChangeRevokesTokens(t *testing.T) {
+	e := newEnv(t)
+	old := e.token
+	var res struct {
+		Token string `json:"token"`
+	}
+	e.call(http.MethodPut, "/api/v1/auth/password", map[string]string{"oldPassword": testPassword, "newPassword": "another-pass-2"}, &res, http.StatusOK)
+	if res.Token == "" || res.Token == old {
+		t.Fatal("password change should return a fresh token")
+	}
+	e.call(http.MethodGet, "/api/v1/admin/settings", nil, nil, http.StatusUnauthorized) // 旧令牌失效
+	e.token = res.Token
+	e.call(http.MethodGet, "/api/v1/admin/settings", nil, nil, http.StatusOK)
+}
+
+func TestContribKeyScope(t *testing.T) {
+	e := newEnv(t)
+	var key struct {
+		Key   string `json:"key"`
+		Scope string `json:"scope"`
+	}
+	e.call(http.MethodPost, "/api/v1/admin/apikeys", map[string]string{"name": "writer"}, &key, http.StatusCreated)
+	if key.Scope != "contrib" {
+		t.Fatalf("default scope: %q", key.Scope)
+	}
+	hdr := map[string]string{"Content-Type": "application/json", "X-Api-Key": key.Key}
+	// 试图直接发布：被强制为草稿
+	res := e.do(http.MethodPost, "/api/v1/ext/posts", strings.NewReader(`{"slug":"c-1","title":"C","contentMd":"x","status":"published"}`), hdr)
+	var created struct {
+		ID     int64  `json:"id"`
+		Status string `json:"status"`
+	}
+	json.NewDecoder(res.Body).Decode(&created)
+	if res.StatusCode != http.StatusCreated || created.Status != "draft" {
+		t.Fatalf("contrib create: %d %+v", res.StatusCode, created)
+	}
+	// 只能看到自己的草稿，看不到 Demo 文章
+	res = e.do(http.MethodGet, "/api/v1/ext/posts", nil, hdr)
+	var posts []store.Post
+	json.NewDecoder(res.Body).Decode(&posts)
+	if len(posts) != 1 {
+		t.Fatalf("contrib sees %d posts", len(posts))
+	}
+	// 不能改、删别人的文章
+	var all []store.Post
+	e.call(http.MethodGet, "/api/v1/admin/posts", nil, &all, http.StatusOK)
+	for _, p := range all {
+		if p.Slug == "welcome-to-myself" {
+			res = e.do(http.MethodDelete, "/api/v1/ext/posts/"+itoa(p.ID), nil, hdr)
+			if res.StatusCode != http.StatusNotFound {
+				t.Fatalf("contrib deleted others: %d", res.StatusCode)
+			}
+		}
+	}
+	// 随想只开放给全托管
+	res = e.do(http.MethodPost, "/api/v1/ext/notes", strings.NewReader(`{"contentMd":"hi"}`), hdr)
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("contrib note: %d", res.StatusCode)
+	}
+}
+
+func TestSecurityHeadersAndUploads(t *testing.T) {
+	e := newEnv(t)
+	res := e.do(http.MethodGet, "/api/v1/site-config", nil, nil)
+	if res.Header.Get("X-Content-Type-Options") != "nosniff" || res.Header.Get("X-Frame-Options") != "DENY" {
+		t.Fatalf("missing security headers: %v", res.Header)
+	}
+	for _, p := range []string{"/uploads/", "/uploads/thumbs/", "/uploads/.originals/x.png", "/uploads/a/b.png", "/uploads/x.html"} {
+		if res := e.do(http.MethodGet, p, nil, nil); res.StatusCode != http.StatusNotFound {
+			t.Fatalf("%s: %d", p, res.StatusCode)
+		}
+	}
+}
+
+func TestUploadRejectsFakeImage(t *testing.T) {
+	e := newEnv(t)
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	part, _ := mw.CreateFormFile("files", "evil.png")
+	part.Write([]byte("<html><script>alert(1)</script></html>"))
+	mw.Close()
+	res := e.do(http.MethodPost, "/api/v1/admin/media", &buf, map[string]string{"Content-Type": mw.FormDataContentType(), "Authorization": "Bearer " + e.token})
+	if res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("fake image accepted: %d", res.StatusCode)
+	}
 }
