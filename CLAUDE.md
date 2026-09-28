@@ -18,6 +18,7 @@
 - 设计语言：强调系统见 `design/round3/IMPLEMENT.md`（抬升 + 轻染、实底主按钮、无彩色发光、圆角 token `--r-*`，基准由 `theme.radius` 配置）；高密度排版见 `design/round3/DENSITY.md`（统计条、大号等宽数字、图表撑满、收紧留白）
 - 首页 Hero：文字动效与卡组动效为两个独立注册表（`components/home/hero/choreo/{text,card}`），配置 `hero.textAnim` / `hero.cardAnim` 自由搭配，后台「外观」页用 `HeroMixer.vue` 实时预览
 - 关于页：模块化组件库（`about/`，26 种模块，12 栏 bento，`span/variant/title/hidden`），旧配置经 `about/migrate.ts` 读取时迁移；默认模块唯一来源 `about/default-modules.json`，改后运行 `python scripts/sync_about_defaults.py` 同步到 Go 默认配置
+- 站点身份：头像 / 形象图 / 名字 / 签名 / 自述 / 状态 / 链接 / 格言存于 `about` 顶层，是全站唯一来源（`about/identity.ts`），后台「身份」页（`views/admin/AdminIdentityView.vue`）编辑；profile / motto 模块只存展示选项（kicker、收尾装饰），渲染时 `injectIdentity` 注入内容，勿把内容写回模块
 
 ## 主题系统
 - 三维正交：`mode`（light/dark）×`palette`（季节色盘）×`style`（`clean` 透明背景简洁，默认 / `cards` 高密度卡片，可选）；风格 token 在 `styles/tokens.scss` 末尾（`--card-*` `--statbar-*` `--section-gap` 等），站点默认 `theme.defaultStyle`，`theme.allowUserStyle` 控制访客切换
