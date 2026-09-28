@@ -10,7 +10,7 @@ import { dayPartKey, pad2, useClock, zoned } from '../useClock';
 /**
  * 身份区（profile）：编辑式大字宋体名字 + 一次性扫光、一句话、自述、
  * 实时状态行（正在做 / 城市 / 本地时间逐秒走）与社交入口；
- * 右侧为圆角形象图，按 portrait.fade 向左（或向下）渐隐融入背景，未配置时用站点 logo。
+ * 右侧形象图撑满右栏全尺寸显示，按 portrait.fade 左缘（或底缘）部分渐隐融入背景，未配置时用站点 logo。
  * 形象图圆角：data.portrait.radius（px）优先，未配置时跟随全局 --r-xl。
  * 社交入口：primary = 实底主按钮（--solid），其余为次级按钮。
  */
@@ -47,7 +47,7 @@ const portrait = computed(() => {
   const p: Partial<ProfileData['portrait']> = d.value.portrait ?? {};
   const r = typeof p.radius === 'number' ? p.radius : null;
   return {
-    src: p.src || '/favicon-256.png',
+    src: p.src || '/logo-1024.webp',
     logo: !p.src,
     fade: p.fade || 'left',
     style: { '--pr': r != null && Number.isFinite(r) ? `${r}px` : undefined, '--pf': p.focus || '50% 40%' },
@@ -118,12 +118,11 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 </template>
 
 <style scoped lang="scss">
-/* 身份区（高密度）：去掉整屏留白，名字 / 一句话 / 自述 / 统计条式状态 / 社交紧凑成一个信息块，形象图收一档 */
+/* 身份区（高密度）：去掉整屏留白，名字 / 一句话 / 自述 / 统计条式状态 / 社交紧凑成一个信息块，形象图撑满右栏 */
 .pf {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 40px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
   align-items: center;
   padding: 36px 0 4px;
 
@@ -227,55 +226,59 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
   }
 }
 
-/* ---------- 形象图：圆角 + 渐隐融入背景 ---------- */
+/* ---------- 形象图：按原图比例完整显示（不裁切），左缘与底缘部分渐隐融入背景 ---------- */
 .pf-portrait {
   position: relative;
-  width: clamp(240px, 29cqi, 360px);
-  aspect-ratio: 440 / 540;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
   margin: 0;
   animation: pf-portrait-in 1.2s 0.15s var(--ease-out) both;
 }
 
 .pf-frame {
-  position: absolute;
-  inset: 0;
+  position: relative;
   display: block;
+  max-width: 100%;
   overflow: hidden;
   border-radius: var(--pr, var(--r-xl));
-  box-shadow: 0 40px 80px -40px rgb(0 0 0 / 0.55);
 
   img {
     display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: var(--pf, 50% 40%);
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 540px;
     transition: transform 1.2s var(--ease-out);
   }
 }
 
 .pf-portrait:hover .pf-frame img { transform: scale(1.03); }
 
+/* 渐隐：缓动曲线式多段停靠，左侧过渡区约 45%，底部轻收一截；两层遮罩相交，无硬边 */
 .fade-left .pf-frame {
-  -webkit-mask-image: linear-gradient(to right, transparent, rgb(0 0 0 / 0.08) 8%, rgb(0 0 0 / 0.3) 17%, rgb(0 0 0 / 0.62) 27%, rgb(0 0 0 / 0.88) 35%, #000 42%);
-  mask-image: linear-gradient(to right, transparent, rgb(0 0 0 / 0.08) 8%, rgb(0 0 0 / 0.3) 17%, rgb(0 0 0 / 0.62) 27%, rgb(0 0 0 / 0.88) 35%, #000 42%);
+  --fade-x: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.04) 6%, rgb(0 0 0 / 0.14) 13%, rgb(0 0 0 / 0.3) 20%, rgb(0 0 0 / 0.5) 27%, rgb(0 0 0 / 0.7) 34%, rgb(0 0 0 / 0.86) 40%, rgb(0 0 0 / 0.96) 46%, #000 52%);
+  --fade-y: linear-gradient(to top, transparent 0%, rgb(0 0 0 / 0.35) 6%, rgb(0 0 0 / 0.8) 14%, #000 22%);
+  -webkit-mask-image: var(--fade-x), var(--fade-y);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--fade-x), var(--fade-y);
+  mask-composite: intersect;
 }
 
 .fade-bottom .pf-frame {
-  -webkit-mask-image: linear-gradient(to top, transparent, rgb(0 0 0 / 0.08) 8%, rgb(0 0 0 / 0.3) 17%, rgb(0 0 0 / 0.62) 27%, rgb(0 0 0 / 0.88) 35%, #000 42%);
-  mask-image: linear-gradient(to top, transparent, rgb(0 0 0 / 0.08) 8%, rgb(0 0 0 / 0.3) 17%, rgb(0 0 0 / 0.62) 27%, rgb(0 0 0 / 0.88) 35%, #000 42%);
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, rgb(0 0 0 / 0.14) 10%, rgb(0 0 0 / 0.42) 20%, rgb(0 0 0 / 0.74) 30%, rgb(0 0 0 / 0.94) 38%, #000 44%);
+  mask-image: linear-gradient(to top, transparent 0%, rgb(0 0 0 / 0.14) 10%, rgb(0 0 0 / 0.42) 20%, rgb(0 0 0 / 0.74) 30%, rgb(0 0 0 / 0.94) 38%, #000 44%);
 }
 
-/* 未配置形象图：品牌 logo 置于同色深底上。品牌光影例外：底部一团主色门缝光属于品牌构图 */
+/* 未配置形象图：站点 logo 原图自带圆角底，直接全尺寸显示，不再套底框 */
 .pf-portrait.logo .pf-frame {
-  background:
-    radial-gradient(60% 50% at 58% 62%, rgba(var(--primary-rgb), 0.28), transparent 70%),
-    radial-gradient(120% 90% at 60% 40%, #0b1528, #050b17 70%);
+  width: min(100%, 520px);
+  border-radius: 0;
 
-  img { position: absolute; inset: 0 0 0 18%; margin: auto; width: 62%; height: auto; aspect-ratio: 1; object-fit: contain; }
+  img { width: 100%; max-height: none; }
 }
 
-.pf-portrait.logo:hover .pf-frame img { transform: scale(1.04); }
+.pf-portrait.logo:hover .pf-frame img { transform: scale(1.02); }
 
 @keyframes pf-portrait-in {
   from { opacity: 0; transform: translateX(28px) scale(0.985); filter: blur(12px); }
@@ -287,13 +290,22 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 
   .pf-portrait {
     order: -1;
+    justify-content: flex-start;
     width: 120px;
     height: 120px;
 
-    .pf-frame { border-radius: min(var(--pr, var(--r-xl)), 30px); -webkit-mask-image: none; mask-image: none; box-shadow: 0 16px 36px -18px rgb(0 0 0 / 0.6); }
+    .pf-frame {
+      width: 100%;
+      border-radius: min(var(--pr, var(--r-xl)), 30px);
+      -webkit-mask-image: none;
+      mask-image: none;
+      box-shadow: 0 16px 36px -18px rgb(0 0 0 / 0.6);
+
+      img { width: 100%; height: 100%; max-height: none; object-fit: cover; object-position: var(--pf, 50% 40%); }
+    }
   }
 
-  .pf-portrait.logo .pf-frame img { inset: 0; width: 86%; }
+  .pf-portrait.logo .pf-frame { border-radius: 26px; }
 
   .pf-hi { font-size: 16px; }
 }
