@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"crypto/rand"
+	"errors"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -122,6 +123,8 @@ func randomFilename(ext string) string {
 
 // POST /admin/media 上传（单个/批量，字段 files）
 func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
+	// 全局 ReadTimeout 较短；大批量上传单独放宽
+	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(15 * time.Minute))
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxUploadFiles)*maxUploadBytes+1<<20)
 	reader, err := r.MultipartReader()
 	if err != nil {
@@ -157,6 +160,16 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 		if err != nil || n > maxUploadBytes {
 			os.Remove(filepath.Join(s.UploadDir, name))
 			writeError(w, http.StatusRequestEntityTooLarge, "file_too_large")
+			return
+		}
+		// 文件头必须与扩展名一致、像素数在上限内；否则不入库
+		if _, err := imaging.Meta(filepath.Join(s.UploadDir, name)); err != nil {
+			os.Remove(filepath.Join(s.UploadDir, name))
+			if errors.Is(err, imaging.ErrTooLarge) {
+				writeError(w, http.StatusRequestEntityTooLarge, "image_too_large")
+			} else {
+				writeError(w, http.StatusBadRequest, "invalid_image")
+			}
 			return
 		}
 		if _, err := s.DB.Exec(`INSERT OR IGNORE INTO media (name) VALUES (?)`, name); err != nil {

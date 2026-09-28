@@ -27,9 +27,6 @@ func main() {
 	}
 	defer db.Close()
 
-	if err := db.SeedIfEmpty(); err != nil {
-		log.Fatalf("[myself-server] seed: %v", err)
-	}
 	authSvc := auth.New(db)
 	if err := authSvc.Init(); err != nil {
 		log.Fatalf("[myself-server] init auth: %v", err)
@@ -54,6 +51,9 @@ func main() {
 		Addr:              ":" + port,
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second, // 上传接口单独放宽
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    64 << 10,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

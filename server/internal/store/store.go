@@ -21,7 +21,8 @@ type DB struct {
 
 // Open 打开（或创建）data/myself.db 并执行幂等建表迁移。
 func Open(dataDir string) (*DB, error) {
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+	// 数据库含 JWT 密钥与口令哈希：目录仅属主可访问
+	if err := os.MkdirAll(dataDir, 0o700); err != nil {
 		return nil, err
 	}
 	// WAL + busy_timeout：多读单写；_txlock=immediate 让事务开头即拿写锁，避免升级死锁。
@@ -87,6 +88,11 @@ CREATE TABLE IF NOT EXISTS media (
 		`ALTER TABLE notes ADD COLUMN images TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE posts ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE notes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`,
+		// API Key 权限：full = 全托管（历史 Key 保持原行为），contrib = 仅投稿草稿
+		`ALTER TABLE api_keys ADD COLUMN scope TEXT NOT NULL DEFAULT 'full'`,
+		// 内容来源：经外部通道创建时记录 Key id，仅投稿 Key 只能操作自己创建的内容
+		`ALTER TABLE posts ADD COLUMN source_key INTEGER`,
+		`ALTER TABLE notes ADD COLUMN source_key INTEGER`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return err

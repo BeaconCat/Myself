@@ -5,53 +5,75 @@ import (
 	"regexp"
 	"strings"
 
+	"myself/server/internal/auth"
 	"myself/server/internal/config"
 	"myself/server/internal/store"
 )
 
 var slugRe = regexp.MustCompile(`^[a-z0-9-]{1,80}$`)
 
-// POST /auth/login
+// POST /auth/login 失败计数按 IP 锁定；成功时回 mustChange 提示前端先改密
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+	ip := clientIP(r)
+	if d := s.limiter.blocked(ip); d > 0 {
+		tooMany(w, d)
+		return
+	}
 	var b body
 	if err := readJSON(w, r, &b); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_json")
 		return
 	}
-	token, err := s.Auth.Login(b.strOr("username"), b.strOr("password"))
+	var (
+		token string
+		err   error
+	)
+	withScryptSlot(func() { token, err = s.Auth.Login(b.strOr("username"), b.strOr("password")) })
 	if err != nil {
 		fail(w, err)
 		return
 	}
 	if token == "" {
+		s.limiter.fail(ip)
 		writeError(w, http.StatusUnauthorized, "bad_credentials")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"token": token})
+	s.limiter.success(ip)
+	writeJSON(w, http.StatusOK, map[string]any{"token": token, "mustChange": s.Auth.MustChange()})
 }
 
-// PUT /auth/password
+// PUT /auth/password 改密：其它会话全部失效，回当前会话的新令牌
 func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
+	ip := clientIP(r)
+	if d := s.limiter.blocked(ip); d > 0 {
+		tooMany(w, d)
+		return
+	}
 	var b body
 	if err := readJSON(w, r, &b); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_json")
 		return
 	}
 	newPassword, ok := b.str("newPassword")
-	if !ok || len(newPassword) < 8 {
+	if !ok || len([]rune(newPassword)) < auth.MinPasswordLen || len(newPassword) > 256 {
 		writeError(w, http.StatusBadRequest, "weak_password")
 		return
 	}
-	changed, err := s.Auth.ChangePassword(b.strOr("oldPassword"), newPassword)
+	var (
+		token string
+		err   error
+	)
+	withScryptSlot(func() { token, err = s.Auth.ChangePassword(b.strOr("oldPassword"), newPassword) })
 	if err != nil {
 		fail(w, err)
 		return
 	}
-	if !changed {
+	if token == "" {
+		s.limiter.fail(ip)
 		writeError(w, http.StatusUnauthorized, "bad_credentials")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "token": token})
 }
 
 // postInput 是文章写入的规范化字段。
@@ -257,25 +279,28 @@ func (s *Server) adminDeleteNote(w http.ResponseWriter, r *http.Request) {
 	okOrNotFound(w, res)
 }
 
-// GET /site-config 公开站点配置（前台启动读取）
+// GET /site-config 公开站点配置（前台启动读取）。github 只下发白名单字段（令牌、代理等一律不出站）。
 func (s *Server) siteConfig(w http.ResponseWriter, _ *http.Request) {
 	cfg := s.Config.Get()
-	github := make(config.Map, len(config.Sub(cfg, "github")))
-	for k, v := range config.Sub(cfg, "github") {
-		if k != "token" { // 公开配置不下发票证
+	src := config.Sub(cfg, "github")
+	github := config.Map{}
+	for _, k := range []string{"username", "mode", "stats", "refreshMinutes"} {
+		if v, ok := src[k]; ok {
 			github[k] = v
 		}
 	}
+	need, _ := s.Auth.NeedsSetup()
 	writeJSON(w, http.StatusOK, config.Map{
-		"site":     cfg["site"],
-		"loading":  cfg["loading"],
-		"theme":    cfg["theme"],
-		"hero":     cfg["hero"],
-		"thoughts": cfg["thoughts"],
-		"covers":   cfg["covers"],
-		"timezone": cfg["timezone"],
-		"github":   github,
-		"about":    cfg["about"],
+		"site":       cfg["site"],
+		"loading":    cfg["loading"],
+		"theme":      cfg["theme"],
+		"hero":       cfg["hero"],
+		"thoughts":   cfg["thoughts"],
+		"covers":     cfg["covers"],
+		"timezone":   cfg["timezone"],
+		"github":     github,
+		"about":      cfg["about"],
+		"needsSetup": need,
 	})
 }
 

@@ -24,12 +24,15 @@ func backupTimestamp() string {
 
 // createBackup 全站备份：数据库（文章/随想/用户/配置） + 上传素材（含原图备份）。
 func (s *Server) createBackup() (string, error) {
+	s.backupMu.Lock()
+	defer s.backupMu.Unlock()
+	defer s.pruneBackups(keepBackups)
 	// 先把 WAL 合并进主库文件，保证 zip 内的 .db 自洽可单独恢复。
 	if _, err := s.DB.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
 		log.Printf("[backup] checkpoint: %v", err)
 	}
 	name := "backup-" + backupTimestamp() + ".zip"
-	out, err := os.Create(filepath.Join(s.BackupDir, name))
+	out, err := os.OpenFile(filepath.Join(s.BackupDir, name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
 		return "", err
 	}
@@ -108,6 +111,7 @@ func (s *Server) StartAutoBackup() {
 				if hours <= 0 {
 					continue
 				}
+				hours = max(hours, 1)
 				if time.Since(last) >= time.Duration(hours*float64(time.Hour)) {
 					last = time.Now()
 					if _, err := s.createBackup(); err != nil {
@@ -183,4 +187,27 @@ func (s *Server) deleteBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	os.Remove(filepath.Join(s.BackupDir, name))
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// keepBackups 保留最近的备份份数，更早的自动清理。
+const keepBackups = 20
+
+// pruneBackups 按文件名（时间戳）排序，只保留最近 keep 份。
+func (s *Server) pruneBackups(keep int) {
+	entries, err := os.ReadDir(s.BackupDir)
+	if err != nil {
+		return
+	}
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() && backupNameRe.MatchString(e.Name()) {
+			names = append(names, e.Name())
+		}
+	}
+	sort.Strings(names)
+	for i := 0; i < len(names)-keep; i++ {
+		if err := os.Remove(filepath.Join(s.BackupDir, names[i])); err != nil {
+			log.Printf("[backup] prune %s: %v", names[i], err)
+		}
+	}
 }

@@ -20,8 +20,20 @@ func thumbURL(name string) string {
 	return "/uploads/thumbs/" + name + ".webp"
 }
 
+// decodeSlots 同时解码的图片数上限（缩略图、裁切、压缩共用），防止并发首访把内存打满。
+var decodeSlots = make(chan struct{}, 2)
+
 // ensureThumb 缺失或过期（源文件更新）时重新生成。gif 直接回源（保留动画）。
+// 同一张图的并发请求经 singleflight 合并为一次解码。
 func (s *Server) ensureThumb(name string) (string, error) {
+	v, err, _ := s.thumbs.Do(name, func() (any, error) { return s.buildThumb(name) })
+	if err != nil {
+		return "", err
+	}
+	return v.(string), nil
+}
+
+func (s *Server) buildThumb(name string) (string, error) {
 	src := filepath.Join(s.UploadDir, name)
 	dst := s.thumbPath(name)
 	srcStat, err := os.Stat(src)
@@ -34,6 +46,8 @@ func (s *Server) ensureThumb(name string) (string, error) {
 	if dstStat, err := os.Stat(dst); err == nil && !dstStat.ModTime().Before(srcStat.ModTime()) {
 		return dst, nil
 	}
+	decodeSlots <- struct{}{}
+	defer func() { <-decodeSlots }()
 	img, err := imaging.Decode(src)
 	if err != nil {
 		return "", err
