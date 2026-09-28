@@ -226,7 +226,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
   }
 }
 
-/* ---------- 形象图：按原图比例完整显示（不裁切），左缘与底缘部分渐隐融入背景 ---------- */
+/* ---------- 形象图：按原图比例完整显示（不裁切），左缘部分渐隐融入背景 ---------- */
 .pf-portrait {
   position: relative;
   display: flex;
@@ -255,14 +255,10 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 
 .pf-portrait:hover .pf-frame img { transform: scale(1.03); }
 
-/* 渐隐：缓动曲线式多段停靠，左侧过渡区约 45%，底部轻收一截；两层遮罩相交，无硬边 */
+/* 渐隐：仅左缘，缓动曲线式多段停靠，过渡区约 45%，无硬边；底部保持清晰 */
 .fade-left .pf-frame {
-  --fade-x: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.04) 6%, rgb(0 0 0 / 0.14) 13%, rgb(0 0 0 / 0.3) 20%, rgb(0 0 0 / 0.5) 27%, rgb(0 0 0 / 0.7) 34%, rgb(0 0 0 / 0.86) 40%, rgb(0 0 0 / 0.96) 46%, #000 52%);
-  --fade-y: linear-gradient(to top, transparent 0%, rgb(0 0 0 / 0.35) 6%, rgb(0 0 0 / 0.8) 14%, #000 22%);
-  -webkit-mask-image: var(--fade-x), var(--fade-y);
-  -webkit-mask-composite: source-in;
-  mask-image: var(--fade-x), var(--fade-y);
-  mask-composite: intersect;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.04) 6%, rgb(0 0 0 / 0.14) 13%, rgb(0 0 0 / 0.3) 20%, rgb(0 0 0 / 0.5) 27%, rgb(0 0 0 / 0.7) 34%, rgb(0 0 0 / 0.86) 40%, rgb(0 0 0 / 0.96) 46%, #000 52%);
+  mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.04) 6%, rgb(0 0 0 / 0.14) 13%, rgb(0 0 0 / 0.3) 20%, rgb(0 0 0 / 0.5) 27%, rgb(0 0 0 / 0.7) 34%, rgb(0 0 0 / 0.86) 40%, rgb(0 0 0 / 0.96) 46%, #000 52%);
 }
 
 .fade-bottom .pf-frame {
