@@ -2,7 +2,6 @@
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, type ApiKeyInfo, type ApiKeyScope } from '../../api';
-import { readToken } from '../../stores/auth';
 import { useDialogStore } from '../../stores/dialog';
 import { API_CATALOG, buildAgentPrompt, type Endpoint } from './apiCatalog';
 import './studio/i18n';
@@ -151,7 +150,8 @@ async function send(e: Endpoint): Promise<void> {
   const t0 = performance.now();
   try {
     const headers: Record<string, string> = {};
-    if (e.auth === 'jwt') headers.Authorization = `Bearer ${readToken()}`;
+    // 管理接口凭当前登录的会话 Cookie（同源自动携带）+ CSRF 头
+    if (e.auth === 'jwt') headers['X-Requested-With'] = 'myself';
     if (e.auth === 'apikey') headers['X-Api-Key'] = effectiveKey.value;
     const hasBody = ['POST', 'PUT'].includes(e.method) && reqBody.value.trim();
     if (hasBody) headers['Content-Type'] = 'application/json';

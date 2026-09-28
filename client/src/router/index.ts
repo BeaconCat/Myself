@@ -10,6 +10,7 @@ import {
 import { MOBILE_QUERY } from '../composables/useDevice';
 import { useLoadingStore } from '../stores/loading';
 import { configLoaded, useConfigStore } from '../stores/config';
+import { hasSessionHint } from '../stores/auth';
 
 import { adminChildren } from './admin';
 import { mobileAdminLogin, mobileAdminViews } from './mobile-admin';
@@ -143,7 +144,7 @@ router.beforeEach(async (to, from) => {
   if (needsSetup && to.name !== 'setup') return { name: 'setup' };
   if (!needsSetup && to.name === 'setup' && to.query.change !== '1') return { path: '/' };
   // 后台鉴权
-  if (to.meta.admin && !localStorage.getItem('myself.token')) {
+  if (to.meta.admin && !hasSessionHint()) {
     return { path: '/admin/login' };
   }
   const skip = performance.now() < skipCoverUntil;

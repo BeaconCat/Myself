@@ -52,7 +52,7 @@ async function submit(): Promise<void> {
   error.value = '';
   try {
     const res = await adminApi.login(username.value, password.value);
-    auth.setToken(res.token);
+    auth.markLoggedIn();
     success.value = true;
     (document.activeElement as HTMLElement | null)?.blur();
     if (res.mustChange) {

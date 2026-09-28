@@ -100,6 +100,33 @@ function createRenderer(): MarkdownIt {
       if (env.toc && (level === 2 || level === 3)) env.toc.push({ id, text, level });
     }
   });
+
+  /*
+   * 图片：只放行站内路径与 https 外链（html:false 已杜绝原始 HTML，validateLink 已挡 javascript: 等协议）；
+   * 外链图片不带来源页（referrerpolicy=no-referrer），懒加载、异步解码。其余地址整张图片丢弃。
+   */
+  const defaultImage = md.renderer.rules.image!;
+  md.renderer.rules.image = (tokens, idx, options, env, self) => {
+    const token = tokens[idx];
+    const src = (token.attrGet('src') ?? '').trim();
+    const local = /^\/(?!\/)/.test(src) || src.startsWith('data:image/');
+    if (!local && !/^https:\/\//i.test(src)) return '';
+    if (!local) token.attrSet('referrerpolicy', 'no-referrer');
+    token.attrSet('loading', 'lazy');
+    token.attrSet('decoding', 'async');
+    return defaultImage(tokens, idx, options, env, self);
+  };
+
+  /* 链接：外链新开标签页且不回传 opener / 来源页 */
+  const defaultLinkOpen = md.renderer.rules.link_open ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));
+  md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+    const href = tokens[idx].attrGet('href') ?? '';
+    if (/^https?:\/\//i.test(href)) {
+      tokens[idx].attrSet('target', '_blank');
+      tokens[idx].attrSet('rel', 'noopener noreferrer nofollow');
+    }
+    return defaultLinkOpen(tokens, idx, options, env, self);
+  };
   return md;
 }
 

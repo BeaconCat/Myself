@@ -134,8 +134,8 @@ function setPalette(id: string, e: MouseEvent): void {
 const displayName = computed(() => config.cfg.about?.name || 'Myself');
 const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
 
-function logout(): void {
-  auth.logout();
+async function logout(): Promise<void> {
+  await auth.logout();
   void router.push('/admin/login');
 }
 

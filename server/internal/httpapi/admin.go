@@ -12,7 +12,7 @@ import (
 
 var slugRe = regexp.MustCompile(`^[a-z0-9-]{1,80}$`)
 
-// POST /auth/login 失败计数按 IP 锁定；成功时回 mustChange 提示前端先改密
+// POST /auth/login 失败计数按 IP 锁定；成功写入 HttpOnly 会话 Cookie（响应体不含令牌），回 mustChange 提示前端先改密
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
 	if d := s.limiter.blocked(ip); d > 0 {
@@ -39,10 +39,11 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.limiter.success(ip)
-	writeJSON(w, http.StatusOK, map[string]any{"token": token, "mustChange": s.Auth.MustChange()})
+	setSession(w, r, token)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "mustChange": s.Auth.MustChange()})
 }
 
-// PUT /auth/password 改密：其它会话全部失效，回当前会话的新令牌
+// PUT /auth/password 改密：其它会话全部失效，当前会话换发新 Cookie
 func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
 	if d := s.limiter.blocked(ip); d > 0 {
@@ -73,7 +74,8 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "bad_credentials")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "token": token})
+	setSession(w, r, token)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 // postInput 是文章写入的规范化字段。

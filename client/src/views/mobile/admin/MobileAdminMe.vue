@@ -117,7 +117,7 @@ async function logout(): Promise<void> {
     danger: true,
   });
   if (!ok) return;
-  auth.logout();
+  await auth.logout();
   void router.replace('/admin/login');
 }
 </script>

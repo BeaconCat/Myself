@@ -39,9 +39,9 @@ async function submit(): Promise<void> {
   }
   busy.value = true;
   try {
-    const res = await adminApi.changePassword(oldPw.value, newPw.value);
-    // 改密后其它会话全部失效；当前会话换上新令牌继续
-    auth.setToken(res.token);
+    await adminApi.changePassword(oldPw.value, newPw.value);
+    // 改密后其它会话全部失效；当前会话已由服务端换发新 Cookie
+    auth.markLoggedIn();
     oldPw.value = newPw.value = confirmPw.value = '';
     toast(t('studio.settings.pwChanged'), { icon: 'lock' });
   } catch (e) {

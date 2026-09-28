@@ -65,11 +65,17 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-import { readToken } from '../stores/auth';
+import { clearSessionHint } from '../stores/auth';
 
-/** 票证失效：清除并踢回登录页 */
+/**
+ * 管理员请求：凭 HttpOnly 会话 Cookie 认证（同源 fetch 自动携带，脚本读不到令牌）；
+ * 所有请求带 X-Requested-With，服务端据此放行写操作（CSRF 防护）。
+ */
+const ADMIN_HEADERS = { 'X-Requested-With': 'myself' };
+
+/** 会话失效：清除登录提示并踢回登录页 */
 function kickToLogin(): void {
-  localStorage.removeItem('myself.token');
+  clearSessionHint();
   if (!window.location.pathname.startsWith('/admin/login')) {
     window.location.assign('/admin/login');
   }
@@ -84,9 +90,10 @@ function kickToChange(): void {
 async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${readToken()}`,
+      ...ADMIN_HEADERS,
       ...init.headers,
     },
   });
@@ -107,7 +114,8 @@ async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
 async function publicPost<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', ...ADMIN_HEADERS },
     body: JSON.stringify(body),
   });
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
@@ -167,15 +175,15 @@ export interface PostDraft {
 }
 
 export const adminApi = {
-  /** 登录：mustChange = 仍在用历史默认口令，需先改密 */
+  /** 登录：成功后服务端写入会话 Cookie；mustChange = 仍在用历史默认口令，需先改密 */
   login: (username: string, password: string) =>
-    publicPost<{ token: string; mustChange?: boolean }>('/auth/login', { username, password }),
+    publicPost<{ ok: boolean; mustChange?: boolean }>('/auth/login', { username, password }),
   setupStatus: () => get<{ needsSetup: boolean }>('/setup'),
-  setup: (payload: SetupPayload) => publicPost<{ token: string }>('/setup', payload),
+  setup: (payload: SetupPayload) => publicPost<{ ok: boolean }>('/setup', payload),
   verifySetupCode: (code: string) => publicPost<{ ok: boolean }>('/setup/verify', { code }),
-  /** 改密：其它会话全部失效，返回当前会话的新令牌 */
+  /** 改密：其它会话全部失效，当前会话由服务端换发新 Cookie */
   changePassword: (oldPassword: string, newPassword: string) =>
-    authed<{ ok: boolean; token: string }>('/auth/password', {
+    authed<{ ok: boolean }>('/auth/password', {
       method: 'PUT',
       body: JSON.stringify({ oldPassword, newPassword }),
     }),
@@ -207,7 +215,8 @@ export const adminApi = {
     for (const f of files) form.append('files', f);
     const res = await fetch(`${BASE}/admin/media`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${readToken()}` },
+      credentials: 'same-origin',
+      headers: ADMIN_HEADERS,
       body: form,
     });
     if (res.status === 401) {
@@ -217,10 +226,11 @@ export const adminApi = {
     if (!res.ok) throw new Error(`api_error_${res.status}`);
     return res.json() as Promise<MediaItem[]>;
   },
-  /** 原图二进制（重裁 UI 用；需鉴权头，img 标签带不了，取 blob） */
+  /** 原图二进制（重裁 UI 用，取 blob） */
   mediaOriginal: async (name: string): Promise<Blob> => {
     const res = await fetch(`${BASE}/admin/media/${encodeURIComponent(name)}/original`, {
-      headers: { Authorization: `Bearer ${readToken()}` },
+      credentials: 'same-origin',
+      headers: ADMIN_HEADERS,
     });
     if (res.status === 401) {
       kickToLogin();
@@ -242,7 +252,8 @@ export const adminApi = {
     authed<{ ok: boolean }>(`/admin/backups/${encodeURIComponent(name)}`, { method: 'DELETE' }),
   downloadBackup: async (name: string): Promise<Blob> => {
     const res = await fetch(`${BASE}/admin/backups/${encodeURIComponent(name)}`, {
-      headers: { Authorization: `Bearer ${readToken()}` },
+      credentials: 'same-origin',
+      headers: ADMIN_HEADERS,
     });
     if (!res.ok) throw new Error(`api_error_${res.status}`);
     return res.blob();

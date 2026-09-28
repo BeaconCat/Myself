@@ -49,7 +49,7 @@ func (s *Server) setupVerify(w http.ResponseWriter, r *http.Request) {
 
 // POST /setup 首次启动初始化：
 // {code, username, password, site:{title, subtitle, url}, identity:{name, hello, tagline, bio, motto, avatar}, demo}
-// 初始化码只打印在服务端启动日志里；失败计入与登录相同的 IP 锁定。成功后回登录令牌。
+// 初始化码只打印在服务端启动日志里；失败计入与登录相同的 IP 锁定。成功后写入会话 Cookie（即已登录）。
 func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
 	if d := s.limiter.blocked(ip); d > 0 {
@@ -137,7 +137,8 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"token": token})
+	setSession(w, r, token)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func str(v any) string {

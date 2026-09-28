@@ -52,23 +52,46 @@ func newEnv(t *testing.T) *env {
 	ts := httptest.NewServer(s.Handler())
 	t.Cleanup(ts.Close)
 	e := &env{t: t, srv: ts, root: root, auth: a}
-	var res struct {
-		Token string `json:"token"`
-	}
-	// 首次启动初始化：初始化码 + 管理员 + Demo 数据
-	e.call(http.MethodPost, "/api/v1/setup", map[string]any{
+	// 首次启动初始化：初始化码 + 管理员 + Demo 数据；成功即写入会话 Cookie
+	if tok := e.sessionFrom(http.MethodPost, "/api/v1/setup", map[string]any{
 		"code": a.SetupCode(), "username": "admin", "password": testPassword, "demo": true,
 		"site": map[string]any{"title": "Myself"},
-	}, &res, http.StatusOK)
-	if res.Token == "" {
-		t.Fatal("setup returned empty token")
+	}); tok == "" {
+		t.Fatal("setup did not set a session cookie")
 	}
-	e.call(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "admin", "password": testPassword}, &res, http.StatusOK)
-	if res.Token == "" {
-		t.Fatal("login returned empty token")
+	e.token = e.sessionFrom(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "admin", "password": testPassword})
+	if e.token == "" {
+		t.Fatal("login did not set a session cookie")
 	}
-	e.token = res.Token
 	return e
+}
+
+// sessionFrom 发 JSON 请求，断言 200，返回 Set-Cookie 里的会话令牌；并确认响应体不含令牌。
+func (e *env) sessionFrom(method, path string, body any) string {
+	e.t.Helper()
+	raw, _ := json.Marshal(body)
+	headers := map[string]string{"Content-Type": "application/json"}
+	if e.token != "" {
+		headers["Authorization"] = "Bearer " + e.token
+	}
+	res := e.do(method, path, bytes.NewReader(raw), headers)
+	defer res.Body.Close()
+	data, _ := io.ReadAll(res.Body)
+	if res.StatusCode != http.StatusOK {
+		e.t.Fatalf("%s %s: %d %s", method, path, res.StatusCode, data)
+	}
+	if strings.Contains(string(data), "token") {
+		e.t.Fatalf("%s %s leaks token in body: %s", method, path, data)
+	}
+	for _, c := range res.Cookies() {
+		if c.Name == "myself_session" {
+			if !c.HttpOnly || c.SameSite != http.SameSiteStrictMode {
+				e.t.Fatalf("session cookie not HttpOnly/Strict: %+v", c)
+			}
+			return c.Value
+		}
+	}
+	return ""
 }
 
 const testPassword = "correct-horse-9"
@@ -390,16 +413,45 @@ func TestLoginLockout(t *testing.T) {
 func TestPasswordChangeRevokesTokens(t *testing.T) {
 	e := newEnv(t)
 	old := e.token
-	var res struct {
-		Token string `json:"token"`
-	}
-	e.call(http.MethodPut, "/api/v1/auth/password", map[string]string{"oldPassword": testPassword, "newPassword": "another-pass-2"}, &res, http.StatusOK)
-	if res.Token == "" || res.Token == old {
-		t.Fatal("password change should return a fresh token")
+	fresh := e.sessionFrom(http.MethodPut, "/api/v1/auth/password", map[string]string{"oldPassword": testPassword, "newPassword": "another-pass-2"})
+	if fresh == "" || fresh == old {
+		t.Fatal("password change should set a fresh session cookie")
 	}
 	e.call(http.MethodGet, "/api/v1/admin/settings", nil, nil, http.StatusUnauthorized) // 旧令牌失效
-	e.token = res.Token
+	e.token = fresh
 	e.call(http.MethodGet, "/api/v1/admin/settings", nil, nil, http.StatusOK)
+}
+
+func TestCookieSessionCSRF(t *testing.T) {
+	e := newEnv(t)
+	cookie := map[string]string{"Cookie": "myself_session=" + e.token, "Content-Type": "application/json"}
+	// 读操作只凭 Cookie 即可
+	if res := e.do(http.MethodGet, "/api/v1/admin/settings", nil, cookie); res.StatusCode != http.StatusOK {
+		t.Fatalf("cookie GET: %d", res.StatusCode)
+	}
+	// 写操作缺自定义头：拒绝
+	if res := e.do(http.MethodPut, "/api/v1/admin/settings", strings.NewReader(`{}`), cookie); res.StatusCode != http.StatusForbidden {
+		t.Fatalf("cookie PUT without header: %d", res.StatusCode)
+	}
+	// 跨站 Origin：拒绝
+	cross := map[string]string{"Cookie": cookie["Cookie"], "Content-Type": "application/json", "X-Requested-With": "myself", "Origin": "https://evil.example"}
+	if res := e.do(http.MethodPut, "/api/v1/admin/settings", strings.NewReader(`{}`), cross); res.StatusCode != http.StatusForbidden {
+		t.Fatalf("cross-origin PUT: %d", res.StatusCode)
+	}
+	// 同源 + 自定义头：放行
+	ok := map[string]string{"Cookie": cookie["Cookie"], "Content-Type": "application/json", "X-Requested-With": "myself"}
+	if res := e.do(http.MethodPut, "/api/v1/admin/settings", strings.NewReader(`{}`), ok); res.StatusCode != http.StatusOK {
+		t.Fatalf("same-origin PUT: %d", res.StatusCode)
+	}
+	// 注销清除 Cookie
+	res := e.do(http.MethodPost, "/api/v1/auth/logout", nil, nil)
+	var cleared bool
+	for _, c := range res.Cookies() {
+		cleared = cleared || (c.Name == "myself_session" && c.MaxAge < 0)
+	}
+	if !cleared {
+		t.Fatal("logout should clear the session cookie")
+	}
 }
 
 func TestContribKeyScope(t *testing.T) {

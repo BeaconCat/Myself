@@ -279,10 +279,15 @@ func (s *Service) ChangePassword(oldPassword, newPassword string) (string, error
 	return s.Issue()
 }
 
-// Verify 校验 Bearer Token：固定 HS256、必须含 exp，sub 与令牌版本需与当前管理员一致。
+// Verify 校验 Authorization 头中的 Bearer Token。
 func (s *Service) Verify(authorization string) (jwt.MapClaims, error) {
-	raw, ok := strings.CutPrefix(authorization, "Bearer ")
-	if !ok || raw == "" {
+	raw, _ := strings.CutPrefix(authorization, "Bearer ")
+	return s.VerifyToken(raw)
+}
+
+// VerifyToken 校验令牌：固定 HS256、必须含 exp，sub 与令牌版本需与当前管理员一致。
+func (s *Service) VerifyToken(raw string) (jwt.MapClaims, error) {
+	if raw == "" {
 		return nil, errors.New("missing token")
 	}
 	secret, err := s.secret()

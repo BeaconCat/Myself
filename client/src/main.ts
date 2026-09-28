@@ -7,6 +7,7 @@ import { vReveal } from './directives/reveal';
 import { useThemeStore } from './stores/theme';
 import { useLoadingStore } from './stores/loading';
 import { useConfigStore } from './stores/config';
+import { useAuthStore } from './stores/auth';
 /* 思源字体离线打包（Noto SC 与思源同源；woff2 按 unicode-range 切片按需加载） */
 import '@fontsource/noto-sans-sc/400.css';
 import '@fontsource/noto-sans-sc/500.css';
@@ -31,6 +32,7 @@ useThemeStore().init();
 const configReady = configStore.load().then(() => useThemeStore().init());
 
 app.mount('#app');
+void useAuthStore().sync();
 
 /* 首屏进度 = 真实加载事件完成占比：DOM 解析 / 路由(首屏组件)就绪 / 字体就绪 / 全部资源 load */
 const loading = useLoadingStore();

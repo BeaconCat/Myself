@@ -92,6 +92,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /feed.xml", s.rssFeed)
 	mux.HandleFunc("GET "+p+"/github-status", s.githubStatus)
 	mux.HandleFunc("POST "+p+"/auth/login", s.login)
+	mux.HandleFunc("POST "+p+"/auth/logout", s.logout)
+	mux.HandleFunc("GET "+p+"/auth/session", s.session)
 	mux.HandleFunc("GET "+p+"/setup", s.setupStatus)
 	mux.HandleFunc("POST "+p+"/setup", s.setup)
 	mux.HandleFunc("POST "+p+"/setup/verify", s.setupVerify)
@@ -201,11 +203,20 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// requireAuth Bearer Token 校验。仍在用历史默认口令时只放行改密接口。
+// requireAuth 管理员认证：会话 Cookie（浏览器，写操作需过 CSRF 校验）或 Bearer（脚本）。
+// 仍在用历史默认口令时只放行改密接口。
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if _, err := s.Auth.Verify(r.Header.Get("Authorization")); err != nil {
+		token, fromCookie := sessionToken(r)
+		if _, err := s.Auth.VerifyToken(token); err != nil {
+			if fromCookie {
+				clearSession(w, r)
+			}
 			writeError(w, http.StatusUnauthorized, "unauthorized")
+			return
+		}
+		if fromCookie && !csrfOK(r) {
+			writeError(w, http.StatusForbidden, "csrf_rejected")
 			return
 		}
 		if s.Auth.MustChange() && !(r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/auth/password")) {

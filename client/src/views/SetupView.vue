@@ -135,7 +135,7 @@ async function finish(): Promise<void> {
   busy.value = true;
   error.value = '';
   try {
-    const res = await adminApi.setup({
+    await adminApi.setup({
       code: form.code.trim(),
       username: form.username.trim(),
       password: form.password,
@@ -143,7 +143,7 @@ async function finish(): Promise<void> {
       identity: { name: form.name.trim(), tagline: form.tagline.trim(), motto: form.motto.trim() },
       demo: form.demo,
     });
-    auth.setToken(res.token);
+    auth.markLoggedIn();
     await config.load();
     dir.value = 1;
     step.value = 'done';
@@ -172,8 +172,8 @@ async function changePassword(): Promise<void> {
   }
   busy.value = true;
   try {
-    const res = await adminApi.changePassword(pw.old, pw.next);
-    auth.setToken(res.token);
+    await adminApi.changePassword(pw.old, pw.next);
+    auth.markLoggedIn();
     void router.replace({ name: 'admin-today' });
   } catch (e) {
     error.value = explain(e);
