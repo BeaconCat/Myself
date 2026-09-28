@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { settle, stableJson } from './studio/state';
-import { migrateInPlace } from '../../about/migrate';
+import { migrateModules } from '../../about/migrate';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -43,8 +43,9 @@ async function load(): Promise<void> {
   } catch {
     toast(t('studio.loadFailed'), { icon: 'x' });
   }
-  // 先把旧结构模块就地迁移到新结构，展开编辑时不再因迁移而显示「未保存」
-  about.modules.forEach((m) => migrateInPlace(m));
+  // 与前台同一套迁移：旧结构模块归一，并补出前台会合成的身份区 / 收尾格言，
+  // 让后台列表与前台所见一致；快照在迁移之后取，未改动时不显示「未保存」
+  about.modules = migrateModules(about.modules, about);
   await settle();
   snapshot.value = stableJson(about);
   loaded.value = true;
