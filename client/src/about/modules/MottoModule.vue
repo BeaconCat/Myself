@@ -3,14 +3,14 @@ import { computed } from 'vue';
 import type { MottoData } from '../types';
 import type { ModProps } from './props';
 
-/** 格言（motto）：closing = 页尾整行宋体大字逐字模糊浮现 + 下方一道光；card = 卡片变体 */
+/** 格言（motto）：closing = 页尾整行宋体大字逐字模糊浮现 + 下方一道自中心展开的落款线；card = 卡片变体 */
 const props = defineProps<ModProps>();
 const d = computed(() => props.mod.data as MottoData);
 const chars = computed(() => [...(d.value.text ?? '')]);
 </script>
 
 <template>
-  <div class="mo" :class="{ 'card-v': variant === 'card' }">
+  <div class="mo" :class="{ 'card-v': variant === 'card' }" :style="{ '--n': chars.length }">
     <p><span v-for="(ch, i) in chars" :key="i" :style="{ '--k': i }">{{ ch }}</span></p>
     <small v-if="d.sign">{{ d.sign }}</small>
   </div>
@@ -19,34 +19,39 @@ const chars = computed(() => [...(d.value.text ?? '')]);
 <style scoped lang="scss">
 .mo {
   position: relative;
-  overflow: hidden;
-  padding: 56px 0 84px;
+  padding: 56px 0 72px;
   text-align: center;
 
-  /* 品牌光影例外：收尾处的一束门缝光（地面光晕 + 竖向光束）属于品牌母题，允许主色辉光 */
-  &::before {
-    content: '';
-    position: absolute;
-    left: 50%;
-    bottom: 0;
-    width: 70%;
-    height: 70%;
-    translate: -50% 0;
-    background: radial-gradient(50% 60% at 50% 100%, rgba(var(--primary-rgb), 0.28), transparent 70%);
-    filter: blur(10px);
-  }
-
+  /*
+   * 收尾落款线：一道中性细线自中心向两侧展开，中段一小截墨色加粗作为「落笔」。
+   * 全部取语义 token（--line-2 / --ak-ink），深浅模式自动适配，不再使用辉光。
+   */
+  &::before,
   &::after {
     content: '';
     position: absolute;
     left: 50%;
-    bottom: 0;
-    width: 2px;
-    height: 96px;
+    bottom: 36px;
     translate: -50% 0;
+    transform: scaleX(0);
+    transition: transform 1.1s var(--ease-out);
+    transition-delay: calc(var(--n, 8) * 70ms + 250ms);
+  }
+
+  &::before {
+    width: min(420px, 62%);
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--line-2) 30%, var(--line-2) 70%, transparent);
+  }
+
+  &::after {
+    width: 44px;
+    height: 3px;
+    margin-bottom: -1px;
     border-radius: var(--r-pill);
-    background: linear-gradient(transparent, #fff);
-    box-shadow: 0 0 18px 3px rgba(var(--primary-rgb), 0.7);
+    background: var(--ak-ink);
+    transition-duration: 0.7s;
+    transition-delay: calc(var(--n, 8) * 70ms + 150ms);
   }
 
   p { position: relative; font: 700 clamp(30px, 5.6cqi, 64px)/1.2 var(--font-serif); letter-spacing: 0.06em; }
@@ -63,20 +68,21 @@ const chars = computed(() => [...(d.value.text ?? '')]);
   small { position: relative; display: block; margin-top: 18px; font: 500 13px var(--ak-mono); letter-spacing: 0.2em; color: var(--ak-text-3); }
 }
 
-:root[data-mode='light'] .mo::after { background: linear-gradient(transparent, var(--primary)); }
-
 .in .mo p span { opacity: 1; filter: none; transform: none; }
+.in .mo::before,
+.in .mo::after { transform: scaleX(1); }
 
 .mo.card-v {
   padding: 8px 0 10px;
   text-align: left;
 
-  /* 卡片形态不带门缝光，光晕一并去掉 */
+  /* 卡片形态不带落款线 */
   &::after, &::before { display: none; }
   p { font-size: 26px; letter-spacing: 0.04em; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .mo p span { opacity: 1; filter: none; transform: none; }
+  .mo::before, .mo::after { transform: none; transition: none; }
 }
 </style>
