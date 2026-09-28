@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type Component } from 'vue';
-import type { AboutModule, SiteConfig } from '../stores/config';
+import type { AboutModule } from '../stores/config';
 import { metaOf, spanOf, titleOf, variantOf } from './registry';
 import { migrateModules } from './migrate';
+import { injectIdentity, type Identity } from './identity';
 import { kitToast } from './toast';
 import KitIcon from './parts/KitIcon.vue';
 import ProfileModule from './modules/ProfileModule.vue';
@@ -35,14 +36,15 @@ import './kit.scss';
 
 /**
  * 关于页模块分发器（about-kit v2）：
- * 1. migrateModules 归一旧 schema（并在缺 profile 时用旧顶层字段合成身份区）；
+ * 1. migrateModules 归一旧 schema（缺 profile 时补身份区），再由 injectIdentity 注入站点身份内容；
  * 2. 以 chapter 为界切分成若干 12 栏 bento 段落（段内 dense 回填，段间不串位）；
  * 3. 统一外壳（卡片 / 开放排版）、IO reveal + stagger、指针跟随中性高光、共享 tooltip 与轻提示。
  * 主色可读性（亮主色配深字等）由全站 --solid / --on-solid / --ink 统一派生，这里不再单独计算。
  */
 const props = defineProps<{
   modules: AboutModule[];
-  about?: Partial<Pick<SiteConfig['about'], 'avatar' | 'name' | 'tagline' | 'bio' | 'motto'>>;
+  /** 站点身份：注入 profile / motto 模块的内容 */
+  about?: Partial<Identity>;
 }>();
 
 const COMPONENTS: Record<string, Component> = {
@@ -84,7 +86,9 @@ interface Item {
 }
 
 const sections = computed<Item[][]>(() => {
-  const list = migrateModules(props.modules, props.about).filter((m) => !m.hidden && COMPONENTS[m.type] && metaOf(m.type));
+  const list = migrateModules(props.modules, props.about)
+    .filter((m) => !m.hidden && COMPONENTS[m.type] && metaOf(m.type))
+    .map((m) => injectIdentity(m, props.about ?? {}));
   const out: Item[][] = [[]];
   let chapter = 0;
   for (const mod of list) {

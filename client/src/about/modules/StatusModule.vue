@@ -17,16 +17,9 @@ const config = useConfigStore();
 const COLORS: Record<string, string> = { online: '#00c853', focus: '#ffb300', away: '#8390a6' };
 const color = computed(() => COLORS[d.value.state] ?? COLORS.online);
 
-/** 头像：取 profile 形象图或旧 about.avatar，最后回落 logo */
-const avatar = computed(() => {
-  const profile = config.cfg.about.modules?.find((m) => m.type === 'profile');
-  return profile?.data?.portrait?.src || config.cfg.about.avatar || '/favicon-256.png';
-});
-
-const tz = computed(() => {
-  const profile = config.cfg.about.modules?.find((m) => m.type === 'profile');
-  return Number(profile?.data?.status?.tz ?? 8);
-});
+/** 头像：站点身份的头像，其次形象图，最后回落 logo；时区取身份状态 */
+const avatar = computed(() => config.cfg.about.avatar || config.cfg.about.portrait?.src || '/favicon-256.png');
+const tz = computed(() => Number(config.cfg.about.status?.tz ?? 8));
 const clock = computed(() => zoned(now.value, tz.value));
 const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit.status.justNow'));
 </script>

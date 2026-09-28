@@ -2,9 +2,10 @@
 import { useI18n } from 'vue-i18n';
 import type { AboutModule } from '../../../stores/config';
 import { MOTTO_FLOURISHES, type MottoData } from '../../../about/types';
+import IdentityNote from './IdentityNote.vue';
 import { useModuleData } from './useModuleData';
 
-/** 格言：一句话 + 署名小字 + 收尾装饰 */
+/** 格言：文字与署名来自站点身份；这里只选收尾装饰 */
 const props = defineProps<{ mod: AboutModule }>();
 const d = useModuleData<MottoData>(() => props.mod);
 const { t } = useI18n();
@@ -12,10 +13,7 @@ const { t } = useI18n();
 
 <template>
   <div class="ed">
-    <div class="grid3">
-      <label class="span2"><span>{{ t('aboutKit.ed.motto') }}</span><input v-model="d.text" class="a-input" type="text" /></label>
-      <label><span>{{ t('aboutKit.ed.sign') }}</span><input v-model="d.sign" class="a-input" type="text" placeholder="NAME · SINCE 2026" /></label>
-    </div>
+    <IdentityNote :text="t('aboutKit.ed.mottoFromIdentity')" />
     <div class="fld">
       <span>{{ t('aboutKit.ed.flourish') }}</span>
       <div class="seg">

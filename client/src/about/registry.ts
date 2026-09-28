@@ -44,22 +44,15 @@ export const MODULE_REGISTRY: ModuleMeta[] = [
   {
     type: 'profile',
     name: '身份区',
-    desc: '大字宋体名字、一句话、自述、实时状态行与社交入口；右侧形象图全尺寸显示、左缘渐隐',
+    desc: '大字宋体名字、签名、自述、实时状态行与链接按钮；右侧形象图全尺寸显示、左缘渐隐。内容来自「身份」',
     icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0',
     group: '身份',
     variants: [{ id: 'portrait', label: '形象图' }, { id: 'plain', label: '纯文字' }],
     spans: [3],
     defaultSpan: 3,
     chrome: no,
-    defaultData: () => ({
-      hello: '你好，我是',
-      name: '你的名字',
-      lede: '一句话介绍你自己，*星号* 包裹的词会被高亮。',
-      bio: '写一段自述：你是谁、在做什么、热爱什么。',
-      status: { doing: '正在做的一件事', city: '所在城市', tz: 8 },
-      links: [{ name: 'GitHub', handle: '@your-github', icon: 'github', url: 'https://github.com/', primary: true }],
-      portrait: { src: '', fade: 'left', focus: '50% 40%' },
-    }),
+    // 内容来自站点身份（about/identity.ts），模块只存展示选项
+    defaultData: () => ({ kicker: '' }),
     summary: (d) => [d.name, d.status?.city].filter(Boolean).join(' · '),
   },
   {
@@ -311,14 +304,14 @@ export const MODULE_REGISTRY: ModuleMeta[] = [
   {
     type: 'motto',
     name: '格言',
-    desc: '页尾收束：整行宋体大字逐字浮现，收尾装饰四选一（落款线 / 地平线 / 引号 / 无）；卡片变体可放进网格',
+    desc: '页尾收束：整行宋体大字逐字浮现，收尾装饰四选一（落款线 / 地平线 / 引号 / 无）；文字来自「身份」',
     icon: 'M8 10c0-2 1.5-4 4-4M8 10v4h4v-4H8ZM16 10c0-2 1.5-4 4-4M16 10v4h4v-4h-4Z',
     group: '喜好',
     variants: [{ id: 'closing', label: '收尾大字' }, { id: 'card', label: '卡片' }],
     spans: [1, 3],
     defaultSpan: 3,
     chrome: (v) => v === 'card',
-    defaultData: () => ({ text: '写下你的座右铭', sign: '' }),
+    defaultData: () => ({ flourish: 'line' }),
     summary: (d) => d.text ?? '',
   },
   {

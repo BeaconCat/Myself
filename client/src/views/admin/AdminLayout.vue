@@ -38,7 +38,8 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
       { name: 'admin-posts', icon: 'doc', key: 'posts', count: () => studio.posts },
       { name: 'admin-notes', icon: 'feather', key: 'notes', count: () => studio.notes },
       { name: 'admin-media', icon: 'image', key: 'media' },
-      { name: 'admin-about', icon: 'user', key: 'about' },
+      { name: 'admin-identity', icon: 'user', key: 'identity' },
+      { name: 'admin-about', icon: 'layers', key: 'about' },
     ],
   },
   {

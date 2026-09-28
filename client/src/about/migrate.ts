@@ -11,7 +11,8 @@ import type { AboutModule, SiteConfig } from '../stores/config';
  * - favorites        → groups[].items: string → { name }
  * - skills           → 补 star
  * - stack            → 补 glyph（取名称前两个字母）
- * - socials/profile  → icon 'twitter' → 'x'
+ * - socials         → icon 'twitter' → 'x'
+ * - profile / motto  → 内容已移至站点身份（identity.ts），模块只保留展示选项
  * - stats            → data {} → 默认四项
  * - 其余：补齐必需数组/字段，避免渲染器与编辑器判空
  */
@@ -43,20 +44,8 @@ function links(v: unknown): Any[] {
 }
 
 const DATA: Record<string, (d: Any) => Any> = {
-  profile: (d) => ({
-    ...d,
-    hello: str(d.hello),
-    name: str(d.name),
-    lede: str(d.lede),
-    bio: str(d.bio),
-    status: { doing: '', city: '', ...obj(d.status), tz: num(obj(d.status).tz, 8) },
-    links: links(d.links),
-    portrait: {
-      src: '',
-      fade: 'left',
-      ...obj(d.portrait),
-    },
-  }),
+  // 内容（名字 / 签名 / 自述 / 状态 / 链接 / 形象图）已移至站点身份，见 identity.ts；模块只剩展示选项
+  profile: (d) => ({ ...d, kicker: str(d.kicker) }),
   chapter: (d) => ({ ...d, title: str(d.title), subtitle: str(d.subtitle) }),
   status: (d) => ({ ...d, state: ['online', 'focus', 'away'].includes(d.state) ? d.state : 'online', activity: str(d.activity) }),
   socials: (d) => ({ ...d, items: links(d.items) }),
@@ -126,7 +115,7 @@ const DATA: Record<string, (d: Any) => Any> = {
     interval: num(d.interval, 6) || 6,
     items: arr(d.items).map((x) => (typeof x === 'string' ? { text: x } : { ...obj(x), text: str(obj(x).text) })),
   }),
-  motto: (d) => ({ ...d, text: str(d.text) }),
+  motto: (d) => ({ ...d, flourish: str(d.flourish, 'line') }),
   gallery: (d) => ({
     ...d,
     images: arr(d.images).map((x) => (typeof x === 'string' ? { src: x } : { ...obj(x), src: str(obj(x).src) })),
@@ -196,35 +185,20 @@ export function migrateInPlace(mod: AboutModule): void {
   Object.assign(mod.data, next.data);
 }
 
-type LegacyAbout = Partial<Pick<SiteConfig['about'], 'avatar' | 'name' | 'tagline' | 'bio' | 'motto'>>;
+type LegacyAbout = Partial<Pick<SiteConfig['about'], 'motto'>>;
 
 /**
- * 整页迁移：逐个 migrateModule；若列表中没有 profile，
- * 用旧的顶层字段 about.avatar/name/tagline/bio 合成一个 profile 放在最前；
- * 若有 about.motto 且列表中没有 motto 模块，在末尾补一个收尾格言。
+ * 整页迁移：逐个 migrateModule；列表中没有 profile 时在最前补一个身份区，
+ * 有格言文字而没有 motto 模块时在末尾补一个收尾格言。
+ * 补出的模块只带展示选项，内容由 identity.ts 的 injectIdentity 在渲染时注入。
  */
 export function migrateModules(list: AboutModule[] | undefined, about: LegacyAbout = {}): AboutModule[] {
   const out = arr<AboutModule>(list).filter((m) => m && typeof m.type === 'string').map(migrateModule);
   if (!out.some((m) => m.type === 'profile')) {
-    const socials = out.find((m) => m.type === 'socials');
-    out.unshift(migrateModule({
-      id: 'm-profile-legacy',
-      type: 'profile',
-      span: 3,
-      variant: 'portrait',
-      data: {
-        hello: '你好，我是',
-        name: about.name ?? '',
-        lede: about.tagline ?? '',
-        bio: about.bio ?? '',
-        status: { doing: '', city: '', tz: 8 },
-        links: socials ? socials.data.items.slice(0, 3).map((l: Any, i: number) => ({ ...l, primary: i === 0 })) : [],
-        portrait: { src: about.avatar ?? '', fade: 'left' },
-      },
-    }));
+    out.unshift({ id: 'm-profile-legacy', type: 'profile', span: 3, variant: 'portrait', data: { kicker: '' } });
   }
   if (about.motto && !out.some((m) => m.type === 'motto')) {
-    out.push({ id: 'm-motto-legacy', type: 'motto', span: 3, variant: 'closing', data: { text: about.motto, sign: '' } });
+    out.push({ id: 'm-motto-legacy', type: 'motto', span: 3, variant: 'closing', data: { flourish: 'line' } });
   }
   return out;
 }

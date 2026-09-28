@@ -355,6 +355,9 @@ export default {
       track: '曲名', artist: '艺术家', album: '专辑 · 年份', duration: '时长（秒）', position: '当前位置（秒）', playing: '播放中', recent: '最近曲目', when: '时间',
       interval: '轮播间隔（秒）', quote: '语句', from: '出处',
       motto: '格言', sign: '署名小字',
+      goIdentity: '去「身份」编辑',
+      profileFromIdentity: '名字、签名、自述、状态、链接与形象图来自站点身份，在「身份」页统一编辑。',
+      mottoFromIdentity: '格言文字与署名来自站点身份，在「身份」页统一编辑。',
       flourish: '收尾装饰', flourish_line: '落款线', flourish_horizon: '地平线', flourish_quote: '引号', flourish_none: '无',
       galleryHint: '上传的照片按顺序显示；下面逐张填写标题 / 地点 / 日期，也可添加无照片的光影占位。', addScene: '添加光影占位', place: '地点',
       placesHint: '输入常用城市名会自动填入经纬度；只能有一个常住地（黄色）。', city: '城市', lon: '经度', lat: '纬度', year: '年份', home: '常住',
@@ -502,6 +505,7 @@ export default {
     route: {
       'admin-settings': '站点设置',
       'admin-appearance': '外观与首页',
+      'admin-identity': '身份',
       'admin-about': '关于页',
       'admin-comments': '评论',
       'admin-users': '用户',
@@ -704,7 +708,8 @@ export default {
       hint: {
         'admin-settings': '标题、加载、时区',
         'admin-appearance': '主题预设、Hero 动效',
-        'admin-about': '模块与头像',
+        'admin-identity': '头像、签名与格言',
+        'admin-about': '模块编排',
         'admin-comments': '审核与回复',
         'admin-users': '账号与权限',
         'admin-data': '导入导出',

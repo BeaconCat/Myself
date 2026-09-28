@@ -53,11 +53,20 @@ const defaultJSON = `{
   "about": {
     "avatar": "",
     "name": "Myself",
+    "hello": "你好，我是",
     "tagline": "开源个人博客引擎",
-    "bio": "这里是 Myself 的默认介绍。前往后台「关于管理」写下你自己的故事：你是谁、在做什么、热爱什么。",
+    "bio": "这里是 Myself 的默认介绍。前往后台「身份」写下你自己的故事：你是谁、在做什么、热爱什么。",
     "skills": ["写作", "摄影", "编程"],
     "foundedAt": "2026-01-01",
     "motto": "记录本身，就是意义。",
+    "mottoSign": "",
+    "status": { "doing": "", "city": "", "tz": 8 },
+    "links": [
+      { "name": "GitHub", "handle": "@your-github", "icon": "github", "url": "https://github.com/your-github", "primary": true },
+      { "name": "邮件", "handle": "hi@example.com", "icon": "mail", "url": "mailto:hi@example.com" },
+      { "name": "RSS", "handle": "/feed", "icon": "rss", "url": "/feed" }
+    ],
+    "portrait": { "src": "", "fade": "left" },
     "modules": [
       {
         "id": "m-profile",
@@ -65,41 +74,7 @@ const defaultJSON = `{
         "span": 3,
         "variant": "portrait",
         "data": {
-          "hello": "你好，我是",
-          "name": "BeaconCat",
-          "lede": "在书页这一边*写字*，在工作台那一边*写代码*。",
-          "bio": "独立开发者，Myself 的作者。白天做后端与工具链，夜里写字、拍照、听唱片。我相信好的工具应该像一扇门：推开就是光，不需要说明书。这个站是我的书页，也是我的工作台。",
-          "status": {
-            "doing": "Myself v0.9 · 关于页组件库",
-            "city": "杭州 · 西湖区",
-            "tz": 8
-          },
-          "links": [
-            {
-              "name": "GitHub",
-              "handle": "@your-github",
-              "icon": "github",
-              "url": "https://github.com/your-github",
-              "primary": true
-            },
-            {
-              "name": "邮件",
-              "handle": "hi@example.com",
-              "icon": "mail",
-              "url": "mailto:hi@example.com"
-            },
-            {
-              "name": "RSS",
-              "handle": "/feed",
-              "icon": "rss",
-              "url": "/feed"
-            }
-          ],
-          "portrait": {
-            "src": "",
-            "fade": "left",
-            "focus": "50% 40%"
-          }
+          "kicker": ""
         }
       },
       {
@@ -1115,8 +1090,7 @@ const defaultJSON = `{
         "span": 3,
         "variant": "closing",
         "data": {
-          "text": "记录本身，就是意义。",
-          "sign": "MYSELF · SINCE 2026"
+          "flourish": "line"
         }
       }
     ]
