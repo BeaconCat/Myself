@@ -91,7 +91,7 @@ const previewMask = computed(() => ({
           class="pt-frame"
           :style="{ borderRadius: radiusAuto ? 'var(--r-xl)' : `${d.portrait.radius}px`, maskImage: previewMask, WebkitMaskImage: previewMask }"
         >
-          <img :src="d.portrait.src || '/favicon-256.png'" alt="" :style="{ objectPosition: d.portrait.focus || '50% 40%' }" />
+          <img :src="d.portrait.src || '/logo-1024.webp'" alt="" :style="{ objectPosition: d.portrait.focus || '50% 40%' }" />
         </span>
         <figcaption>{{ t('aboutKit.ed.preview') }}</figcaption>
       </figure>

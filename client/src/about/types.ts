@@ -131,7 +131,11 @@ export interface ListeningData {
 
 export interface QuotesData { interval: number; items: { text: string; from?: string }[] }
 
-export interface MottoData { text: string; sign?: string }
+/** 格言收尾装饰：落款线 / 地平线 / 墨痕 / 印章 / 引号 / 无 */
+export type MottoFlourish = 'line' | 'horizon' | 'ink' | 'seal' | 'quote' | 'none';
+export const MOTTO_FLOURISHES: MottoFlourish[] = ['line', 'horizon', 'ink', 'seal', 'quote', 'none'];
+
+export interface MottoData { text: string; sign?: string; flourish?: MottoFlourish; seal?: string }
 
 export interface GalleryImage { src: string; scene?: string; title?: string; place?: string; date?: string }
 export interface GalleryData { images: GalleryImage[] }

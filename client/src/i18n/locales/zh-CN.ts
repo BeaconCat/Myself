@@ -355,6 +355,8 @@ export default {
       track: '曲名', artist: '艺术家', album: '专辑 · 年份', duration: '时长（秒）', position: '当前位置（秒）', playing: '播放中', recent: '最近曲目', when: '时间',
       interval: '轮播间隔（秒）', quote: '语句', from: '出处',
       motto: '格言', sign: '署名小字',
+      flourish: '收尾装饰', flourish_line: '落款线', flourish_horizon: '地平线', flourish_ink: '墨痕', flourish_seal: '印章', flourish_quote: '引号', flourish_none: '无',
+      seal: '印文', sealHint: '一到四个字，留空取格言首字',
       galleryHint: '上传的照片按顺序显示；下面逐张填写标题 / 地点 / 日期，也可添加无照片的光影占位。', addScene: '添加光影占位', place: '地点',
       placesHint: '输入常用城市名会自动填入经纬度；只能有一个常住地（黄色）。', city: '城市', lon: '经度', lat: '纬度', year: '年份', home: '常住',
       addGroup: '添加分组', groupTitle: '分组标题', tagsHint: '用逗号分隔多个标签', starHint: '点击设为主技能',
