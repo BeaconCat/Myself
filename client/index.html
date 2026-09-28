@@ -13,7 +13,7 @@
       try {
         var t = JSON.parse(localStorage.getItem('myself.theme') || '{}');
         if (t.mode) document.documentElement.dataset.mode = t.mode;
-        if (t.style) document.documentElement.dataset.style = t.style;
+        document.documentElement.dataset.style = t.style || 'clean';
       } catch (e) {}
     </script>
   </head>

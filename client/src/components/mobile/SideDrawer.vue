@@ -95,14 +95,14 @@ function openGithub(): void {
       class="seg2 style"
       role="group"
       :aria-label="t('theme.style')"
-      :style="{ '--i': theme.style === 'clean' ? 1 : 0 }"
+      :style="{ '--i': theme.style === 'cards' ? 1 : 0 }"
     >
       <span class="th" aria-hidden="true" />
-      <button class="m-tap" :class="{ on: theme.style === 'cards' }" :aria-pressed="theme.style === 'cards'" @click="setStyle('cards', $event)">
-        <MIcon name="cards" class="s" />{{ t('theme.styleCards') }}
-      </button>
       <button class="m-tap" :class="{ on: theme.style === 'clean' }" :aria-pressed="theme.style === 'clean'" @click="setStyle('clean', $event)">
         <MIcon name="clean" class="s" />{{ t('theme.styleClean') }}
+      </button>
+      <button class="m-tap" :class="{ on: theme.style === 'cards' }" :aria-pressed="theme.style === 'cards'" @click="setStyle('cards', $event)">
+        <MIcon name="cards" class="s" />{{ t('theme.styleCards') }}
       </button>
     </div>
     <div v-if="theme.allowUserPalette" class="pals">

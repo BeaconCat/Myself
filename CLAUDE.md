@@ -20,7 +20,7 @@
 - 关于页：模块化组件库（`about/`，26 种模块，12 栏 bento，`span/variant/title/hidden`），旧配置经 `about/migrate.ts` 读取时迁移；默认模块唯一来源 `about/default-modules.json`，改后运行 `python scripts/sync_about_defaults.py` 同步到 Go 默认配置
 
 ## 主题系统
-- 三维正交：`mode`（light/dark）×`palette`（季节色盘）×`style`（`cards` 高密度卡片 / `clean` 透明背景简洁）；风格 token 在 `styles/tokens.scss` 末尾（`--card-*` `--statbar-*` `--section-gap` 等），站点默认 `theme.defaultStyle`，`theme.allowUserStyle` 控制访客切换
+- 三维正交：`mode`（light/dark）×`palette`（季节色盘）×`style`（`clean` 透明背景简洁，默认 / `cards` 高密度卡片，可选）；风格 token 在 `styles/tokens.scss` 末尾（`--card-*` `--statbar-*` `--section-gap` 等），站点默认 `theme.defaultStyle`，`theme.allowUserStyle` 控制访客切换
 - 品牌常量（所有主题贯穿）：`--accent-red:#ff0032` `--accent-yellow:#ffb300` `--accent-blue:#0078ff`
 - 内置四季预设：spring / summer / autumn / winter，由后端站点配置 `theme.presets` 下发（每组仅 primary / primaryDeep）
 - 色盘运行时派生：`client/src/themes/derive.ts` 从主色推导整套 light+dark 变量并注入，不维护独立色盘文件；后台可自定义最多 10 组预设

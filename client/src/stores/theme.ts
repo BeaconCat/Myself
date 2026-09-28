@@ -71,7 +71,7 @@ export const useThemeStore = defineStore('theme', {
   state: () => ({
     mode: 'dark' as Mode,
     paletteId: 'summer',
-    style: 'cards' as UiStyle,
+    style: 'clean' as UiStyle,
   }),
   getters: {
     /** 访客可见色盘（配置驱动，主题色对派生整套） */
@@ -106,7 +106,7 @@ export const useThemeStore = defineStore('theme', {
         ? paletteId
         : this.allPalettes[0]?.id ?? 'summer';
 
-      const defStyle: UiStyle = isStyle(cfg.defaultStyle) ? cfg.defaultStyle : 'cards';
+      const defStyle: UiStyle = isStyle(cfg.defaultStyle) ? cfg.defaultStyle : 'clean';
       this.style = this.allowUserStyle && isStyle(saved.style) ? saved.style : defStyle;
       applyStyle(this.style);
 
