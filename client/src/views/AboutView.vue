@@ -5,8 +5,8 @@ import { useConfigStore } from '../stores/config';
 import AboutModules from '../about/AboutModules.vue';
 
 /**
- * 关于页（about-kit v2）：全部内容由后台「关于管理」的模块列表驱动，
- * 12 栏 bento + chapter 章节节奏 + reveal 进场；旧的顶层身份字段在缺少 profile 模块时自动合成身份区。
+ * 关于页（about-kit v2）：版面由后台「关于」的模块列表驱动、身份内容来自「身份」，
+ * 12 栏 bento + chapter 章节节奏 + reveal 进场；缺少 profile 模块时自动补一个身份区。
  * 页尾品牌信息由全站 SiteFooter 承担，这里不再重复。
  */
 const config = useConfigStore();

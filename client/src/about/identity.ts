@@ -30,6 +30,14 @@ const filled = (v: unknown): boolean => (typeof v === 'string' ? v.trim() !== ''
 /** 去掉 *高亮* 标记，给不渲染高亮的位置用 */
 export const plainText = (s: string | undefined): string => (s ?? '').replace(/\*/g, '');
 
+/** 历代出厂默认自述：仍是原样（用户没改过）时换成指向「身份」页的新默认文案 */
+const DEFAULT_BIO = '这里是 Myself 的默认介绍。前往后台「身份」写下你自己的故事：你是谁、在做什么、热爱什么。';
+const LEGACY_BIOS = [
+  '这里是 Myself 的默认介绍。前往后台「设置 → 关于信息」写下你自己的故事：你是谁、在做什么、热爱什么。',
+  '这里是 Myself 的默认介绍。前往后台「关于管理」写下你自己的故事：你是谁、在做什么、热爱什么。',
+  '这里是 Myself 的默认介绍，可在后台「关于管理」修改。',
+];
+
 /** profile 模块里旧版存放的内容字段 → 身份字段 */
 const PROFILE_CONTENT: Record<string, keyof Identity> = {
   hello: 'hello',
@@ -44,7 +52,7 @@ const PROFILE_CONTENT: Record<string, keyof Identity> = {
 /**
  * 归一站点身份（原地修改 about）：
  * 1. 旧版 profile / motto 模块里存过的内容提升到顶层（模块值优先 —— 那是前台此前实际显示的内容），并从模块里删除；
- * 2. 补齐新增字段的默认值。
+ * 2. 补齐新增字段的默认值，未改动过的旧版默认自述换成新默认文案。
  * 前台（config store 载入时）与后台（关于 / 身份页载入时）各调用一次，结果一致。
  */
 export function normalizeIdentity(about: SiteConfig['about']): void {
@@ -68,6 +76,7 @@ export function normalizeIdentity(about: SiteConfig['about']): void {
     }
   }
 
+  if (LEGACY_BIOS.includes(a.bio)) a.bio = DEFAULT_BIO;
   a.hello ??= '你好，我是';
   a.mottoSign ??= '';
   a.status = { doing: '', city: '', tz: 8, ...obj(a.status) };
