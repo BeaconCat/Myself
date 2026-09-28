@@ -2,7 +2,7 @@
 /**
  * ModuleFrame —— 关于页模块编辑器的公共头部（宽度 span / 变体 variant / 标题覆盖 / 隐藏开关）。
  *
- * 用法（后台「关于管理」页在每个模块编辑器外包一层）：
+ * 用法（后台「关于」页在每个模块编辑器外包一层）：
  *
  *   import ModuleFrame from '@/components/admin/modules/ModuleFrame.vue';
  *   import { MODULE_EDITORS } from '@/components/admin/modules';
@@ -31,7 +31,7 @@ const meta = computed(() => metaOf(props.mod.type));
 const span = computed(() => spanOf(props.mod));
 const variant = computed(() => variantOf(props.mod));
 
-/* eslint-disable vue/no-mutating-props -- 模块对象由关于管理页持有，编辑器约定原地修改 */
+/* eslint-disable vue/no-mutating-props -- 模块对象由后台「关于」页持有，编辑器约定原地修改 */
 function setSpan(s: 1 | 2 | 3): void { props.mod.span = s; }
 function setVariant(v: string): void { props.mod.variant = v; }
 function setTitle(e: Event): void {
