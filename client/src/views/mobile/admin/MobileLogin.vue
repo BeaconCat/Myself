@@ -51,14 +51,19 @@ async function submit(): Promise<void> {
   busy.value = true;
   error.value = '';
   try {
-    auth.setToken(await adminApi.login(username.value, password.value));
+    const res = await adminApi.login(username.value, password.value);
+    auth.setToken(res.token);
     success.value = true;
     (document.activeElement as HTMLElement | null)?.blur();
+    if (res.mustChange) {
+      void router.replace({ path: '/setup', query: { change: '1' } });
+      return;
+    }
     const name = config.cfg.about.name || '';
     window.addEventListener(REVEAL_EVENT, () => toast(t('mobileAdmin.login.welcome'), name), { once: true });
     void router.replace('/admin');
-  } catch {
-    error.value = t('mobileAdmin.login.failed');
+  } catch (e) {
+    error.value = (e as Error).message === 'too_many_attempts' ? t('mobileAdmin.login.locked') : t('mobileAdmin.login.failed');
     shake();
     navigator.vibrate?.([12, 40, 12]);
   } finally {

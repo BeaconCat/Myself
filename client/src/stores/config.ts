@@ -27,6 +27,8 @@ export interface ThemePreset {
 }
 
 export interface SiteConfig {
+  /** 站点尚未初始化（首次启动）；由 /site-config 下发 */
+  needsSetup?: boolean;
   site: { title: string; subtitle: string; listEndText: string };
   loading: { bootText: string; routeText: string };
   theme: {
@@ -125,6 +127,10 @@ export const FALLBACK_CONFIG: SiteConfig = {
   },
 };
 
+let markLoaded: () => void = () => undefined;
+/** 首次载入完成（成功或回退）即兑现；路由守卫据此判断是否需要初始化 */
+export const configLoaded = new Promise<void>((resolve) => { markLoaded = resolve; });
+
 export const useConfigStore = defineStore('config', {
   state: () => ({
     cfg: FALLBACK_CONFIG as SiteConfig,
@@ -143,6 +149,7 @@ export const useConfigStore = defineStore('config', {
         this.cfg = cfg;
       } catch { /* 后端未启动时用回退配置 */ }
       this.loaded = true;
+      markLoaded();
       document.title = this.cfg.site.title;
     },
   },

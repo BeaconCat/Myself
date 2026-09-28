@@ -94,6 +94,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+p+"/auth/login", s.login)
 	mux.HandleFunc("GET "+p+"/setup", s.setupStatus)
 	mux.HandleFunc("POST "+p+"/setup", s.setup)
+	mux.HandleFunc("POST "+p+"/setup/verify", s.setupVerify)
 
 	// 管理员
 	mux.HandleFunc("PUT "+p+"/auth/password", admin(s.changePassword))

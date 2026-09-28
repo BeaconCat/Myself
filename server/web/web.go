@@ -25,7 +25,10 @@ var inlineScriptRe = regexp.MustCompile(`(?s)<script>(.*?)</script>`)
 func ContentSecurityPolicy(index []byte) string {
 	scripts := []string{"'self'"}
 	for _, m := range inlineScriptRe.FindAllSubmatch(index, -1) {
-		sum := sha256.Sum256(m[1])
+		// HTML 解析器会把 CRLF / CR 规范成 LF 后再算哈希（Windows 构建产物带 CRLF）
+		src := bytes.ReplaceAll(m[1], []byte("\r\n"), []byte("\n"))
+		src = bytes.ReplaceAll(src, []byte("\r"), []byte("\n"))
+		sum := sha256.Sum256(src)
 		scripts = append(scripts, "'sha256-"+base64.StdEncoding.EncodeToString(sum[:])+"'")
 	}
 	return strings.Join([]string{

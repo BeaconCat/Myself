@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { safeHref } from '../../utils/safeUrl';
 import { computed } from 'vue';
 import { useConfigStore } from '../../stores/config';
 import type { ProfileData } from '../types';
@@ -93,11 +94,11 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
         <a
           v-for="l in d.links"
           :key="l.name + l.url"
-          :href="l.url"
+          :href="safeHref(l.url)"
           class="ak-btn"
           :class="{ pri: l.primary }"
           :target="external(l.url)"
-          rel="noopener"
+          rel="noopener noreferrer"
         >
           <KitIcon :name="l.icon" />{{ l.name }}<span v-if="l.handle" class="ak-mono">{{ l.handle }}</span>
         </a>

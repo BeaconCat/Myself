@@ -9,6 +9,7 @@ import {
 } from 'vue-router';
 import { MOBILE_QUERY } from '../composables/useDevice';
 import { useLoadingStore } from '../stores/loading';
+import { configLoaded, useConfigStore } from '../stores/config';
 
 import { adminChildren } from './admin';
 import { mobileAdminLogin, mobileAdminViews } from './mobile-admin';
@@ -34,6 +35,12 @@ export const router = createRouter({
     page('/thoughts', 'thoughts', () => import('../views/ThoughtsView.vue')),
     page('/about', 'about', () => import('../views/AboutView.vue')),
     { path: '/archive', redirect: '/thoughts' },
+    {
+      path: '/setup',
+      name: 'setup',
+      component: () => import('../views/SetupView.vue'),
+      meta: { bare: true },
+    },
     {
       path: '/admin/login',
       name: 'admin-login',
@@ -130,6 +137,11 @@ export function routeMounted(to: RouteLocationNormalized): boolean {
 }
 
 router.beforeEach(async (to, from) => {
+  // 首次启动：未初始化时一律进入初始化流程；已初始化后 /setup 只保留改密模式
+  if (!useConfigStore().loaded) await configLoaded;
+  const needsSetup = !!useConfigStore().cfg.needsSetup;
+  if (needsSetup && to.name !== 'setup') return { name: 'setup' };
+  if (!needsSetup && to.name === 'setup' && to.query.change !== '1') return { path: '/' };
   // 后台鉴权
   if (to.meta.admin && !localStorage.getItem('myself.token')) {
     return { path: '/admin/login' };

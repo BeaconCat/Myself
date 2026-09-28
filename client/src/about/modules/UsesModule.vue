@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { safeHref } from '../../utils/safeUrl';
 import { computed } from 'vue';
 import type { UsesData } from '../types';
 import type { ModProps } from './props';
@@ -19,7 +20,7 @@ const d = computed(() => props.mod.data as UsesData);
         <li v-for="(it, i) in g.items" :key="i">
           <span class="ic"><KitIcon :name="it.icon || 'link'" :size="20" /></span>
           <span class="tx">
-            <a v-if="it.url" :href="it.url" target="_blank" rel="noopener"><b>{{ it.name }}</b></a>
+            <a v-if="it.url" :href="safeHref(it.url)" target="_blank" rel="noopener noreferrer"><b>{{ it.name }}</b></a>
             <b v-else>{{ it.name }}</b>
             <span v-if="it.desc">{{ it.desc }}</span>
           </span>

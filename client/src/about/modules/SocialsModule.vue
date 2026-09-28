@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { safeHref } from '../../utils/safeUrl';
 import { computed } from 'vue';
 import type { SocialsData } from '../types';
 import type { ModProps } from './props';
@@ -14,13 +15,13 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 <template>
   <ModHead :title="title" />
   <div v-if="variant === 'pills'" class="so-pills">
-    <a v-for="l in d.items" :key="l.name + l.url" :href="l.url" class="ak-btn" :class="{ pri: l.primary }" :target="external(l.url)" rel="noopener">
+    <a v-for="l in d.items" :key="l.name + l.url" :href="safeHref(l.url)" class="ak-btn" :class="{ pri: l.primary }" :target="external(l.url)" rel="noopener noreferrer">
       <KitIcon :name="l.icon" />{{ l.name }}
     </a>
   </div>
   <ul v-else class="so">
     <li v-for="l in d.items" :key="l.name + l.url">
-      <a :href="l.url" :target="external(l.url)" rel="noopener">
+      <a :href="safeHref(l.url)" :target="external(l.url)" rel="noopener noreferrer">
         <span class="ic"><KitIcon :name="l.icon" /></span>
         <span><b>{{ l.name }}</b><span>{{ l.handle || l.url.replace(/^(https?:\/\/|mailto:)/, '') }}</span></span>
         <span class="arr"><KitIcon name="arrow" /></span>

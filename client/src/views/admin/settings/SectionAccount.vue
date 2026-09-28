@@ -2,12 +2,14 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi } from '../../../api';
+import { useAuthStore } from '../../../stores/auth';
 import '../studio/i18n';
 import SIcon from '../studio/SIcon.vue';
 import { toast } from '../studio/toast';
 
 /** 账号：修改管理员密码（独立提交，不随站点设置保存） */
 const { t } = useI18n();
+const auth = useAuthStore();
 
 const oldPw = ref('');
 const newPw = ref('');
@@ -37,11 +39,13 @@ async function submit(): Promise<void> {
   }
   busy.value = true;
   try {
-    await adminApi.changePassword(oldPw.value, newPw.value);
+    const res = await adminApi.changePassword(oldPw.value, newPw.value);
+    // 改密后其它会话全部失效；当前会话换上新令牌继续
+    auth.setToken(res.token);
     oldPw.value = newPw.value = confirmPw.value = '';
     toast(t('studio.settings.pwChanged'), { icon: 'lock' });
-  } catch {
-    error.value = t('studio.settings.pwWrong');
+  } catch (e) {
+    error.value = (e as Error).message === 'too_many_attempts' ? t('studio.login.locked') : t('studio.settings.pwWrong');
   } finally {
     busy.value = false;
   }

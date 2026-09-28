@@ -118,7 +118,7 @@ function menu(p: AdminPost): MenuItem[] {
     { icon: 'pin', label: p.pinned ? t('studio.unpin') : t('studio.pin'), run: () => void togglePin(p) },
   ];
   if (p.status === 'published') {
-    items.push({ icon: 'external', label: t('studio.posts.openSite'), run: () => window.open(`/articles/${encodeURIComponent(p.slug)}`, '_blank') });
+    items.push({ icon: 'external', label: t('studio.posts.openSite'), run: () => window.open(`/articles/${encodeURIComponent(p.slug)}`, '_blank', 'noopener') });
   }
   items.push({ icon: 'trash', label: t('studio.delete'), danger: true, divider: true, run: () => void remove(p) });
   return items;
