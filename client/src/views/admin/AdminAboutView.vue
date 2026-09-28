@@ -98,8 +98,40 @@ function toggleHidden(mod: AboutModule): void {
   mod.hidden = !mod.hidden;
 }
 
-function toggleExpand(mod: AboutModule): void {
-  expanded.value = expanded.value === mod.id ? '' : mod.id;
+const reduceMotion = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let toggling = false;
+
+/** 收起编辑区：先把 .ed 高度收到 0 并淡出，再交给 FLIP 把卡片送回原宽度 */
+async function foldEditor(id: string): Promise<void> {
+  const ed = grid.value?.querySelector<HTMLElement>(`[data-id="${id}"] > .ed`);
+  if (!ed || reduceMotion()) return;
+  const h = ed.offsetHeight;
+  const anim = ed.animate(
+    [{ height: `${h}px`, opacity: 1 }, { height: '0px', opacity: 0, paddingTop: '0px', paddingBottom: '0px' }],
+    { duration: 260, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' },
+  );
+  ed.style.overflow = 'hidden';
+  await anim.finished.catch(() => undefined);
+}
+
+/**
+ * 展开 / 收起：展开时卡片从原尺寸长到整行（clip-path 由旧尺寸展开），其余卡片 FLIP 让位，编辑区淡入；
+ * 收起时编辑区先收拢，再 FLIP 回到原位置与宽度。切换到另一张时先收起当前那张。
+ */
+async function toggleExpand(mod: AboutModule): Promise<void> {
+  if (toggling) return;
+  toggling = true;
+  try {
+    const cur = expanded.value;
+    if (cur) {
+      await foldEditor(cur);
+      await flip(() => { expanded.value = ''; });
+      if (cur === mod.id) return;
+    }
+    await flip(() => { expanded.value = mod.id; }, mod.id);
+  } finally {
+    toggling = false;
+  }
 }
 
 function spanClass(mod: AboutModule): string {
@@ -133,8 +165,13 @@ function layoutRect(el: HTMLElement): { l: number; t: number; r: number; b: numb
   return { l: el.offsetLeft, t: el.offsetTop, r: el.offsetLeft + el.offsetWidth, b: el.offsetTop + el.offsetHeight };
 }
 
-/** FLIP：记录旧位置 → 变更 → 从旧位置补间到新位置 */
-async function flip(change: () => void): Promise<void> {
+/** FLIP：记录旧位置 → 变更 → 从旧位置补间到新位置；grow 指定的卡片额外用 clip-path 从旧尺寸长到新尺寸 */
+async function flip(change: () => void, grow = ''): Promise<void> {
+  if (reduceMotion()) {
+    change();
+    await nextTick();
+    return;
+  }
   const first = new Map(cards().map((c) => [c.dataset.id!, c.getBoundingClientRect()]));
   change();
   await nextTick();
@@ -144,6 +181,16 @@ async function flip(change: () => void): Promise<void> {
     const l = c.getBoundingClientRect();
     const dx = f.left - l.left;
     const dy = f.top - l.top;
+    if (c.dataset.id === grow) {
+      const r = getComputedStyle(c).borderTopLeftRadius;
+      const cut = `inset(0px ${Math.max(0, l.width - f.width)}px ${Math.max(0, l.height - f.height)}px 0px round ${r})`;
+      c.getAnimations().forEach((an) => an.cancel());
+      c.animate(
+        [{ transform: `translate(${dx}px, ${dy}px)`, clipPath: cut }, { transform: 'none', clipPath: `inset(0px 0px 0px 0px round ${r})` }],
+        { duration: 460, easing: 'cubic-bezier(.2,.8,.3,1)' },
+      );
+      continue;
+    }
     if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
     c.getAnimations().forEach((an) => an.cancel());
     c.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.8,.3,1)' });
@@ -389,7 +436,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
             <component :is="MODULE_EDITORS[mod.type]" v-if="MODULE_EDITORS[mod.type]" :mod="mod" />
           </ModuleFrame>
           <div class="ed-ft">
-            <button type="button" class="st-btn q sm" @click="expanded = ''">{{ t('studio.about.collapse') }}</button>
+            <button type="button" class="st-btn q sm" @click="toggleExpand(mod)">{{ t('studio.about.collapse') }}</button>
           </div>
         </div>
         <span
