@@ -14,6 +14,10 @@ const siteName = computed(() => config.cfg.site.title || t('common.siteName'));
 const motto = computed(() => config.cfg.about.motto || config.cfg.site.subtitle);
 const owner = computed(() => config.cfg.about.name || siteName.value);
 const year = new Date().getFullYear();
+/** 引擎源码仓库（固定，不随站长配置变化） */
+const REPO = 'BeaconCat/Myself';
+const REPO_URL = `https://github.com/${REPO}`;
+
 const github = computed(() => {
   const u = config.cfg.github.username;
   return u ? `https://github.com/${encodeURIComponent(u)}` : '';
@@ -44,7 +48,12 @@ const links = [
       </nav>
 
       <div class="cp">
-        <span>&copy; {{ year }} {{ owner }} · {{ t('footer.poweredBy') }}</span>
+        <span class="pw">
+          &copy; {{ year }} {{ owner }} · {{ t('footer.poweredBy') }}
+          <a class="repo" :href="REPO_URL" target="_blank" rel="noopener" :title="t('footer.repoTitle')">
+            <UiIcon name="github" class="s" />{{ REPO }}
+          </a>
+        </span>
         <span class="mono">{{ theme.palette?.nameKey }}</span>
       </div>
     </div>
@@ -130,6 +139,7 @@ const links = [
 .cp {
   grid-column: 1 / -1;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding-top: 16px;
@@ -148,5 +158,23 @@ const links = [
 @media (max-width: 860px) {
   .in { grid-template-columns: 1fr; }
   .cp { flex-direction: column; }
+}
+
+.pw { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+
+/* 源码仓库：图标 + 仓库名，悬停抬升为链接色 */
+.repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 6px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
+
+  &:hover { color: var(--ink); background: var(--fill); box-shadow: inset 0 0 0 1px var(--line-2); }
 }
 </style>

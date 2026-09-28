@@ -549,6 +549,7 @@ export default {
     rss: 'RSS',
     github: 'GitHub',
     poweredBy: '由 Myself 开源博客引擎驱动',
+    repoTitle: '在 GitHub 查看源代码',
   },
   /* 桌面外壳：顶栏 */
   shell: {
