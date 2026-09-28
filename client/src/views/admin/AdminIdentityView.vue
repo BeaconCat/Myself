@@ -484,7 +484,16 @@ onBeforeUnmount(() => {
   img { width: 100%; height: 100%; object-fit: cover; display: block; }
 }
 
-.pt-thumb.logo .pt-frame img { object-fit: contain; }
+/* 未上传形象图：logo 原图自带圆角底，缩略图去掉纸面底与描边，按方形显示 */
+.pt-thumb.logo {
+  aspect-ratio: 1;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+
+  .pt-frame img { object-fit: contain; }
+  .pt-over { border-radius: 22%; }
+}
 
 .fade-left .pt-frame {
   -webkit-mask-image: linear-gradient(to right, transparent, rgb(0 0 0 / 0.3) 20%, rgb(0 0 0 / 0.86) 40%, #000 52%);
