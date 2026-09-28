@@ -221,7 +221,7 @@ onBeforeUnmount(() => {
         <div class="art-text">
           <img class="logo" src="/favicon-64.png" alt="" draggable="false" />
           <p>{{ changeMode ? t('setup.change.aside') : t(`setup.aside.${step === 'done' ? 'done' : step}`) }}</p>
-          <small>Myself · {{ t('setup.brand') }}</small>
+          <small>Myself · {{ changeMode ? t('setup.change.kicker') : t('setup.brand') }}</small>
         </div>
       </div>
 

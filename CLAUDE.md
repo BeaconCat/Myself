@@ -46,6 +46,14 @@
 - 生产：`pnpm build` → client 产物输出 `server/web/dist` → go:embed 单二进制托管 SPA + API；`/feed` RSS；`/uploads/thumbs/<name>.webp` 按需缩略图
 - 前端 Markdown 统一走 `client/src/utils/markdown.ts`（highlight.js 离线 + TOC 锚点），请求统一经 `client/src/api/index.ts`
 
+## 安全与首次启动
+- 不内置默认管理员：首次启动进入 `/setup` 向导（初始化码 → 管理员 → 站点与身份 → 可选 Demo 数据），初始化码只打印在服务端启动日志；旧库仍用历史默认口令时强制改密（`admin_must_change`）
+- JWT 7 天、带 `tv` 令牌版本，改密即全部吊销；登录 / 初始化码按 IP 失败 5 次锁 15 分钟（反向代理后设 `MYSELF_TRUST_PROXY=1`）
+- API Key 两档：`contrib` 仅投稿（默认，只写草稿、只碰自己创建的草稿）/ `full` 全托管
+- 响应头：页面 CSP 由 `server/web/web.go` 按 index.html 内联脚本哈希生成（勿新增内联脚本）；`/uploads/` 只按单段安全文件名直出，不列目录；配置里的外链统一走 `utils/safeUrl.ts` 的 `safeHref`
+- `backups/`、`uploads/`、`data/` 不入库；Demo 数据在 `server/internal/store/seed.go`
+- 默认封面：`scripts/gen_covers.py` 生成 `client/public/covers/NN(-s).webp`，无封面时经 `utils/defaultCovers.ts` 按种子稳定取图
+
 ## 分期
 - P0 骨架：主题系统、i18n、响应式布局、motion 系统、Hero 轮播 ✅进行中
 - P1 博客核心：列表/详情/标签/随想（原归档已并入随想），Markdown 渲染 + 代码高亮 + TOC + RSS ✅
