@@ -167,6 +167,10 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    /* background-clip:text 只在盒内着色：给 f 的顶钩、y 的下伸留出余量，负外边距抵消，排版不动 */
+    padding: 0 0.14em 0.12em 0;
+    margin-right: -0.14em;
+    -webkit-box-decoration-break: clone;
     animation: pf-sheen 2.6s 0.5s var(--ease-out) both;
   }
 }
