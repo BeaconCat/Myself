@@ -83,7 +83,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
   theme: {
     defaultPaletteId: 'summer',
     defaultMode: 'dark',
-    defaultStyle: 'cards',
+    defaultStyle: 'clean',
     autoSwitch: 'off',
     allowUserPalette: true,
     allowUserStyle: true,

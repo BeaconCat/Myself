@@ -70,11 +70,11 @@ function onMode(e: MouseEvent): void {
       class="style-seg"
       role="group"
       :aria-label="t('theme.style')"
-      :style="{ '--i': theme.style === 'clean' ? 1 : 0 }"
+      :style="{ '--i': theme.style === 'cards' ? 1 : 0 }"
     >
       <span class="thumb" aria-hidden="true" />
       <button
-        v-for="s in (['cards', 'clean'] as const)"
+        v-for="s in (['clean', 'cards'] as const)"
         :key="s"
         type="button"
         :class="{ on: theme.style === s }"

@@ -44,7 +44,7 @@ async function load(): Promise<void> {
     toast(t('studio.loadFailed'), { icon: 'x' });
   }
   // 旧配置没有界面风格字段：在快照前补默认值，避免误报「未保存」
-  if (cfg.theme.defaultStyle !== 'clean') cfg.theme.defaultStyle = 'cards';
+  if (cfg.theme.defaultStyle !== 'cards') cfg.theme.defaultStyle = 'clean';
   if (typeof cfg.theme.allowUserStyle !== 'boolean') cfg.theme.allowUserStyle = true;
   await settle();
   snapshot.value = stableJson(cfg);
@@ -130,7 +130,7 @@ function setMode(m: 'light' | 'dark', e: MouseEvent): void {
 }
 
 /* ===== 界面风格：cards / clean，与模式同样即时预览（Studio 自身不随风格变化） ===== */
-const STYLES = ['cards', 'clean'] as const;
+const STYLES = ['clean', 'cards'] as const;
 function setStyle(s: UiStyle, e: MouseEvent): void {
   cfg.theme.defaultStyle = s;
   if (theme.style !== s) themeTransition(e, () => theme.setStyle(s, true));

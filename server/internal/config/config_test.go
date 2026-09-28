@@ -47,11 +47,11 @@ func TestMigrateAboutModules(t *testing.T) {
 	}
 }
 
-// 界面风格默认值：cards，且允许访客切换。
+// 界面风格默认值：clean（简洁），且允许访客切换卡片。
 func TestDefaultThemeStyle(t *testing.T) {
 	theme := Sub(Default(), "theme")
-	if got := Str(theme, "defaultStyle"); got != "cards" {
-		t.Fatalf("theme.defaultStyle = %q, want cards", got)
+	if got := Str(theme, "defaultStyle"); got != "clean" {
+		t.Fatalf("theme.defaultStyle = %q, want clean", got)
 	}
 	if !Bool(theme, "allowUserStyle") {
 		t.Fatal("theme.allowUserStyle should default to true")
