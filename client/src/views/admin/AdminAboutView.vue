@@ -165,8 +165,13 @@ function layoutRect(el: HTMLElement): { l: number; t: number; r: number; b: numb
   return { l: el.offsetLeft, t: el.offsetTop, r: el.offsetLeft + el.offsetWidth, b: el.offsetTop + el.offsetHeight };
 }
 
-/** FLIP：记录旧位置 → 变更 → 从旧位置补间到新位置；grow 指定的卡片额外用 clip-path 从旧尺寸长到新尺寸 */
-async function flip(change: () => void, grow = ''): Promise<void> {
+/**
+ * FLIP：记录旧位置 → 变更 → 从旧位置补间到新位置。focus 指定的卡片额外补间尺寸：
+ * - 'clip'：展开时用 clip-path 从旧尺寸长到新尺寸（四周放出 BLEED，强调描边与阴影全程可见，不会在结束时闪出）；
+ * - 'width'：改宽时直接补间 width，伸长与缩短都连续。
+ */
+const BLEED = 24;
+async function flip(change: () => void, focus = '', mode: 'clip' | 'width' = 'clip'): Promise<void> {
   if (reduceMotion()) {
     change();
     await nextTick();
@@ -181,12 +186,22 @@ async function flip(change: () => void, grow = ''): Promise<void> {
     const l = c.getBoundingClientRect();
     const dx = f.left - l.left;
     const dy = f.top - l.top;
-    if (c.dataset.id === grow) {
-      const r = getComputedStyle(c).borderTopLeftRadius;
-      const cut = `inset(0px ${Math.max(0, l.width - f.width)}px ${Math.max(0, l.height - f.height)}px 0px round ${r})`;
+    if (c.dataset.id === focus) {
       c.getAnimations().forEach((an) => an.cancel());
+      if (mode === 'width') {
+        c.animate(
+          [{ transform: `translate(${dx}px, ${dy}px)`, width: `${f.width}px` }, { transform: 'none', width: `${l.width}px` }],
+          { duration: 420, easing: 'cubic-bezier(.2,.8,.3,1)' },
+        );
+        continue;
+      }
+      const r = getComputedStyle(c).borderTopLeftRadius;
+      const cut = (w: number, h: number): string => `inset(-${BLEED}px ${w - BLEED}px ${h - BLEED}px -${BLEED}px round ${r})`;
       c.animate(
-        [{ transform: `translate(${dx}px, ${dy}px)`, clipPath: cut }, { transform: 'none', clipPath: `inset(0px 0px 0px 0px round ${r})` }],
+        [
+          { transform: `translate(${dx}px, ${dy}px)`, clipPath: cut(Math.max(0, l.width - f.width), Math.max(0, l.height - f.height)) },
+          { transform: 'none', clipPath: cut(0, 0) },
+        ],
         { duration: 460, easing: 'cubic-bezier(.2,.8,.3,1)' },
       );
       continue;
@@ -299,7 +314,7 @@ async function onUp(): Promise<void> {
 /* ---------- 改宽：右缘拖柄按 1/3 · 2/3 · 整行吸附（只落在模块支持的宽度上） ---------- */
 function setSpan(mod: AboutModule, span: Span): void {
   if (spanOf(mod) === span) return;
-  void flip(() => { mod.span = span; });
+  void flip(() => { mod.span = span; }, mod.id, 'width');
 }
 
 function spanItems(mod: AboutModule) {
@@ -531,7 +546,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
   display: flex;
   flex-direction: column;
   min-width: 0;
-  transition: box-shadow var(--dur), opacity var(--dur);
+  transition: box-shadow var(--dur-slow) var(--ease-out), opacity var(--dur);
 
   &:hover { box-shadow: 0 0 0 1px var(--line-3), var(--sh-card-hover); }
 

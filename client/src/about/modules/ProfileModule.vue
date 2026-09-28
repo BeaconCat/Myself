@@ -178,7 +178,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 @keyframes pf-sheen { from { background-position: 100% 0; } to { background-position: 0 0; } }
 
 .pf-lede {
-  margin: 20px 0 10px;
+  margin: 34px 0 10px;
   font: 600 clamp(18px, 2.9cqi, 24px) / 1.5 var(--font-serif);
   letter-spacing: 0.02em;
 
