@@ -157,7 +157,7 @@ function onProseClick(e: MouseEvent): void {
   if (href.startsWith('#')) {
     e.preventDefault();
     scrollToId(decodeURIComponent(href.slice(1)));
-  } else if (href.startsWith('/') && !href.startsWith('/uploads') && !href.startsWith('/feed')) {
+  } else if (/^\/(?!\/)/.test(href) && !href.startsWith('/uploads') && !href.startsWith('/feed')) {
     e.preventDefault();
     void router.push(href);
   }

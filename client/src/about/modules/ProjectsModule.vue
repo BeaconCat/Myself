@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { safeHref } from '../../utils/safeUrl';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { Project, ProjectsData } from '../types';
@@ -24,7 +25,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 <template>
   <ModHead :title="title">{{ t('aboutKit.projects.count', { n: d.items.length }) }}</ModHead>
   <div v-if="ordered.featured" class="pj" :class="{ solo: !ordered.rest.length }">
-    <a :href="ordered.featured.url || undefined" :target="external(ordered.featured.url)" rel="noopener" class="big">
+    <a :href="safeHref(ordered.featured.url)" :target="external(ordered.featured.url)" rel="noopener noreferrer" class="big">
       <div class="cvw"><Scene :src="ordered.featured.cover" :scene="ordered.featured.scene" :alt="ordered.featured.name" /></div>
       <div class="bd">
         <div class="tt"><b>{{ ordered.featured.name }}</b><KitIcon name="arrow" :size="18" /></div>
@@ -36,7 +37,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
       </div>
     </a>
     <div v-if="ordered.rest.length" class="side">
-      <a v-for="p in ordered.rest" :key="p.name" :href="p.url || undefined" :target="external(p.url)" rel="noopener">
+      <a v-for="p in ordered.rest" :key="p.name" :href="safeHref(p.url)" :target="external(p.url)" rel="noopener noreferrer">
         <div class="cvw"><Scene :src="p.cover" :scene="p.scene" :alt="p.name" /></div>
         <div class="bd">
           <div class="tt"><b>{{ p.name }}</b><KitIcon name="arrow" :size="18" /></div>

@@ -148,6 +148,19 @@ func (s *Service) NeedsSetup() (bool, error) {
 	return user == "", err
 }
 
+// CheckSetupCode 仅校验初始化码（初始化向导第一步即时反馈）。已初始化时返回 ErrAlreadySetup。
+func (s *Service) CheckSetupCode(code string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.setupCode == "" {
+		return ErrAlreadySetup
+	}
+	if subtle.ConstantTimeCompare([]byte(strings.ToUpper(strings.TrimSpace(code))), []byte(s.setupCode)) != 1 {
+		return ErrBadSetupCode
+	}
+	return nil
+}
+
 // Setup 首次初始化：校验初始化码后创建管理员。并发调用只有一个成功。
 func (s *Service) Setup(code, username, password string) error {
 	s.mu.Lock()

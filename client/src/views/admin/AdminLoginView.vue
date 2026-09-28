@@ -12,7 +12,7 @@ import '@fontsource/noto-serif-sc/400.css';
 import '@fontsource/noto-serif-sc/600.css';
 
 /**
- * 登录 · Studio：左侧门缝光，右侧纸面表单。
+ * 登录 · Studio：左侧默认封面（窗格光影），右侧纸面表单。
  * 验证通过：表单原位切到「验证通过」态（输入框右侧对勾、按钮换文案带对勾），
  * 同时立即跳转后台，由路由遮罩盖住整张卡片一起离场，不再单独播卡片退场。
  */
@@ -36,12 +36,13 @@ async function submit(): Promise<void> {
   busy.value = true;
   error.value = '';
   try {
-    auth.setToken(await adminApi.login(username.value, password.value));
+    const res = await adminApi.login(username.value, password.value);
+    auth.setToken(res.token);
     verified.value = true;
     (document.activeElement as HTMLElement | null)?.blur();
-    void router.push({ name: 'admin-today' });
-  } catch {
-    error.value = t('studio.login.failed');
+    void router.push(res.mustChange ? { path: '/setup', query: { change: '1' } } : { name: 'admin-today' });
+  } catch (e) {
+    error.value = (e as Error).message === 'too_many_attempts' ? t('studio.login.locked') : t('studio.login.failed');
     shake();
   } finally {
     busy.value = false;
@@ -145,6 +146,17 @@ onBeforeUnmount(() => {
   min-height: 520px;
 
   .door { position: absolute; inset: 0; }
+
+  /* 底部压暗，保证格言文字在任意封面上可读 */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 45% 0 0;
+    background: linear-gradient(to top, rgb(10 14 22 / 0.7), transparent);
+    pointer-events: none;
+  }
+
+  .quote { z-index: 1; }
 
   .quote {
     position: absolute;

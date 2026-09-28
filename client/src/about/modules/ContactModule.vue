@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { safeHref } from '../../utils/safeUrl';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useConfigStore } from '../../stores/config';
@@ -43,7 +44,7 @@ async function copy(): Promise<void> {
     </div>
     <ul v-if="channels.length" class="ct-ch">
       <li v-for="l in channels" :key="l.name + l.url">
-        <a :href="l.url" :target="external(l.url)" rel="noopener">
+        <a :href="safeHref(l.url)" :target="external(l.url)" rel="noopener noreferrer">
           <span class="ic"><KitIcon :name="l.icon" /></span>
           <span class="tx"><b>{{ l.name }}</b><small>{{ l.handle || l.url.replace(/^https?:\/\//, '') }}</small></span>
           <KitIcon class="arr" name="arrow" :size="16" />
@@ -58,7 +59,7 @@ async function copy(): Promise<void> {
         </button>
       </div>
       <div class="ct-row">
-        <a v-if="d.url" class="ak-btn" :href="d.url"><KitIcon name="mail" />{{ d.buttonText }}</a>
+        <a v-if="d.url" class="ak-btn" :href="safeHref(d.url)"><KitIcon name="mail" />{{ d.buttonText }}</a>
         <small v-if="d.sla"><span class="ak-dot live" />{{ d.sla }}</small>
       </div>
     </div>

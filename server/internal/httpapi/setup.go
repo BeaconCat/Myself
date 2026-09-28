@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"myself/server/internal/auth"
 	"myself/server/internal/config"
@@ -21,6 +22,29 @@ func (s *Server) setupStatus(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"needsSetup": need})
+}
+
+// POST /setup/verify 校验初始化码（失败计入 IP 锁定）
+func (s *Server) setupVerify(w http.ResponseWriter, r *http.Request) {
+	ip := clientIP(r)
+	if d := s.limiter.blocked(ip); d > 0 {
+		tooMany(w, d)
+		return
+	}
+	var b body
+	if err := readJSON(w, r, &b); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json")
+		return
+	}
+	switch err := s.Auth.CheckSetupCode(b.strOr("code")); {
+	case errors.Is(err, auth.ErrAlreadySetup):
+		writeError(w, http.StatusConflict, "already_setup")
+	case errors.Is(err, auth.ErrBadSetupCode):
+		s.limiter.fail(ip)
+		writeError(w, http.StatusForbidden, "bad_setup_code")
+	default:
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	}
 }
 
 // POST /setup 首次启动初始化：
@@ -93,9 +117,9 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 			about[k] = limitRunes(v, 2000)
 		}
 	}
-	if len(about) > 0 {
-		patch["about"] = about
-	}
+	// 建站日期 = 初始化当天（站点时区），关于页「第 N 天」从这里起算
+	about["foundedAt"] = time.Now().In(s.siteLocation()).Format("2006-01-02")
+	patch["about"] = about
 	if len(patch) > 0 {
 		if _, err := s.Config.Save(patch); err != nil {
 			fail(w, err)
@@ -127,4 +151,14 @@ func limitRunes(s string, n int) string {
 		return string(r[:n])
 	}
 	return s
+}
+
+// siteLocation 站点时区（配置 timezone），无效时回落本地时区。
+func (s *Server) siteLocation() *time.Location {
+	if name, _ := s.Config.Get()["timezone"].(string); name != "" {
+		if loc, err := time.LoadLocation(name); err == nil {
+			return loc
+		}
+	}
+	return time.Local
 }

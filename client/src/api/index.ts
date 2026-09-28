@@ -75,6 +75,11 @@ function kickToLogin(): void {
   }
 }
 
+/** 仍在使用历史默认口令：只允许改密，送去改密页 */
+function kickToChange(): void {
+  if (!window.location.pathname.startsWith('/setup')) window.location.assign('/setup?change=1');
+}
+
 /** 带管理员 Token 的请求 */
 async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -91,9 +96,32 @@ async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error ?? `api_error_${res.status}`);
+    const code = (body as { error?: string }).error ?? `api_error_${res.status}`;
+    if (code === 'must_change_password') kickToChange();
+    throw new Error(code);
   }
   return res.json() as Promise<T>;
+}
+
+/** 未登录的 POST（登录 / 初始化）：错误码原样抛出（bad_credentials / too_many_attempts / bad_setup_code …） */
+async function publicPost<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) throw new Error(data.error ?? `api_error_${res.status}`);
+  return data;
+}
+
+export interface SetupPayload {
+  code: string;
+  username: string;
+  password: string;
+  site: { title: string; url?: string };
+  identity: { name: string; tagline?: string; motto?: string };
+  demo: boolean;
 }
 
 export const api = {
@@ -139,18 +167,15 @@ export interface PostDraft {
 }
 
 export const adminApi = {
-  login: async (username: string, password: string): Promise<string> => {
-    const res = await fetch(`${BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-    if (!res.ok) throw new Error('bad_credentials');
-    const data = (await res.json()) as { token: string };
-    return data.token;
-  },
+  /** 登录：mustChange = 仍在用历史默认口令，需先改密 */
+  login: (username: string, password: string) =>
+    publicPost<{ token: string; mustChange?: boolean }>('/auth/login', { username, password }),
+  setupStatus: () => get<{ needsSetup: boolean }>('/setup'),
+  setup: (payload: SetupPayload) => publicPost<{ token: string }>('/setup', payload),
+  verifySetupCode: (code: string) => publicPost<{ ok: boolean }>('/setup/verify', { code }),
+  /** 改密：其它会话全部失效，返回当前会话的新令牌 */
   changePassword: (oldPassword: string, newPassword: string) =>
-    authed<{ ok: boolean }>('/auth/password', {
+    authed<{ ok: boolean; token: string }>('/auth/password', {
       method: 'PUT',
       body: JSON.stringify({ oldPassword, newPassword }),
     }),
@@ -169,10 +194,10 @@ export const adminApi = {
   deleteNote: (id: number) =>
     authed<{ ok: boolean }>(`/admin/notes/${id}`, { method: 'DELETE' }),
   apiKeys: () => authed<ApiKeyInfo[]>('/admin/apikeys'),
-  createApiKey: (name: string) =>
+  createApiKey: (name: string, scope: ApiKeyScope = 'contrib') =>
     authed<ApiKeyInfo & { key: string }>('/admin/apikeys', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, scope }),
     }),
   deleteApiKey: (id: number) =>
     authed<{ ok: boolean }>(`/admin/apikeys/${id}`, { method: 'DELETE' }),
@@ -293,10 +318,14 @@ export interface CompressResult {
   error?: string;
 }
 
+/** full = 全托管；contrib = 仅投稿（只能写草稿、只能碰自己创建的草稿） */
+export type ApiKeyScope = 'full' | 'contrib';
+
 export interface ApiKeyInfo {
   id: number;
   name: string;
   prefix: string;
+  scope: ApiKeyScope;
   lastUsedAt: string | null;
   createdAt: string;
 }

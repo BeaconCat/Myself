@@ -363,6 +363,7 @@ func TestSetupRequiresCode(t *testing.T) {
 	ts := httptest.NewServer(s.Handler())
 	t.Cleanup(ts.Close)
 	e := &env{t: t, srv: ts, root: root}
+	e.call(http.MethodPost, "/api/v1/setup/verify", map[string]string{"code": a.SetupCode()}, nil, http.StatusOK)
 	body := map[string]any{"code": "WRONG000", "username": "admin", "password": "long-enough-1"}
 	for i := 0; i < 5; i++ {
 		e.call(http.MethodPost, "/api/v1/setup", body, nil, http.StatusForbidden)

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { safeHref } from '../../utils/safeUrl';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { StackData } from '../types';
@@ -18,7 +19,7 @@ const { t } = useI18n();
       :is="s.url ? 'a' : 'div'"
       v-for="s in d.items"
       :key="s.name"
-      :href="s.url || undefined"
+      :href="safeHref(s.url)"
       :target="s.url ? '_blank' : undefined"
       :rel="s.url ? 'noopener' : undefined"
       class="it"

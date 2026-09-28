@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { adminApi, type ApiKeyInfo } from '../../api';
+import { adminApi, type ApiKeyInfo, type ApiKeyScope } from '../../api';
 import { readToken } from '../../stores/auth';
 import { useDialogStore } from '../../stores/dialog';
 import { API_CATALOG, buildAgentPrompt, type Endpoint } from './apiCatalog';
@@ -37,11 +37,14 @@ async function load(): Promise<void> {
 /* ===== 新建 ===== */
 const createOpen = ref(false);
 const newName = ref('');
+/** 新建 Key 的权限：默认仅投稿（最小权限） */
+const newScope = ref<ApiKeyScope>('contrib');
 const created = ref<{ name: string; key: string } | null>(null);
 const creating = ref(false);
 
 function openCreate(): void {
   newName.value = '';
+  newScope.value = 'contrib';
   created.value = null;
   createOpen.value = true;
 }
@@ -50,7 +53,7 @@ async function create(): Promise<void> {
   if (creating.value || !newName.value.trim()) return;
   creating.value = true;
   try {
-    const res = await adminApi.createApiKey(newName.value.trim());
+    const res = await adminApi.createApiKey(newName.value.trim(), newScope.value);
     created.value = { name: res.name, key: res.key };
     sessionKeys.value.unshift({ id: res.id, name: res.name, key: res.key });
     testerKey.value = res.key;
@@ -211,7 +214,11 @@ onMounted(load);
             <button type="button" :title="t('studio.api.copyPrefix')" @click="copy(k.prefix)"><SIcon name="copy" :size="16" /></button>
             <span v-if="sessionKeys.some((s) => s.id === k.id)" class="fresh">{{ t('studio.api.thisSession') }}</span>
           </div>
-          <div class="scopes"><span>{{ t('studio.api.scopePosts') }}</span><span>{{ t('studio.api.scopeNotes') }}</span></div>
+          <div class="scopes" :class="k.scope">
+            <b>{{ k.scope === 'full' ? t('studio.api.scopeFull') : t('studio.api.scopeContrib') }}</b>
+            <template v-if="k.scope === 'full'"><span>{{ t('studio.api.scopePosts') }}</span><span>{{ t('studio.api.scopeNotes') }}</span></template>
+            <span v-else>{{ t('studio.api.scopeDrafts') }}</span>
+          </div>
         </div>
         <div class="lu">
           {{ k.lastUsedAt ? relTime(k.lastUsedAt) : t('studio.api.never') }}
@@ -319,6 +326,22 @@ onMounted(load);
         <p>{{ t('studio.api.newDesc') }}</p>
         <div class="st-flabel">{{ t('studio.api.name') }}</div>
         <label class="st-field"><input v-model="newName" :placeholder="t('studio.api.namePh')" @keydown.enter="create" /></label>
+        <div class="st-flabel scope-label">{{ t('studio.api.scopeLabel') }}</div>
+        <div class="scope-pick" role="radiogroup">
+          <button
+            v-for="sc in (['contrib', 'full'] as const)"
+            :key="sc"
+            type="button"
+            role="radio"
+            :aria-checked="newScope === sc"
+            :class="{ on: newScope === sc }"
+            @click="newScope = sc"
+          >
+            <SIcon :name="sc === 'full' ? 'key' : 'pen'" :size="18" />
+            <b>{{ sc === 'full' ? t('studio.api.scopeFull') : t('studio.api.scopeContrib') }}</b>
+            <small>{{ sc === 'full' ? t('studio.api.scopeFullSub') : t('studio.api.scopeContribSub') }}</small>
+          </button>
+        </div>
         <div class="ft">
           <button type="button" class="st-btn g" @click="createOpen = false">{{ t('studio.cancel') }}</button>
           <button type="button" class="st-btn p" :disabled="creating || !newName.trim()" @click="create">{{ t('studio.api.create') }}</button>
@@ -395,8 +418,10 @@ onMounted(load);
     .fresh { font-size: 11px; padding: 1px 7px; border-radius: var(--r-xs); background: color-mix(in oklab, var(--green) 14%, var(--paper)); color: color-mix(in oklab, var(--green) 70%, var(--st-ink)); }
   }
 
-  .scopes { display: flex; gap: 5px; margin-top: 8px; }
+  .scopes { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 8px; }
   .scopes span { font-size: 12.5px; padding: 3px 10px; border-radius: var(--r-pill); box-shadow: 0 0 0 1px var(--line-2) inset; color: var(--st-ink-2); }
+  .scopes b { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: var(--r-pill); background: var(--well-2); color: var(--st-ink-2); }
+  .scopes.full b { background: color-mix(in oklab, var(--yellow) 22%, transparent); color: color-mix(in oklab, var(--yellow) 55%, var(--st-ink)); }
 
   .lu { font-size: 14px; white-space: nowrap; }
   .lu small { display: block; font-size: 12.5px; color: var(--st-ink-3); margin-top: 3px; }
@@ -595,5 +620,37 @@ em {
   .keys { grid-template-columns: 1fr; }
   .auth { grid-template-columns: 1fr 1fr; }
   .auth small { grid-column: 1 / -1; }
+}
+
+/* 新建 Key：权限二选一，选中抬升 + 轻染 */
+.scope-label { margin-top: 14px; }
+
+.scope-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+
+  button {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 12px 14px;
+    border-radius: var(--r-md);
+    text-align: left;
+    color: var(--st-ink-2);
+    box-shadow: inset 0 0 0 1px var(--line-2);
+    transition: background var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+
+    &:hover { background: var(--well); }
+    b { font-size: 14px; font-weight: 600; color: var(--st-ink); }
+    small { grid-column: 1 / -1; font-size: 12.5px; line-height: 1.55; color: var(--st-ink-3); }
+
+    &.on {
+      color: var(--ink);
+      background: color-mix(in oklab, var(--ink) 6%, var(--paper));
+      box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--ink) 60%, transparent);
+    }
+  }
 }
 </style>

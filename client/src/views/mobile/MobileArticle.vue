@@ -142,7 +142,7 @@ function onProseClick(e: MouseEvent): void {
     e.preventDefault();
     const top = headingTop(decodeURIComponent(href.slice(1))) - 76;
     scroller.value?.scrollTo({ top, behavior: 'smooth' });
-  } else if (href.startsWith('/') && !href.startsWith('/uploads') && !href.startsWith('/feed')) {
+  } else if (/^\/(?!\/)/.test(href) && !href.startsWith('/uploads') && !href.startsWith('/feed')) {
     e.preventDefault();
     void router.push(href);
   }
