@@ -837,6 +837,7 @@ h2 { font: 700 22px/1.3 var(--font-serif); margin: 0 0 4px; }
 
   .cap {
     display: flex;
+    align-items: center;
     gap: 2px;
     padding: 3px;
     border-radius: var(--r-pill);
@@ -847,11 +848,13 @@ h2 { font: 700 22px/1.3 var(--font-serif); margin: 0 0 4px; }
     span.on { background: var(--lift); box-shadow: var(--lift-shadow); color: var(--pv-ink); font-weight: 500; }
   }
 
+  .dots { padding: 3px 5px; }
+
   .dots i {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    margin: 3px 2px;
+    margin: 0 2px;
     display: block;
 
     &.on { box-shadow: 0 0 0 1.5px var(--pv-card), 0 0 0 2.5px var(--pv-ink); }
