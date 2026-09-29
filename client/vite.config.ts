@@ -12,10 +12,12 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    // 保留浏览器的 Host（不改写为后端地址）：后端 CSRF 校验比对 Origin 与 Host，
+    // 生成的邀请 / 重置链接也指向开发服务器
     proxy: {
-      '/api': API,
-      '/uploads': API,
-      '/feed': API,
+      '/api': { target: API, changeOrigin: false },
+      '/uploads': { target: API, changeOrigin: false },
+      '/feed': { target: API, changeOrigin: false },
     },
   },
 });

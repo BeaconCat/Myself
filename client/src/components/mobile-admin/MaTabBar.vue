@@ -4,25 +4,29 @@
  * 选中：图标描边加粗，图标着 --ink、文字 --text，不发光，并做一次弹跳；
  * 中央 + 为实底 --solid / --on-solid + 中性紧阴影，打开 action sheet 时旋转成 ×。
  */
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import MaIcon from './MaIcon.vue';
 import type { IconName } from './icons';
 
 export type AdminTab = 'today' | 'content' | 'media' | 'me';
 
-const props = defineProps<{ active: AdminTab | null; fabOpen: boolean; hidden?: boolean }>();
+/** tabs：可见的标签（按角色裁剪，缺省全部）；协作作者只有内容与素材 */
+const props = defineProps<{ active: AdminTab | null; fabOpen: boolean; hidden?: boolean; tabs?: AdminTab[] }>();
 const emit = defineEmits<{ select: [tab: AdminTab]; fab: [] }>();
 const { t } = useI18n();
 
-const left: { id: AdminTab; icon: IconName }[] = [
+const LEFT: { id: AdminTab; icon: IconName }[] = [
   { id: 'today', icon: 'grid' },
   { id: 'content', icon: 'docs' },
 ];
-const right: { id: AdminTab; icon: IconName }[] = [
+const RIGHT: { id: AdminTab; icon: IconName }[] = [
   { id: 'media', icon: 'image' },
   { id: 'me', icon: 'user' },
 ];
+const visible = (id: AdminTab): boolean => !props.tabs || props.tabs.includes(id);
+const left = computed(() => LEFT.filter((it) => visible(it.id)));
+const right = computed(() => RIGHT.filter((it) => visible(it.id)));
 
 /** 弹跳只在切换时播一次 */
 const popping = ref<AdminTab | null>(null);

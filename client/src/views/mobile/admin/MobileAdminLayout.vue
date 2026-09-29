@@ -17,10 +17,15 @@ import MaIsland from '../../../components/mobile-admin/MaIsland.vue';
 import MaFallbackFrame from '../../../components/mobile-admin/MaFallbackFrame.vue';
 import NoteComposerSheet from '../../../components/mobile-admin/NoteComposerSheet.vue';
 import { openComposer, shell } from '../../../components/mobile-admin/state';
+import { useAuthStore } from '../../../stores/auth';
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
+const auth = useAuthStore();
+/** 协作作者：只有内容（仅文章）与素材两个标签，+ 里不能发随想 */
+const isAuthor = computed(() => auth.role === 'author');
+const tabs = computed<AdminTab[] | undefined>(() => (isAuthor.value ? ['content', 'media'] : undefined));
 
 /* ---------- 路由 → 底栏标签 / 视图层级 ---------- */
 const TAB_OF: Record<string, AdminTab> = {
@@ -201,12 +206,14 @@ onBeforeUnmount(() => {
       />
       <MaActionSheet
         :open="shell.actionSheet"
+        :no-note="isAuthor"
         @note="createNote"
         @post="createPost"
         @files="uploadFiles"
       />
       <MaTabBar
         :active="activeTab"
+        :tabs="tabs"
         :fab-open="shell.actionSheet"
         :hidden="barHidden"
         @select="selectTab"

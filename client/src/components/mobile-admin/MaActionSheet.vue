@@ -6,7 +6,8 @@
 import { useI18n } from 'vue-i18n';
 import MaIcon from './MaIcon.vue';
 
-defineProps<{ open: boolean }>();
+/** noNote：协作作者不能发随想，隐去该行 */
+defineProps<{ open: boolean; noNote?: boolean }>();
 const emit = defineEmits<{ close: []; note: []; post: []; files: [files: File[]] }>();
 const { t } = useI18n();
 
@@ -21,7 +22,7 @@ function onFiles(e: Event): void {
 <template>
   <div class="ma-as" :class="{ open }" :aria-hidden="!open">
     <div class="as-card" role="menu">
-      <button class="as-row" role="menuitem" @click="emit('note')">
+      <button v-if="!noNote" class="as-row" role="menuitem" @click="emit('note')">
         <span class="as-ic" style="--c: var(--solid); color: var(--on-solid)"><MaIcon name="bubble" /></span>
         <div class="as-t">
           <b>{{ t('mobileAdmin.create.note') }}</b>

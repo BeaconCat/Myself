@@ -8,6 +8,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi, thumbOf, type AdminPost, type Note } from '../../../api';
 import { useDialogStore } from '../../../stores/dialog';
+import { useAuthStore } from '../../../stores/auth';
 import MaPage from '../../../components/mobile-admin/MaPage.vue';
 import MaIcon from '../../../components/mobile-admin/MaIcon.vue';
 import MaSegmented from '../../../components/mobile-admin/MaSegmented.vue';
@@ -28,6 +29,8 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const dialog = useDialogStore();
+/** 协作作者只管自己的文章：不显示随想分段 */
+const isAuthor = computed(() => useAuthStore().role === 'author');
 
 const seg = computed(() => (route.name === 'admin-posts' ? 0 : 1));
 const dir = ref<'l' | 'r' | ''>('');
@@ -206,6 +209,7 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
     </template>
     <template #extra>
       <MaSegmented
+        v-if="!isAuthor"
         :model-value="seg"
         :items="[
           { label: t('mobileAdmin.content.posts'), count: cache.posts?.length ?? '' },
