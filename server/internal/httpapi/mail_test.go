@@ -60,3 +60,25 @@ func TestBuildMessageMultipart(t *testing.T) {
 		t.Fatal("plain-only message should not be multipart")
 	}
 }
+
+// 圆角跟随站点全局圆角：默认基准 10 → 卡片 20px、链接框 10px；改成 4 → 8px / 4px。
+func TestLetterFollowsSiteRadius(t *testing.T) {
+	db, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	s := &Server{Deps: Deps{Config: config.New(db)}}
+	l := letter{Title: "t", Action: &mailAction{Label: "go", URL: "https://example.com"}}
+	h, _, _ := s.renderLetter(l, "", 2026)
+	if !strings.Contains(h, "border-radius:20px") || !strings.Contains(h, "border-radius:10px") {
+		t.Fatal("default radius not applied")
+	}
+	if _, err := s.Config.Save(config.Map{"theme": config.Map{"radius": 4}}); err != nil {
+		t.Fatal(err)
+	}
+	h, _, _ = s.renderLetter(l, "", 2026)
+	if !strings.Contains(h, "border-radius:8px") || !strings.Contains(h, "border-radius:4px") {
+		t.Fatal("custom radius not applied")
+	}
+}

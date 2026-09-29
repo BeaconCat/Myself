@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -38,10 +39,22 @@ type mailView struct {
 	Base   string
 	Accent template.CSS
 	Soft   template.CSS
-	Year   int
+	// 圆角与站点一致：卡片 = --r-xl（2×基准），链接框 = --r-md（1×基准）；按钮与站点主按钮一样为胶囊
+	RCard template.CSS
+	RBox  template.CSS
+	Year  int
 }
 
 var hexColorRe = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+// radiusBase 站点全局圆角基准（theme.radius，px，0–24，默认 10），与前端 --r-base 同源。
+func (s *Server) radiusBase() float64 {
+	v, ok := config.Sub(s.Config.Get(), "theme")["radius"].(float64)
+	if !ok {
+		return 10
+	}
+	return math.Max(0, math.Min(24, v))
+}
 
 // brandAccent 取站点默认色盘的主色（邮件里的按钮与装饰线），不合法时用品牌红。
 func (s *Server) brandAccent() string {
@@ -72,7 +85,13 @@ func softColor(hex string) string {
 // renderLetter 生成 HTML 与纯文本两个版本。
 func (s *Server) renderLetter(l letter, base string, year int) (htmlBody, text string, err error) {
 	accent := s.brandAccent()
+	r := s.radiusBase()
+	px := func(n float64) template.CSS {
+		return template.CSS(strconv.FormatFloat(math.Round(n*10)/10, 'f', -1, 64) + "px")
+	}
 	v := mailView{
+		RCard:  px(r * 2),
+		RBox:   px(r),
 		letter: l,
 		Site:   s.Config.Typed().Site.Title,
 		Base:   base,
@@ -130,7 +149,7 @@ var mailTpl = template.Must(template.New("mail").Parse(`<!doctype html>
     <tr><td style="padding:0 6px 18px;font-family:'Noto Serif SC','Source Han Serif SC','Songti SC',STSong,serif;font-size:17px;font-weight:700;letter-spacing:.02em;color:#1d1c1a;">
       <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{.Accent}};margin-right:9px;vertical-align:middle;"></span>{{.Site}}
     </td></tr>
-    <tr><td style="background:#ffffff;border-radius:16px;border-top:4px solid {{.Accent}};box-shadow:0 18px 40px -28px rgba(29,28,26,.35);">
+    <tr><td style="background:#ffffff;border-radius:{{.RCard}};border-top:4px solid {{.Accent}};box-shadow:0 18px 40px -28px rgba(29,28,26,.35);">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr><td style="padding:36px 36px 8px;font-family:'Noto Serif SC','Source Han Serif SC','Songti SC',STSong,serif;font-size:24px;line-height:1.4;font-weight:700;color:#1d1c1a;">{{.Title}}</td></tr>
         <tr><td style="padding:10px 36px 0;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;font-size:15px;line-height:1.85;color:#45423c;">
@@ -147,7 +166,7 @@ var mailTpl = template.Must(template.New("mail").Parse(`<!doctype html>
         </td></tr>
         <tr><td style="padding:14px 36px 0;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:12.5px;line-height:1.7;color:#8a857c;">
           {{if .Expire}}{{.Expire}}<br>{{end}}按钮无法点击时，复制下面的链接到浏览器打开：
-          <div style="margin-top:6px;padding:10px 12px;border-radius:10px;background:{{.Soft}};font-family:'SFMono-Regular',Consolas,Menlo,monospace;font-size:12px;line-height:1.6;color:#45423c;word-break:break-all;">{{.Action.URL}}</div>
+          <div style="margin-top:6px;padding:10px 12px;border-radius:{{.RBox}};background:{{.Soft}};font-family:'SFMono-Regular',Consolas,Menlo,monospace;font-size:12px;line-height:1.6;color:#45423c;word-break:break-all;">{{.Action.URL}}</div>
         </td></tr>
         {{end}}
         {{if .Note}}
