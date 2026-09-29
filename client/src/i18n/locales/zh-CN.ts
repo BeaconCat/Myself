@@ -95,7 +95,7 @@ export default {
       placeholder: '留下一句话，回车发送', send: '发送', needLogin: '登录后就能留言',
       asVisitor: '以访客身份留言 · 审核后公开', asUser: '以「{name}」留言', latest: '最新', owner: '站长',
       posted: '留言已发布', needName: '先写个昵称', namePh: '昵称', closed: '留言墙暂时关闭',
-      empty: '还没有留言，来写第一句吧。', more: '展开其余 {n} 条', less: '收起',
+      empty: '还没有留言，来写第一句吧。', more: '展开其余 {n} 条', less: '收起', like: '喜欢',
     },
     ed: {
       span: '宽度', spanCols: '占 {n} / 12 栏', variant: '变体', title: '标题', hidden: '已隐藏', visible: '显示中',

@@ -159,7 +159,14 @@ func (s *Server) engage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// POST /reactions {target, id, kind} 切换一个回应（已点则取消），返回该条最新摘要
+// reactionTargets 可回应的对象 → 存在性校验（只能回应已公开的内容）。
+var reactionTargets = map[string]string{
+	"note":    `SELECT COUNT(*) FROM notes WHERE id = ?`,
+	"post":    `SELECT COUNT(*) FROM posts WHERE id = ? AND status = 'published'`,
+	"comment": `SELECT COUNT(*) FROM comments WHERE id = ? AND status = 'approved'`,
+}
+
+// POST /reactions {target: note|post|comment, id, kind} 切换一个回应（已点则取消），返回该条最新摘要
 func (s *Server) toggleReaction(w http.ResponseWriter, r *http.Request) {
 	cfg := s.Config.Typed()
 	if !cfg.Users.ReactionsOn() {
@@ -182,17 +189,13 @@ func (s *Server) toggleReaction(w http.ResponseWriter, r *http.Request) {
 	}
 	target, kind := b.strOr("target"), b.strOr("kind")
 	id := int64(b.num("id"))
-	if (target != "note" && target != "post") || !validKind(kind) || id <= 0 {
+	exists, ok := reactionTargets[target]
+	if !ok || !validKind(kind) || id <= 0 {
 		writeError(w, http.StatusBadRequest, "invalid_reaction")
 		return
 	}
-	table := map[string]string{"note": "notes", "post": "posts"}[target]
 	var n int
-	q := `SELECT COUNT(*) FROM ` + table + ` WHERE id = ?`
-	if target == "post" {
-		q += ` AND status = 'published'`
-	}
-	if err := s.DB.QueryRow(q, id).Scan(&n); err != nil || n == 0 {
+	if err := s.DB.QueryRow(exists, id).Scan(&n); err != nil || n == 0 {
 		writeError(w, http.StatusNotFound, "not_found")
 		return
 	}

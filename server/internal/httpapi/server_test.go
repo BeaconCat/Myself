@@ -2,9 +2,9 @@ package httpapi
 
 import (
 	"bytes"
-	"fmt"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -31,6 +31,8 @@ type env struct {
 	token string
 	root  string
 	auth  *auth.Service
+	// server 直接查库断言用
+	server *Server
 }
 
 func newEnv(t *testing.T) *env {
@@ -55,7 +57,7 @@ func newEnv(t *testing.T) *env {
 	})
 	ts := httptest.NewServer(s.Handler())
 	t.Cleanup(ts.Close)
-	e := &env{t: t, srv: ts, root: root, auth: a}
+	e := &env{t: t, srv: ts, root: root, auth: a, server: s}
 	// 首次启动初始化：初始化码 + 管理员 + Demo 数据；成功即写入会话 Cookie
 	if tok := e.sessionFrom(http.MethodPost, "/api/v1/setup", map[string]any{
 		"code": a.SetupCode(), "username": "admin", "password": testPassword, "demo": true,

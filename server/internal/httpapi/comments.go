@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -64,6 +65,9 @@ type commentItem struct {
 	CreatedAt string        `json:"createdAt"`
 	Author    commentAuthor `json:"author"`
 	Pending   bool          `json:"pending,omitempty"`
+	// Likes / Liked 喜欢数与当前访客是否已点（仅前台列表返回；访客回应关闭时不返回）
+	Likes int  `json:"likes,omitempty"`
+	Liked bool `json:"liked,omitempty"`
 }
 
 // resolveTarget target + key → 目标 id；目标不存在 / 未公开返回 false。
@@ -142,7 +146,13 @@ func (s *Server) listComments(w http.ResponseWriter, r *http.Request) {
 		}
 		items = append(items, it)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "items": items})
+	if cfg.Users.ReactionsOn() && len(items) > 0 {
+		if err := s.attachLikes(w, r, items); err != nil {
+			fail(w, err)
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "items": items, "reactions": cfg.Users.ReactionsOn()})
 }
 
 // POST /comments {target, key, parentId?, body, guestName?, website?}
@@ -241,7 +251,7 @@ type adminComment struct {
 	// TargetKey 发表评论用的 key（文章 slug / 随想 id / 留言墙为空），后台回复时原样带回
 	TargetKey string `json:"targetKey"`
 	HasLink   bool   `json:"hasLink"`
-	IPHash      string `json:"ipHash"`
+	IPHash    string `json:"ipHash"`
 }
 
 // GET /admin/comments?status=pending|approved|spam
@@ -311,8 +321,32 @@ func (s *Server) setCommentStatus(ids []int64, status string) error {
 	return nil
 }
 
+// attachLikes 给评论补上喜欢数与当前访客是否已点（不为无 Cookie 的访客新建身份）。
+func (s *Server) attachLikes(w http.ResponseWriter, r *http.Request, items []commentItem) error {
+	ids := make([]int64, len(items))
+	for i, it := range items {
+		ids[i] = it.ID
+	}
+	sum, err := s.summaries("comment", ids, s.voterOf(w, r, false))
+	if err != nil {
+		return err
+	}
+	for i := range items {
+		if e := sum[items[i].ID]; e != nil {
+			items[i].Likes = e.Reactions["like"]
+			items[i].Liked = slices.Contains(e.Mine, "like")
+		}
+	}
+	return nil
+}
+
+// deleteComments 删除评论及其回复，连同它们收到的回应。
 func (s *Server) deleteComments(ids []int64) error {
 	for _, id := range ids {
+		if _, err := s.DB.Exec(`DELETE FROM reactions WHERE target = 'comment' AND target_id IN
+			(SELECT id FROM comments WHERE id = ? OR parent_id = ?)`, id, id); err != nil {
+			return err
+		}
 		if _, err := s.DB.Exec(`DELETE FROM comments WHERE id = ? OR parent_id = ?`, id, id); err != nil {
 			return err
 		}

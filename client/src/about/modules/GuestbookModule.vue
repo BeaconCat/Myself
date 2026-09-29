@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { accountApi, type CommentItem } from '../../api';
+import { accountApi, api, type CommentItem } from '../../api';
 import { useAuthStore } from '../../stores/auth';
 import { useConfigStore } from '../../stores/config';
 import { relTime } from '../../components/engage/time';
@@ -13,7 +13,8 @@ import ModHead from '../parts/ModHead.vue';
 import { toast } from '../toast';
 
 /**
- * 留言墙（guestbook）：真实留言（评论系统 target=guestbook）。输入框、留言卡、站长回复（取第一条站长的回复）。
+ * 留言墙（guestbook）：真实留言（评论系统 target=guestbook）。输入框、留言卡、站长回复（取第一条站长的回复）、
+ * 喜欢（访客回应，target=comment，同一访客再点取消；只有已公开的留言可点）。
  * 发表规则跟随「用户」页：已登录直接留言；开了匿名时访客填昵称即可；否则引导登录。审核中的留言只有自己看得到。
  * 模块只存展示选项（每页条数）；Demo 数据在初始化时写入为真实留言。
  */
@@ -34,6 +35,8 @@ const items = ref<CommentItem[]>([]);
 const loaded = ref(false);
 const expanded = ref(false);
 const fresh = ref<number | null>(null);
+/** 访客回应开关（后台「用户」页），关闭时不显示喜欢按钮 */
+const reactionsOn = ref(false);
 
 const anonymous = computed(() => !!config.cfg.users?.comments.anonymous);
 const canWrite = computed(() => enabled.value && (auth.loggedIn || anonymous.value));
@@ -42,6 +45,7 @@ async function load(): Promise<void> {
   try {
     const res = await accountApi.comments('guestbook', '');
     enabled.value = res.enabled;
+    reactionsOn.value = !!res.reactions;
     items.value = res.items;
   } catch {
     enabled.value = false;
@@ -83,6 +87,26 @@ async function submit(): Promise<void> {
     toast(code === 'too_many_comments' ? t('comments.errTooMany') : code === 'invalid_name' ? t('aboutKit.guestbook.needName') : t('comments.errGeneric'));
   } finally {
     busy.value = false;
+  }
+}
+
+/** 喜欢：先乐观更新，再以服务端返回的计数为准；失败回滚 */
+const liking = new Set<number>();
+async function like(n: CommentItem): Promise<void> {
+  if (n.pending || liking.has(n.id)) return;
+  liking.add(n.id);
+  const before = { likes: n.likes ?? 0, liked: !!n.liked };
+  n.liked = !before.liked;
+  n.likes = Math.max(0, before.likes + (n.liked ? 1 : -1));
+  try {
+    const sum = await api.react('comment', n.id, 'like');
+    n.likes = sum.reactions.like ?? 0;
+    n.liked = sum.mine.includes('like');
+  } catch (e) {
+    Object.assign(n, before);
+    toast((e as Error).message === 'too_many_reactions' ? t('comments.errTooMany') : t('comments.errGeneric'));
+  } finally {
+    liking.delete(n.id);
   }
 }
 
@@ -133,6 +157,17 @@ const loginTo = computed(() => ({ path: '/account/login', query: { next: route.f
       </header>
       <p>{{ n.body }}</p>
       <div v-if="replyOf(n.id)" class="re"><b>{{ t('aboutKit.guestbook.owner') }}</b>{{ replyOf(n.id)!.body }}</div>
+      <button
+        v-if="reactionsOn && !n.pending"
+        type="button"
+        class="lk"
+        :class="{ on: n.liked }"
+        :aria-pressed="!!n.liked"
+        :aria-label="t('aboutKit.guestbook.like')"
+        @click="like(n)"
+      >
+        <KitIcon name="heart" :size="15" /><span>{{ n.likes || 0 }}</span>
+      </button>
     </article>
   </TransitionGroup>
   <button v-if="roots.length > pageSize" type="button" class="gb-more" @click="expanded = !expanded">
@@ -242,6 +277,26 @@ const loginTo = computed(() => ({ path: '/account/login', query: { next: route.f
     b { margin-right: 6px; font-size: 13px; color: var(--ak-ink); }
   }
 }
+
+/* 喜欢：灰色线框心，点亮后品牌红实心并弹一下 */
+.note .lk {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  margin-top: auto;
+  padding: 10px 6px 0 0;
+  font: 400 12.5px var(--ak-mono);
+  color: var(--ak-text-3);
+  transition: color var(--dur-fast);
+
+  &:hover, &.on { color: var(--ak-red, var(--accent-red)); }
+  :deep(svg) { transition: transform var(--dur) var(--ease-spring), fill var(--dur-fast); }
+  &.on :deep(svg) { fill: currentColor; animation: gb-like var(--dur) var(--ease-spring); }
+  &:active :deep(svg) { transform: scale(0.85); }
+}
+
+@keyframes gb-like { 40% { transform: scale(1.3); } }
 
 .gb-more {
   display: block;

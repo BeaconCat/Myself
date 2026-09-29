@@ -42,6 +42,8 @@ export interface Note {
 }
 
 export type EngageTarget = 'note' | 'post';
+/** 可回应的对象：随想 / 文章，以及已公开的评论（留言墙的喜欢） */
+export type ReactionTarget = EngageTarget | 'comment';
 /** 回应种类：喜欢 / 灵感 / 会心 / 共鸣（线性图标，不用 emoji） */
 export type ReactionKind = 'like' | 'spark' | 'smile' | 'resonate';
 export const REACTION_KINDS: ReactionKind[] = ['like', 'spark', 'smile', 'resonate'];
@@ -166,7 +168,7 @@ export const api = {
     fetch(`${BASE}/engage?target=${target}&ids=${ids.join(',')}`, { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : {})) as Promise<Record<string, EngageSummary>>,
   /** 切换一个回应（已点则取消） */
-  react: async (target: EngageTarget, id: number, kind: ReactionKind): Promise<EngageSummary> => {
+  react: async (target: ReactionTarget, id: number, kind: ReactionKind): Promise<EngageSummary> => {
     const res = await fetch(`${BASE}/reactions`, {
       method: 'POST',
       credentials: 'same-origin',
@@ -409,6 +411,9 @@ export interface CommentItem {
   createdAt: string;
   author: CommentAuthor;
   pending?: boolean;
+  /** 喜欢数与当前访客是否已点（访客回应关闭时缺省） */
+  likes?: number;
+  liked?: boolean;
 }
 
 export interface AdminComment extends CommentItem {
@@ -460,7 +465,7 @@ export const accountApi = {
     return `${BASE}/auth/github/start?${q.toString()}`;
   },
   comments: (target: CommentTarget, key: string) =>
-    accountCall<{ enabled: boolean; items: CommentItem[] }>('GET', `/comments?target=${target}&key=${encodeURIComponent(key)}`),
+    accountCall<{ enabled: boolean; items: CommentItem[]; reactions?: boolean }>('GET', `/comments?target=${target}&key=${encodeURIComponent(key)}`),
   postComment: (body: { target: CommentTarget; key: string; body: string; parentId?: number; guestName?: string; website?: string }) =>
     accountCall<{ ok: boolean; id: number; pending: boolean }>('POST', '/comments', body),
 };
