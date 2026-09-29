@@ -7,17 +7,19 @@ import { useConfigStore, type AboutModule, type SiteConfig } from '../../stores/
 import { useDialogStore } from '../../stores/dialog';
 import { normalizeIdentity } from '../../about/identity';
 import { migrateModules } from '../../about/migrate';
-import { SOCIAL_ICONS } from '../../about/icons';
+import { SCENES, SCENE_LABELS, SOCIAL_ICONS } from '../../about/icons';
+import { BRANDS, CARD_LINK_MAX } from '../../about/brands';
 import type { SocialLink } from '../../about/types';
 import AboutModules from '../../about/AboutModules.vue';
 import KitIcon from '../../about/parts/KitIcon.vue';
 import { settle, stableJson } from './studio/state';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
+import StSwitch from './studio/StSwitch.vue';
 import { toast } from './studio/toast';
 
 /**
- * 身份：站点身份的唯一编辑入口 —— 头像、形象图、名字、签名、自述、状态、链接、格言。
+ * 身份：站点身份的唯一编辑入口 —— 头像、形象图、名片头图、名字、签名、自述、状态、链接、格言。
  * 关于页身份区与收尾格言、首页关于卡、页脚、移动端抽屉、文章作者栏都读这里。
  * 右侧实时预览按比例缩放渲染真实的关于页身份区与格言（沿用关于页里这两个模块的展示选项）。
  */
@@ -68,11 +70,12 @@ async function save(): Promise<void> {
 }
 
 /* ---------- 图片上传（头像 / 形象图） ---------- */
-const uploading = ref<'' | 'avatar' | 'portrait'>('');
+const uploading = ref<'' | 'avatar' | 'portrait' | 'banner'>('');
+const bannerInput = ref<HTMLInputElement | null>(null);
 const avatarInput = ref<HTMLInputElement | null>(null);
 const portraitInput = ref<HTMLInputElement | null>(null);
 
-async function upload(e: Event, target: 'avatar' | 'portrait'): Promise<void> {
+async function upload(e: Event, target: 'avatar' | 'portrait' | 'banner'): Promise<void> {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
   input.value = '';
@@ -82,6 +85,7 @@ async function upload(e: Event, target: 'avatar' | 'portrait'): Promise<void> {
     const [up] = await adminApi.uploadMedia([file]);
     if (!up) return;
     if (target === 'avatar') about.avatar = up.url;
+    else if (target === 'banner') about.banner.src = up.url;
     else about.portrait.src = up.url;
   } catch {
     toast(t('studio.identity.uploadFailed'), { icon: 'x' });
@@ -123,6 +127,22 @@ function moveLink(i: number, d: -1 | 1): void {
 function removeLink(i: number): void {
   about.links.splice(i, 1);
 }
+/** 平台名：品牌取注册表里的名字，通用图标走字典 */
+const iconLabel = (ic: string): string => BRANDS[ic]?.label ?? t(`studio.identity.ic_${ic}`);
+
+/** 名片按钮：最多 3 个 */
+function toggleCard(l: SocialLink): void {
+  if (!l.card && about.links.filter((x) => x.card).length >= CARD_LINK_MAX) {
+    toast(t('studio.identity.cardMax', { n: CARD_LINK_MAX }), { icon: 'info' });
+    return;
+  }
+  l.card = !l.card;
+}
+
+/* ---------- 名片头图：默认封面（按名字选）或上传 ---------- */
+const coverSrc = (id: string): string => `/covers/${id}.webp`;
+const bannerSrc = computed(() => about.banner.src || coverSrc('05'));
+
 /** 主按钮只允许一个 */
 function setPrimary(l: SocialLink): void {
   const on = !l.primary;
@@ -280,6 +300,35 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
+        <!-- 名片头图（移动端关于页名片顶部横幅，可关闭） -->
+        <section class="st-card st-rise" style="--i: 1">
+          <div class="st-sec-t bn-t">
+            <div><h2>{{ t('studio.identity.banner') }}</h2><span>{{ t('studio.identity.bannerSub') }}</span></div>
+            <StSwitch v-model="about.banner.show" />
+          </div>
+          <Transition name="bn">
+            <div v-if="about.banner.show" class="bn">
+              <figure class="bn-pv" :class="{ busy: uploading === 'banner' }">
+                <img :src="bannerSrc" alt="" draggable="false" :style="{ objectPosition: about.banner.focus || '50% 50%' }" />
+              </figure>
+              <div class="bn-grid">
+                <button
+                  v-for="id in SCENES"
+                  :key="id"
+                  type="button"
+                  :class="{ on: bannerSrc === coverSrc(id) }"
+                  :title="SCENE_LABELS[id]"
+                  @click="about.banner.src = coverSrc(id)"
+                ><img :src="`/covers/${id}-s.webp`" alt="" draggable="false" /></button>
+                <button type="button" class="up" :disabled="!!uploading" :title="t('studio.identity.upload')" @click="bannerInput?.click()">
+                  <SIcon name="upload" :size="18" />
+                </button>
+              </div>
+              <input ref="bannerInput" type="file" accept="image/*" hidden @change="upload($event, 'banner')" />
+            </div>
+          </Transition>
+        </section>
+
         <!-- 名片：问候 / 名字 / 签名 / 自述 / 建站日期 -->
         <section class="st-card st-rise" style="--i: 1">
           <div class="st-sec-t"><h2>{{ t('studio.identity.card') }}</h2><span>{{ t('studio.identity.cardSub') }}</span></div>
@@ -324,14 +373,17 @@ onBeforeUnmount(() => {
               <label class="ic" :title="t('studio.identity.icon')">
                 <KitIcon :name="l.icon" :size="20" />
                 <select v-model="l.icon" :aria-label="t('studio.identity.icon')">
-                  <option v-for="ic in SOCIAL_ICONS" :key="ic" :value="ic">{{ ic }}</option>
+                  <option v-for="ic in SOCIAL_ICONS" :key="ic" :value="ic">{{ iconLabel(ic) }}</option>
                 </select>
               </label>
               <span class="st-field nm"><input v-model="l.name" :placeholder="t('studio.identity.linkName')" /></span>
               <span class="st-field hd"><input v-model="l.handle" :placeholder="t('studio.identity.linkHandle')" /></span>
               <span class="st-field url mono-in"><SIcon name="link" :size="15" /><input v-model="l.url" placeholder="https://…" /></span>
               <div class="ops">
-                <button type="button" class="pri-chip" :class="{ on: l.primary }" @click="setPrimary(l)">{{ t('studio.identity.primary') }}</button>
+                <span class="chips">
+                  <button type="button" class="pri-chip" :class="{ on: l.card }" :title="t('studio.identity.onCardTip')" @click="toggleCard(l)">{{ t('studio.identity.onCard') }}</button>
+                  <button type="button" class="pri-chip" :class="{ on: l.primary }" @click="setPrimary(l)">{{ t('studio.identity.primary') }}</button>
+                </span>
                 <span class="mv">
                   <button type="button" class="st-ibtn sm" :disabled="i === 0" :title="t('studio.identity.up')" @click="moveLink(i, -1)"><SIcon name="arrowL" :size="16" class="rot" /></button>
                   <button type="button" class="st-ibtn sm" :disabled="i === about.links.length - 1" :title="t('studio.identity.down')" @click="moveLink(i, 1)"><SIcon name="arrowR" :size="16" class="rot" /></button>
@@ -465,6 +517,66 @@ onBeforeUnmount(() => {
 
 .av-meta { flex: 1; min-width: 0; }
 .av-block > .row-btns { flex: none; }
+
+/* ---------- 名片头图 ---------- */
+.bn-t {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  > div { display: flex; flex-direction: column; gap: 2px; }
+}
+
+.bn {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.bn-pv {
+  aspect-ratio: 16 / 6;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--well);
+  box-shadow: 0 0 0 1px var(--line-2);
+  transition: opacity var(--dur-fast);
+
+  &.busy { opacity: 0.5; }
+  img { width: 100%; height: 100%; object-fit: cover; display: block; }
+}
+
+.bn-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  align-content: start;
+
+  button {
+    aspect-ratio: 4 / 3;
+    border-radius: var(--r-sm);
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--line-2);
+    transition: box-shadow var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+
+    &:hover { transform: translateY(-1px); }
+    &.on { box-shadow: 0 0 0 2px var(--ink); }
+    img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  }
+
+  .up {
+    display: grid;
+    place-items: center;
+    color: var(--st-ink-3);
+    background: var(--well);
+
+    &:hover { color: var(--st-ink); }
+  }
+}
+
+.bn-enter-active, .bn-leave-active { transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); }
+.bn-enter-from, .bn-leave-to { opacity: 0; transform: translateY(-6px); }
 
 .pt-block {
   display: grid;
@@ -628,6 +740,7 @@ input[type='range']:disabled { opacity: 0.4; }
   }
 
   .mv { display: flex; gap: 2px; }
+  .chips { display: flex; gap: 6px; }
   .rot { rotate: 90deg; }
 }
 

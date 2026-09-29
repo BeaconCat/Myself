@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useConfigStore } from '../../stores/config';
 import AboutModules from '../../about/AboutModules.vue';
 import KitIcon from '../../about/parts/KitIcon.vue';
+import { brandColor, cardLinks } from '../../about/brands';
 import { dayPartKey, pad2, useClock, zoned } from '../../about/useClock';
 import { safeHref } from '../../utils/safeUrl';
 import LargeTitlePage from '../../components/mobile/LargeTitlePage.vue';
@@ -12,8 +13,8 @@ import { copyText, toast } from '../../components/mobile/shell';
 
 /**
  * 移动端关于：
- * - 身份名片：横幅（形象图，未设时用默认封面）+ 压边头像 + 链接圆钮，名字（别名）/ 账号 / 签名（*高亮*）/ 自述，
- *   底部状态条（正在做 · 城市 · 本地时间）
+ * - 身份名片：可选头图（身份页开关，默认关闭）；头像居左、名字（别名）/ 账号在其右，右侧为名片按钮（身份页勾选，
+ *   与桌面身份区同一组）；下接签名（*高亮*）/ 自述 / 状态条（正在做 · 城市 · 本地时间）
  * - 模块流（复用 AboutModules，仅在容器上做窄屏适配；身份与格言不在流里重复）
  * - 格言收尾（与桌面一致放在「想聊聊」之后），最后是「本站基于 Myself」与 RSS 入口
  * 配置未就绪时显示同几何骨架。
@@ -23,9 +24,9 @@ const config = useConfigStore();
 const about = computed(() => config.cfg.about);
 const avatar = computed(() => about.value.avatar || '/favicon-256.png');
 const handle = computed(() => config.cfg.github.username || 'myself');
-const banner = computed(() => about.value.portrait?.src || '/covers/05.webp');
-const bannerFocus = computed(() => about.value.portrait?.focus || '50% 40%');
-const links = computed(() => (about.value.links ?? []).filter((l) => l?.url).slice(0, 4));
+const banner = computed(() => (about.value.banner?.show ? about.value.banner.src || '/covers/05.webp' : ''));
+const bannerFocus = computed(() => about.value.banner?.focus || '50% 50%');
+const links = computed(() => cardLinks(about.value.links));
 const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 
 /** *星号* 包裹的片段高亮 */
@@ -76,14 +77,20 @@ async function refresh(): Promise<void> {
 
         <div v-else key="ok">
           <section class="ab-hero">
-            <div class="ab-card m-in">
-              <div class="ab-banner">
+            <div class="ab-card m-in" :class="{ 'has-banner': !!banner }">
+              <div v-if="banner" class="ab-banner">
                 <img :src="banner" :style="{ objectPosition: bannerFocus }" alt="" draggable="false" />
               </div>
-              <div class="ab-row">
+              <div class="ab-head">
                 <div class="ab-av">
                   <img :src="avatar" alt="" draggable="false" />
                   <i v-if="about.status?.doing" class="ab-live" />
+                </div>
+                <div class="ab-id">
+                  <h1 class="ab-name">{{ about.name }}</h1>
+                  <div class="ab-handle">
+                    <span v-if="about.alias?.trim()" class="alias">{{ about.alias.trim() }}</span>@{{ handle }}
+                  </div>
                 </div>
                 <nav v-if="links.length" class="ab-links">
                   <a
@@ -93,17 +100,14 @@ async function refresh(): Promise<void> {
                     :target="external(l.url)"
                     rel="noopener noreferrer"
                     :aria-label="l.name"
-                    :class="{ pri: l.primary }"
+                    :title="l.name"
+                    :style="{ '--c': brandColor(l.icon) }"
                     class="m-tap"
                   ><KitIcon :name="l.icon" :size="18" /></a>
                 </nav>
               </div>
 
               <div class="ab-body">
-                <h1 class="ab-name">
-                  {{ about.name }}<small v-if="about.alias?.trim()">{{ about.alias.trim() }}</small>
-                </h1>
-                <div class="ab-handle">@{{ handle }}</div>
                 <p v-if="lede.length" class="ab-lede">
                   <template v-for="(x, i) in lede" :key="i"><em v-if="x.em">{{ x.text }}</em><template v-else>{{ x.text }}</template></template>
                 </p>
@@ -113,7 +117,7 @@ async function refresh(): Promise<void> {
               <dl class="ab-status">
                 <div v-if="about.status?.doing">
                   <dt>{{ t('aboutKit.doing') }}</dt>
-                  <dd><span class="ak-dot live" />{{ about.status.doing }}</dd>
+                  <dd><i class="live-dot" />{{ about.status.doing }}</dd>
                 </div>
                 <div v-if="about.status?.city">
                   <dt>{{ t('aboutKit.city') }}</dt>
@@ -164,7 +168,7 @@ async function refresh(): Promise<void> {
   }
 }
 
-/* 身份名片：横幅 + 压边头像 */
+/* 身份名片：可选头图；头像居左、名字 / 账号在右、名片按钮靠右 */
 .ab-card {
   position: relative;
   border-radius: var(--r-xl);
@@ -175,7 +179,7 @@ async function refresh(): Promise<void> {
 
 .ab-banner {
   position: relative;
-  height: 132px;
+  height: 120px;
   overflow: hidden;
 
   img {
@@ -191,7 +195,7 @@ async function refresh(): Promise<void> {
     content: '';
     position: absolute;
     inset: 45% 0 0;
-    background: linear-gradient(transparent, rgb(0 0 0 / 0.16));
+    background: linear-gradient(transparent, rgb(0 0 0 / 0.14));
   }
 }
 
@@ -201,24 +205,32 @@ async function refresh(): Promise<void> {
   from { transform: scale(1.08); filter: blur(6px); }
 }
 
-.ab-row {
+/* 头部行：无头图时三者垂直居中；有头图时头像上移压边，名字与按钮落在头图下沿之下 */
+.ab-head {
   position: relative;
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 16px;
-  margin-top: -40px;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 16px 0;
+}
+
+.has-banner .ab-head {
+  align-items: flex-start;
+  margin-top: -36px;
+  padding-top: 0;
+
+  .ab-id { padding-top: 44px; }
+  .ab-links { padding-top: 46px; }
 }
 
 .ab-av {
   position: relative;
   flex: none;
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
   border-radius: var(--r-xl);
   background: var(--elev);
-  box-shadow: 0 0 0 4px var(--elev), 0 12px 26px -14px rgb(0 0 0 / 0.55);
+  box-shadow: 0 0 0 1px var(--line-2), 0 10px 24px -14px rgb(0 0 0 / 0.5);
 
   img {
     width: 100%;
@@ -228,6 +240,8 @@ async function refresh(): Promise<void> {
     border-radius: inherit;
   }
 }
+
+.has-banner .ab-av { box-shadow: 0 0 0 4px var(--elev), 0 12px 26px -14px rgb(0 0 0 / 0.55); }
 
 .ab-live {
   position: absolute;
@@ -240,25 +254,56 @@ async function refresh(): Promise<void> {
   box-shadow: 0 0 0 3px var(--elev);
 }
 
+.ab-id { flex: 1; min-width: 0; }
+
+.ab-name {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
+}
+
+.ab-handle {
+  margin-top: 4px;
+  font: 500 12.5px var(--font-mono);
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  .alias {
+    margin-right: 8px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--text-2);
+  }
+}
+
+/* 名片按钮：品牌色轻染底 + 品牌色图标（黑色系品牌与通用图标用正文色） */
 .ab-links {
   display: flex;
-  gap: 8px;
-  padding-bottom: 2px;
+  flex: none;
+  gap: 6px;
 
   a {
+    --c: var(--text-2);
+
     display: grid;
     place-items: center;
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
-    color: var(--text);
-    background: var(--fill);
-    box-shadow: inset 0 0 0 0.5px var(--line-2);
+    color: var(--c);
+    background: color-mix(in oklab, var(--c) 11%, transparent);
+    box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--c) 22%, transparent);
+    transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast);
 
-    &.pri { background: var(--solid); color: var(--on-solid); box-shadow: none; }
+    &:active { transform: scale(0.9); background: color-mix(in oklab, var(--c) 18%, transparent); }
   }
 
-  /* KitIcon 的线性描边样式挂在 .ak 作用域下，名片在模块流之外，这里补上 */
+  /* KitIcon 的线性描边样式挂在 .ak 作用域下，名片在模块流之外，这里补上（品牌实心图标由 KitIcon 自带样式覆盖） */
   :deep(svg.ak-i) {
     fill: none;
     stroke: currentColor;
@@ -268,33 +313,7 @@ async function refresh(): Promise<void> {
   }
 }
 
-.ab-body { padding: 12px 16px 0; }
-
-.ab-name {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 2px 10px;
-  font-family: var(--font-serif);
-  font-size: 28px;
-  line-height: 1.2;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-
-  small {
-    font-family: var(--font-sans);
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text-3);
-    letter-spacing: 0;
-  }
-}
-
-.ab-handle {
-  margin-top: 4px;
-  font: 500 13px var(--font-mono);
-  color: var(--text-3);
-}
+.ab-body { padding: 0 16px; }
 
 .ab-lede {
   margin-top: 14px;
@@ -343,6 +362,15 @@ async function refresh(): Promise<void> {
   }
 
   .mono { font-family: var(--font-mono); }
+
+  .live-dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 3px color-mix(in oklab, #22c55e 22%, transparent);
+  }
 }
 
 /* 模块流窄屏适配：只调容器与外壳间距，不改模块本身 */
@@ -371,7 +399,8 @@ async function refresh(): Promise<void> {
   padding-top: 0;
 
   :deep(.ak-m:not(.m-motto)) { display: none; }
-  :deep(.mo) { padding: 36px 0 40px; }
+  /* 落款线在底部上方 36px：底部留足 68px，线与文字间隔约 32px */
+  :deep(.mo) { padding: 32px 0 68px; }
 }
 
 .ab-list {

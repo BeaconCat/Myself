@@ -5,6 +5,7 @@ import { useConfigStore } from '../../stores/config';
 import type { ProfileData } from '../types';
 import type { ModProps } from './props';
 import KitIcon from '../parts/KitIcon.vue';
+import { brandColor, cardLinks } from '../brands';
 import { useI18n } from 'vue-i18n';
 import { dayPartKey, pad2, useClock, zoned } from '../useClock';
 
@@ -56,6 +57,8 @@ const portrait = computed(() => {
 });
 
 const plain = computed(() => props.variant === 'plain');
+/** 名片按钮：身份页勾选的链接（最多 3 个），与移动端名片一致 */
+const links = computed(() => cardLinks(d.value.links));
 const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 </script>
 
@@ -91,13 +94,14 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
         </div>
       </dl>
 
-      <nav v-if="d.links?.length" class="pf-social">
+      <nav v-if="links.length" class="pf-social">
         <a
-          v-for="l in d.links"
+          v-for="l in links"
           :key="l.name + l.url"
           :href="safeHref(l.url)"
           class="ak-btn"
           :class="{ pri: l.primary }"
+          :style="{ '--bc': brandColor(l.icon) }"
           :target="external(l.url)"
           rel="noopener noreferrer"
         >
@@ -236,6 +240,9 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
     .ak-mono { font-size: 12px; font-weight: 400; color: var(--ak-text-3); }
 
     &.pri .ak-mono { color: color-mix(in oklab, var(--on-solid) 68%, transparent); }
+
+    /* 非主按钮的品牌图标用品牌色（黑色系品牌由 brandColor 回落为正文色） */
+    &:not(.pri) .ak-brand { color: var(--bc, currentColor); }
   }
 }
 

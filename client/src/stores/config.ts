@@ -151,6 +151,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
       { name: 'RSS', handle: '/feed', icon: 'rss', url: '/feed' },
     ],
     portrait: { src: '', fade: 'left' },
+    banner: { show: false, src: '' },
     modules: DEFAULT_ABOUT_MODULES as AboutModule[],
   },
 };

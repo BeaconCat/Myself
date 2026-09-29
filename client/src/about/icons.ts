@@ -42,7 +42,12 @@ export const ICONS: Record<string, string> = {
 };
 
 /** 可供后台选择的图标名（社交 / 工作台） */
-export const SOCIAL_ICONS = ['github', 'mail', 'rss', 'x', 'telegram', 'weibo', 'bilibili', 'link'] as const;
+export const SOCIAL_ICONS = [
+  'github', 'bilibili', 'youtube', 'x', 'weibo', 'zhihu', 'xiaohongshu', 'douyin', 'wechat', 'qq',
+  'juejin', 'douban', 'netease', 'telegram', 'discord', 'instagram', 'threads', 'bluesky', 'mastodon',
+  'facebook', 'reddit', 'twitch', 'steam', 'spotify', 'pixiv', 'gitlab', 'gitee',
+  'mail', 'rss', 'link',
+] as const;
 export const USES_ICONS = ['laptop', 'monitor', 'keyboard', 'camera', 'headphones', 'phone', 'code', 'terminal', 'figma', 'command', 'cloud', 'pen', 'book', 'music', 'link'] as const;
 
 /** 无真实照片时的默认图：12 幅默认封面（client/public/covers/NN.webp），后台下拉按名字选 */

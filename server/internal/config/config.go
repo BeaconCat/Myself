@@ -68,6 +68,7 @@ const defaultJSON = `{
       { "name": "RSS", "handle": "/feed", "icon": "rss", "url": "/feed" }
     ],
     "portrait": { "src": "", "fade": "left" },
+    "banner": { "show": false, "src": "" },
     "modules": [
       {
         "id": "m-profile",

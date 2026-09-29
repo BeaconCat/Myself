@@ -21,6 +21,8 @@ export interface Identity {
   status: { doing: string; city: string; tz: number };
   links: SocialLink[];
   portrait: Portrait;
+  /** 名片头图（移动端关于页身份名片顶部横幅）：默认关闭；src 为空时用默认封面 */
+  banner: { show: boolean; src: string; focus?: string };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -85,6 +87,7 @@ export function normalizeIdentity(about: SiteConfig['about']): void {
   a.status = { doing: '', city: '', tz: 8, ...obj(a.status) };
   a.status.tz = Number.isFinite(Number(a.status.tz)) ? Number(a.status.tz) : 8;
   a.portrait = { src: '', fade: 'left', ...obj(a.portrait) };
+  a.banner = { show: false, src: '', ...obj(a.banner) };
   if (!Array.isArray(a.links)) {
     // 从未配置过链接：借用社交模块的前三项，第一项作主按钮
     const socials = mods.find((m) => m?.type === 'socials');

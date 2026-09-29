@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, type Tag } from '../../api';
 import { useConfigStore } from '../../stores/config';
+import { useAuthStore } from '../../stores/auth';
 import { useThemeStore, type Mode, type UiStyle } from '../../stores/theme';
 import { circularReveal } from '../../utils/circularReveal';
 import MIcon from './MIcon.vue';
@@ -18,6 +19,8 @@ const { t } = useI18n();
 const router = useRouter();
 const config = useConfigStore();
 const theme = useThemeStore();
+/** 后台入口只对已登录的站长 / 作者显示 */
+const auth = useAuthStore();
 
 const about = computed(() => config.cfg.about);
 const { avatar, fullName, sign } = useIdentity();
@@ -150,7 +153,7 @@ function openGithub(): void {
         <span>{{ t('mobile.aboutSite') }}</span><small>{{ config.cfg.site.title }}</small>
       </button>
     </div>
-    <div class="m-list admin">
+    <div v-if="auth.staff" class="m-list admin">
       <button class="m-li" @click="go('/admin')">
         <span class="lic" style="--c: var(--solid); color: var(--on-solid)"><MIcon name="lock" /></span>
         <span>{{ t('mobile.admin') }}</span><MIcon name="chev" class="chev" />

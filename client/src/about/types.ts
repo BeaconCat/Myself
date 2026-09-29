@@ -16,6 +16,8 @@ export interface SocialLink {
   url: string;
   icon: IconName | string;
   primary?: boolean;
+  /** 显示在名片（身份区）的按钮上，最多 3 个；桌面与移动端共用 */
+  card?: boolean;
 }
 
 export interface Portrait {
