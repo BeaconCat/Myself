@@ -83,6 +83,9 @@ CREATE TABLE IF NOT EXISTS media (
 	if _, err := db.Exec(schema); err != nil {
 		return err
 	}
+	if _, err := db.Exec(usersSchema); err != nil {
+		return err
+	}
 	// 旧库缺列时补齐（列已存在则忽略报错）。
 	for _, stmt := range []string{
 		`ALTER TABLE notes ADD COLUMN images TEXT NOT NULL DEFAULT '[]'`,
@@ -93,6 +96,8 @@ CREATE TABLE IF NOT EXISTS media (
 		// 内容来源：经外部通道创建时记录 Key id，仅投稿 Key 只能操作自己创建的内容
 		`ALTER TABLE posts ADD COLUMN source_key INTEGER`,
 		`ALTER TABLE notes ADD COLUMN source_key INTEGER`,
+		// 文章作者（协作作者投稿；NULL = 站长）
+		`ALTER TABLE posts ADD COLUMN author_id INTEGER`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return err
@@ -131,6 +136,16 @@ type Post struct {
 	UpdatedAt string   `json:"updatedAt"`
 	ContentMd *string  `json:"contentMd,omitempty"`
 	Status    string   `json:"status,omitempty"`
+	// Author 协作作者署名；站长本人写的文章为空（前台用站点身份）
+	Author   *PostAuthor `json:"author,omitempty"`
+	AuthorID int64       `json:"-"`
+}
+
+// PostAuthor 文章署名。
+type PostAuthor struct {
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	Avatar string `json:"avatar"`
 }
 
 // PostRow 是 posts 表的一行。
@@ -146,9 +161,10 @@ type PostRow struct {
 	Pinned    int64
 	CreatedAt string
 	UpdatedAt string
+	AuthorID  int64
 }
 
-const postColumns = `id, slug, title, excerpt, content_md, covers, tags, status, pinned, created_at, updated_at`
+const postColumns = `id, slug, title, excerpt, content_md, covers, tags, status, pinned, created_at, updated_at, COALESCE(author_id, 0)`
 
 // PostOpts 控制行 → API 对象的字段。
 type PostOpts struct {
@@ -168,6 +184,7 @@ func (r PostRow) ToPost(o PostOpts) Post {
 		Pinned:    r.Pinned != 0,
 		CreatedAt: r.CreatedAt,
 		UpdatedAt: r.UpdatedAt,
+		AuthorID:  r.AuthorID,
 	}
 	if o.WithContent {
 		md := r.ContentMd
@@ -186,7 +203,7 @@ type scanner interface {
 func scanPost(s scanner) (PostRow, error) {
 	var r PostRow
 	err := s.Scan(&r.ID, &r.Slug, &r.Title, &r.Excerpt, &r.ContentMd, &r.Covers, &r.Tags,
-		&r.Status, &r.Pinned, &r.CreatedAt, &r.UpdatedAt)
+		&r.Status, &r.Pinned, &r.CreatedAt, &r.UpdatedAt, &r.AuthorID)
 	return r, err
 }
 

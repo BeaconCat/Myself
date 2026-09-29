@@ -80,8 +80,14 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var err error
-	withScryptSlot(func() { err = s.Auth.Setup(b.strOr("code"), username, password) })
+	var (
+		adminID int64
+		err     error
+	)
+	id, _ := b["identity"].(map[string]any)
+	withScryptSlot(func() {
+		adminID, err = s.Auth.Setup(b.strOr("code"), username, password, limitRunes(strings.TrimSpace(str(id["name"])), 40))
+	})
 	switch {
 	case errors.Is(err, auth.ErrAlreadySetup):
 		writeError(w, http.StatusConflict, "already_setup")
@@ -110,7 +116,6 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	if len(siteP) > 0 {
 		patch["site"] = siteP
 	}
-	id, _ := b["identity"].(map[string]any)
 	about := config.Map{}
 	for _, k := range []string{"name", "hello", "tagline", "bio", "motto", "avatar"} {
 		if v := strings.TrimSpace(str(id[k])); v != "" {
@@ -132,13 +137,16 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	token, err := s.Auth.Issue()
-	if err != nil {
+	admin, err := s.DB.UserByID(adminID)
+	if err != nil || admin == nil {
 		fail(w, err)
 		return
 	}
-	setSession(w, r, token)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	if err := s.startSession(w, r, admin); err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "user": publicUser(admin)})
 }
 
 func str(v any) string {

@@ -5,78 +5,11 @@ import (
 	"regexp"
 	"strings"
 
-	"myself/server/internal/auth"
 	"myself/server/internal/config"
 	"myself/server/internal/store"
 )
 
 var slugRe = regexp.MustCompile(`^[a-z0-9-]{1,80}$`)
-
-// POST /auth/login 失败计数按 IP 锁定；成功写入 HttpOnly 会话 Cookie（响应体不含令牌），回 mustChange 提示前端先改密
-func (s *Server) login(w http.ResponseWriter, r *http.Request) {
-	ip := clientIP(r)
-	if d := s.limiter.blocked(ip); d > 0 {
-		tooMany(w, d)
-		return
-	}
-	var b body
-	if err := readJSON(w, r, &b); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json")
-		return
-	}
-	var (
-		token string
-		err   error
-	)
-	withScryptSlot(func() { token, err = s.Auth.Login(b.strOr("username"), b.strOr("password")) })
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	if token == "" {
-		s.limiter.fail(ip)
-		writeError(w, http.StatusUnauthorized, "bad_credentials")
-		return
-	}
-	s.limiter.success(ip)
-	setSession(w, r, token)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "mustChange": s.Auth.MustChange()})
-}
-
-// PUT /auth/password 改密：其它会话全部失效，当前会话换发新 Cookie
-func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
-	ip := clientIP(r)
-	if d := s.limiter.blocked(ip); d > 0 {
-		tooMany(w, d)
-		return
-	}
-	var b body
-	if err := readJSON(w, r, &b); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json")
-		return
-	}
-	newPassword, ok := b.str("newPassword")
-	if !ok || len([]rune(newPassword)) < auth.MinPasswordLen || len(newPassword) > 256 {
-		writeError(w, http.StatusBadRequest, "weak_password")
-		return
-	}
-	var (
-		token string
-		err   error
-	)
-	withScryptSlot(func() { token, err = s.Auth.ChangePassword(b.strOr("oldPassword"), newPassword) })
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	if token == "" {
-		s.limiter.fail(ip)
-		writeError(w, http.StatusUnauthorized, "bad_credentials")
-		return
-	}
-	setSession(w, r, token)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
-}
 
 // postInput 是文章写入的规范化字段。
 type postInput struct {
@@ -118,19 +51,39 @@ func parsePost(b body, requireSlug, defaultPublished bool, coverLimit int) (post
 	}, true
 }
 
-// GET /admin/posts 全量（含草稿）
-func (s *Server) adminListPosts(w http.ResponseWriter, _ *http.Request) {
-	rows, err := s.DB.QueryPosts(`ORDER BY created_at DESC`)
+// authorScope 协作作者只能看到 / 修改自己的文章；管理员不受限。
+func authorScope(r *http.Request) (string, []any) {
+	if u := userOf(r); u != nil && u.Role == store.RoleAuthor {
+		return " AND author_id = ?", []any{u.ID}
+	}
+	return "", nil
+}
+
+// authorStatus 作者不能置顶；站点未开「作者可直接发布」时只能存草稿（修改已发布的文章也会退回草稿，重新等待审阅）。
+func (s *Server) authorStatus(r *http.Request, in *postInput) {
+	if u := userOf(r); u != nil && u.Role == store.RoleAuthor {
+		in.Pinned = false
+		if !s.Config.Typed().Users.Authors.DirectPublish {
+			in.Status = "draft"
+		}
+	}
+}
+
+// GET /admin/posts 全量（含草稿）；作者只看自己的
+func (s *Server) adminListPosts(w http.ResponseWriter, r *http.Request) {
+	scope, args := authorScope(r)
+	rows, err := s.DB.QueryPosts(`WHERE 1 = 1`+scope+` ORDER BY created_at DESC`, args...)
 	if err != nil {
 		fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toPosts(rows, store.PostOpts{WithStatus: true}))
+	writeJSON(w, http.StatusOK, s.toPosts(rows, store.PostOpts{WithStatus: true}))
 }
 
 // GET /admin/posts/{id} 编辑用详情
 func (s *Server) adminGetPost(w http.ResponseWriter, r *http.Request) {
-	row, err := s.DB.GetPost(`WHERE id = ?`, pathID(r))
+	scope, args := authorScope(r)
+	row, err := s.DB.GetPost(`WHERE id = ?`+scope, append([]any{pathID(r)}, args...)...)
 	if err != nil {
 		fail(w, err)
 		return
@@ -139,7 +92,7 @@ func (s *Server) adminGetPost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found")
 		return
 	}
-	writeJSON(w, http.StatusOK, row.ToPost(store.PostOpts{WithContent: true, WithStatus: true}))
+	writeJSON(w, http.StatusOK, s.onePost(*row, store.PostOpts{WithContent: true, WithStatus: true}))
 }
 
 // POST /admin/posts 新建
@@ -154,10 +107,15 @@ func (s *Server) adminCreatePost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_post")
 		return
 	}
-	res, err := s.DB.Exec(`INSERT INTO posts (slug, title, excerpt, content_md, covers, tags, status, pinned)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+	s.authorStatus(r, &in)
+	var author any
+	if u := userOf(r); u != nil && u.Role == store.RoleAuthor {
+		author = u.ID
+	}
+	res, err := s.DB.Exec(`INSERT INTO posts (slug, title, excerpt, content_md, covers, tags, status, pinned, author_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		in.Slug, in.Title, in.Excerpt, in.ContentMd, store.JSONStrings(in.Covers), store.JSONStrings(in.Tags),
-		in.Status, boolInt(in.Pinned))
+		in.Status, boolInt(in.Pinned), author)
 	if store.IsUniqueErr(err) {
 		writeError(w, http.StatusConflict, "slug_exists")
 		return
@@ -182,11 +140,13 @@ func (s *Server) adminUpdatePost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_post")
 		return
 	}
+	s.authorStatus(r, &in)
+	scope, args := authorScope(r)
 	res, err := s.DB.Exec(`UPDATE posts SET
 		slug = ?, title = ?, excerpt = ?, content_md = ?, covers = ?, tags = ?, status = ?, pinned = ?,
-		updated_at = datetime('now') WHERE id = ?`,
-		in.Slug, in.Title, in.Excerpt, in.ContentMd, store.JSONStrings(in.Covers), store.JSONStrings(in.Tags),
-		in.Status, boolInt(in.Pinned), pathID(r))
+		updated_at = datetime('now') WHERE id = ?`+scope,
+		append([]any{in.Slug, in.Title, in.Excerpt, in.ContentMd, store.JSONStrings(in.Covers), store.JSONStrings(in.Tags),
+			in.Status, boolInt(in.Pinned), pathID(r)}, args...)...)
 	if store.IsUniqueErr(err) {
 		writeError(w, http.StatusConflict, "slug_exists")
 		return
@@ -200,7 +160,8 @@ func (s *Server) adminUpdatePost(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /admin/posts/{id}
 func (s *Server) adminDeletePost(w http.ResponseWriter, r *http.Request) {
-	res, err := s.DB.Exec(`DELETE FROM posts WHERE id = ?`, pathID(r))
+	scope, args := authorScope(r)
+	res, err := s.DB.Exec(`DELETE FROM posts WHERE id = ?`+scope, append([]any{pathID(r)}, args...)...)
 	if err != nil {
 		fail(w, err)
 		return
@@ -302,6 +263,7 @@ func (s *Server) siteConfig(w http.ResponseWriter, _ *http.Request) {
 		"timezone":   cfg["timezone"],
 		"github":     github,
 		"about":      cfg["about"],
+		"users":      publicUsersConfig(s.Config.Typed()),
 		"needsSetup": need,
 	})
 }
@@ -324,4 +286,18 @@ func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, merged)
+}
+
+// publicUsersConfig 公开下发的用户系统开关（不含任何发信 / OAuth 密钥）。
+func publicUsersConfig(t config.Typed) config.Map {
+	u := t.Users
+	return config.Map{
+		"enabled": u.Enabled,
+		"readers": config.Map{"enabled": u.ReadersOn(), "signup": u.Readers.Signup},
+		"authors": config.Map{"enabled": u.AuthorsOn()},
+		"comments": config.Map{
+			"enabled": u.CommentsOn(), "anonymous": u.CommentsOn() && u.Comments.Anonymous, "moderation": u.Comments.Moderation,
+		},
+		"login": config.Map{"github": t.GitHubLoginReady(), "mailReset": t.Mail.Ready()},
+	}
 }

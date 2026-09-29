@@ -163,7 +163,7 @@ func (s *Server) extListPosts(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toPosts(rows, store.PostOpts{WithStatus: true}))
+	writeJSON(w, http.StatusOK, s.toPosts(rows, store.PostOpts{WithStatus: true}))
 }
 
 // GET /ext/posts/{id} 详情（含 Markdown 正文）
@@ -178,7 +178,7 @@ func (s *Server) extGetPost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found")
 		return
 	}
-	writeJSON(w, http.StatusOK, row.ToPost(store.PostOpts{WithContent: true, WithStatus: true}))
+	writeJSON(w, http.StatusOK, s.onePost(*row, store.PostOpts{WithContent: true, WithStatus: true}))
 }
 
 // POST /ext/posts 投稿文章（默认草稿；全托管 Key 可显式 published）

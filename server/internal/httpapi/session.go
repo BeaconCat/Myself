@@ -80,10 +80,3 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	clearSession(w, r)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
-
-// GET /auth/session 当前是否已登录（前端据此校准本地的登录态提示）
-func (s *Server) session(w http.ResponseWriter, r *http.Request) {
-	token, _ := sessionToken(r)
-	_, err := s.Auth.VerifyToken(token)
-	writeJSON(w, http.StatusOK, map[string]bool{"loggedIn": err == nil, "mustChange": err == nil && s.Auth.MustChange()})
-}

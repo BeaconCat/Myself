@@ -31,7 +31,7 @@ func TestHashRoundTrip(t *testing.T) {
 	}
 }
 
-func TestLegacyDefaultPasswordMustChange(t *testing.T) {
+func TestLegacyAdminMigratesAndMustChange(t *testing.T) {
 	db, err := store.Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -44,13 +44,23 @@ func TestLegacyDefaultPasswordMustChange(t *testing.T) {
 	if err := a.Init(); err != nil {
 		t.Fatal(err)
 	}
-	if !a.MustChange() || a.SetupCode() != "" {
-		t.Fatal("legacy default password must force a change and skip setup")
+	if a.SetupCode() != "" {
+		t.Fatal("migrated site must not need setup")
 	}
-	if _, err := a.ChangePassword(legacyDefaultPassword, "brand-new-pass"); err != nil {
+	u, err := db.UserByLogin("admin")
+	if err != nil || u == nil || u.Role != store.RoleAdmin || !u.MustChange {
+		t.Fatalf("legacy admin not migrated with must-change: %+v %v", u, err)
+	}
+	if v, _ := db.GetSetting("admin_password"); v != "" {
+		t.Fatal("legacy settings should be removed after migration")
+	}
+	if _, err := a.ChangePassword(u.ID, legacyDefaultPassword, "brand-new-pass"); err != nil {
 		t.Fatal(err)
 	}
-	if a.MustChange() {
+	if u, _ = db.UserByID(u.ID); u.MustChange {
 		t.Fatal("must-change flag should clear after change")
+	}
+	if got, _ := a.Authenticate("ADMIN", "brand-new-pass"); got == nil {
+		t.Fatal("login should be case-insensitive and accept the new password")
 	}
 }

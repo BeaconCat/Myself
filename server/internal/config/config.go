@@ -1095,7 +1095,16 @@ const defaultJSON = `{
       }
     ]
   },
-  "backup": { "autoHours": 0 }
+  "backup": { "autoHours": 0 },
+  "users": {
+    "enabled": false,
+    "readers": { "enabled": false, "signup": "open", "requireVerify": false },
+    "authors": { "enabled": false, "directPublish": false },
+    "comments": { "enabled": true, "anonymous": false, "moderation": "first" },
+    "login": { "github": false }
+  },
+  "mail": { "enabled": false, "host": "", "port": 587, "username": "", "password": "", "from": "", "security": "starttls" },
+  "oauth": { "github": { "clientId": "", "clientSecret": "" } }
 }`
 
 // Default 返回默认配置的全新副本。
@@ -1262,6 +1271,67 @@ type Typed struct {
 	Backup   struct {
 		AutoHours float64 `json:"autoHours"`
 	} `json:"backup"`
+	Users Users `json:"users"`
+	Mail  Mail  `json:"mail"`
+	OAuth struct {
+		GitHub struct {
+			ClientID     string `json:"clientId"`
+			ClientSecret string `json:"clientSecret"`
+		} `json:"github"`
+	} `json:"oauth"`
+}
+
+// Users 用户系统开关。层级：总开关 enabled → 读者 / 协作作者各自独立 → 评论（依附读者）。
+type Users struct {
+	Enabled bool `json:"enabled"`
+	Readers struct {
+		Enabled bool `json:"enabled"`
+		// Signup open = 开放注册；invite = 仅凭邀请；closed = 关闭注册
+		Signup        string `json:"signup"`
+		RequireVerify bool   `json:"requireVerify"`
+	} `json:"readers"`
+	Authors struct {
+		Enabled       bool `json:"enabled"`
+		DirectPublish bool `json:"directPublish"`
+	} `json:"authors"`
+	Comments struct {
+		Enabled   bool `json:"enabled"`
+		Anonymous bool `json:"anonymous"`
+		// Moderation all = 全部先审；first = 首条先审，通过过一次后自动放行；none = 登录用户直接公开（匿名始终先审）
+		Moderation string `json:"moderation"`
+	} `json:"comments"`
+	Login struct {
+		GitHub bool `json:"github"`
+	} `json:"login"`
+}
+
+// ReadersOn 读者体系生效（总开关 + 读者开关）。
+func (u Users) ReadersOn() bool { return u.Enabled && u.Readers.Enabled }
+
+// AuthorsOn 协作作者生效（总开关 + 作者开关）。
+func (u Users) AuthorsOn() bool { return u.Enabled && u.Authors.Enabled }
+
+// CommentsOn 评论生效（依附读者体系）。
+func (u Users) CommentsOn() bool { return u.ReadersOn() && u.Comments.Enabled }
+
+// Mail SMTP 发信配置。
+type Mail struct {
+	Enabled  bool   `json:"enabled"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	From     string `json:"from"`
+	// Security starttls | tls | none
+	Security string `json:"security"`
+}
+
+// Ready 发信配置完整可用。
+func (m Mail) Ready() bool { return m.Enabled && m.Host != "" && m.Port > 0 && m.From != "" }
+
+// GitHubLoginReady GitHub 登录已开启且配置了 OAuth 应用。
+func (t Typed) GitHubLoginReady() bool {
+	return t.Users.Enabled && t.Users.Login.GitHub && t.OAuth.GitHub.ClientID != "" && t.OAuth.GitHub.ClientSecret != ""
 }
 
 // Typed 返回强类型配置（经 JSON 往返，容忍前端写入的字符串数字）。

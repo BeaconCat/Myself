@@ -48,6 +48,10 @@ type Server struct {
 	thumbsDir string
 	jobs      *jobRegistry
 	limiter   *attemptLimiter
+	// signupLimiter 注册 / 找回密码按 IP 计次（与登录锁定分开，避免互相影响）
+	signupLimiter *attemptLimiter
+	oauth         oauthStates
+	comments      commentLimiter
 	thumbs    singleflight.Group
 	backupMu  sync.Mutex
 }
@@ -60,6 +64,7 @@ func New(d Deps) *Server {
 		thumbsDir:    filepath.Join(d.UploadDir, "thumbs"),
 		jobs:         newJobRegistry(),
 		limiter:      newAttemptLimiter(),
+		signupLimiter: newAttemptLimiter(),
 	}
 	for _, dir := range []string{s.originalsDir, s.thumbsDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -77,7 +82,9 @@ func New(d Deps) *Server {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	const p = "/api/v1"
-	admin := s.requireAuth
+	admin := s.requireRole("admin")
+	staff := s.requireRole("admin", "author")
+	member := s.requireRole("admin", "author", "reader")
 	ext := s.requireAPIKey
 
 	// 公开
@@ -94,17 +101,29 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+p+"/auth/login", s.login)
 	mux.HandleFunc("POST "+p+"/auth/logout", s.logout)
 	mux.HandleFunc("GET "+p+"/auth/session", s.session)
+	mux.HandleFunc("POST "+p+"/auth/register", s.register)
+	mux.HandleFunc("POST "+p+"/auth/verify", s.verifyEmail)
+	mux.HandleFunc("POST "+p+"/auth/forgot", s.forgotPassword)
+	mux.HandleFunc("GET "+p+"/auth/reset", s.resetInfo)
+	mux.HandleFunc("POST "+p+"/auth/reset", s.resetPassword)
+	mux.HandleFunc("GET "+p+"/auth/invite", s.inviteInfo)
+	mux.HandleFunc("GET "+p+"/auth/github/start", s.githubStart)
+	mux.HandleFunc("GET "+p+"/auth/github/callback", s.githubCallback)
+	mux.HandleFunc("GET "+p+"/comments", s.listComments)
+	mux.HandleFunc("POST "+p+"/comments", s.createComment)
 	mux.HandleFunc("GET "+p+"/setup", s.setupStatus)
 	mux.HandleFunc("POST "+p+"/setup", s.setup)
 	mux.HandleFunc("POST "+p+"/setup/verify", s.setupVerify)
 
 	// 管理员
-	mux.HandleFunc("PUT "+p+"/auth/password", admin(s.changePassword))
-	mux.HandleFunc("GET "+p+"/admin/posts", admin(s.adminListPosts))
-	mux.HandleFunc("GET "+p+"/admin/posts/{id}", admin(s.adminGetPost))
-	mux.HandleFunc("POST "+p+"/admin/posts", admin(s.adminCreatePost))
-	mux.HandleFunc("PUT "+p+"/admin/posts/{id}", admin(s.adminUpdatePost))
-	mux.HandleFunc("DELETE "+p+"/admin/posts/{id}", admin(s.adminDeletePost))
+	mux.HandleFunc("PUT "+p+"/auth/password", member(s.changePassword))
+	mux.HandleFunc("PUT "+p+"/me", member(s.updateMe))
+	// 文章与素材上传：管理员 + 协作作者（作者只能看到 / 修改自己的文章）
+	mux.HandleFunc("GET "+p+"/admin/posts", staff(s.adminListPosts))
+	mux.HandleFunc("GET "+p+"/admin/posts/{id}", staff(s.adminGetPost))
+	mux.HandleFunc("POST "+p+"/admin/posts", staff(s.adminCreatePost))
+	mux.HandleFunc("PUT "+p+"/admin/posts/{id}", staff(s.adminUpdatePost))
+	mux.HandleFunc("DELETE "+p+"/admin/posts/{id}", staff(s.adminDeletePost))
 	mux.HandleFunc("POST "+p+"/admin/notes", admin(s.adminCreateNote))
 	mux.HandleFunc("PUT "+p+"/admin/notes/{id}", admin(s.adminUpdateNote))
 	mux.HandleFunc("DELETE "+p+"/admin/notes/{id}", admin(s.adminDeleteNote))
@@ -113,8 +132,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+p+"/admin/apikeys", admin(s.listAPIKeys))
 	mux.HandleFunc("POST "+p+"/admin/apikeys", admin(s.createAPIKey))
 	mux.HandleFunc("DELETE "+p+"/admin/apikeys/{id}", admin(s.deleteAPIKey))
-	mux.HandleFunc("GET "+p+"/admin/media", admin(s.listMedia))
-	mux.HandleFunc("POST "+p+"/admin/media", admin(s.uploadMedia))
+	mux.HandleFunc("GET "+p+"/admin/media", staff(s.listMedia))
+	mux.HandleFunc("POST "+p+"/admin/media", staff(s.uploadMedia))
 	mux.HandleFunc("POST "+p+"/admin/media/{name}/crop", admin(s.cropMedia))
 	mux.HandleFunc("GET "+p+"/admin/media/{name}/original", admin(s.mediaOriginal))
 	mux.HandleFunc("DELETE "+p+"/admin/media/{name}", admin(s.deleteMedia))
@@ -127,6 +146,19 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+p+"/admin/quality/jobs/{id}", admin(s.compressJobStatus))
 	mux.HandleFunc("POST "+p+"/admin/github/sync", admin(s.githubSync))
 	mux.HandleFunc("GET "+p+"/admin/github/log", admin(s.githubLog))
+	mux.HandleFunc("GET "+p+"/admin/users", admin(s.adminListUsers))
+	mux.HandleFunc("GET "+p+"/admin/users/export", admin(s.adminExportUsers))
+	mux.HandleFunc("PUT "+p+"/admin/users/{id}", admin(s.adminUpdateUser))
+	mux.HandleFunc("DELETE "+p+"/admin/users/{id}", admin(s.adminDeleteUser))
+	mux.HandleFunc("POST "+p+"/admin/users/{id}/reset", admin(s.adminResetLink))
+	mux.HandleFunc("GET "+p+"/admin/invites", admin(s.adminListInvites))
+	mux.HandleFunc("POST "+p+"/admin/invites", admin(s.adminCreateInvite))
+	mux.HandleFunc("DELETE "+p+"/admin/invites/{id}", admin(s.adminDeleteInvite))
+	mux.HandleFunc("GET "+p+"/admin/comments", admin(s.adminListComments))
+	mux.HandleFunc("PUT "+p+"/admin/comments/{id}", admin(s.adminUpdateComment))
+	mux.HandleFunc("DELETE "+p+"/admin/comments/{id}", admin(s.adminDeleteComment))
+	mux.HandleFunc("POST "+p+"/admin/comments/batch", admin(s.adminBatchComments))
+	mux.HandleFunc("POST "+p+"/admin/mail/test", admin(s.mailTest))
 
 	// 外部通道（X-Api-Key）
 	mux.HandleFunc("GET "+p+"/ext/posts", ext(s.extListPosts))
@@ -201,30 +233,6 @@ func recoverMiddleware(next http.Handler) http.Handler {
 		}()
 		next.ServeHTTP(w, r)
 	})
-}
-
-// requireAuth 管理员认证：会话 Cookie（浏览器，写操作需过 CSRF 校验）或 Bearer（脚本）。
-// 仍在用历史默认口令时只放行改密接口。
-func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		token, fromCookie := sessionToken(r)
-		if _, err := s.Auth.VerifyToken(token); err != nil {
-			if fromCookie {
-				clearSession(w, r)
-			}
-			writeError(w, http.StatusUnauthorized, "unauthorized")
-			return
-		}
-		if fromCookie && !csrfOK(r) {
-			writeError(w, http.StatusForbidden, "csrf_rejected")
-			return
-		}
-		if s.Auth.MustChange() && !(r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/auth/password")) {
-			writeError(w, http.StatusForbidden, "must_change_password")
-			return
-		}
-		next(w, r)
-	}
 }
 
 /* ===== 响应与请求辅助 ===== */

@@ -1,0 +1,376 @@
+package httpapi
+
+import (
+	"database/sql"
+	"errors"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"myself/server/internal/auth"
+	"myself/server/internal/store"
+)
+
+// 评论：挂在文章（post，按 slug）、随想（note，按 id）或留言墙（guestbook）下。正文为纯文本（前端转义后按行渲染）。
+// 可用条件：用户系统 + 读者 + 评论三级开关都开启；匿名评论另需「允许匿名」，且一律先审。
+// 审核策略：all = 全部先审；first = 首条先审，通过过一次后自动公开；none = 登录用户直接公开。管理员的评论始终直接公开。
+
+const (
+	maxCommentRunes = 2000
+	commentWindow   = 10 * time.Minute
+	commentBurst    = 6
+)
+
+// commentLimiter 每个 IP 在窗口内最多发 commentBurst 条。
+type commentLimiter struct {
+	mu sync.Mutex
+	m  map[string][]time.Time
+}
+
+func (c *commentLimiter) allow(ip string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.m == nil {
+		c.m = map[string][]time.Time{}
+	}
+	now := time.Now()
+	kept := c.m[ip][:0]
+	for _, t := range c.m[ip] {
+		if now.Sub(t) < commentWindow {
+			kept = append(kept, t)
+		}
+	}
+	if len(kept) >= commentBurst {
+		c.m[ip] = kept
+		return false
+	}
+	c.m[ip] = append(kept, now)
+	return true
+}
+
+type commentAuthor struct {
+	ID     int64  `json:"id,omitempty"`
+	Name   string `json:"name"`
+	Avatar string `json:"avatar"`
+	Role   string `json:"role"` // admin | author | reader | guest
+}
+
+type commentItem struct {
+	ID        int64         `json:"id"`
+	ParentID  int64         `json:"parentId,omitempty"`
+	Body      string        `json:"body"`
+	CreatedAt string        `json:"createdAt"`
+	Author    commentAuthor `json:"author"`
+	Pending   bool          `json:"pending,omitempty"`
+}
+
+// resolveTarget target + key → 目标 id；目标不存在 / 未公开返回 false。
+func (s *Server) resolveTarget(target, key string) (int64, bool) {
+	switch target {
+	case "post":
+		var id int64
+		err := s.DB.QueryRow(`SELECT id FROM posts WHERE slug = ? AND status = 'published'`, key).Scan(&id)
+		return id, err == nil
+	case "note":
+		id, err := strconv.ParseInt(key, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		var n int
+		_ = s.DB.QueryRow(`SELECT COUNT(*) FROM notes WHERE id = ?`, id).Scan(&n)
+		return id, n > 0
+	case "guestbook":
+		return 0, true
+	}
+	return 0, false
+}
+
+const commentSelect = `SELECT c.id, COALESCE(c.parent_id, 0), c.body, c.created_at, c.status, COALESCE(c.user_id, 0), c.guest_name,
+	COALESCE(u.name, ''), COALESCE(u.avatar, ''), COALESCE(u.role, '')
+	FROM comments c LEFT JOIN users u ON u.id = c.user_id `
+
+func scanComment(rows *sql.Rows) (commentItem, string, error) {
+	var (
+		it                    commentItem
+		status, guest         string
+		uid                   int64
+		uname, uavatar, urole string
+	)
+	err := rows.Scan(&it.ID, &it.ParentID, &it.Body, &it.CreatedAt, &status, &uid, &guest, &uname, &uavatar, &urole)
+	if uid > 0 && uname != "" {
+		it.Author = commentAuthor{ID: uid, Name: uname, Avatar: uavatar, Role: urole}
+	} else {
+		it.Author = commentAuthor{Name: guest, Role: "guest"}
+	}
+	it.Pending = status == "pending"
+	return it, status, err
+}
+
+// GET /comments?target=post|note|guestbook&key= 已公开的评论 + 当前用户自己待审的
+func (s *Server) listComments(w http.ResponseWriter, r *http.Request) {
+	cfg := s.Config.Typed()
+	if !cfg.Users.CommentsOn() {
+		writeJSON(w, http.StatusOK, map[string]any{"enabled": false, "items": []commentItem{}})
+		return
+	}
+	q := r.URL.Query()
+	target := q.Get("target")
+	id, ok := s.resolveTarget(target, q.Get("key"))
+	if !ok {
+		writeError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	var uid int64 = -1
+	if u, _ := s.currentUser(r); u != nil {
+		uid = u.ID
+	}
+	rows, err := s.DB.Query(commentSelect+`WHERE c.target = ? AND c.target_id = ?
+		AND (c.status = 'approved' OR (c.status = 'pending' AND c.user_id = ?)) ORDER BY c.id LIMIT 500`, target, id, uid)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	defer rows.Close()
+	items := []commentItem{}
+	for rows.Next() {
+		it, _, err := scanComment(rows)
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		items = append(items, it)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "items": items})
+}
+
+// POST /comments {target, key, parentId?, body, guestName?, website?}
+func (s *Server) createComment(w http.ResponseWriter, r *http.Request) {
+	cfg := s.Config.Typed()
+	if !cfg.Users.CommentsOn() {
+		writeError(w, http.StatusForbidden, "comments_closed")
+		return
+	}
+	u, fromCookie := s.currentUser(r)
+	if u != nil && fromCookie && !csrfOK(r) {
+		writeError(w, http.StatusForbidden, "csrf_rejected")
+		return
+	}
+	var b body
+	if err := readJSON(w, r, &b); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json")
+		return
+	}
+	ip := clientIP(r)
+	if b.strOr("website") != "" { // 蜜罐
+		writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "pending": true})
+		return
+	}
+	if !s.comments.allow(ip) {
+		writeError(w, http.StatusTooManyRequests, "too_many_comments")
+		return
+	}
+	text := strings.TrimSpace(strings.ReplaceAll(b.strOr("body"), "\r\n", "\n"))
+	if text == "" || len([]rune(text)) > maxCommentRunes {
+		writeError(w, http.StatusBadRequest, "invalid_body")
+		return
+	}
+	target := b.strOr("target")
+	targetID, ok := s.resolveTarget(target, b.strOr("key"))
+	if !ok {
+		writeError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	var parent any
+	if pid := int64(b.num("parentId")); pid > 0 {
+		var n int
+		_ = s.DB.QueryRow(`SELECT COUNT(*) FROM comments WHERE id = ? AND target = ? AND target_id = ? AND status = 'approved'`,
+			pid, target, targetID).Scan(&n)
+		if n == 0 {
+			writeError(w, http.StatusBadRequest, "invalid_parent")
+			return
+		}
+		parent = pid
+	}
+
+	status := "pending"
+	var uid any
+	guest := ""
+	switch {
+	case u != nil:
+		uid = u.ID
+		switch {
+		case u.Role == store.RoleAdmin, cfg.Users.Comments.Moderation == "none":
+			status = "approved"
+		case cfg.Users.Comments.Moderation == "first":
+			var n int
+			_ = s.DB.QueryRow(`SELECT COUNT(*) FROM comments WHERE user_id = ? AND status = 'approved'`, u.ID).Scan(&n)
+			if n > 0 {
+				status = "approved"
+			}
+		}
+	case cfg.Users.Comments.Anonymous:
+		guest = strings.TrimSpace(b.strOr("guestName"))
+		if guest == "" || len([]rune(guest)) > 24 {
+			writeError(w, http.StatusBadRequest, "invalid_name")
+			return
+		}
+	default:
+		writeError(w, http.StatusUnauthorized, "login_required")
+		return
+	}
+	res, err := s.DB.Exec(`INSERT INTO comments (target, target_id, parent_id, user_id, guest_name, body, status, ip_hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, target, targetID, parent, uid, guest, text, status, auth.HashToken(ip)[:16])
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	id, _ := res.LastInsertId()
+	writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "id": id, "pending": status == "pending"})
+}
+
+/* ===== 管理员：审核 ===== */
+
+type adminComment struct {
+	commentItem
+	Status      string `json:"status"`
+	Target      string `json:"target"`
+	TargetTitle string `json:"targetTitle"`
+	TargetLink  string `json:"targetLink"`
+	HasLink     bool   `json:"hasLink"`
+	IPHash      string `json:"ipHash"`
+}
+
+// GET /admin/comments?status=pending|approved|spam
+func (s *Server) adminListComments(w http.ResponseWriter, r *http.Request) {
+	status := r.URL.Query().Get("status")
+	if status != "approved" && status != "spam" {
+		status = "pending"
+	}
+	rows, err := s.DB.Query(`SELECT c.id, COALESCE(c.parent_id, 0), c.body, c.created_at, c.status, COALESCE(c.user_id, 0), c.guest_name,
+		COALESCE(u.name, ''), COALESCE(u.avatar, ''), COALESCE(u.role, ''),
+		c.target, c.target_id, COALESCE(p.title, ''), COALESCE(p.slug, ''), COALESCE(substr(n.content_md, 1, 40), ''), c.ip_hash
+		FROM comments c
+		LEFT JOIN users u ON u.id = c.user_id
+		LEFT JOIN posts p ON c.target = 'post' AND p.id = c.target_id
+		LEFT JOIN notes n ON c.target = 'note' AND n.id = c.target_id
+		WHERE c.status = ? ORDER BY c.id DESC LIMIT 200`, status)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	defer rows.Close()
+	out := []adminComment{}
+	for rows.Next() {
+		var (
+			it                    adminComment
+			uid, targetID         int64
+			guest                 string
+			uname, uavatar, urole string
+			ptitle, pslug, nbody  string
+		)
+		if err := rows.Scan(&it.ID, &it.ParentID, &it.Body, &it.CreatedAt, &it.Status, &uid, &guest, &uname, &uavatar, &urole,
+			&it.Target, &targetID, &ptitle, &pslug, &nbody, &it.IPHash); err != nil {
+			fail(w, err)
+			return
+		}
+		if uid > 0 && uname != "" {
+			it.Author = commentAuthor{ID: uid, Name: uname, Avatar: uavatar, Role: urole}
+		} else {
+			it.Author = commentAuthor{Name: guest, Role: "guest"}
+		}
+		switch it.Target {
+		case "post":
+			it.TargetTitle, it.TargetLink = ptitle, "/articles/"+pslug
+		case "note":
+			it.TargetTitle, it.TargetLink = nbody, "/thoughts"
+		default:
+			it.TargetTitle, it.TargetLink = "留言墙", "/about"
+		}
+		it.HasLink = strings.Contains(it.Body, "http://") || strings.Contains(it.Body, "https://")
+		out = append(out, it)
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+var errBadStatus = errors.New("invalid status")
+
+func (s *Server) setCommentStatus(ids []int64, status string) error {
+	if status != "approved" && status != "pending" && status != "spam" {
+		return errBadStatus
+	}
+	for _, id := range ids {
+		if _, err := s.DB.Exec(`UPDATE comments SET status = ? WHERE id = ?`, status, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Server) deleteComments(ids []int64) error {
+	for _, id := range ids {
+		if _, err := s.DB.Exec(`DELETE FROM comments WHERE id = ? OR parent_id = ?`, id, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// PUT /admin/comments/{id} {status}
+func (s *Server) adminUpdateComment(w http.ResponseWriter, r *http.Request) {
+	var b body
+	if err := readJSON(w, r, &b); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json")
+		return
+	}
+	if err := s.setCommentStatus([]int64{pathID(r)}, b.strOr("status")); err != nil {
+		if errors.Is(err, errBadStatus) {
+			writeError(w, http.StatusBadRequest, "invalid_status")
+			return
+		}
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// DELETE /admin/comments/{id}（连同回复）
+func (s *Server) adminDeleteComment(w http.ResponseWriter, r *http.Request) {
+	if err := s.deleteComments([]int64{pathID(r)}); err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// POST /admin/comments/batch {ids, status | delete}
+func (s *Server) adminBatchComments(w http.ResponseWriter, r *http.Request) {
+	var b body
+	if err := readJSON(w, r, &b); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json")
+		return
+	}
+	raw, _ := b["ids"].([]any)
+	ids := make([]int64, 0, len(raw))
+	for _, v := range raw {
+		if f, ok := v.(float64); ok && f > 0 && len(ids) < 500 {
+			ids = append(ids, int64(f))
+		}
+	}
+	var err error
+	if b.truthy("delete") {
+		err = s.deleteComments(ids)
+	} else {
+		err = s.setCommentStatus(ids, b.strOr("status"))
+	}
+	if errors.Is(err, errBadStatus) {
+		writeError(w, http.StatusBadRequest, "invalid_status")
+		return
+	}
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "n": len(ids)})
+}

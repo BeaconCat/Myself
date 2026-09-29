@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"log"
 	"fmt"
 	"html"
 	"net/http"
@@ -17,12 +18,20 @@ type pagedPosts struct {
 	Total    int          `json:"total"`
 }
 
-func toPosts(rows []store.PostRow, o store.PostOpts) []store.Post {
+func (s *Server) toPosts(rows []store.PostRow, o store.PostOpts) []store.Post {
 	out := make([]store.Post, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, r.ToPost(o))
 	}
+	if err := s.DB.AttachAuthors(out); err != nil {
+		log.Printf("[posts] attach authors: %v", err)
+	}
 	return out
+}
+
+// onePost 单篇（带署名）。
+func (s *Server) onePost(r store.PostRow, o store.PostOpts) store.Post {
+	return s.toPosts([]store.PostRow{r}, o)[0]
 }
 
 // GET /posts?page=&pageSize=&tag=&q= 文章列表（分页 + 标签过滤 + 关键词搜索）
@@ -58,7 +67,7 @@ func (s *Server) listPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, pagedPosts{
-		Items: toPosts(rows, store.PostOpts{}), Page: page, PageSize: pageSize, Total: total,
+		Items: s.toPosts(rows, store.PostOpts{}), Page: page, PageSize: pageSize, Total: total,
 	})
 }
 
@@ -73,7 +82,7 @@ func (s *Server) getPost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "post_not_found")
 		return
 	}
-	writeJSON(w, http.StatusOK, row.ToPost(store.PostOpts{WithContent: true}))
+	writeJSON(w, http.StatusOK, s.onePost(*row, store.PostOpts{WithContent: true}))
 }
 
 // GET /hero 首页轮播条目：按配置规则取（最新 n 条，置顶优先/无视）
@@ -99,7 +108,7 @@ func (s *Server) hero(w http.ResponseWriter, _ *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"intervalMs": max(1000, interval),
-		"items":      toPosts(rows, store.PostOpts{}),
+		"items":      s.toPosts(rows, store.PostOpts{}),
 	})
 }
 
