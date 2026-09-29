@@ -294,7 +294,7 @@ a.st-stat, button.st-stat {
 }
 
 .st-bar {
-  /* 柱顶预留：最高的柱子也在柱槽内留出数值标签的位置，不顶到上方内容 */
+  /* 柱顶预留：柱槽整体下移，最高柱的数值标签落在这段空白里，不顶到上方内容 */
   --room: 22px;
 
   position: relative;
@@ -309,6 +309,7 @@ a.st-stat, button.st-stat {
     flex-direction: column;
     justify-content: flex-end;
     min-height: 0;
+    margin-top: var(--room);
     border-radius: var(--r-xs);
     background: color-mix(in oklab, var(--line) 30%, transparent);
   }
@@ -317,7 +318,7 @@ a.st-stat, button.st-stat {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: calc(var(--v, 0) * (100% - var(--room)) + 6px);
+    bottom: calc(var(--v, 0) * 100% + 6px);
     text-align: center;
     font: 600 12.5px/1 var(--font-mono);
     color: var(--st-ink-2);
@@ -326,7 +327,7 @@ a.st-stat, button.st-stat {
   .stack {
     display: flex;
     flex-direction: column;
-    height: calc(var(--v, 0) * (100% - var(--room)));
+    height: calc(var(--v, 0) * 100%);
     min-height: 3px;
     border-radius: var(--r-xs);
     overflow: hidden;
