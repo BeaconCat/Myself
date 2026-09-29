@@ -1,6 +1,36 @@
 package store
 
-import "time"
+import (
+	_ "embed"
+	"encoding/json"
+	"time"
+)
+
+// demoAbout 示例关于页模块（由 scripts/sync_about_defaults.py 从 client/src/about/demo-modules.json 同步）。
+//
+//go:embed demo_about.json
+var demoAbout []byte
+
+// DemoAboutModules 示例关于页模块（每次返回新副本）。
+func DemoAboutModules() ([]any, error) {
+	var mods []any
+	err := json.Unmarshal(demoAbout, &mods)
+	return mods, err
+}
+
+type seedComment struct {
+	Guest string
+	Body  string
+	Ago   time.Duration
+}
+
+// 留言墙示例（访客留言，已公开）
+var seedGuestbook = []seedComment{
+	{"青柠", "页面好安静，读起来很舒服。宋体标题配黑体正文，一点也不违和。", 2 * time.Hour},
+	{"Kite", "API 中心那篇写得很清楚，我已经让脚本每周五往这里投一篇草稿了。", 26 * time.Hour},
+	{"林间", "「先写下来，再写好」，今天也写了一点。", 3 * day},
+	{"夜航船", "喜欢那张远帆的封面，像是周末早上的海。", 6 * day},
+}
 
 // 默认 Demo 数据：首次启动初始化时可选注入。封面与配图取自前端内置的 /covers/NN.webp（程序生成的抽象封面），
 // 时间按「现在」往前倒推，开箱即是一个近期有更新的站点。内容围绕 Myself 自身功能 + 两篇随笔示范阅读排版。
@@ -225,7 +255,7 @@ func stamp(ago time.Duration) string {
 	return time.Now().UTC().Add(-ago).Format("2006-01-02 15:04:05")
 }
 
-// SeedDemo 注入 Demo 文章与随想（仅在对应表为空时）。
+// SeedDemo 注入 Demo 文章、随想与留言墙示例（仅在对应表为空时）。关于页示例模块见 DemoAboutModules。
 func (db *DB) SeedDemo() error {
 	tx, err := db.Begin()
 	if err != nil {
@@ -253,6 +283,17 @@ func (db *DB) SeedDemo() error {
 		for _, note := range seedNotes {
 			if _, err := tx.Exec(`INSERT INTO notes (content_md, mood, images, pinned, created_at) VALUES (?, ?, ?, ?, ?)`,
 				note.ContentMd, note.Mood, JSONStrings(note.Images), boolInt(note.Pinned), stamp(note.Ago)); err != nil {
+				return err
+			}
+		}
+	}
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM comments`).Scan(&n); err != nil {
+		return err
+	}
+	if n == 0 {
+		for _, c := range seedGuestbook {
+			if _, err := tx.Exec(`INSERT INTO comments (target, target_id, guest_name, body, status, created_at) VALUES ('guestbook', 0, ?, ?, 'approved', ?)`,
+				c.Guest, c.Body, stamp(c.Ago)); err != nil {
 				return err
 			}
 		}

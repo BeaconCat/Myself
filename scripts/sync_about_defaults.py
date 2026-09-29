@@ -1,6 +1,8 @@
-"""把 client/src/about/default-modules.json 同步进 server/internal/config/config.go 的 about.modules 默认值。
+"""关于页模块同步到 Go：
+- default-modules.json（出厂最简模块）→ server/internal/config/config.go 的 about.modules 默认值
+- demo-modules.json（初始化选择示例内容时写入的完整示例）→ server/internal/store/demo_about.json（go:embed）
 
-默认关于页模块的唯一来源是 default-modules.json；修改后在仓库根目录运行：
+两份 JSON 是唯一来源；修改后在仓库根目录运行：
     python scripts/sync_about_defaults.py
 再跑 `go -C server test ./...` 确认 config 包测试通过。
 """
@@ -23,3 +25,9 @@ s = s[:start] + '    "modules": ' + body + s[end:]
 assert '`X-Api' not in s
 open(p, 'w', encoding='utf-8', newline='').write(s.replace('\n', nl))
 print('ok', nl == '\r\n')
+
+# 示例模块：原样拷贝给 Go 内嵌
+demo = open(f'{root}/client/src/about/demo-modules.json', encoding='utf-8').read()
+json.loads(demo)
+open(f'{root}/server/internal/store/demo_about.json', 'w', encoding='utf-8', newline='').write(demo)
+print('demo ok')

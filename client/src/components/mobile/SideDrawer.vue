@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useIdentity } from '../../about/useIdentity';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -19,7 +20,7 @@ const config = useConfigStore();
 const theme = useThemeStore();
 
 const about = computed(() => config.cfg.about);
-const avatar = computed(() => about.value.avatar || '/favicon-256.png');
+const { avatar, fullName, sign } = useIdentity();
 const handle = computed(() => config.cfg.github.username || 'myself');
 const days = computed(() => {
   const start = new Date(`${about.value.foundedAt || '2026-01-01'}T00:00:00`).getTime();
@@ -73,8 +74,8 @@ function openGithub(): void {
       <div class="who">
         <span class="av"><img class="m-avatar" :src="avatar" alt="" draggable="false" /></span>
         <div>
-          <b>{{ about.name }}</b>
-          <small>@{{ handle }} · {{ t('mobile.online') }}</small>
+          <b>{{ fullName }}</b>
+          <small>{{ sign || `@${handle} · ${t('mobile.online')}` }}</small>
         </div>
       </div>
       <p v-if="about.motto" class="motto">{{ about.motto }}</p>

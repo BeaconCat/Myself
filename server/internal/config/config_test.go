@@ -1,8 +1,11 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
-// 默认关于页模块：合法 JSON、profile 置首、含 chapter 分段、id 唯一。
+// 出厂关于页模块：只有身份区、站点数字、收尾格言（示例内容由初始化时的 Demo 数据写入），id 唯一。
 func TestDefaultAboutModules(t *testing.T) {
 	about, ok := Default()["about"].(Map)
 	if !ok {
@@ -12,12 +15,8 @@ func TestDefaultAboutModules(t *testing.T) {
 	if !ok || len(mods) == 0 {
 		t.Fatal("about.modules missing")
 	}
-	first, _ := mods[0].(Map)
-	if first["type"] != "profile" {
-		t.Fatalf("first module = %v, want profile", first["type"])
-	}
+	var types []string
 	seen := map[string]bool{}
-	chapters := 0
 	for _, raw := range mods {
 		m, _ := raw.(Map)
 		id, _ := m["id"].(string)
@@ -25,12 +24,10 @@ func TestDefaultAboutModules(t *testing.T) {
 			t.Fatalf("empty or duplicate module id %q", id)
 		}
 		seen[id] = true
-		if m["type"] == "chapter" {
-			chapters++
-		}
+		types = append(types, m["type"].(string))
 	}
-	if chapters < 2 {
-		t.Fatalf("chapters = %d, want >= 2", chapters)
+	if strings.Join(types, ",") != "profile,stats,motto" {
+		t.Fatalf("factory modules = %v, want profile,stats,motto", types)
 	}
 }
 

@@ -127,7 +127,7 @@ export interface Track { title: string; artist: string; album?: string; duration
 export interface ListeningData {
   playing: boolean;
   now: Track;
-  recent: { title: string; artist: string; at: string; scene?: string }[];
+  recent: { title: string; artist: string; at: string; scene?: string; cover?: string }[];
 }
 
 export interface QuotesData { interval: number; items: { text: string; from?: string }[] }

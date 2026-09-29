@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { useIdentity } from '../../about/useIdentity';
 /* 正文宋体常规字重（全站只预载了 700；仅移动详情分包内按需加载，unicode-range 切片） */
 import '@fontsource/noto-serif-sc/400.css';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, type Post } from '../../api';
-import { useConfigStore } from '../../stores/config';
 import { renderWithToc, type TocItem } from '../../utils/markdown';
 import CoverArt from '../../components/common/CoverArt.vue';
 import MIcon from '../../components/mobile/MIcon.vue';
@@ -20,7 +20,6 @@ const props = defineProps<{ slug: string }>();
 const emit = defineEmits<{ back: [] }>();
 const { t } = useI18n();
 const router = useRouter();
-const config = useConfigStore();
 
 const post = ref<Post | null>(null);
 const next = ref<Post | null>(null);
@@ -150,7 +149,10 @@ function onProseClick(e: MouseEvent): void {
 
 onBeforeUnmount(() => { tocOpen.value = false; });
 
-const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
+const me = useIdentity();
+const byline = computed(() => (post.value?.author
+  ? { avatar: post.value.author.avatar || '/favicon-256.png', name: post.value.author.name, sign: '' }
+  : { avatar: me.avatar.value, name: me.fullName.value, sign: me.sign.value }));
 </script>
 
 <template>
@@ -186,8 +188,8 @@ const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
             <h1 class="m-in" style="--i: 1">{{ post.title }}</h1>
             <p v-if="post.excerpt" class="lede m-in" style="--i: 2">{{ post.excerpt }}</p>
             <div class="by m-in" style="--i: 3">
-              <span class="av"><img class="m-avatar" :src="avatar" alt="" draggable="false" /></span>
-              <div><b>{{ config.cfg.about.name }}</b><br /><small>{{ config.cfg.about.motto }}</small></div>
+              <span class="av"><img class="m-avatar" :src="byline.avatar" alt="" draggable="false" /></span>
+              <div><b>{{ byline.name }}</b><template v-if="byline.sign"><br /><small>{{ byline.sign }}</small></template></div>
             </div>
           </div>
           <!-- eslint-disable-next-line vue/no-v-html -->

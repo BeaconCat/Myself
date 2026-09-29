@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useConfigStore } from '../../stores/config';
 import { useThemeStore } from '../../stores/theme';
 import UiIcon from '../ui/UiIcon.vue';
-import { displayName, plainText } from '../../about/identity';
+import { useIdentity } from '../../about/useIdentity';
 
 /** 桌面前台页脚：站点身份（头像 + 名字（别名）+ 签名）、导航、RSS / GitHub、版权（网站名称）+ 当前色盘 */
 const { t } = useI18n();
@@ -12,9 +12,8 @@ const config = useConfigStore();
 const theme = useThemeStore();
 
 const siteName = computed(() => config.cfg.site.title || t('common.siteName'));
-const name = computed(() => displayName(config.cfg.about, siteName.value));
-const sign = computed(() => plainText(config.cfg.about.tagline) || config.cfg.site.subtitle);
-const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
+const { avatar, hasAvatar, fullName: name, sign: tagline } = useIdentity();
+const sign = computed(() => tagline.value || config.cfg.site.subtitle);
 const year = new Date().getFullYear();
 /** 引擎源码仓库（固定，不随站长配置变化） */
 const REPO = 'BeaconCat/Myself';
@@ -36,7 +35,7 @@ const links = [
   <footer class="site-footer">
     <div class="in">
       <router-link to="/" class="who">
-        <img class="logo" :class="{ face: !!config.cfg.about.avatar }" :src="avatar" alt="" width="40" height="40" />
+        <img class="logo" :class="{ face: hasAvatar }" :src="avatar" alt="" width="40" height="40" />
         <span>
           <b>{{ name }}</b>
           <small>{{ sign }}</small>

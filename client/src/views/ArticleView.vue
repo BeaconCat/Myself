@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useIdentity } from '../about/useIdentity';
 /* 正文宋体常规字重（全站只预载 700；详情分包内按需加载，unicode-range 切片） */
 import '@fontsource/noto-serif-sc/400.css';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -11,7 +12,6 @@ import ArticleToc from '../components/post/ArticleToc.vue';
 import ContentIcon from '../components/post/ContentIcon.vue';
 import ContentToast, { showToast } from '../components/post/ContentToast.vue';
 import { copyText, dotted, readMinutes, wordCount } from '../components/post/content';
-import { useConfigStore } from '../stores/config';
 import { useLoadingStore } from '../stores/loading';
 import { renderWithToc, type TocItem } from '../utils/markdown';
 
@@ -23,7 +23,6 @@ import { renderWithToc, type TocItem } from '../utils/markdown';
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
-const config = useConfigStore();
 
 const NAV_H = 64;
 const post = ref<Post | null>(null);
@@ -45,7 +44,11 @@ const rendered = computed(() => {
 });
 const minutes = computed(() => readMinutes(post.value?.contentMd ?? ''));
 const words = computed(() => wordCount(post.value?.contentMd ?? ''));
-const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
+const me = useIdentity();
+/** 作者栏：协作作者的文章署作者本人，其余为站点身份 */
+const byline = computed(() => (post.value?.author
+  ? { avatar: post.value.author.avatar || '/favicon-256.png', name: post.value.author.name, sign: '' }
+  : { avatar: me.avatar.value, name: me.fullName.value, sign: me.sign.value }));
 
 /* ---------- 数据 ---------- */
 let seq = 0;
@@ -276,10 +279,10 @@ const C = 2 * Math.PI * 9;
             <h1 class="rise" style="--i: 2">{{ post.title }}</h1>
             <p v-if="post.excerpt" class="lede rise" style="--i: 3">{{ post.excerpt }}</p>
             <div class="by rise" style="--i: 4">
-              <span class="av"><img :src="avatar" alt="" draggable="false" /></span>
+              <span class="av"><img :src="byline.avatar" alt="" draggable="false" /></span>
               <div>
-                <b>{{ config.cfg.about.name }}</b>
-                <small>{{ config.cfg.about.motto }}</small>
+                <b>{{ byline.name }}</b>
+                <small v-if="byline.sign">{{ byline.sign }}</small>
               </div>
               <span class="grow" />
               <span class="words">{{ t('content.article.words', { n: words }) }}</span>

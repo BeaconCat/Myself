@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useIdentity } from '../../about/useIdentity';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { thumbOf, type Note } from '../../api';
@@ -26,8 +27,7 @@ const loadedOnce = ref(false);
 watch(loading, (on, was) => { if (was && !on) loadedOnce.value = true; });
 const showSkeleton = computed(() => loading.value || !loadedOnce.value);
 
-const about = computed(() => config.cfg.about);
-const avatar = computed(() => about.value.avatar || '/favicon-256.png');
+const { avatar, fullName } = useIdentity();
 const handle = computed(() => config.cfg.github.username || 'myself');
 
 const viewDir = ref<'in-r' | 'in-l'>('in-r');
@@ -74,7 +74,7 @@ function itemOf(n: Note, src: string): ViewerItem {
   return {
     src,
     caption: plain(n.contentMd),
-    meta: `${about.value.name} · ${md(n.createdAt)}${n.mood ? ` · #${n.mood}` : ''}`,
+    meta: `${fullName.value} · ${md(n.createdAt)}${n.mood ? ` · #${n.mood}` : ''}`,
   };
 }
 
@@ -152,7 +152,7 @@ const mediaCount = computed(() => media.value.length);
             <span class="av"><img class="m-avatar" :src="avatar" alt="" draggable="false" /></span>
             <div class="post-main">
               <header>
-                <b>{{ about.name }}</b><span>@{{ handle }} · {{ md(n.createdAt) }}</span>
+                <b>{{ fullName }}</b><span>@{{ handle }} · {{ md(n.createdAt) }}</span>
                 <em v-if="n.mood" class="m-mood">{{ n.mood }}</em>
               </header>
               <!-- eslint-disable-next-line vue/no-v-html -->

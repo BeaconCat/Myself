@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useIdentity } from '../../about/useIdentity';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useConfigStore } from '../../stores/config';
@@ -16,6 +17,7 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const config = useConfigStore();
+const me = useIdentity();
 const about = computed(() => config.cfg.about);
 
 const days = computed(() => {
@@ -37,9 +39,9 @@ const ghUrl = computed(() => `https://github.com/${config.cfg.github.username}`)
 <template>
   <section class="me-card">
     <header class="head">
-      <span class="av"><img :src="about.avatar || '/favicon-256.png'" alt="" draggable="false" /></span>
+      <span class="av"><img :src="me.avatar.value" alt="" draggable="false" /></span>
       <div class="who">
-        <b>{{ about.name || config.cfg.site.title }}</b>
+        <b>{{ me.fullName.value }}</b>
         <q v-if="about.motto">{{ about.motto }}</q>
       </div>
       <div class="soc">

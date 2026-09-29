@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { useIdentity } from '../../about/useIdentity';
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, useSlots, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useConfigStore } from '../../stores/config';
 import { rubber } from './gesture';
 import { openDrawer, shell } from './shell';
 
@@ -25,8 +25,7 @@ const props = withDefaults(
 
 const { t } = useI18n();
 const slots = useSlots();
-const config = useConfigStore();
-const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
+const { avatar } = useIdentity();
 
 const scroller = ref<HTMLElement | null>(null);
 const extraEl = ref<HTMLElement | null>(null);

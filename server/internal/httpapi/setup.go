@@ -10,6 +10,7 @@ import (
 
 	"myself/server/internal/auth"
 	"myself/server/internal/config"
+	"myself/server/internal/store"
 )
 
 var usernameRe = regexp.MustCompile(`^[A-Za-z0-9_.-]{3,32}$`)
@@ -132,6 +133,16 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if b.truthy("demo") {
+		// 示例关于页模块一次性写入数据库（之后与站长自己编辑的模块无异）
+		mods, err := store.DemoAboutModules()
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		if _, err := s.Config.Save(config.Map{"about": config.Map{"modules": mods}}); err != nil {
+			fail(w, err)
+			return
+		}
 		if err := s.DB.SeedDemo(); err != nil {
 			fail(w, err)
 			return
