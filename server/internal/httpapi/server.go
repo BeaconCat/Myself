@@ -52,6 +52,7 @@ type Server struct {
 	signupLimiter *attemptLimiter
 	oauth         oauthStates
 	comments      commentLimiter
+	reacts        reactLimiter
 	thumbs    singleflight.Group
 	backupMu  sync.Mutex
 }
@@ -93,6 +94,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+p+"/hero", s.hero)
 	mux.HandleFunc("GET "+p+"/tags", s.tags)
 	mux.HandleFunc("GET "+p+"/notes", s.listNotes)
+	mux.HandleFunc("GET "+p+"/notes/{id}", s.getNote)
+	mux.HandleFunc("GET "+p+"/engage", s.engage)
+	mux.HandleFunc("POST "+p+"/reactions", s.toggleReaction)
 	mux.HandleFunc("GET "+p+"/img/{from}/{to}/{label}", s.placeholderImage)
 	mux.HandleFunc("GET "+p+"/site-config", s.siteConfig)
 	mux.HandleFunc("GET /feed", s.rssFeed)

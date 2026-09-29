@@ -298,6 +298,7 @@ func publicUsersConfig(t config.Typed) config.Map {
 		"comments": config.Map{
 			"enabled": u.CommentsOn(), "anonymous": u.CommentsOn() && u.Comments.Anonymous, "moderation": u.Comments.Moderation,
 		},
-		"login": config.Map{"github": t.GitHubLoginReady(), "mailReset": t.Mail.Ready()},
+		"login":     config.Map{"github": t.GitHubLoginReady(), "mailReset": t.Mail.Ready()},
+		"reactions": u.ReactionsOn(),
 	}
 }

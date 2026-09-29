@@ -53,6 +53,15 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 CREATE INDEX IF NOT EXISTS idx_comments_target ON comments(target, target_id, status);
 CREATE INDEX IF NOT EXISTS idx_comments_user ON comments(user_id);
+CREATE TABLE IF NOT EXISTS reactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target TEXT NOT NULL,
+  target_id INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  voter TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (target, target_id, kind, voter)
+);
 `
 
 // 角色与状态。

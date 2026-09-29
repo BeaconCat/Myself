@@ -126,7 +126,8 @@ const defaultJSON = `{
     "readers": { "enabled": false, "signup": "open", "requireVerify": false },
     "authors": { "enabled": false, "directPublish": false },
     "comments": { "enabled": true, "anonymous": false, "moderation": "first" },
-    "login": { "github": false }
+    "login": { "github": false },
+    "reactions": true
   },
   "mail": { "enabled": false, "host": "", "port": 587, "username": "", "password": "", "from": "", "security": "starttls" },
   "oauth": { "github": { "clientId": "", "clientSecret": "" } }
@@ -328,7 +329,12 @@ type Users struct {
 	Login struct {
 		GitHub bool `json:"github"`
 	} `json:"login"`
+	// Reactions 访客回应（喜欢 / 灵感 / 会心 / 共鸣），不受用户系统总开关影响；缺省开启
+	Reactions *bool `json:"reactions"`
 }
+
+// ReactionsOn 访客回应是否开启（未配置视为开启）。
+func (u Users) ReactionsOn() bool { return u.Reactions == nil || *u.Reactions }
 
 // ReadersOn 读者体系生效（总开关 + 读者开关）。
 func (u Users) ReadersOn() bool { return u.Enabled && u.Readers.Enabled }
