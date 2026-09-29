@@ -6,7 +6,8 @@ import { adminApi, api, type AdminPost, type MediaItem, type Note } from '../../
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
 import StSeg from './studio/StSeg.vue';
-import DoorArt from './studio/DoorArt.vue';
+import EmptyArt from './studio/EmptyArt.vue';
+import { ImagePlus } from 'lucide';
 import MediaViewer from './studio/MediaViewer.vue';
 import QualityPanel from './studio/QualityPanel.vue';
 import { toast } from './studio/toast';
@@ -200,7 +201,7 @@ onMounted(() => {
       </section>
 
       <div v-if="loaded && !items.length" class="st-empty">
-        <DoorArt />
+        <EmptyArt :icon="ImagePlus" />
         <h4>{{ t('studio.media.empty') }}</h4>
         <p>{{ t('studio.media.emptySub') }}</p>
         <button type="button" class="st-btn p" @click="fileInput?.click()"><SIcon name="upload" :size="18" />{{ t('studio.media.upload') }}</button>

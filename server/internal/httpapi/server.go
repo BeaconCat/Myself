@@ -4,6 +4,7 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -31,6 +32,8 @@ type Deps struct {
 	DataDir   string
 	// Frontend 可选：内嵌 SPA 处理器，接管非 /api、/uploads 的请求。
 	Frontend http.Handler
+	// DemoCovers 可选：内嵌的默认封面（NN.webp）；初始化选择 Demo 时导入素材库。
+	DemoCovers fs.FS
 }
 
 // Server 聚合全部路由处理器。
@@ -53,18 +56,18 @@ type Server struct {
 	oauth         oauthStates
 	comments      commentLimiter
 	reacts        reactLimiter
-	thumbs    singleflight.Group
-	backupMu  sync.Mutex
+	thumbs        singleflight.Group
+	backupMu      sync.Mutex
 }
 
 // New 构造 Server 并准备目录。
 func New(d Deps) *Server {
 	s := &Server{
-		Deps:         d,
-		originalsDir: filepath.Join(d.UploadDir, ".originals"),
-		thumbsDir:    filepath.Join(d.UploadDir, "thumbs"),
-		jobs:         newJobRegistry(),
-		limiter:      newAttemptLimiter(),
+		Deps:          d,
+		originalsDir:  filepath.Join(d.UploadDir, ".originals"),
+		thumbsDir:     filepath.Join(d.UploadDir, "thumbs"),
+		jobs:          newJobRegistry(),
+		limiter:       newAttemptLimiter(),
 		signupLimiter: newAttemptLimiter(),
 	}
 	for _, dir := range []string{s.originalsDir, s.thumbsDir} {

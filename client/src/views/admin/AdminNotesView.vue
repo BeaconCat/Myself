@@ -8,7 +8,8 @@ import { useDialogStore } from '../../stores/dialog';
 import { render as renderMarkdown } from '../../utils/markdown';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
-import DoorArt from './studio/DoorArt.vue';
+import EmptyArt from './studio/EmptyArt.vue';
+import { Feather } from 'lucide';
 import NoteComposer from './studio/NoteComposer.vue';
 import { refreshCounts } from './studio/state';
 import { toast } from './studio/toast';
@@ -176,7 +177,7 @@ onMounted(() => {
     </div>
 
     <div v-if="loaded && !notes.length" class="st-empty">
-      <DoorArt />
+      <EmptyArt :icon="Feather" />
       <h4>{{ t('studio.notes.empty') }}</h4>
       <p>{{ t('studio.notes.emptySub') }}</p>
     </div>

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Check } from 'lucide';
+import { Check, MessageSquareDashed } from 'lucide';
 import { accountApi, adminApi, type AdminComment, type CommentStatus } from '../../api';
 import { useConfigStore } from '../../stores/config';
 import { useDialogStore } from '../../stores/dialog';
 import Icon from '../../components/ui/Icon.vue';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
+import EmptyArt from './studio/EmptyArt.vue';
 import StSeg from './studio/StSeg.vue';
 import { toast } from './studio/toast';
 import { initial, plainText, relTime } from './studio/format';
@@ -195,10 +196,7 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
     </div>
 
     <div v-if="!loading && !list.length" class="st-empty">
-      <svg class="clean" viewBox="0 0 96 96" width="96" height="96" fill="none" aria-hidden="true">
-        <path d="M22 30h52a4 4 0 0 1 4 4v28a4 4 0 0 1-4 4H42l-12 10V66h-8a4 4 0 0 1-4-4V34a4 4 0 0 1 4-4z" stroke="var(--st-ink-4)" stroke-width="1.5" />
-        <path d="M38 48l7 7 13-14" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <EmptyArt :icon="MessageSquareDashed" />
       <h4>{{ t(`studio.comments.empty_${tab}`) }}</h4>
       <p>{{ t(`studio.comments.empty_${tab}Sub`) }}</p>
     </div>
@@ -396,8 +394,6 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
 .cm-leave-to { opacity: 0; transform: translateX(24px); }
 .cm-leave-active { position: absolute; left: 0; right: 0; }
 .cm-move { transition: transform var(--dur) var(--ease-out); }
-
-.st-empty .clean { margin-bottom: 0; }
 
 @media (max-width: 1180px) {
   .view { padding: 28px 32px 64px; }

@@ -40,6 +40,8 @@ func main() {
 		BackupDir: filepath.Join(root, "backups"),
 		DataDir:   filepath.Join(root, "data"),
 		Frontend:  web.Handler(),
+		// 初始化选 Demo 时把示例用到的默认封面导入素材库
+		DemoCovers: web.Covers(),
 	})
 	srv.StartAutoBackup()
 

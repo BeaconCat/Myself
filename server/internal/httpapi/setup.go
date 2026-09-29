@@ -134,7 +134,9 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	}
 	if b.truthy("demo") {
 		// 示例关于页模块一次性写入数据库（之后与站长自己编辑的模块无异）
-		mods, err := store.DemoAboutModules()
+		// Demo 引用的默认封面先导入素材库（此后与站长上传的图片无异，可在「素材」里管理）
+		asset := s.demoAssets()
+		mods, err := store.DemoAboutModules(asset)
 		if err != nil {
 			fail(w, err)
 			return
@@ -143,7 +145,7 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 			fail(w, err)
 			return
 		}
-		if err := s.DB.SeedDemo(); err != nil {
+		if err := s.DB.SeedDemo(asset); err != nil {
 			fail(w, err)
 			return
 		}

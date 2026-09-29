@@ -3,6 +3,7 @@ package store
 import (
 	_ "embed"
 	"encoding/json"
+	"regexp"
 	"time"
 )
 
@@ -11,10 +12,31 @@ import (
 //go:embed demo_about.json
 var demoAbout []byte
 
-// DemoAboutModules 示例关于页模块（每次返回新副本）。
-func DemoAboutModules() ([]any, error) {
+// demoCoverRe Demo 内容引用的默认封面地址（前端 public/covers）。
+var demoCoverRe = regexp.MustCompile(`/covers/[0-9]{2}\.webp`)
+
+// AssetMapper 改写 Demo 内容里的图片地址（初始化时把默认封面导入素材库）；nil 表示原样保留。
+type AssetMapper func(url string) string
+
+func (m AssetMapper) apply(urls []string) []string {
+	if m == nil {
+		return urls
+	}
+	out := make([]string, len(urls))
+	for i, u := range urls {
+		out[i] = m(u)
+	}
+	return out
+}
+
+// DemoAboutModules 示例关于页模块（每次返回新副本），其中的默认封面地址经 mapAsset 改写。
+func DemoAboutModules(mapAsset AssetMapper) ([]any, error) {
+	raw := demoAbout
+	if mapAsset != nil {
+		raw = demoCoverRe.ReplaceAllFunc(raw, func(u []byte) []byte { return []byte(mapAsset(string(u))) })
+	}
 	var mods []any
-	err := json.Unmarshal(demoAbout, &mods)
+	err := json.Unmarshal(raw, &mods)
 	return mods, err
 }
 
@@ -255,8 +277,9 @@ func stamp(ago time.Duration) string {
 	return time.Now().UTC().Add(-ago).Format("2006-01-02 15:04:05")
 }
 
-// SeedDemo 注入 Demo 文章、随想与留言墙示例（仅在对应表为空时）。关于页示例模块见 DemoAboutModules。
-func (db *DB) SeedDemo() error {
+// SeedDemo 注入 Demo 文章、随想与留言墙示例（仅在对应表为空时）；封面与配图地址经 mapAsset 改写。
+// 关于页示例模块见 DemoAboutModules。
+func (db *DB) SeedDemo(mapAsset AssetMapper) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -271,7 +294,7 @@ func (db *DB) SeedDemo() error {
 			at := stamp(p.Ago)
 			if _, err := tx.Exec(`INSERT INTO posts (slug, title, excerpt, content_md, covers, tags, pinned, created_at, updated_at)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				p.Slug, p.Title, p.Excerpt, p.ContentMd, JSONStrings(p.Covers), JSONStrings(p.Tags), boolInt(p.Pinned), at, at); err != nil {
+				p.Slug, p.Title, p.Excerpt, p.ContentMd, JSONStrings(mapAsset.apply(p.Covers)), JSONStrings(p.Tags), boolInt(p.Pinned), at, at); err != nil {
 				return err
 			}
 		}
@@ -282,7 +305,7 @@ func (db *DB) SeedDemo() error {
 	if n == 0 {
 		for _, note := range seedNotes {
 			if _, err := tx.Exec(`INSERT INTO notes (content_md, mood, images, pinned, created_at) VALUES (?, ?, ?, ?, ?)`,
-				note.ContentMd, note.Mood, JSONStrings(note.Images), boolInt(note.Pinned), stamp(note.Ago)); err != nil {
+				note.ContentMd, note.Mood, JSONStrings(mapAsset.apply(note.Images)), boolInt(note.Pinned), stamp(note.Ago)); err != nil {
 				return err
 			}
 		}

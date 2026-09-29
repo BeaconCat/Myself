@@ -45,6 +45,19 @@ func ContentSecurityPolicy(index []byte) string {
 	}, "; ")
 }
 
+// Covers 返回内嵌的默认封面目录（client/public/covers）；前端未构建时返回 nil。
+// 初始化选择 Demo 数据时，Demo 内容引用的封面会从这里复制进素材库。
+func Covers() fs.FS {
+	sub, err := fs.Sub(dist, "dist/covers")
+	if err != nil {
+		return nil
+	}
+	if _, err := fs.Stat(sub, "."); err != nil {
+		return nil
+	}
+	return sub
+}
+
 // Handler 返回 SPA 处理器：命中静态文件直接返回（assets 长缓存），否则回落 index.html。
 // dist 中无 index.html（未构建）时返回 404 提示。
 func Handler() http.Handler {

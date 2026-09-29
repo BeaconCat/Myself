@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"fmt"
 	"encoding/json"
 	"encoding/xml"
 	"image"
@@ -16,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"myself/server/internal/auth"
@@ -48,6 +50,8 @@ func newEnv(t *testing.T) *env {
 		UploadDir: filepath.Join(root, "uploads"),
 		BackupDir: filepath.Join(root, "backups"),
 		DataDir:   filepath.Join(root, "data"),
+		// 内嵌默认封面的替身：初始化选 Demo 时从这里导入素材库
+		DemoCovers: demoCoversFS(),
 	})
 	ts := httptest.NewServer(s.Handler())
 	t.Cleanup(ts.Close)
@@ -523,5 +527,60 @@ func TestUploadRejectsFakeImage(t *testing.T) {
 	res := e.do(http.MethodPost, "/api/v1/admin/media", &buf, map[string]string{"Content-Type": mw.FormDataContentType(), "Authorization": "Bearer " + e.token})
 	if res.StatusCode != http.StatusBadRequest {
 		t.Fatalf("fake image accepted: %d", res.StatusCode)
+	}
+}
+
+// demoCoversFS 12 张默认封面的替身（内容无关紧要，只校验导入与地址改写）。
+func demoCoversFS() fstest.MapFS {
+	fsys := fstest.MapFS{}
+	for i := 1; i <= 12; i++ {
+		fsys[fmt.Sprintf("%02d.webp", i)] = &fstest.MapFile{Data: []byte("RIFF-demo")}
+	}
+	return fsys
+}
+
+// 初始化选 Demo：示例用到的默认封面进素材库，文章 / 随想 / 关于页模块都改用素材库地址。
+func TestDemoCoversImportedIntoMedia(t *testing.T) {
+	e := newEnv(t)
+	var media []struct{ URL string }
+	e.call(http.MethodGet, "/api/v1/admin/media", nil, &media, http.StatusOK)
+	inLib := map[string]bool{}
+	for _, m := range media {
+		inLib[m.URL] = true
+	}
+	if len(inLib) == 0 {
+		t.Fatal("demo covers were not imported into the media library")
+	}
+	for url := range inLib {
+		if !strings.HasPrefix(url, "/uploads/demo-cover-") {
+			t.Fatalf("unexpected media %q", url)
+		}
+	}
+
+	var posts []struct{ Covers []string }
+	e.call(http.MethodGet, "/api/v1/admin/posts", nil, &posts, http.StatusOK)
+	var notes struct{ Items []struct{ Images []string } }
+	e.call(http.MethodGet, "/api/v1/notes?pageSize=50", nil, &notes, http.StatusOK)
+	var refs []string
+	for _, p := range posts {
+		refs = append(refs, p.Covers...)
+	}
+	for _, n := range notes.Items {
+		refs = append(refs, n.Images...)
+	}
+	if len(refs) == 0 {
+		t.Fatal("demo content has no images")
+	}
+	for _, u := range refs {
+		if !inLib[u] {
+			t.Fatalf("demo image %q is not in the media library", u)
+		}
+	}
+
+	var cfg struct{ About struct{ Modules []any } }
+	e.call(http.MethodGet, "/api/v1/site-config", nil, &cfg, http.StatusOK)
+	raw, _ := json.Marshal(cfg.About.Modules)
+	if strings.Contains(string(raw), "/covers/") {
+		t.Fatal("demo about modules still reference /covers/")
 	}
 }

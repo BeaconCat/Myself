@@ -7,7 +7,8 @@ import { adminApi, thumbOf, type CompressJob, type CompressResult, type QualityI
 import { useDialogStore } from '../../../stores/dialog';
 import './i18n';
 import SIcon from './SIcon.vue';
-import DoorArt from './DoorArt.vue';
+import EmptyArt from './EmptyArt.vue';
+import { Sparkles } from 'lucide';
 import { toast } from './toast';
 import { formatSize } from './format';
 
@@ -139,7 +140,7 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
     </div>
 
     <div v-if="loaded && !shown.length" class="st-empty">
-      <DoorArt />
+      <EmptyArt :icon="Sparkles" />
       <h4>{{ t('studio.media.qEmpty') }}</h4>
       <p>{{ t('studio.media.qEmptySub') }}</p>
     </div>

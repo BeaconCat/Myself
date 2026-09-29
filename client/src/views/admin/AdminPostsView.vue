@@ -9,7 +9,8 @@ import SIcon from './studio/SIcon.vue';
 import StSeg from './studio/StSeg.vue';
 import PopMenu from './studio/PopMenu.vue';
 import LightCover from './studio/LightCover.vue';
-import DoorArt from './studio/DoorArt.vue';
+import EmptyArt from './studio/EmptyArt.vue';
+import { FilePen } from 'lucide';
 import { refreshCounts } from './studio/state';
 import { toast } from './studio/toast';
 import { dateText, relTime } from './studio/format';
@@ -177,7 +178,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     </div>
 
     <div v-if="loaded && !list.length" class="st-empty">
-      <DoorArt />
+      <EmptyArt :icon="FilePen" />
       <h4>{{ query ? t('studio.posts.emptyQuery', { q: query }) : t('studio.posts.empty') }}</h4>
       <p>{{ t('studio.posts.emptySub') }}</p>
       <router-link class="st-btn p" :to="{ name: 'admin-write-post' }"><SIcon name="pen" :size="18" />{{ t('studio.posts.writeOne') }}</router-link>

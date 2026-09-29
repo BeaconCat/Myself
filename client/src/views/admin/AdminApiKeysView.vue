@@ -9,7 +9,8 @@ import SIcon from './studio/SIcon.vue';
 import StSeg from './studio/StSeg.vue';
 import StModal from './studio/StModal.vue';
 import PopMenu from './studio/PopMenu.vue';
-import DoorArt from './studio/DoorArt.vue';
+import EmptyArt from './studio/EmptyArt.vue';
+import { KeyRound } from 'lucide';
 import { copyText, saveBlob } from './studio/state';
 import { toast } from './studio/toast';
 import { dateText, relTime } from './studio/format';
@@ -199,7 +200,7 @@ onMounted(load);
     </div>
 
     <div v-if="loaded && !keys.length" class="st-empty keys-empty">
-      <DoorArt />
+      <EmptyArt :icon="KeyRound" />
       <h4>{{ t('studio.api.empty') }}</h4>
       <p>{{ t('studio.api.emptySub') }}</p>
     </div>
@@ -384,7 +385,7 @@ onMounted(load);
   border-radius: var(--r-lg);
   box-shadow: 0 0 0 1px var(--line-2);
 
-  :deep(.door-art) { grid-row: 1 / 3; width: 72px; height: 72px; }
+  :deep(.empty-art) { grid-row: 1 / 3; }
   h4 { margin: 0 0 2px; align-self: end; }
   p { margin: 0; align-self: start; }
 }

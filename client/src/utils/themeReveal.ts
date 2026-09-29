@@ -45,6 +45,13 @@ function ensureHost(): HTMLElement {
     zIndex: '2147483000',
     pointerEvents: 'none',
   });
+  // 克隆出来的节点会从头重播 CSS 动画（入场的上浮、缩放等），快照里就会先错位再归位：
+  // 快照层里的动画一律瞬间结束（0s 时长保留各自的终态）、过渡一律关闭，冻结成切换那一刻的样子
+  const freeze = document.createElement('style');
+  freeze.textContent =
+    '.theme-reveal-layer *,.theme-reveal-layer *::before,.theme-reveal-layer *::after{' +
+    'animation-duration:0s!important;animation-delay:0s!important;transition:none!important}';
+  host.appendChild(freeze);
   document.body.appendChild(host);
   return host;
 }
