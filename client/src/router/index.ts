@@ -36,6 +36,11 @@ export const router = createRouter({
     page('/thoughts', 'thoughts', () => import('../views/ThoughtsView.vue')),
     page('/thoughts/:id(\\d+)', 'thought', () => import('../views/NoteDetailView.vue')),
     page('/about', 'about', () => import('../views/AboutView.vue')),
+    /* 前台账号：登录 / 注册 / 邀请注册 / 忘记与重置密码 / 邮箱验证（同一组件按路由切换），以及「我的账号」 */
+    ...(['login', 'register', 'join', 'forgot', 'reset', 'verify'] as const).map((m) =>
+      page(`/account/${m}`, `account-${m}`, () => import('../views/AccountView.vue')),
+    ),
+    page('/account', 'account', () => import('../views/AccountMeView.vue')),
     { path: '/archive', redirect: '/thoughts' },
     {
       path: '/setup',

@@ -153,8 +153,16 @@ function openGithub(): void {
         <span>{{ t('mobile.aboutSite') }}</span><small>{{ config.cfg.site.title }}</small>
       </button>
     </div>
-    <div v-if="auth.staff" class="m-list admin">
-      <button class="m-li" @click="go('/admin')">
+    <div v-if="auth.loggedIn || config.cfg.users?.enabled" class="m-list admin">
+      <button v-if="auth.loggedIn" class="m-li" @click="go('/account')">
+        <span class="lic" style="--c: #5b6b86"><MIcon name="user" /></span>
+        <span>{{ t('account.me.profile') }}</span><small>{{ auth.user?.name }}</small><MIcon name="chev" class="chev" />
+      </button>
+      <button v-else class="m-li" @click="go('/account/login')">
+        <span class="lic" style="--c: #5b6b86"><MIcon name="user" /></span>
+        <span>{{ t('account.title_login') }}</span><MIcon name="chev" class="chev" />
+      </button>
+      <button v-if="auth.staff" class="m-li" @click="go('/admin')">
         <span class="lic" style="--c: var(--solid); color: var(--on-solid)"><MIcon name="lock" /></span>
         <span>{{ t('mobile.admin') }}</span><MIcon name="chev" class="chev" />
       </button>

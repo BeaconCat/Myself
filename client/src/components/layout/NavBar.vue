@@ -5,10 +5,17 @@ import { useI18n } from 'vue-i18n';
 import ThemeSwitcher from './ThemeSwitcher.vue';
 import UiIcon from '../ui/UiIcon.vue';
 import { useAuthStore } from '../../stores/auth';
+import { useConfigStore } from '../../stores/config';
 
 const { t } = useI18n();
 const route = useRoute();
 const auth = useAuthStore();
+const config = useConfigStore();
+/** 用户系统开放时，未登录访客看到「登录」入口 */
+const showLogin = computed(() => !auth.loggedIn && !!config.cfg.users?.enabled);
+const loginTo = computed(() => ({ path: '/account/login', query: route.path.startsWith('/account') ? {} : { next: route.fullPath } }));
+const me = computed(() => auth.user);
+const meInitial = computed(() => (me.value?.name || me.value?.login || '?').trim()[0]?.toUpperCase() ?? '?');
 const drawerOpen = ref(false);
 const writeOpen = ref(false);
 
@@ -110,8 +117,8 @@ onBeforeUnmount(() => {
     </nav>
     <ThemeSwitcher class="nav-theme" />
 
-    <!-- 写作入口：文章 / 随想 -->
-    <div v-if="auth.loggedIn" ref="writeWrap" class="write-wrap">
+    <!-- 写作入口：文章 / 随想（协作作者只有文章） -->
+    <div v-if="auth.staff" ref="writeWrap" class="write-wrap">
       <button
         class="round-btn"
         :class="{ open: writeOpen }"
@@ -127,7 +134,7 @@ onBeforeUnmount(() => {
             <UiIcon name="doc" class="s" />
             <span>{{ t('write.menuPost') }}</span>
           </router-link>
-          <router-link to="/write/note" class="wm-item">
+          <router-link v-if="auth.isAdmin" to="/write/note" class="wm-item">
             <UiIcon name="bubble" class="s" />
             <span>{{ t('write.menuNote') }}</span>
           </router-link>
@@ -135,10 +142,17 @@ onBeforeUnmount(() => {
       </transition>
     </div>
 
-    <!-- 管理员快捷入口（登录态常驻 30 天） -->
-    <router-link v-if="auth.loggedIn" to="/admin" class="round-btn" :title="t('admin.loginTitle')">
-      <UiIcon name="user" class="s" />
+    <!-- 后台快捷入口（站长 / 作者） -->
+    <router-link v-if="auth.staff" to="/admin" class="round-btn" :title="t('admin.loginTitle')">
+      <UiIcon name="gear" class="s" />
     </router-link>
+    <!-- 我的账号 / 登录 -->
+    <router-link v-if="auth.loggedIn" to="/account" class="round-btn me-btn" :title="t('account.me.profile')">
+      <img v-if="me?.avatar" :src="me.avatar" alt="" referrerpolicy="no-referrer" />
+      <span v-else-if="me">{{ meInitial }}</span>
+      <UiIcon v-else name="user" class="s" />
+    </router-link>
+    <router-link v-else-if="showLogin" :to="loginTo" class="login-pill">{{ t('account.title_login') }}</router-link>
   </header>
 
   <!-- 窄屏兜底（桌面外壳在 768px 以下几乎不会出现，移动端有独立外壳）：悬浮顶栏 + 汉堡侧栏 -->
@@ -170,7 +184,7 @@ onBeforeUnmount(() => {
       </nav>
 
       <!-- 管理员：写作与控制中心入口 -->
-      <nav v-if="auth.loggedIn" class="drawer-admin">
+      <nav v-if="auth.staff" class="drawer-admin">
         <router-link to="/write/post" class="drawer-link" @click="drawerOpen = false">
           {{ t('write.menuPost') }}
         </router-link>
@@ -311,6 +325,33 @@ onBeforeUnmount(() => {
     outline: none;
     box-shadow: var(--focus);
   }
+}
+
+/* 我的账号：头像填满圆钮，无头像时显示首字 */
+.me-btn {
+  overflow: hidden;
+  padding: 0;
+
+  img { width: 100%; height: 100%; object-fit: cover; }
+  span { font: 600 15px var(--font-serif); color: var(--text); }
+}
+
+.login-pill {
+  @extend %glass;
+
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 18px;
+  border-radius: var(--nav-r, var(--r-pill));
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+
+  &:hover { background: color-mix(in oklab, var(--bg) 60%, var(--fill-3)); }
+  &:active { transform: scale(0.96); }
+  &:focus-visible { outline: none; box-shadow: var(--focus); }
 }
 
 .write-wrap { position: relative; }
