@@ -61,6 +61,7 @@ export default {
   /* 关于页组件库（about-kit v2）：前台模块 + 后台模块编辑器 */
   aboutKit: {
     kicker: '关于 · 第 {n} 天',
+    aka: '又名 {alias}',
     doing: '正在做',
     city: '所在城市',
     localTime: '本地时间',
@@ -666,6 +667,7 @@ export default {
       next: '下一篇',
       copyLink: '复制链接',
       linkCopied: '链接已复制',
+      copyCode: '复制代码',
       copyFailed: '复制失败，请手动复制',
       fontSize: '字号',
       bigType: '已切换大字号',

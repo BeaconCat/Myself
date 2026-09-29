@@ -23,7 +23,7 @@ const { t } = useI18n();
       <label class="check pl"><input v-model="d.playing" type="checkbox" />{{ t('aboutKit.ed.playing') }}</label>
     </div>
     <div class="sub-title">{{ t('aboutKit.ed.recent') }}</div>
-    <EdList v-slot="{ item }" :items="d.recent" :make="() => ({ title: '', artist: '', at: '', scene: 'dusk' })" :max="6" compact>
+    <EdList v-slot="{ item }" :items="d.recent" :make="() => ({ title: '', artist: '', at: '', scene: '01' })" :max="6" compact>
       <div class="grid4">
         <input v-model="item.title" class="a-input" type="text" :placeholder="t('aboutKit.ed.track')" />
         <input v-model="item.artist" class="a-input" type="text" :placeholder="t('aboutKit.ed.artist')" />

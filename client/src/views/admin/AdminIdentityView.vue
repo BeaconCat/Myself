@@ -32,19 +32,23 @@ const snapshot = ref('');
 const loaded = ref(false);
 const busy = ref(false);
 
-const dirty = computed(() => loaded.value && stableJson(about) !== snapshot.value);
+/** 网站名称（site.title）：与「设置 · 站点标题」是同一个字段，这里一并编辑 */
+const site = reactive({ title: config.cfg.site.title });
+const state = () => stableJson([about, site.title]);
+const dirty = computed(() => loaded.value && state() !== snapshot.value);
 
 async function load(): Promise<void> {
   try {
     const remote = (await adminApi.settings()) as unknown as SiteConfig;
     Object.assign(about, JSON.parse(JSON.stringify(remote.about ?? {})));
+    site.title = remote.site?.title ?? site.title;
   } catch {
     toast(t('studio.loadFailed'), { icon: 'x' });
   }
   normalizeIdentity(about);
   if (!Array.isArray(about.modules)) about.modules = [];
   await settle();
-  snapshot.value = stableJson(about);
+  snapshot.value = state();
   loaded.value = true;
 }
 
@@ -52,8 +56,8 @@ async function save(): Promise<void> {
   if (busy.value || !dirty.value) return;
   busy.value = true;
   try {
-    await adminApi.saveSettings({ about: JSON.parse(JSON.stringify(about)) });
-    snapshot.value = stableJson(about);
+    await adminApi.saveSettings({ about: JSON.parse(JSON.stringify(about)), site: { title: site.title.trim() || 'Myself' } });
+    snapshot.value = state();
     await config.load();
     toast(t('studio.identity.saved'));
   } catch {
@@ -280,13 +284,21 @@ onBeforeUnmount(() => {
         <section class="st-card st-rise" style="--i: 1">
           <div class="st-sec-t"><h2>{{ t('studio.identity.card') }}</h2><span>{{ t('studio.identity.cardSub') }}</span></div>
           <div class="grid g-12">
-            <label class="c4"><span class="st-flabel">{{ t('studio.identity.hello') }}</span><span class="st-field"><input v-model="about.hello" :placeholder="t('studio.identity.helloPh')" /></span></label>
-            <label class="c8"><span class="st-flabel">{{ t('studio.identity.name') }}</span><span class="st-field"><input v-model="about.name" /></span></label>
+            <label class="c3"><span class="st-flabel">{{ t('studio.identity.hello') }}</span><span class="st-field"><input v-model="about.hello" :placeholder="t('studio.identity.helloPh')" /></span></label>
+            <label class="c5"><span class="st-flabel">{{ t('studio.identity.name') }}</span><span class="st-field"><input v-model="about.name" /></span></label>
+            <label class="c4">
+              <span class="st-flabel">{{ t('studio.identity.alias') }}<em>{{ t('studio.identity.optional') }}</em></span>
+              <span class="st-field"><input v-model="about.alias" :placeholder="t('studio.identity.aliasPh')" /></span>
+            </label>
             <label class="c12">
               <span class="st-flabel">{{ t('studio.identity.tagline') }}<em>{{ t('studio.identity.taglineHint') }}</em></span>
               <span class="st-field"><input v-model="about.tagline" /></span>
             </label>
             <label class="c12"><span class="st-flabel">{{ t('studio.identity.bio') }}</span><span class="st-field ta"><textarea v-model="about.bio" rows="4" /></span></label>
+            <label class="c8">
+              <span class="st-flabel">{{ t('studio.identity.siteName') }}<em>{{ t('studio.identity.siteNameHint') }}</em></span>
+              <span class="st-field"><input v-model="site.title" /></span>
+            </label>
             <label class="c4"><span class="st-flabel">{{ t('studio.identity.founded') }}</span><span class="st-field"><input v-model="about.foundedAt" type="date" /></span></label>
           </div>
         </section>

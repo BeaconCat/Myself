@@ -29,6 +29,7 @@ import swift from 'highlight.js/lib/languages/swift';
 import typescript from 'highlight.js/lib/languages/typescript';
 import xml from 'highlight.js/lib/languages/xml';
 import yaml from 'highlight.js/lib/languages/yaml';
+import { i18n } from '../i18n';
 
 const LANGS: Record<string, Parameters<typeof hljs.registerLanguage>[1]> = {
   bash, c, cpp, css, diff, go, ini, java, javascript, json, kotlin, markdown,
@@ -71,7 +72,9 @@ function highlight(code: string, lang: string): string {
     ? hljs.highlight(code, { language, ignoreIllegals: true }).value
     : escapeHtml(code);
   const label = language || 'text';
-  return `<pre class="hljs" data-lang="${label}"><code class="language-${label}">${html}</code></pre>`;
+  // 一键复制：按钮由全局点击委托处理（utils/codeCopy.ts）
+  const copy = escapeHtml(i18n.global.t('content.article.copyCode'));
+  return `<pre class="hljs" data-lang="${label}"><button type="button" class="code-copy" aria-label="${copy}" title="${copy}"></button><code class="language-${label}">${html}</code></pre>`;
 }
 
 function escapeHtml(s: string): string {

@@ -272,24 +272,45 @@ def c11_rain():
     return L.over(img)
 
 
-def c12_window():
-    """纸窗：米白墙上斜落的窗格光影"""
-    img = vgrad('#efe7da', '#e4d8c6', 1.0)
+def c12_sail():
+    """远帆：淡紫到杏色的晨空，平静海面上一叶小帆与倒影"""
+    img = vgrad('#e3dfe8', '#f1ddcc', 0.9)
+    radial(img, W * 0.3, H * 0.55, 420, '#f7e6d3', 0.65)
+    horizon = int(H * 0.6)
+    sea = vgrad('#c9ccd8', '#9ea7bd', 1.0)
+    img[horizon:] = sea[horizon:]
+    # 水面细碎的横向光纹
+    rng = random.Random(12)
     L = Layer()
-    ox, oy = W * 0.28, H * 0.12
-    sk = 0.42
-    for r in range(2):
-        for c in range(3):
-            x = ox + c * 250 + r * 380 * sk
-            y = oy + r * 380
-            pts = [(x, y), (x + 230, y), (x + 230 + 360 * sk, y + 360), (x + 360 * sk, y + 360)]
-            L.d.polygon([(px * SS, py * SS) for px, py in pts], fill=rgba('#fbf5ea', 235))
-    img = L.over(img, blur=5)
-    radial(img, W * 0.2, H * 0.9, 600, '#d6c3a8', 0.35)
-    return img
+    for _ in range(46):
+        y = rng.uniform(horizon + 12, H - 20)
+        x = rng.uniform(0, W)
+        w = rng.uniform(40, 180) * (0.6 + (y - horizon) / (H - horizon))
+        L.d.rounded_rectangle(L.s(x, y, x + w, y + 2.2), radius=2 * SS, fill=rgba('#eef0f5', rng.randint(40, 110)))
+    img = L.over(img)
+    # 日轮低悬
+    L = Layer()
+    L.d.ellipse(L.s(W * 0.3 - 46, horizon - 150 - 46, W * 0.3 + 46, horizon - 150 + 46), fill=rgba('#f3a77e', 235))
+    img = L.over(img)
+    # 帆与船身
+    cx, base = W * 0.62, horizon + 34
+    L = Layer()
+    L.d.polygon(L.s(cx, base - 230, cx, base - 18, cx + 118, base - 18), fill=rgba('#f8f3ea'))
+    L.d.polygon(L.s(cx - 8, base - 196, cx - 8, base - 18, cx - 92, base - 18), fill=rgba('#e9ddcf'))
+    L.d.rectangle(L.s(cx - 2, base - 236, cx + 2, base - 10), fill=rgba('#3c4458'))
+    L.d.polygon(L.s(cx - 120, base - 14, cx + 150, base - 14, cx + 118, base + 8, cx - 96, base + 8), fill=rgba('#3c4458'))
+    img = L.over(img)
+    # 倒影：拉长、模糊、半透明
+    L = Layer()
+    L.d.polygon(L.s(cx, base + 12, cx, base + 200, cx + 110, base + 12), fill=rgba('#f4efe6', 70))
+    L.d.polygon(L.s(cx - 96, base + 12, cx + 118, base + 12, cx + 90, base + 26, cx - 70, base + 26), fill=rgba('#3c4458', 60))
+    img = L.over(img, blur=4)
+    L = Layer()
+    L.d.rectangle(L.s(0, horizon - 1, W, horizon + 1), fill=rgba('#8c93a8', 90))
+    return L.over(img)
 
 
-COVERS = [c01_dusk, c02_moon, c03_sheets, c04_arch, c05_tide, c06_grid, c07_mesh, c08_ridges, c09_spines, c10_circles, c11_rain, c12_window]
+COVERS = [c01_dusk, c02_moon, c03_sheets, c04_arch, c05_tide, c06_grid, c07_mesh, c08_ridges, c09_spines, c10_circles, c11_rain, c12_sail]
 
 
 def main():

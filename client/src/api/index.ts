@@ -11,6 +11,8 @@ export interface Post {
   createdAt: string;
   updatedAt: string;
   contentMd?: string;
+  /** 协作作者署名；站长本人的文章为空（用站点身份） */
+  author?: { id: number; name: string; avatar: string };
 }
 
 export interface HeroFeed {
@@ -280,6 +282,156 @@ export const adminApi = {
       method: 'PUT',
       body: JSON.stringify(patch),
     }),
+
+  /* ----- 用户 / 邀请 / 评论审核 / 发信 ----- */
+  users: () => authed<{ items: AdminUser[]; stats: UserStats }>('/admin/users'),
+  updateUser: (id: number, patch: { role?: UserRole; status?: 'active' | 'disabled'; name?: string }) =>
+    authed<{ ok: boolean }>(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(patch) }),
+  deleteUser: (id: number) => authed<{ ok: boolean }>(`/admin/users/${id}`, { method: 'DELETE' }),
+  resetLink: (id: number, send = false) =>
+    authed<{ url: string; sent: boolean }>(`/admin/users/${id}/reset`, { method: 'POST', body: JSON.stringify({ send }) }),
+  exportUsers: async (): Promise<Blob> => {
+    const res = await fetch(`${BASE}/admin/users/export`, { credentials: 'same-origin', headers: ADMIN_HEADERS });
+    if (!res.ok) throw new Error(`api_error_${res.status}`);
+    return res.blob();
+  },
+  invites: () => authed<InviteInfo[]>('/admin/invites'),
+  createInvite: (body: { role: 'author' | 'reader'; email?: string; days?: number; note?: string; send?: boolean }) =>
+    authed<{ url: string; sent: boolean; days: number }>('/admin/invites', { method: 'POST', body: JSON.stringify(body) }),
+  deleteInvite: (id: number) => authed<{ ok: boolean }>(`/admin/invites/${id}`, { method: 'DELETE' }),
+  comments: (status: CommentStatus) => authed<AdminComment[]>(`/admin/comments?status=${status}`),
+  setCommentStatus: (id: number, status: CommentStatus) =>
+    authed<{ ok: boolean }>(`/admin/comments/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
+  deleteComment: (id: number) => authed<{ ok: boolean }>(`/admin/comments/${id}`, { method: 'DELETE' }),
+  batchComments: (ids: number[], action: { status?: CommentStatus; delete?: boolean }) =>
+    authed<{ ok: boolean }>('/admin/comments/batch', { method: 'POST', body: JSON.stringify({ ids, ...action }) }),
+  mailTest: (to: string) => authed<{ ok: boolean; error?: string }>('/admin/mail/test', { method: 'POST', body: JSON.stringify({ to }) }),
+};
+
+/* ===== 账号（前台读者 / 作者 / 管理员共用）与评论 ===== */
+
+export type UserRole = 'admin' | 'author' | 'reader';
+
+export interface SessionUser {
+  id: number;
+  login: string;
+  email: string;
+  name: string;
+  avatar: string;
+  role: UserRole;
+  hasPassword: boolean;
+  github: boolean;
+  emailVerified: boolean;
+  mustChange: boolean;
+}
+
+export interface AdminUser {
+  id: number;
+  login: string;
+  email: string;
+  name: string;
+  avatar: string;
+  role: UserRole;
+  status: 'active' | 'pending' | 'disabled';
+  github: boolean;
+  hasPassword: boolean;
+  emailVerified: boolean;
+  createdAt: string;
+  lastActiveAt: string;
+  comments: number;
+  self: boolean;
+}
+
+export interface UserStats {
+  total: number;
+  newMonth: number;
+  activeMonth: number;
+  authors: number;
+  comments: number;
+  commentsMonth: number;
+  pending: number;
+}
+
+export interface InviteInfo {
+  id: number;
+  role: 'author' | 'reader';
+  email: string;
+  note: string;
+  expiresAt: string;
+  usedAt: string;
+  usedBy: string;
+  createdAt: string;
+}
+
+export type CommentStatus = 'pending' | 'approved' | 'spam';
+export type CommentTarget = 'post' | 'note' | 'guestbook';
+
+export interface CommentAuthor {
+  id?: number;
+  name: string;
+  avatar: string;
+  role: UserRole | 'guest';
+}
+
+export interface CommentItem {
+  id: number;
+  parentId?: number;
+  body: string;
+  createdAt: string;
+  author: CommentAuthor;
+  pending?: boolean;
+}
+
+export interface AdminComment extends CommentItem {
+  status: CommentStatus;
+  target: CommentTarget;
+  targetTitle: string;
+  targetLink: string;
+  hasLink: boolean;
+  ipHash: string;
+}
+
+/** 前台账号接口：同源 Cookie 会话；写操作带 CSRF 头 */
+async function accountCall<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    credentials: 'same-origin',
+    headers: body === undefined ? ADMIN_HEADERS : { 'Content-Type': 'application/json', ...ADMIN_HEADERS },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) throw new Error(data.error ?? `api_error_${res.status}`);
+  return data;
+}
+
+export const accountApi = {
+  session: () => accountCall<{ loggedIn: boolean; mustChange?: boolean; user?: SessionUser }>('GET', '/auth/session'),
+  login: (username: string, password: string) =>
+    accountCall<{ ok: boolean; mustChange?: boolean; user: SessionUser }>('POST', '/auth/login', { username, password }),
+  register: (body: { email: string; name: string; password: string; invite?: string; website?: string }) =>
+    accountCall<{ ok: boolean; pending?: boolean; user?: SessionUser }>('POST', '/auth/register', body),
+  verify: (token: string) => accountCall<{ ok: boolean; user: SessionUser }>('POST', '/auth/verify', { token }),
+  forgot: (email: string) => accountCall<{ ok: boolean }>('POST', '/auth/forgot', { email }),
+  resetInfo: (token: string) => accountCall<{ email: string }>('GET', `/auth/reset?token=${encodeURIComponent(token)}`),
+  reset: (token: string, password: string) =>
+    accountCall<{ ok: boolean; user: SessionUser }>('POST', '/auth/reset', { token, password }),
+  invite: (code: string) => accountCall<{ role: 'author' | 'reader'; email: string }>('GET', `/auth/invite?code=${encodeURIComponent(code)}`),
+  updateMe: (name: string, avatar: string) => accountCall<{ ok: boolean }>('PUT', '/me', { name, avatar }),
+  changePassword: (oldPassword: string, newPassword: string) =>
+    accountCall<{ ok: boolean }>('PUT', '/auth/password', { oldPassword, newPassword }),
+  logout: () => accountCall<{ ok: boolean }>('POST', '/auth/logout'),
+  /** GitHub 登录 / 绑定入口（整页跳转） */
+  githubUrl: (opts: { mode?: 'login' | 'link'; invite?: string; next?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (opts.mode) q.set('mode', opts.mode);
+    if (opts.invite) q.set('invite', opts.invite);
+    if (opts.next) q.set('next', opts.next);
+    return `${BASE}/auth/github/start?${q.toString()}`;
+  },
+  comments: (target: CommentTarget, key: string) =>
+    accountCall<{ enabled: boolean; items: CommentItem[] }>('GET', `/comments?target=${target}&key=${encodeURIComponent(key)}`),
+  postComment: (body: { target: CommentTarget; key: string; body: string; parentId?: number; guestName?: string; website?: string }) =>
+    accountCall<{ ok: boolean; id: number; pending: boolean }>('POST', '/comments', body),
 };
 
 export interface MediaItem {

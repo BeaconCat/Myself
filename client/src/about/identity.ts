@@ -9,6 +9,8 @@ import type { Portrait, SocialLink } from './types';
 export interface Identity {
   avatar: string;
   name: string;
+  /** 别名：小名 / 网名，可选；页脚显示为「名字（别名）」 */
+  alias: string;
   hello: string;
   /** 签名 / 一句话；*星号* 包裹的片段在关于页高亮 */
   tagline: string;
@@ -78,6 +80,7 @@ export function normalizeIdentity(about: SiteConfig['about']): void {
 
   if (LEGACY_BIOS.includes(a.bio)) a.bio = DEFAULT_BIO;
   a.hello ??= '你好，我是';
+  a.alias ??= '';
   a.mottoSign ??= '';
   a.status = { doing: '', city: '', tz: 8, ...obj(a.status) };
   a.status.tz = Number.isFinite(Number(a.status.tz)) ? Number(a.status.tz) : 8;
@@ -100,6 +103,7 @@ export function injectIdentity(mod: AboutModule, about: Partial<Identity>): Abou
         ...obj(mod.data),
         hello: about.hello ?? '',
         name: about.name ?? '',
+        alias: about.alias ?? '',
         lede: about.tagline ?? '',
         bio: about.bio ?? '',
         status: { doing: '', city: '', tz: 8, ...obj(about.status) },
@@ -112,4 +116,11 @@ export function injectIdentity(mod: AboutModule, about: Partial<Identity>): Abou
     return { ...mod, data: { ...obj(mod.data), text: about.motto ?? '', sign: about.mottoSign ?? '' } };
   }
   return mod;
+}
+
+/** 名字（别名）：页脚、署名等处统一展示 */
+export function displayName(about: Partial<Identity>, fallback = ''): string {
+  const name = (about.name ?? '').trim() || fallback;
+  const alias = (about.alias ?? '').trim();
+  return alias && alias !== name ? `${name}（${alias}）` : name;
 }

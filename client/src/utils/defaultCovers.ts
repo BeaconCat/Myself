@@ -21,9 +21,9 @@ export function defaultCover(seed: string | number, small = false): string {
 
 /** 历史 `css:<kind>` / 光影种类名 → 固定的一幅（保证旧数据与示意位画面稳定） */
 const KIND_MAP: Record<string, string> = {
-  door: '12', slit: '02', beams: '07', season: '10', arcs: '01', page: '03', pages: '03',
+  door: '05', slit: '02', beams: '07', season: '10', arcs: '01', page: '03', pages: '03',
   signal: '05', key: '04', grid: '06', band: '07', bands: '07', dawn: '01', night: '02',
-  blind: '12', paper: '03', beam: '05', dusk: '01', pane: '12',
+  blind: '05', paper: '03', beam: '05', dusk: '01', pane: '05',
 };
 
 export function coverForKind(kind: string, small = false): string {

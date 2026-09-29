@@ -117,7 +117,7 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		patch["site"] = siteP
 	}
 	about := config.Map{}
-	for _, k := range []string{"name", "hello", "tagline", "bio", "motto", "avatar"} {
+	for _, k := range []string{"name", "alias", "hello", "tagline", "bio", "motto", "avatar"} {
 		if v := strings.TrimSpace(str(id[k])); v != "" {
 			about[k] = limitRunes(v, 2000)
 		}

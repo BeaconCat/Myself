@@ -1,6 +1,8 @@
 /* 代码高亮配色（highlight.js 输出类名）：跟随深浅模式，四季通用、克制的语义色；
    代码块底色 --hl-bg 由各页 pre 样式引用。round 3：去掉加粗与彩色描边，只保留字色。 */
 :root {
+  --ico-copy: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='11' height='11' rx='2'/%3E%3Cpath d='M5 15V6a2 2 0 0 1 2-2h9'/%3E%3C/svg%3E");
+  --ico-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7'/%3E%3C/svg%3E");
   --hl-bg: color-mix(in oklab, var(--surface-2) 75%, var(--bg));
   --hl-comment: var(--text-3);
   --hl-keyword: #c8173e;
@@ -39,6 +41,52 @@ pre.hljs {
     font-size: 11px;
     letter-spacing: 0.02em;
     color: var(--text-3);
+    transition: opacity var(--dur-fast);
+  }
+
+  /* 一键复制：悬停代码块时替换语言标签出现；复制成功显示对勾 */
+  .code-copy {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 7px;
+      background: currentColor;
+      -webkit-mask: var(--ico-copy) center / contain no-repeat;
+      mask: var(--ico-copy) center / contain no-repeat;
+    }
+
+    &:hover { background: var(--fill); color: var(--text); }
+    &:focus-visible { opacity: 1; outline: none; box-shadow: var(--focus); }
+
+    &.done {
+      opacity: 1;
+      color: var(--ink);
+
+      &::before { -webkit-mask-image: var(--ico-check); mask-image: var(--ico-check); }
+    }
+  }
+
+  &:hover::before { opacity: 0; }
+  &:hover .code-copy { opacity: 1; }
+
+  /* 触屏没有悬停：按钮常显，语言标签让位 */
+  @media (hover: none) {
+    &::before { opacity: 0; }
+    .code-copy { opacity: 1; }
   }
 
   .hljs-comment, .hljs-quote { color: var(--hl-comment); font-style: italic; }

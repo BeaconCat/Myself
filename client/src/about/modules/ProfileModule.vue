@@ -67,6 +67,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
         <span v-if="d.hello" class="pf-hi">{{ d.hello }}</span>
         <span class="lit">{{ d.name }}</span><span class="dotp">.</span>
       </h1>
+      <p v-if="d.alias?.trim()" class="pf-alias">{{ t('aboutKit.aka', { alias: d.alias.trim() }) }}</p>
       <p v-if="lede.length" class="pf-lede">
         <template v-for="(s, i) in lede" :key="i"><em v-if="s.em">{{ s.text }}</em><template v-else>{{ s.text }}</template></template>
       </p>
@@ -177,6 +178,13 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 }
 
 @keyframes pf-sheen { from { background-position: 100% 0; } to { background-position: 0 0; } }
+
+.pf-alias {
+  margin: 10px 0 0;
+  font: 500 15px/1.4 var(--font-serif);
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
 
 .pf-lede {
   margin: 34px 0 10px;

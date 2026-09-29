@@ -27,7 +27,7 @@ const srcs = computed<string[]>({
   },
 });
 
-const make = (): GalleryImage => ({ src: '', scene: 'door', title: '', place: '', date: '' });
+const make = (): GalleryImage => ({ src: '', scene: '05', title: '', place: '', date: '' });
 </script>
 
 <template>

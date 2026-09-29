@@ -25,7 +25,7 @@ const config = useConfigStore();
 const changeMode = computed(() => route.query.change === '1');
 
 /* ---------- 左侧封面轮换 ---------- */
-const COVERS = ['12', '01', '05', '09', '02', '10'];
+const COVERS = ['05', '12', '01', '09', '02', '10'];
 const coverIdx = ref(0);
 let coverTimer = 0;
 

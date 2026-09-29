@@ -32,6 +32,7 @@ export interface Portrait {
 export interface ProfileData {
   hello?: string;
   name: string;
+  alias?: string;
   /** 一句话；*星号* 包裹的片段高亮 */
   lede: string;
   bio: string;

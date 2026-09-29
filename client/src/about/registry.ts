@@ -243,7 +243,7 @@ export const MODULE_REGISTRY: ModuleMeta[] = [
     chrome: yes,
     defaultData: () => ({
       items: [
-        { name: '项目名', desc: '一句话介绍这个项目。', url: '', cover: '', scene: 'door', lang: 'Go', color: '#0078ff', stars: 0, featured: true },
+        { name: '项目名', desc: '一句话介绍这个项目。', url: '', cover: '', scene: '05', lang: 'Go', color: '#0078ff', stars: 0, featured: true },
       ],
     }),
     summary: (d) => names(d.items),

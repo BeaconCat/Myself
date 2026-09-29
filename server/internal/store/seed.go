@@ -34,7 +34,7 @@ var seedPosts = []seedPost{
 		Title:   "欢迎来到 Myself",
 		Excerpt: "一个安静的个人站点：文章、随想与关于页，内容皆 Markdown。五分钟把它变成你的。",
 		Tags:    []string{"指南"},
-		Covers:  []string{cover("12")},
+		Covers:  []string{cover("05")},
 		Pinned:  true,
 		Ago:     2 * time.Hour,
 		ContentMd: `Myself 是一个开源的个人博客引擎：前端 Vue 3，后端 Go + SQLite，打包后是一个二进制文件。所有内容都以 **Markdown** 存储，随时可以带走。
@@ -218,7 +218,7 @@ var seedNotes = []seedNote{
 	{ContentMd: "下雨天适合整理书架，也适合什么都不整理。", Mood: "平静", Images: []string{cover("11"), cover("09")}, Ago: 6*day + 9*time.Hour},
 	{ContentMd: "给助手开了一把「仅投稿」的 Key，它写的草稿都在待办里等我审阅。", Mood: "灵感", Ago: 9*day + 2*time.Hour},
 	{ContentMd: "关于页的模块可以拖动排序、拖动右缘改宽度。把最想让人看到的放在最前面。", Mood: "记录", Images: []string{cover("06")}, Ago: 11*day + 5*time.Hour},
-	{ContentMd: "记录本身，就是意义。", Mood: "记录", Images: []string{cover("12"), cover("04"), cover("03"), cover("07")}, Ago: 15 * day},
+	{ContentMd: "记录本身，就是意义。", Mood: "记录", Images: []string{cover("05"), cover("04"), cover("03"), cover("07")}, Ago: 15 * day},
 }
 
 func stamp(ago time.Duration) string {

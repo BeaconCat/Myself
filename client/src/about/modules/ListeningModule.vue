@@ -56,7 +56,7 @@ const skip = (delta: number) => { pos.value = Math.max(0, Math.min(dur.value, po
     </div>
     <ul v-if="d.recent.length" class="ls-recent">
       <li v-for="(r, i) in d.recent" :key="i">
-        <span class="cv"><Scene :scene="r.scene || 'dusk'" /></span>
+        <span class="cv"><Scene :scene="r.scene || '01'" small /></span>
         <span class="nm">{{ r.title }}<small>{{ r.artist }}</small></span>
         <time>{{ r.at }}</time>
       </li>

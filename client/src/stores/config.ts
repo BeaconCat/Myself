@@ -29,6 +29,12 @@ export interface ThemePreset {
 export interface SiteConfig {
   /** 站点尚未初始化（首次启动）；由 /site-config 下发 */
   needsSetup?: boolean;
+  /** 用户系统开关。公开配置里是生效后的子集；后台设置接口返回完整字段 */
+  users?: UsersConfig;
+  /** 发信（仅后台设置接口返回） */
+  mail?: MailConfig;
+  /** 第三方登录（仅后台设置接口返回） */
+  oauth?: { github: { clientId: string; clientSecret: string } };
   site: { title: string; subtitle: string; listEndText: string };
   loading: { bootText: string; routeText: string };
   theme: {
@@ -75,6 +81,25 @@ export interface SiteConfig {
   };
 }
 
+export interface UsersConfig {
+  enabled: boolean;
+  readers: { enabled: boolean; signup: 'open' | 'invite' | 'closed'; requireVerify?: boolean };
+  authors: { enabled: boolean; directPublish?: boolean };
+  comments: { enabled: boolean; anonymous: boolean; moderation: 'all' | 'first' | 'none' };
+  /** 公开配置：github = GitHub 登录可用；mailReset = 可用邮件找回密码 */
+  login: { github: boolean; mailReset?: boolean };
+}
+
+export interface MailConfig {
+  enabled: boolean;
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  from: string;
+  security: 'starttls' | 'tls' | 'none';
+}
+
 export const FALLBACK_CONFIG: SiteConfig = {
   site: { title: 'Myself', subtitle: '个人博客', listEndText: '—— 到底啦 ——' },
   loading: { bootText: 'Myself', routeText: '加载中' },
@@ -109,6 +134,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
   about: {
     avatar: '',
     name: 'Myself',
+    alias: '',
     hello: '你好，我是',
     tagline: '开源个人博客引擎',
     bio: '这里是 Myself 的默认介绍。前往后台「身份」写下你自己的故事：你是谁、在做什么、热爱什么。',

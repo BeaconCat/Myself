@@ -24,7 +24,7 @@ function feature(p: Project): void {
     <EdList
       v-slot="{ item }"
       :items="d.items"
-      :make="() => ({ name: '', desc: '', url: '', cover: '', scene: 'door', lang: '', color: '#0078ff', stars: 0 })"
+      :make="() => ({ name: '', desc: '', url: '', cover: '', scene: '05', lang: '', color: '#0078ff', stars: 0 })"
       :max="6"
     >
       <div class="grid3">

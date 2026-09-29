@@ -7,7 +7,7 @@ import ImageViewer, { type OriginRect } from '../media/ImageViewer.vue';
  * 封面挤压手风琴（≤3 张）：|AAAA|B|C| → |A|BBBB|C| → |A|B|CCCC|
  * - 未悬浮时自动轮播（默认 10s，走 covers.expandMs 配置），悬浮暂停
  * - 位移与缩放同帧：段用绝对定位，left/width 同曲线过渡
- * - 展开段底部倒计时条（右锚定向右收缩），条走完驱动切换；暂停时条滑出
+ * - 展开段底边的倒计时条（贴底、与段左右对齐，右锚定向右收缩），条走完驱动切换；暂停时条滑出
  * - 同屏多行初始化错峰：每行顺延 1s；用户一旦手动切换即退出错峰
  * - 点未展开段=展开；点展开段=FLIP 飞出 Lightbox
  */
@@ -166,15 +166,13 @@ export default {};
   &:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ink); }
 }
 
-/* 倒计时条：随展开段定位，右锚定向右收缩；中性白线，不发光（round 3：发光只属于封面光影） */
+/* 倒计时条：贴在展开段底边，与该段左右边缘完全对齐，右锚定向右收缩；中性白，不发光 */
 .countdown {
   position: absolute;
-  bottom: 10px;
-  height: 2px;
-  margin-inline: 12px;
-  border-radius: var(--r-pill);
-  background: rgb(255 255 255 / 0.78);
-  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.18);
+  bottom: 0;
+  height: 4px;
+  background: rgb(255 255 255 / 0.82);
+  box-shadow: 0 -0.5px 0 rgb(0 0 0 / 0.12);
   transform-origin: right center;
   animation: countdown-shrink linear both;
   pointer-events: none;
@@ -190,5 +188,5 @@ export default {};
 /* 条入场自底浮入 / 退场沉底滑出 */
 .cd-enter-active { transition: opacity 0.3s ease, translate 0.3s var(--ease-out); }
 .cd-leave-active { transition: opacity 0.25s ease, translate 0.25s ease; }
-.cd-enter-from, .cd-leave-to { opacity: 0; translate: 0 10px; }
+.cd-enter-from, .cd-leave-to { opacity: 0; translate: 0 4px; }
 </style>

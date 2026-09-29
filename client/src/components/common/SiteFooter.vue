@@ -4,15 +4,17 @@ import { useI18n } from 'vue-i18n';
 import { useConfigStore } from '../../stores/config';
 import { useThemeStore } from '../../stores/theme';
 import UiIcon from '../ui/UiIcon.vue';
+import { displayName, plainText } from '../../about/identity';
 
-/** 桌面前台页脚：logo + 站点名 / 格言、导航、RSS / GitHub、版权 + 当前色盘 */
+/** 桌面前台页脚：站点身份（头像 + 名字（别名）+ 签名）、导航、RSS / GitHub、版权（网站名称）+ 当前色盘 */
 const { t } = useI18n();
 const config = useConfigStore();
 const theme = useThemeStore();
 
 const siteName = computed(() => config.cfg.site.title || t('common.siteName'));
-const motto = computed(() => config.cfg.about.motto || config.cfg.site.subtitle);
-const owner = computed(() => config.cfg.about.name || siteName.value);
+const name = computed(() => displayName(config.cfg.about, siteName.value));
+const sign = computed(() => plainText(config.cfg.about.tagline) || config.cfg.site.subtitle);
+const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
 const year = new Date().getFullYear();
 /** 引擎源码仓库（固定，不随站长配置变化） */
 const REPO = 'BeaconCat/Myself';
@@ -34,10 +36,10 @@ const links = [
   <footer class="site-footer">
     <div class="in">
       <router-link to="/" class="who">
-        <img class="logo" src="/favicon-256.png" alt="" width="40" height="40" />
+        <img class="logo" :class="{ face: !!config.cfg.about.avatar }" :src="avatar" alt="" width="40" height="40" />
         <span>
-          <b>{{ siteName }}</b>
-          <small>{{ motto }}</small>
+          <b>{{ name }}</b>
+          <small>{{ sign }}</small>
         </span>
       </router-link>
 
@@ -49,7 +51,7 @@ const links = [
 
       <div class="cp">
         <span class="pw">
-          &copy; {{ year }} {{ owner }} · {{ t('footer.poweredBy') }}
+          &copy; {{ year }} {{ siteName }} · {{ t('footer.poweredBy') }}
           <a class="repo" :href="REPO_URL" target="_blank" rel="noopener" :title="t('footer.repoTitle')">
             <UiIcon name="github" class="s" />{{ REPO }}
           </a>
@@ -177,4 +179,7 @@ const links = [
 
   &:hover { color: var(--ink); background: var(--fill); box-shadow: inset 0 0 0 1px var(--line-2); }
 }
+
+/* 上传了头像：圆形头像（未上传时仍是方形站点 logo） */
+.logo.face { border-radius: 50%; object-fit: cover; }
 </style>

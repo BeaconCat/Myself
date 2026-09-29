@@ -45,8 +45,13 @@ export const ICONS: Record<string, string> = {
 export const SOCIAL_ICONS = ['github', 'mail', 'rss', 'x', 'telegram', 'weibo', 'bilibili', 'link'] as const;
 export const USES_ICONS = ['laptop', 'monitor', 'keyboard', 'camera', 'headphones', 'phone', 'code', 'terminal', 'figma', 'command', 'cloud', 'pen', 'book', 'music', 'link'] as const;
 
-/** 无真实照片时的 CSS 光影构图（kit.scss 中 .sc-*） */
-export const SCENES = ['door', 'window', 'sea', 'tunnel', 'dusk', 'snow', 'page', 'grid'] as const;
+/** 无真实照片时的默认图：12 幅默认封面（client/public/covers/NN.webp），后台下拉按名字选 */
+export const SCENES = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'] as const;
 export const SCENE_LABELS: Record<string, string> = {
-  door: '门缝光', window: '午后窗', sea: '落日海', tunnel: '隧道', dusk: '黄昏城', snow: '雪夜灯', page: '书页', grid: '光网格',
+  '01': '地平线', '02': '月相', '03': '叠纸', '04': '拱窗', '05': '潮汐', '06': '格物',
+  '07': '光斑', '08': '山影', '09': '书脊', '10': '圆舞', '11': '雨线', '12': '远帆',
+};
+/** 旧版 CSS 光影场景名 → 相近的默认图（读取旧数据时兼容） */
+export const LEGACY_SCENES: Record<string, string> = {
+  door: '05', window: '04', sea: '12', tunnel: '02', dusk: '01', snow: '08', page: '03', grid: '06',
 };

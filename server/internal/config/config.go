@@ -53,6 +53,7 @@ const defaultJSON = `{
   "about": {
     "avatar": "",
     "name": "Myself",
+    "alias": "",
     "hello": "你好，我是",
     "tagline": "开源个人博客引擎",
     "bio": "这里是 Myself 的默认介绍。前往后台「身份」写下你自己的故事：你是谁、在做什么、热爱什么。",
@@ -231,19 +232,19 @@ const defaultJSON = `{
               "title": "Holocene",
               "artist": "Bon Iver",
               "at": "12 分钟前",
-              "scene": "snow"
+              "scene": "08"
             },
             {
               "title": "山海",
               "artist": "草东没有派对",
               "at": "38 分钟前",
-              "scene": "dusk"
+              "scene": "01"
             },
             {
               "title": "Clair de Lune",
               "artist": "Debussy",
               "at": "1 小时前",
-              "scene": "sea"
+              "scene": "12"
             }
           ]
         }
@@ -327,7 +328,7 @@ const defaultJSON = `{
               "desc": "开源个人博客引擎。Go 单二进制 + SQLite + Vue 3，四季主题，API 中心可让 AI 发文。",
               "url": "https://github.com/BeaconCat/Myself",
               "cover": "",
-              "scene": "door",
+              "scene": "05",
               "lang": "Go",
               "color": "#0078ff",
               "stars": 4,
@@ -338,7 +339,7 @@ const defaultJSON = `{
               "desc": "纯 CSS 光影封面生成器，没有照片也能有好封面。",
               "url": "#",
               "cover": "",
-              "scene": "grid",
+              "scene": "06",
               "lang": "CSS",
               "color": "#ff0032",
               "stars": 0
@@ -348,7 +349,7 @@ const defaultJSON = `{
               "desc": "中文 Markdown 排版检查：空格、标点、引号。",
               "url": "#",
               "cover": "",
-              "scene": "page",
+              "scene": "03",
               "lang": "TypeScript",
               "color": "#00c853",
               "stars": 0
@@ -641,49 +642,49 @@ const defaultJSON = `{
           "images": [
             {
               "src": "",
-              "scene": "door",
+              "scene": "12",
               "title": "门缝",
               "place": "工作室",
               "date": "2026.08.14"
             },
             {
               "src": "",
-              "scene": "sea",
+              "scene": "01",
               "title": "落日与海",
               "place": "舟山",
               "date": "2026.07.02"
             },
             {
               "src": "",
-              "scene": "window",
+              "scene": "04",
               "title": "午后的窗",
               "place": "杭州",
               "date": "2026.05.21"
             },
             {
               "src": "",
-              "scene": "dusk",
+              "scene": "08",
               "title": "黄昏的街",
               "place": "上海",
               "date": "2026.04.09"
             },
             {
               "src": "",
-              "scene": "tunnel",
+              "scene": "02",
               "title": "隧道尽头",
               "place": "重庆",
               "date": "2026.03.18"
             },
             {
               "src": "",
-              "scene": "snow",
+              "scene": "07",
               "title": "雪夜路灯",
               "place": "哈尔滨",
               "date": "2026.01.23"
             },
             {
               "src": "",
-              "scene": "page",
+              "scene": "03",
               "title": "书页",
               "place": "家",
               "date": "2026.02.06"
