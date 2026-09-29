@@ -35,7 +35,8 @@ export interface SiteConfig {
   mail?: MailConfig;
   /** 第三方登录（仅后台设置接口返回） */
   oauth?: { github: { clientId: string; clientSecret: string } };
-  site: { title: string; subtitle: string; listEndText: string };
+  /** url：站点对外地址（邮件链接、RSS、第三方登录回调用；留空时取当前访问地址） */
+  site: { title: string; subtitle: string; listEndText: string; url?: string };
   loading: { bootText: string; routeText: string };
   theme: {
     defaultPaletteId: string;

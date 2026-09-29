@@ -11,8 +11,10 @@ import SIcon from './studio/SIcon.vue';
 import { toast } from './studio/toast';
 import SectionGithub from './settings/SectionGithub.vue';
 import SectionAccount from './settings/SectionAccount.vue';
+import SectionMail from './settings/SectionMail.vue';
+import SectionLogin from './settings/SectionLogin.vue';
 
-/** 设置：站点 / 加载文案 / 随想与封面 / 时区 / GitHub / 账号。左侧锚点导航随滚动高亮 */
+/** 设置：站点 / 加载文案 / 随想与封面 / 时区 / GitHub / 邮件 / 登录方式 / 账号。左侧锚点导航随滚动高亮 */
 const { t } = useI18n();
 const config = useConfigStore();
 const dialog = useDialogStore();
@@ -23,10 +25,10 @@ const loaded = ref(false);
 const busy = ref(false);
 
 /** 只比较本页负责的字段 */
-const mine = () => stableJson([cfg.site, cfg.loading, cfg.thoughts, cfg.covers, cfg.timezone, cfg.github]);
+const mine = () => stableJson([cfg.site, cfg.loading, cfg.thoughts, cfg.covers, cfg.timezone, cfg.github, cfg.mail, cfg.oauth, cfg.users?.login]);
 const dirty = computed(() => loaded.value && mine() !== snapshot.value);
 
-const SECTIONS = ['site', 'loading', 'content', 'timezone', 'github', 'account'] as const;
+const SECTIONS = ['site', 'loading', 'content', 'timezone', 'github', 'mail', 'login', 'account'] as const;
 const current = ref<string>('site');
 
 const TIMEZONES = [
@@ -40,6 +42,13 @@ async function load(): Promise<void> {
     Object.assign(cfg, JSON.parse(JSON.stringify(remote)));
     cfg.github = { ...FALLBACK_CONFIG.github, ...(remote.github ?? {}) };
     cfg.github.stats = { ...FALLBACK_CONFIG.github.stats, ...(remote.github?.stats ?? {}) };
+    cfg.site.url ??= '';
+    cfg.mail = { enabled: false, host: '', port: 587, username: '', password: '', from: '', security: 'starttls', ...(remote.mail ?? {}) };
+    cfg.oauth = { github: { clientId: '', clientSecret: '', ...(remote.oauth?.github ?? {}) } };
+    cfg.users = {
+      ...(remote.users ?? FALLBACK_CONFIG.users!),
+      login: { github: false, ...(remote.users?.login ?? {}) },
+    };
   } catch {
     toast(t('studio.loadFailed'), { icon: 'x' });
   }
@@ -59,6 +68,9 @@ async function save(): Promise<void> {
       covers: cfg.covers,
       timezone: cfg.timezone,
       github: cfg.github,
+      mail: cfg.mail,
+      oauth: cfg.oauth,
+      users: { login: { github: !!cfg.users?.login.github } },
     })));
     snapshot.value = mine();
     await config.load();
@@ -155,6 +167,10 @@ onBeforeUnmount(() => {
             <div>{{ t('studio.settings.listEnd') }}<small>{{ t('studio.settings.listEndSub') }}</small></div>
             <label class="st-field w320"><input v-model="cfg.site.listEndText" /></label>
           </div>
+          <div class="st-opt">
+            <div>{{ t('studio.settings.siteUrl') }}<small>{{ t('studio.settings.siteUrlSub') }}</small></div>
+            <label class="st-field w320"><input v-model.trim="cfg.site.url" placeholder="https://example.com" spellcheck="false" /></label>
+          </div>
         </section>
 
         <section id="set-loading" class="sec st-card half st-rise" style="--i: 1">
@@ -198,7 +214,19 @@ onBeforeUnmount(() => {
           <SectionGithub :cfg="cfg" />
         </section>
 
-        <section id="set-account" class="sec st-card wide st-rise" style="--i: 5">
+        <section id="set-mail" class="sec st-card wide st-rise" style="--i: 5">
+          <h2>{{ t('studio.settings.nav.mail') }}</h2>
+          <p class="sec-desc">{{ t('studio.settings.mailDesc') }}</p>
+          <SectionMail v-if="cfg.mail" :mail="cfg.mail" :dirty="dirty" />
+        </section>
+
+        <section id="set-login" class="sec st-card wide st-rise" style="--i: 6">
+          <h2>{{ t('studio.settings.nav.login') }}</h2>
+          <p class="sec-desc">{{ t('studio.settings.loginDesc') }}</p>
+          <SectionLogin v-if="cfg.oauth && cfg.users" :cfg="cfg" />
+        </section>
+
+        <section id="set-account" class="sec st-card wide st-rise" style="--i: 7">
           <h2>{{ t('studio.settings.nav.account') }}</h2>
           <p class="sec-desc">{{ t('studio.settings.accountDesc') }}</p>
           <SectionAccount />
