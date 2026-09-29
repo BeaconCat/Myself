@@ -2,15 +2,15 @@
 import { useIdentity } from '../about/useIdentity';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { api, type Note } from '../api';
+import { api } from '../api';
 import ImageViewer, { type OriginRect } from '../components/media/ImageViewer.vue';
 import NoteCard from '../components/thoughts/NoteCard.vue';
 import MediaWall from '../components/thoughts/MediaWall.vue';
 import DateRangePicker from '../components/thoughts/DateRangePicker.vue';
 import MonthCalendar from '../components/thoughts/MonthCalendar.vue';
 import ContentIcon from '../components/post/ContentIcon.vue';
-import ContentToast, { showToast } from '../components/post/ContentToast.vue';
-import { copyText, isoDay, isStuck } from '../components/post/content';
+import ContentToast from '../components/post/ContentToast.vue';
+import { isoDay, isStuck } from '../components/post/content';
 import { useNotesFeed, useNotesIndex, type NotesTab } from '../composables/useNotesFeed';
 import { useConfigStore } from '../stores/config';
 
@@ -109,10 +109,6 @@ function openViewer(images: string[], i: number, rect: DOMRect): void {
   viewer.value = { images, index: i, rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height } };
 }
 
-async function copyNote(n: Note): Promise<void> {
-  const ok = await copyText(n.contentMd);
-  showToast(ok ? t('content.thoughts.textCopied') : t('content.article.copyFailed'));
-}
 
 /* ---------- 吸顶 ---------- */
 const NAV_H = 64;
@@ -214,7 +210,6 @@ onBeforeUnmount(() => {
                   :handle="handle"
                   @open="openViewer"
                   @mood="pickMood"
-                  @copy="copyNote"
                 />
               </div>
               <p v-if="!loading && !notes.length" class="nores">

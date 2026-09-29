@@ -3,22 +3,33 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { Note } from '../../api';
 import CoverArt from '../common/CoverArt.vue';
-import ContentIcon from '../post/ContentIcon.vue';
+import EngageBar from '../engage/EngageBar.vue';
+import { useRouter } from 'vue-router';
 import { ymdOf } from '../post/content';
 import { render as renderMarkdown } from '../../utils/markdown';
 
 /**
- * 单条随想：头像 + 头部（名字 · @handle · 时间 · 右侧「# 心情」可点）+ Markdown 正文 + 配图宫格。
+ * 单条随想：头像 + 头部（名字 · @handle · 时间 · 右侧「# 心情」可点）+ Markdown 正文 + 配图宫格 + 互动栏。
+ * 列表里点卡片空白处进入详情页（/thoughts/:id）；detail 模式为详情页本体，字号放大、不再跳转。
  * 配图 1 / 2 / 3 / 4 / 5–9 张对应单图、双拼、三拼、四宫格、九宫格；无图随想只有正文。
  * 服务端占位图与缺图统一走 CoverArt 光影构成。
  */
-const props = defineProps<{ note: Note; avatar: string; name: string; handle: string }>();
+const props = defineProps<{ note: Note; avatar: string; name: string; handle: string; detail?: boolean }>();
 const emit = defineEmits<{
   open: [images: string[], index: number, rect: DOMRect];
   mood: [mood: string];
-  copy: [note: Note];
 }>();
 const { t } = useI18n();
+const router = useRouter();
+const link = computed(() => `/thoughts/${props.note.id}`);
+
+/** 点卡片空白处进入详情（链接、按钮、配图、选中文字时不跳） */
+function onCardClick(e: MouseEvent): void {
+  if (props.detail) return;
+  if ((e.target as HTMLElement).closest('a, button, .igrid')) return;
+  if (window.getSelection()?.toString()) return;
+  void router.push(link.value);
+}
 
 const html = computed(() => renderMarkdown(props.note.contentMd));
 const grid = computed(() => {
@@ -46,7 +57,7 @@ function openAt(e: MouseEvent, i: number): void {
 </script>
 
 <template>
-  <article class="post">
+  <article class="post" :class="{ detail, link: !detail }" @click="onCardClick">
     <span class="av"><img :src="avatar" alt="" draggable="false" /></span>
     <div class="main">
       <header class="hd">
@@ -71,11 +82,7 @@ function openAt(e: MouseEvent, i: number): void {
         </button>
       </div>
 
-      <div class="act">
-        <button type="button" class="ab" :aria-label="t('content.thoughts.copyText')" :title="t('content.thoughts.copyText')" @click="emit('copy', note)">
-          <ContentIcon name="copy" />
-        </button>
-      </div>
+      <EngageBar class="act" target="note" :id="note.id" :link="link" :text="note.contentMd" :big="detail" @comment="detail || router.push(link + '#comments')" />
     </div>
   </article>
 </template>
@@ -83,6 +90,7 @@ function openAt(e: MouseEvent, i: number): void {
 <style scoped lang="scss">
 .post {
   position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr);
   gap: 16px;
@@ -235,26 +243,29 @@ function openAt(e: MouseEvent, i: number): void {
   &:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ink); }
 }
 
-/* ---------- 操作 ---------- */
-.act {
-  display: flex;
-  gap: 4px;
-  margin: 6px 0 0 -9px;
+/* ---------- 互动栏 ---------- */
+.act { margin-top: 6px; }
+
+/* 列表：整卡可点进入详情，悬停时底色轻染（左右渐隐） */
+.post.link {
+  cursor: pointer;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0 -16px;
+    z-index: -1;
+    border-radius: var(--r-md);
+    background: linear-gradient(90deg, transparent, var(--fill) 10%, var(--fill) 90%, transparent);
+    opacity: 0;
+    transition: opacity var(--dur-fast);
+  }
+
+  &:hover::after { opacity: 0.6; }
 }
 
-.ab {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 0;
-  border-radius: 50%;
-  background: none;
-  color: var(--text-3);
-  transition: background-color var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
-
-  &:hover { background: var(--fill-2); color: var(--text); }
-  &:active { transform: scale(0.94); }
-  &:focus-visible { outline: none; box-shadow: var(--focus); }
+/* 详情：正文放大 */
+.post.detail {
+  .body { font-size: 18px; line-height: 1.85; }
 }
 </style>

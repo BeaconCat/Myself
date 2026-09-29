@@ -7,6 +7,7 @@ import RouteLoading from './components/loading/RouteLoading.vue';
 import AppModal from './components/ui/AppModal.vue';
 import SearchPalette from './components/search/SearchPalette.vue';
 import SiteFooter from './components/common/SiteFooter.vue';
+import BackToTop from './components/common/BackToTop.vue';
 import { useLoadingStore } from './stores/loading';
 import { useDevice } from './composables/useDevice';
 import MobileShell from './components/mobile/MobileShell.vue';
@@ -46,10 +47,16 @@ watch(shrunk, (on) => {
     <div class="route-view">
       <!-- 换页发生在路由遮罩背后，不再套 out-in 过渡：旧页根节点自带的 transition 会被 Vue 当成离场时长，
            白白推迟新页挂载；入场由遮罩揭幕 + 页面自身 rise / reveal 承担 -->
-      <router-view />
+      <!-- 随想列表保活：从详情返回时保留已加载的条目与滚动位置 -->
+      <router-view v-slot="{ Component }">
+        <KeepAlive include="ThoughtsView">
+          <component :is="Component" />
+        </KeepAlive>
+      </router-view>
     </div>
     <SiteFooter v-if="!bare" />
     <SearchPalette v-if="!bare" />
+    <BackToTop v-if="!bare" />
   </div>
   <RouteLoading />
   <AppLoading />

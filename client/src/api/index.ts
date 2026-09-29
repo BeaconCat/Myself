@@ -41,6 +41,17 @@ export interface Note {
   createdAt: string;
 }
 
+export type EngageTarget = 'note' | 'post';
+/** 回应种类：喜欢 / 灵感 / 会心 / 共鸣（线性图标，不用 emoji） */
+export type ReactionKind = 'like' | 'spark' | 'smile' | 'resonate';
+export const REACTION_KINDS: ReactionKind[] = ['like', 'spark', 'smile', 'resonate'];
+
+export interface EngageSummary {
+  reactions: Partial<Record<ReactionKind, number>>;
+  mine: ReactionKind[];
+  comments: number;
+}
+
 export interface NoteDraft {
   contentMd: string;
   mood: string;
@@ -148,6 +159,24 @@ export const api = {
   tags: () => get<Tag[]>('/tags'),
   hero: () => get<HeroFeed>('/hero'),
   siteConfig: <T>() => get<T>('/site-config'),
+  /** 单条随想 + 相邻（older = 更早一条，newer = 更新一条；0 表示没有） */
+  note: (id: number) => get<{ note: Note; older: number; newer: number }>(`/notes/${id}`),
+  /** 批量互动摘要：回应计数、当前访客已点、已公开评论数 */
+  engage: (target: EngageTarget, ids: number[]) =>
+    fetch(`${BASE}/engage?target=${target}&ids=${ids.join(',')}`, { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : {})) as Promise<Record<string, EngageSummary>>,
+  /** 切换一个回应（已点则取消） */
+  react: async (target: EngageTarget, id: number, kind: ReactionKind): Promise<EngageSummary> => {
+    const res = await fetch(`${BASE}/reactions`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'myself' },
+      body: JSON.stringify({ target, id, kind }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((data as { error?: string }).error ?? `api_error_${res.status}`);
+    return data as EngageSummary;
+  },
   githubStatus: <T>() => get<T>('/github-status'),
   notes: (params: {
     page?: number; pageSize?: number; q?: string; media?: boolean;

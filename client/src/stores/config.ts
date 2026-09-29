@@ -88,6 +88,8 @@ export interface UsersConfig {
   comments: { enabled: boolean; anonymous: boolean; moderation: 'all' | 'first' | 'none' };
   /** 公开配置：github = GitHub 登录可用；mailReset = 可用邮件找回密码 */
   login: { github: boolean; mailReset?: boolean };
+  /** 访客回应（喜欢 / 灵感 / 会心 / 共鸣），缺省开启 */
+  reactions?: boolean;
 }
 
 export interface MailConfig {

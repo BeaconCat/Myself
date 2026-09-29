@@ -55,8 +55,9 @@ onBeforeUnmount(() => {
   ro?.disconnect();
 });
 
-function open(): void {
-  void router.push('/thoughts');
+/** 点卡片进入该条随想的详情 */
+function open(id: number): void {
+  void router.push(`/thoughts/${id}`);
 }
 </script>
 
@@ -88,8 +89,8 @@ function open(): void {
         class="tcard"
         role="link"
         tabindex="0"
-        @click="open"
-        @keydown.enter="open"
+        @click="open(n.id)"
+        @keydown.enter="open(n.id)"
       >
         <div class="top">
           <span>{{ md(n.createdAt) }}</span>

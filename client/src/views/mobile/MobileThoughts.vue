@@ -9,13 +9,22 @@ import { render } from '../../utils/markdown';
 import LargeTitlePage from '../../components/mobile/LargeTitlePage.vue';
 import MediaViewer, { type ViewerItem } from '../../components/mobile/MediaViewer.vue';
 import MIcon from '../../components/mobile/MIcon.vue';
-import { copyText, monthDay, openSearch, toast } from '../../components/mobile/shell';
+import EngageBar from '../../components/engage/EngageBar.vue';
+import { useRouter } from 'vue-router';
+import { monthDay, openSearch } from '../../components/mobile/shell';
 
 /**
  * 移动端随想：信息流 / 媒体 segmented（横排，滑块回弹，视图按方向滑入）；
  * 九宫格配图点开全屏查看器（从缩略图展开、左右滑、下拉关闭）；触底续载；下拉刷新。
  */
 const { t } = useI18n();
+const router = useRouter();
+
+/** 点卡片空白处进入随想详情（配图、按钮、链接除外） */
+function openDetail(e: MouseEvent, n: Note): void {
+  if ((e.target as HTMLElement).closest('a, button, .grid')) return;
+  void router.push(`/thoughts/${n.id}`);
+}
 const config = useConfigStore();
 
 const sentinel = ref<HTMLElement | null>(null);
@@ -94,11 +103,6 @@ function openMedia(i: number): void {
 
 const origin = (i: number): HTMLElement | null => thumbs.get(viewerKeys.value[i]) ?? null;
 
-async function share(n: Note): Promise<void> {
-  const ok = await copyText(`${window.location.origin}/thoughts#note-${n.id}`);
-  toast(ok ? t('mobile.linkCopied') : t('mobile.copyFailed'));
-}
-
 const mediaCount = computed(() => media.value.length);
 </script>
 
@@ -148,6 +152,7 @@ const mediaCount = computed(() => media.value.length);
             :key="n.id"
             class="post m-in"
             :style="{ '--i': Math.min(i, 8) }"
+            @click="openDetail($event, n)"
           >
             <span class="av"><img class="m-avatar" :src="avatar" alt="" draggable="false" /></span>
             <div class="post-main">
@@ -173,9 +178,7 @@ const mediaCount = computed(() => media.value.length);
                   />
                 </button>
               </div>
-              <footer class="act">
-                <button class="m-tap" :aria-label="t('mobile.share')" @click="share(n)"><MIcon name="share" /></button>
-              </footer>
+              <EngageBar class="act" target="note" :id="n.id" :link="`/thoughts/${n.id}`" :text="n.contentMd" @comment="router.push(`/thoughts/${n.id}#comments`)" />
             </div>
           </article>
         </template>

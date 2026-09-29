@@ -34,6 +34,7 @@ export const router = createRouter({
     page('/articles', 'articles', () => import('../views/ArticlesView.vue')),
     page('/articles/:slug', 'article', () => import('../views/ArticleView.vue')),
     page('/thoughts', 'thoughts', () => import('../views/ThoughtsView.vue')),
+    page('/thoughts/:id(\\d+)', 'thought', () => import('../views/NoteDetailView.vue')),
     page('/about', 'about', () => import('../views/AboutView.vue')),
     { path: '/archive', redirect: '/thoughts' },
     {
@@ -63,7 +64,20 @@ export const router = createRouter({
     },
     { path: '/admin/posts/:id', redirect: (to) => ({ path: '/admin/write/post', query: { id: String(to.params.id) } }) },
   ],
-  scrollBehavior: () => ({ top: 0, behavior: 'smooth' }),
+  // 后退 / 前进回到原位置（随想列表保活，时间轴停在点进详情前的位置）；其余新页面回顶
+  // 恢复前等页面撑到足够高度（保活页重新挂上、遮罩揭幕后），最多等 1.5s，避免被截断在半路
+  scrollBehavior: (_to, _from, saved) => {
+    if (!saved) return { top: 0, behavior: 'smooth' };
+    const need = (saved.top ?? 0) + window.innerHeight;
+    return new Promise((resolve) => {
+      const started = performance.now();
+      const tick = () => {
+        if (document.documentElement.scrollHeight >= need || performance.now() - started > 1500) resolve(saved);
+        else requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  },
 });
 
 /**
