@@ -176,8 +176,16 @@ func (s *Server) adminResetLink(w http.ResponseWriter, r *http.Request) {
 	sent := false
 	if b.truthy("send") && u.Email != "" {
 		site := s.Config.Typed().Site.Title
-		if err := s.sendMail(u.Email, "重置你在「"+site+"」的密码",
-			u.Name+"，你好：\n\n站长为你生成了一个重置密码的链接，24 小时内有效：\n"+link+"\n\n—— "+site); err != nil {
+		if err := s.sendLetter(u.Email, letter{
+			Subject:   "重置你在「" + site + "」的密码",
+			Preheader: "站长为你生成了一个重置密码的链接。",
+			Title:     "设置新密码",
+			Greeting:  u.Name + "，你好：",
+			Lines:     []string{"站长为你生成了一个重置密码的链接。点下面的按钮设置新密码，之后用新密码登录即可。"},
+			Action:    &mailAction{Label: "设置新密码", URL: link},
+			Expire:    "链接 24 小时内有效，只能使用一次。",
+			Note:      "如果你并没有向站长请求重置，可以忽略这封邮件，原密码仍然有效。",
+		}, s.siteBase(r)); err != nil {
 			s.logMail(err)
 		} else {
 			sent = true
@@ -281,8 +289,16 @@ func (s *Server) adminCreateInvite(w http.ResponseWriter, r *http.Request) {
 	if b.truthy("send") && email != "" {
 		site := s.Config.Typed().Site.Title
 		roleName := map[string]string{store.RoleAuthor: "协作作者", store.RoleReader: "读者"}[role]
-		if err := s.sendMail(email, "邀请你加入「"+site+"」",
-			"你好：\n\n站长邀请你以"+roleName+"的身份加入「"+site+"」。\n打开下面的链接即可完成注册（"+strconv.Itoa(days)+" 天内有效）：\n"+link+"\n\n—— "+site); err != nil {
+		if err := s.sendLetter(email, letter{
+			Subject:   "邀请你加入「" + site + "」",
+			Preheader: "站长邀请你以" + roleName + "的身份加入。",
+			Title:     "你收到了一份邀请",
+			Greeting:  "你好：",
+			Lines:     []string{"站长邀请你以" + roleName + "的身份加入「" + site + "」。点下面的按钮，填好昵称和密码即可完成注册。"},
+			Action:    &mailAction{Label: "接受邀请", URL: link},
+			Expire:    "邀请 " + strconv.Itoa(days) + " 天内有效，只能使用一次。",
+			Note:      "如果你不认识发出邀请的站点，忽略这封邮件即可。",
+		}, s.siteBase(r)); err != nil {
 			s.logMail(err)
 		} else {
 			sent = true

@@ -352,8 +352,16 @@ func (s *Server) sendVerifyMail(r *http.Request, u *store.User) error {
 	}
 	link := s.siteBase(r) + "/account/verify?token=" + raw
 	site := s.Config.Typed().Site.Title
-	return s.sendMail(u.Email, "验证你在「"+site+"」的邮箱",
-		u.Name+"，你好：\n\n请在 48 小时内打开下面的链接完成邮箱验证：\n"+link+"\n\n如果这不是你本人的操作，忽略这封邮件即可。\n\n—— "+site)
+	return s.sendLetter(u.Email, letter{
+		Subject:   "验证你在「" + site + "」的邮箱",
+		Preheader: "点一下按钮完成邮箱验证，账号即可使用。",
+		Title:     "验证你的邮箱",
+		Greeting:  u.Name + "，你好：",
+		Lines:     []string{"欢迎加入「" + site + "」。点下面的按钮完成邮箱验证，账号就会激活并自动登录。"},
+		Action:    &mailAction{Label: "验证邮箱", URL: link},
+		Expire:    "链接 48 小时内有效，只能使用一次。",
+		Note:      "如果这不是你本人的操作，忽略这封邮件即可，不会有任何影响。",
+	}, s.siteBase(r))
 }
 
 // POST /auth/verify {token} 验证邮箱并登录
@@ -419,9 +427,16 @@ func (s *Server) forgotPassword(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			site := cfg.Site.Title
-			err = s.sendMail(u.Email, "重置你在「"+site+"」的密码",
-				u.Name+"，你好：\n\n请在 1 小时内打开下面的链接设置新密码：\n"+base+"/account/reset?token="+raw+
-					"\n\n如果你没有申请重置密码，忽略这封邮件即可，原密码仍然有效。\n\n—— "+site)
+			err = s.sendLetter(u.Email, letter{
+				Subject:   "重置你在「" + site + "」的密码",
+				Preheader: "有人申请重置你的密码；如果是你，点按钮设置新密码。",
+				Title:     "重置密码",
+				Greeting:  u.Name + "，你好：",
+				Lines:     []string{"我们收到了重置「" + site + "」账号密码的申请。点下面的按钮设置一个新密码。"},
+				Action:    &mailAction{Label: "设置新密码", URL: base + "/account/reset?token=" + raw},
+				Expire:    "链接 1 小时内有效，只能使用一次。",
+				Note:      "如果你没有申请重置密码，忽略这封邮件即可，原密码仍然有效。",
+			}, base)
 			if err != nil {
 				s.logMail(err)
 			}
