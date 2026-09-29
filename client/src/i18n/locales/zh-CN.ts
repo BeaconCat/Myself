@@ -92,8 +92,10 @@ export default {
     faq: { count: '{n} 问' },
     guestbook: {
       visitor: '访客', visitorShort: '访', justNow: '刚刚', submitted: '留言已提交，审核后公开', count: '{n} 条留言',
-      placeholder: '留下一句话，回车发送', send: '发送', needLogin: '登录后留言 · 需审核后公开',
-      asVisitor: '以访客身份留言 · 需审核后公开', latest: '最新', owner: '站长',
+      placeholder: '留下一句话，回车发送', send: '发送', needLogin: '登录后就能留言',
+      asVisitor: '以访客身份留言 · 审核后公开', asUser: '以「{name}」留言', latest: '最新', owner: '站长',
+      posted: '留言已发布', needName: '先写个昵称', namePh: '昵称', closed: '留言墙暂时关闭',
+      empty: '还没有留言，来写第一句吧。', more: '展开其余 {n} 条', less: '收起',
     },
     ed: {
       span: '宽度', spanCols: '占 {n} / 12 栏', variant: '变体', title: '标题', hidden: '已隐藏', visible: '显示中',
@@ -126,7 +128,8 @@ export default {
       addGroup: '添加分组', groupTitle: '分组标题', tagsHint: '用逗号分隔多个标签', starHint: '点击设为主技能',
       role: '角色', glyph: '徽标', spec: '规格 / 说明', tag: '标签',
       single: '同时只展开一条', question: '问题', answer: '回答（支持 `行内代码`）',
-      pageSize: '每页', total: '留言总数', requireLogin: '需要登录', guestbookHint: '留言后端随用户系统上线；下面是展示在墙上的精选留言。',
+      pageSize: '首屏条数', total: '留言总数', requireLogin: '需要登录', guestbookHint: '留言是真实评论：谁能留言在「用户」页设置，审核与回复在「评论」页。',
+      guestbookGo: '去「评论」页管理留言',
       guestName: '昵称', reply: '站长回复（可空）',
       langColorHint: '配色自动取主题主色的单色阶梯（按占比从深到浅）。',
     },

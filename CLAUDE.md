@@ -8,7 +8,7 @@
 
 ## 前端规范
 - 依赖全部离线 npm 包（pnpm 安装），严禁 CDN / 联网拉取资源
-- 严禁 emoji；图标用离线安装的 iconfont
+- 严禁 emoji；严禁手绘 SVG 图标：线性图标统一用离线 `lucide`（成套具名图标走各自组件 SIcon / MaIcon / MIcon / UiIcon / ContentIcon / EngageIcon / KitIcon 的映射表，零散图标用 `components/ui/Icon.vue` 直接传 Lucide 图标），品牌 logo 用离线 `simple-icons`（注册表 `about/brands.ts`）；图表、地图、插画不算图标
 - 严禁原生 alert/confirm/prompt：一律使用全局模态组件
   （`stores/dialog.ts` + `components/ui/AppModal.vue`，带灵动进出场动画）
 - 字体：思源黑体（UI/正文）+ 思源宋体（标题/文章），离线 woff2 打包
@@ -17,8 +17,9 @@
 - 后台：Studio 设计（`views/admin/`，token 在 `styles/admin.scss` 的 `.studio` 作用域，底色/纸面随主题色 3–8% 交叠）；子路由契约 `router/admin.ts`（name 稳定）
 - 设计语言：强调系统见 `design/round3/IMPLEMENT.md`（抬升 + 轻染、实底主按钮、无彩色发光、圆角 token `--r-*`，基准由 `theme.radius` 配置）；高密度排版见 `design/round3/DENSITY.md`（统计条、大号等宽数字、图表撑满、收紧留白）
 - 首页 Hero：文字动效与卡组动效为两个独立注册表（`components/home/hero/choreo/{text,card}`），配置 `hero.textAnim` / `hero.cardAnim` 自由搭配，后台「外观」页用 `HeroMixer.vue` 实时预览
-- 关于页：模块化组件库（`about/`，26 种模块，12 栏 bento，`span/variant/title/hidden`），旧配置经 `about/migrate.ts` 读取时迁移；默认模块唯一来源 `about/default-modules.json`，改后运行 `python scripts/sync_about_defaults.py` 同步到 Go 默认配置
-- 站点身份：头像 / 形象图 / 名字 / 签名 / 自述 / 状态 / 链接 / 格言存于 `about` 顶层，是全站唯一来源（`about/identity.ts`），后台「身份」页（`views/admin/AdminIdentityView.vue`）编辑；profile / motto 模块只存展示选项（kicker、收尾装饰），渲染时 `injectIdentity` 注入内容，勿把内容写回模块
+- 关于页：模块化组件库（`about/`，26 种模块，12 栏 bento，`span/variant/title/hidden`），旧配置经 `about/migrate.ts` 读取时迁移；出厂模块 `about/default-modules.json`（仅身份 / 统计 / 格言），演示模块 `about/demo-modules.json`（初始化选了 Demo 才写入数据库），改后运行 `python scripts/sync_about_defaults.py` 同步到 Go；演示数据不得写死在代码里
+- 留言墙模块是真实评论（target=guestbook），模块只存展示选项
+- 站点身份：头像 / 形象图 / 名片头图（`banner`，默认关）/ 名字 / 别名 / 签名 / 自述 / 状态 / 链接 / 格言存于 `about` 顶层，是全站唯一来源（`about/identity.ts`，展示值统一取 `about/useIdentity.ts`），后台「身份」页（`views/admin/AdminIdentityView.vue`）编辑；profile / motto 模块只存展示选项（kicker、收尾装饰），渲染时 `injectIdentity` 注入内容，勿把内容写回模块；链接的 `card` 标记决定名片按钮（最多 3 个，桌面与移动共用 `cardLinks`）
 
 ## 主题系统
 - 三维正交：`mode`（light/dark）×`palette`（季节色盘）×`style`（`clean` 透明背景简洁，默认 / `cards` 高密度卡片，可选）；风格 token 在 `styles/tokens.scss` 末尾（`--card-*` `--statbar-*` `--section-gap` 等），站点默认 `theme.defaultStyle`，`theme.allowUserStyle` 控制访客切换
@@ -38,7 +39,10 @@
 
 ## 后端规范
 - RESTful API，前缀 `/api/v1`
-- JWT 管理员认证（后台编辑）；API 中心：APIKey 认证（`X-Api-Key`），供外部 AI 发文
+- 会话：HttpOnly Cookie `myself_session`（JWT，`sub` 用户 id + `tv` 令牌版本），写操作要带 `X-Requested-With: myself` 且 Origin 与 Host 一致（开发代理保持浏览器 Host）；中间件 `requireRole(admin|author|reader)`
+- 用户系统（`users.*` 配置）：总开关 `enabled` → 读者（注册 open/invite/closed、邮箱验证）/ 协作作者（直接发布）/ 评论（审核 all/first/none、匿名）各自独立；访客回应 `reactions` 不受总开关约束；登录：密码 / GitHub OAuth / 站长生成重置链接，发信走 `mail.*` SMTP；前端路由守卫按角色预判（`stores/auth.ts` 的 `canEnterAdmin`），作者只进文章 / 写作 / 素材
+- 互动：回应（喜欢 / 灵感 / 会心 / 共鸣，访客 Cookie 去重）与评论（post / note / guestbook）；前端 `stores/engage.ts` 批量取摘要，`components/engage/`（EngageBar、CommentSection）
+- API 中心：APIKey 认证（`X-Api-Key`），供外部 AI 发文
 - SQLite 存储（modernc.org/sqlite），文章正文为 Markdown
 - 布局：`cmd/myself-server` 入口，`internal/{store,auth,config,imaging,httpapi}`；标准库 ServeMux 方法路由
 - 图片处理纯 Go（stdlib + gen2brain/webp），备份 archive/zip；本机无 gcc，勿引入 cgo 依赖
@@ -56,7 +60,7 @@
 
 ## 分期
 - P0 骨架：主题系统、i18n、响应式布局、motion 系统、Hero 轮播 ✅进行中
-- P1 博客核心：列表/详情/标签/随想（原归档已并入随想），Markdown 渲染 + 代码高亮 + TOC + RSS ✅
+- P1 博客核心：列表/详情/标签/随想（原归档已并入随想；随想详情 `/thoughts/:id`，列表保活回到原位置），Markdown 渲染 + 代码高亮 + TOC + RSS ✅
 - P2 后台：登录 + 帖文 CRUD（TipTap 富文本，Markdown 存储）✅
 - P3 API 中心：APIKey 管理 ✅
-- P4 预留：用户系统、评论
+- P4 用户系统与评论 ✅（后台用户 / 评论页、设置 · 邮件与登录方式、前台 `/account/*`）

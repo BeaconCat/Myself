@@ -11,6 +11,8 @@ import CoverAccordion from '../components/post/CoverAccordion.vue';
 import ArticleToc from '../components/post/ArticleToc.vue';
 import ContentIcon from '../components/post/ContentIcon.vue';
 import ContentToast, { showToast } from '../components/post/ContentToast.vue';
+import EngageBar from '../components/engage/EngageBar.vue';
+import CommentSection from '../components/engage/CommentSection.vue';
 import { copyText, dotted, readMinutes, wordCount } from '../components/post/content';
 import { useLoadingStore } from '../stores/loading';
 import { renderWithToc, type TocItem } from '../utils/markdown';
@@ -145,6 +147,11 @@ function toggleType(): void {
   localStorage.setItem(BIG_KEY, bigType.value ? '1' : '0');
   showToast(bigType.value ? t('content.article.bigType') : t('content.article.normalType'));
   void nextTick(onScroll);
+}
+
+/** 互动栏的评论按钮：平滑滚到评论区（评论关闭时评论区不渲染，什么也不做） */
+function toComments(): void {
+  document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function copyLink(): Promise<void> {
@@ -317,6 +324,12 @@ const C = 2 * Math.PI * 9;
               </router-link>
             </nav>
           </footer>
+
+          <!-- 回应（喜欢 / 表情 / 评论 / 分享）与评论区 -->
+          <div class="engage rise" style="--i: 7">
+            <EngageBar target="post" :id="post.id" :link="`/articles/${post.slug}`" :text="post.title" big @comment="toComments" />
+          </div>
+          <CommentSection target="post" :comment-key="post.slug" :engage-id="post.id" />
         </div>
 
         <ArticleToc
@@ -728,6 +741,12 @@ h1 {
 }
 
 /* ---------- 文末 ---------- */
+.engage {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+}
+
 .end {
   margin-top: 36px;
   padding-top: 22px;

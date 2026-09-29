@@ -160,4 +160,5 @@ export interface UsesData { groups: { title: string; items: UsesItem[] }[] }
 export interface FaqData { single: boolean; items: { q: string; a: string }[] }
 
 export interface GuestNote { name: string; color?: string; at: string; text: string; likes: number; reply?: string }
-export interface GuestbookData { pageSize: number; requireLogin: boolean; total?: number; items: GuestNote[] }
+/** 留言墙：只存展示选项；留言是真实评论。requireLogin / total / items 为旧版示例字段，读取时忽略 */
+export interface GuestbookData { pageSize: number; requireLogin?: boolean; total?: number; items?: GuestNote[] }

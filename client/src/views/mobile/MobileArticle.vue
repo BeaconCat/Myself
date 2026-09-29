@@ -10,6 +10,8 @@ import { renderWithToc, type TocItem } from '../../utils/markdown';
 import CoverArt from '../../components/common/CoverArt.vue';
 import MIcon from '../../components/mobile/MIcon.vue';
 import BottomSheet from '../../components/mobile/BottomSheet.vue';
+import EngageBar from '../../components/engage/EngageBar.vue';
+import CommentSection from '../../components/engage/CommentSection.vue';
 import { copyText, monthDay, readMinutes, toast } from '../../components/mobile/shell';
 
 /**
@@ -118,6 +120,11 @@ function toggleType(): void {
   toast(bigType.value ? t('mobile.article.bigType') : t('mobile.article.normalType'));
 }
 
+/** 互动栏的评论按钮：平滑滚到评论区（评论关闭时评论区不渲染，什么也不做） */
+function toComments(): void {
+  document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 async function share(): Promise<void> {
   const ok = await copyText(window.location.href);
   toast(ok ? t('mobile.linkCopied') : t('mobile.copyFailed'));
@@ -210,6 +217,12 @@ const byline = computed(() => (post.value?.author
               <div class="thumb"><CoverArt :src="next.covers[0]" :seed="next.slug" thumb /></div>
             </button>
           </footer>
+          <div class="dt-engage m-in" style="--i: 6">
+            <EngageBar target="post" :id="post.id" :link="`/articles/${post.slug}`" :text="post.title" big @comment="toComments" />
+          </div>
+          <div class="dt-comments">
+            <CommentSection target="post" :comment-key="post.slug" :engage-id="post.id" />
+          </div>
         </div>
 
         <div v-else key="nf" class="m-empty nf">{{ t('mobile.article.notFound') }}</div>
@@ -503,8 +516,9 @@ const byline = computed(() => (post.value?.author
   }
 }
 
+/* 底部留白让给最后一块（评论区），避开阅读浮条 */
 .dt-end {
-  padding: 18px 22px calc(var(--m-safe-b) + 120px);
+  padding: 18px 22px 0;
 
   .tags {
     display: flex;
@@ -512,6 +526,9 @@ const byline = computed(() => (post.value?.author
     gap: 8px;
   }
 }
+
+.dt-engage { display: flex; justify-content: center; padding: 26px 22px 0; }
+.dt-comments { padding: 0 22px calc(var(--m-safe-b) + 120px); }
 
 .next {
   display: flex;

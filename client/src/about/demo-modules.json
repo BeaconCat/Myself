@@ -945,8 +945,7 @@
     "span": 3,
     "variant": "wall",
     "data": {
-      "pageSize": 4,
-      "requireLogin": false
+      "pageSize": 4
     }
   },
   {
