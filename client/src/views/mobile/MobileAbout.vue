@@ -3,27 +3,43 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useConfigStore } from '../../stores/config';
 import AboutModules from '../../about/AboutModules.vue';
-import { plainText } from '../../about/identity';
+import KitIcon from '../../about/parts/KitIcon.vue';
+import { dayPartKey, pad2, useClock, zoned } from '../../about/useClock';
+import { safeHref } from '../../utils/safeUrl';
 import LargeTitlePage from '../../components/mobile/LargeTitlePage.vue';
 import MIcon from '../../components/mobile/MIcon.vue';
 import { copyText, toast } from '../../components/mobile/shell';
 
 /**
- * 移动端关于：身份区（头像 / 名字 / 格言大字，后半句主色）+ 模块流（复用 AboutModules，仅在容器上做窄屏适配）
- * + 源代码 / RSS 入口。配置未就绪时显示同几何骨架。
+ * 移动端关于：
+ * - 身份名片：横幅（形象图，未设时用默认封面）+ 压边头像 + 链接圆钮，名字（别名）/ 账号 / 签名（*高亮*）/ 自述，
+ *   底部状态条（正在做 · 城市 · 本地时间）
+ * - 模块流（复用 AboutModules，仅在容器上做窄屏适配；身份与格言不在流里重复）
+ * - 格言收尾（与桌面一致放在「想聊聊」之后），最后是「本站基于 Myself」与 RSS 入口
+ * 配置未就绪时显示同几何骨架。
  */
 const { t } = useI18n();
 const config = useConfigStore();
 const about = computed(() => config.cfg.about);
 const avatar = computed(() => about.value.avatar || '/favicon-256.png');
 const handle = computed(() => config.cfg.github.username || 'myself');
+const banner = computed(() => about.value.portrait?.src || '/covers/05.webp');
+const bannerFocus = computed(() => about.value.portrait?.focus || '50% 40%');
+const links = computed(() => (about.value.links ?? []).filter((l) => l?.url).slice(0, 4));
+const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 
-/** 格言按第一个中文逗号拆成两行，后半句用主色 */
-const motto = computed(() => {
-  const m = about.value.motto ?? '';
-  const i = m.search(/[，,]/);
-  return i > 0 ? [m.slice(0, i + 1), m.slice(i + 1)] : [m, ''];
-});
+/** *星号* 包裹的片段高亮 */
+const lede = computed(() =>
+  (about.value.tagline ?? '').split('*').map((text, i) => ({ text, em: i % 2 === 1 })).filter((x) => x.text),
+);
+
+const now = useClock();
+const tz = computed(() => Number(about.value.status?.tz ?? 8));
+const clock = computed(() => zoned(now.value, tz.value));
+
+/** 格言模块单独放到页尾（「想聊聊」之后）；其余模块照常成流 */
+const flow = computed(() => (about.value.modules ?? []).filter((m) => m.type !== 'motto'));
+const closing = computed(() => (about.value.modules ?? []).filter((m) => m.type === 'motto' && !m.hidden));
 
 async function share(): Promise<void> {
   const ok = await copyText(window.location.href);
@@ -49,15 +65,10 @@ async function refresh(): Promise<void> {
     <template #hero>
       <Transition name="m-swap" mode="out-in">
         <section v-if="!config.loaded" key="sk" class="ab-hero sk">
-          <div class="ab-id">
-            <span class="m-sk ab-av" />
-            <div class="ab-who">
-              <span class="m-sk m-sk-line" style="width: 60%; height: 26px" />
-              <span class="m-sk m-sk-line" style="width: 80%; margin-top: 10px" />
-            </div>
-          </div>
-          <span class="m-sk m-sk-line" style="width: 70%; height: 24px; margin-top: 20px" />
-          <span class="m-sk m-sk-line" style="width: 50%; height: 24px; margin-top: 10px" />
+          <div class="m-sk ab-banner" />
+          <span class="m-sk ab-av" />
+          <span class="m-sk m-sk-line" style="width: 46%; height: 26px; margin-top: 14px" />
+          <span class="m-sk m-sk-line" style="width: 30%; margin-top: 10px" />
           <span class="m-sk m-sk-line" style="width: 92%; margin-top: 18px" />
           <span class="m-sk m-sk-line" style="width: 80%; margin-top: 8px" />
           <div class="m-sk sk-mod" />
@@ -65,31 +76,75 @@ async function refresh(): Promise<void> {
 
         <div v-else key="ok">
           <section class="ab-hero">
-            <div class="ab-id m-in">
-              <div class="ab-av"><img :src="avatar" alt="" draggable="false" /></div>
-              <div class="ab-who">
-                <h1 class="ab-name">{{ about.name }}</h1>
-                <div class="ab-handle">@{{ handle }}<template v-if="about.tagline"> · {{ plainText(about.tagline) }}</template></div>
+            <div class="ab-card m-in">
+              <div class="ab-banner">
+                <img :src="banner" :style="{ objectPosition: bannerFocus }" alt="" draggable="false" />
               </div>
+              <div class="ab-row">
+                <div class="ab-av">
+                  <img :src="avatar" alt="" draggable="false" />
+                  <i v-if="about.status?.doing" class="ab-live" />
+                </div>
+                <nav v-if="links.length" class="ab-links">
+                  <a
+                    v-for="l in links"
+                    :key="l.name + l.url"
+                    :href="safeHref(l.url)"
+                    :target="external(l.url)"
+                    rel="noopener noreferrer"
+                    :aria-label="l.name"
+                    :class="{ pri: l.primary }"
+                    class="m-tap"
+                  ><KitIcon :name="l.icon" :size="18" /></a>
+                </nav>
+              </div>
+
+              <div class="ab-body">
+                <h1 class="ab-name">
+                  {{ about.name }}<small v-if="about.alias?.trim()">{{ about.alias.trim() }}</small>
+                </h1>
+                <div class="ab-handle">@{{ handle }}</div>
+                <p v-if="lede.length" class="ab-lede">
+                  <template v-for="(x, i) in lede" :key="i"><em v-if="x.em">{{ x.text }}</em><template v-else>{{ x.text }}</template></template>
+                </p>
+                <p v-if="about.bio" class="ab-bio">{{ about.bio }}</p>
+              </div>
+
+              <dl class="ab-status">
+                <div v-if="about.status?.doing">
+                  <dt>{{ t('aboutKit.doing') }}</dt>
+                  <dd><span class="ak-dot live" />{{ about.status.doing }}</dd>
+                </div>
+                <div v-if="about.status?.city">
+                  <dt>{{ t('aboutKit.city') }}</dt>
+                  <dd>{{ about.status.city }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t('aboutKit.localTime') }}</dt>
+                  <dd><span class="mono">{{ pad2(clock.h) }}:{{ pad2(clock.m) }}</span><small>{{ t(dayPartKey(clock.h)) }}</small></dd>
+                </div>
+              </dl>
             </div>
-            <p v-if="motto[0]" class="ab-quote m-in" style="--i: 3">
-              {{ motto[0] }}<br v-if="motto[1]" /><span>{{ motto[1] }}</span>
-            </p>
-            <p v-if="about.bio" class="ab-bio m-in" style="--i: 4">{{ about.bio }}</p>
           </section>
 
-          <div class="mods m-in" style="--i: 5">
-            <AboutModules :modules="about.modules ?? []" :about="about" />
+          <div class="mods m-in" style="--i: 3">
+            <AboutModules :modules="flow" :about="about" />
           </div>
 
-          <div class="m-list ab-list m-in" style="--i: 6">
+          <div v-if="closing.length" class="mods closing">
+            <AboutModules :modules="closing" :about="about" />
+          </div>
+
+          <div class="m-list ab-list m-in" style="--i: 4">
             <a class="m-li" href="https://github.com/BeaconCat/Myself" target="_blank" rel="noopener">
               <span class="lic" style="--c: #24292f"><MIcon name="github" /></span>
-              <span>{{ t('mobile.about.source') }}</span><small>BeaconCat/Myself</small><MIcon name="chev" class="chev" />
+              <span class="li-t"><b>{{ t('mobile.about.source') }}</b><small>{{ t('mobile.about.sourceSub') }}</small></span>
+              <MIcon name="chev" class="chev" />
             </a>
             <button class="m-li" @click="copyRss">
               <span class="lic" style="--c: #ff7a1a"><MIcon name="rss" /></span>
-              <span>{{ t('mobile.rss') }}</span><small>/feed</small><MIcon name="chev" class="chev" />
+              <span class="li-t"><b>{{ t('mobile.rss') }}</b><small>{{ t('mobile.about.rssSub') }}</small></span>
+              <MIcon name="chev" class="chev" />
             </button>
           </div>
         </div>
@@ -103,70 +158,191 @@ async function refresh(): Promise<void> {
   position: relative;
   padding: 8px 16px 4px;
 
-  &.sk .m-sk-line { display: block; }
+  &.sk {
+    .m-sk-line { display: block; }
+    .ab-av { display: block; margin: -40px 0 0 16px; }
+  }
 }
 
-/* 身份行（高密度）：头像 + 名字 / 账号同一行，不再纵向各占一块 */
-.ab-id {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.ab-who { flex: 1; min-width: 0; }
-
-.ab-av {
+/* 身份名片：横幅 + 压边头像 */
+.ab-card {
   position: relative;
-  flex: none;
-  width: 72px;
-  height: 72px;
-  border-radius: var(--r-lg);
+  border-radius: var(--r-xl);
+  background: var(--elev);
+  box-shadow: inset 0 0 0 0.5px var(--line-2), 0 18px 40px -30px rgb(0 0 0 / 0.45);
   overflow: hidden;
-  box-shadow: var(--shadow-card);
+}
+
+.ab-banner {
+  position: relative;
+  height: 132px;
+  overflow: hidden;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
+    animation: ab-banner-in 1.1s var(--ease-out) both;
+  }
+
+  /* 底缘轻压暗，头像压边时更稳 */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 45% 0 0;
+    background: linear-gradient(transparent, rgb(0 0 0 / 0.16));
   }
 }
 
+.sk .ab-banner { border-radius: var(--r-xl); }
+
+@keyframes ab-banner-in {
+  from { transform: scale(1.08); filter: blur(6px); }
+}
+
+.ab-row {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  margin-top: -40px;
+}
+
+.ab-av {
+  position: relative;
+  flex: none;
+  width: 80px;
+  height: 80px;
+  border-radius: var(--r-xl);
+  background: var(--elev);
+  box-shadow: 0 0 0 4px var(--elev), 0 12px 26px -14px rgb(0 0 0 / 0.55);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: inherit;
+  }
+}
+
+.ab-live {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px var(--elev);
+}
+
+.ab-links {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 2px;
+
+  a {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    color: var(--text);
+    background: var(--fill);
+    box-shadow: inset 0 0 0 0.5px var(--line-2);
+
+    &.pri { background: var(--solid); color: var(--on-solid); box-shadow: none; }
+  }
+
+  /* KitIcon 的线性描边样式挂在 .ak 作用域下，名片在模块流之外，这里补上 */
+  :deep(svg.ak-i) {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+.ab-body { padding: 12px 16px 0; }
+
 .ab-name {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 10px;
   font-family: var(--font-serif);
   font-size: 28px;
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: 0.01em;
+
+  small {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-3);
+    letter-spacing: 0;
+  }
 }
 
 .ab-handle {
   margin-top: 4px;
-  font-size: 13px;
+  font: 500 13px var(--font-mono);
   color: var(--text-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.ab-quote {
-  position: relative;
-  margin-top: 20px;
+.ab-lede {
+  margin-top: 14px;
   font-family: var(--font-serif);
-  font-size: 24px;
-  line-height: 1.5;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: 19px;
+  line-height: 1.55;
+  font-weight: 600;
 
-  span { color: var(--ink); }
+  em { font-style: normal; color: var(--ink); }
 }
 
 .ab-bio {
-  position: relative;
-  margin-top: 10px;
+  margin-top: 8px;
   font-size: 15px;
   line-height: 1.75;
   color: var(--text-2);
+}
+
+/* 状态条：等分格 + 细分隔线 */
+.ab-status {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  margin: 16px 16px 0;
+  padding: 12px 0 14px;
+  border-top: 0.5px solid var(--line-2);
+
+  > div { min-width: 0; padding: 0 12px; }
+  > div:first-child { padding-left: 0; }
+  > div + div { box-shadow: -0.5px 0 0 var(--line-2); }
+
+  dt { font-size: 11.5px; color: var(--text-3); letter-spacing: 0.04em; }
+
+  dd {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    small { font-size: 12px; font-weight: 400; color: var(--text-3); }
+  }
+
+  .mono { font-family: var(--font-mono); }
 }
 
 /* 模块流窄屏适配：只调容器与外壳间距，不改模块本身 */
@@ -183,17 +359,49 @@ async function refresh(): Promise<void> {
   /* 列向 flex 中 flex-basis:0 在不定高卡片里会把模块体压扁，窄屏回到内容高度 */
   :deep(.ak-m.card > .ak-body) { flex: 1 0 auto; }
   :deep(.ak-m.card:hover) { transform: none; }
-  /* 身份由上方移动端原生身份区承担（移动原型设计），模块流里的桌面身份模块不重复显示 */
-  /* 身份与格言已在顶部英雄区呈现，模块流里不重复 */
-  :deep(.ak-m.m-profile), :deep(.ak-m.m-motto) { display: none; }
+  /* 身份由上方名片承担，模块流里不重复 */
+  :deep(.ak-m.m-profile) { display: none; }
+}
+
+/* 分发器迁移旧配置时可能补回格言模块：流里一律不显示，格言只在页尾出现 */
+.mods:not(.closing) :deep(.ak-m.m-motto) { display: none; }
+
+/* 页尾格言：只留格言本身（分发器缺身份区时会自动补一个，这里隐去） */
+.closing {
+  padding-top: 0;
+
+  :deep(.ak-m:not(.m-motto)) { display: none; }
+  :deep(.mo) { padding: 36px 0 40px; }
 }
 
 .ab-list {
-  margin: 16px 16px 0;
+  margin: 8px 16px 0;
+
+  .m-li { height: 62px; }
 
   a.m-li {
     color: inherit;
     text-decoration: none;
+  }
+
+  .li-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    text-align: left;
+
+    b { font-weight: 500; }
+
+    small {
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-3);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
 }
 

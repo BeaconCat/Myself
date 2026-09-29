@@ -189,7 +189,12 @@ export default {
       mediaMeta: '{n} 张 · 来自 {m} 条随想',
       empty: '还没有随想',
     },
-    about: { title: '关于', source: '源代码' },
+    about: {
+      title: '关于',
+      source: '本站基于 Myself 构建',
+      sourceSub: '开源个人博客引擎 · Go + Vue 3 · BeaconCat/Myself',
+      rssSub: '用阅读器订阅文章更新，点按复制地址',
+    },
     search: {
       placeholder: '搜索文章、随想、标签',
       cancel: '取消',

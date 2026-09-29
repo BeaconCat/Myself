@@ -162,7 +162,10 @@ async function copy(): Promise<void> {
 }
 
 @container (max-width: 640px) {
-  .ct.wide { flex-direction: column; align-items: stretch; gap: 20px; }
+  .ct.wide { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 20px; }
+  .ct.wide .ct-ch { flex-wrap: wrap; }
+  /* 列向时上一档的 flex 基准（标题 100%、底部 0）会按高度计算：标题撑满、底部压扁溢出，这里统一回到内容高度 */
+  .ct.wide .ct-head, .ct.wide .ct-foot { flex: none; }
   .ct.wide .ct-foot { min-width: 0; }
 }
 </style>

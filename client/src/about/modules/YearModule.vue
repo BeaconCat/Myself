@@ -168,5 +168,8 @@ const bars = computed(() => {
   .yr-chart, .yr-mo { gap: 4px; }
   .yr-chart .v { display: none; }
   .yr-mo { font-size: 10px; }
+  /* 窄栏：大事圆点移到月份上方，不与文字抢一行（否则「1 月」被挤成两行） */
+  .yr-mo span { position: relative; white-space: nowrap; }
+  .yr-mo .pin::before { position: absolute; left: 50%; top: -7px; width: 4px; height: 4px; margin: 0; transform: translateX(-50%); }
 }
 </style>
