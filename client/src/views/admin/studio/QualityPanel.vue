@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../../components/ui/Icon.vue';
+import { Check } from 'lucide';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, thumbOf, type CompressJob, type CompressResult, type QualityItem } from '../../../api';
@@ -126,12 +128,12 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
 
     <div class="list-h">
       <label class="st-ckrow" @click.prevent="toggleAll">
-        <span class="st-ck" :class="{ on: allOn }"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" /></svg></span>
+        <span class="st-ck" :class="{ on: allOn }"><Icon :icon="Check" /></span>
         {{ t('studio.media.qAll') }}
       </label>
       <span class="sp" />
       <label class="st-ckrow small" @click.prevent="onlyCompressible = !onlyCompressible">
-        <span class="st-ck" :class="{ on: onlyCompressible }"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" /></svg></span>
+        <span class="st-ck" :class="{ on: onlyCompressible }"><Icon :icon="Check" /></span>
         {{ t('studio.media.qOnly', { n: compressibleCount }) }}
       </label>
     </div>
@@ -151,7 +153,7 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
         :style="{ '--i': Math.min(i, 10) }"
         @click="toggle(it.name)"
       >
-        <span class="st-ck" :class="{ on: selected.has(it.name) }"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" /></svg></span>
+        <span class="st-ck" :class="{ on: selected.has(it.name) }"><Icon :icon="Check" /></span>
         <img :src="thumbOf(it.url)" alt="" loading="lazy" />
         <div class="nm">
           <b class="mono">{{ it.name }}</b>

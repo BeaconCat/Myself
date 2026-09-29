@@ -15,6 +15,7 @@ import ModuleFrame from '../../components/admin/modules/ModuleFrame.vue';
 import ModulePicker from '../../components/admin/ModulePicker.vue';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
+import Icon from '../../components/ui/Icon.vue';
 import PopMenu from './studio/PopMenu.vue';
 import { toast } from './studio/toast';
 
@@ -430,7 +431,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
       >
         <div class="mh">
           <span class="grip" :title="t('studio.about.drag')" @pointerdown="onGripDown($event, mod)"><SIcon name="grip" :size="18" /></span>
-          <span class="mi"><svg class="st-ic" width="16" height="16" viewBox="0 0 24 24"><path :d="metaOf(mod.type)?.icon ?? ''" /></svg></span>
+          <span class="mi"><Icon v-if="metaOf(mod.type)" class="st-ic" :icon="metaOf(mod.type)!.icon" :size="16" /></span>
           <b>{{ titleOf(mod) }}</b>
           <span v-if="mod.hidden" class="hid">{{ t('studio.about.hiddenTag') }}</span>
           <span class="sp" />
@@ -472,7 +473,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
     <div v-if="draggingMod" ref="ghost" class="mod ghost" :style="{ width: `${ghostBox.w}px`, height: `${ghostBox.h}px`, transform: `translate(${ghostBox.x}px, ${ghostBox.y}px)` }">
       <div class="mh">
         <span class="grip"><SIcon name="grip" :size="18" /></span>
-        <span class="mi"><svg class="st-ic" width="16" height="16" viewBox="0 0 24 24"><path :d="metaOf(draggingMod.type)?.icon ?? ''" /></svg></span>
+        <span class="mi"><Icon v-if="metaOf(draggingMod.type)" class="st-ic" :icon="metaOf(draggingMod.type)!.icon" :size="16" /></span>
         <b>{{ titleOf(draggingMod) }}</b>
       </div>
       <div class="mb">

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../../components/ui/Icon.vue';
+import { Eye, EyeOff } from 'lucide';
 /**
  * ModuleFrame —— 关于页模块编辑器的公共头部（宽度 span / 变体 variant / 标题覆盖 / 隐藏开关）。
  *
@@ -84,8 +86,7 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
       </label>
 
       <button type="button" class="mf-hide" :class="{ on: mod.hidden }" :aria-pressed="!!mod.hidden" @click="toggleHidden">
-        <svg v-if="mod.hidden" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.4 5.2A9.8 9.8 0 0 1 12 5c5 0 8.5 4.5 9.5 7a13 13 0 0 1-3 4.2M6.2 6.6C4.3 8 3 10 2.5 12c1 2.5 4.5 7 9.5 7 1.6 0 3-.4 4.3-1" /></svg>
-        <svg v-else viewBox="0 0 24 24"><path d="M2.5 12C3.5 9.5 7 5 12 5s8.5 4.5 9.5 7c-1 2.5-4.5 7-9.5 7s-8.5-4.5-9.5-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+        <Icon :icon="mod.hidden ? EyeOff : Eye" />
         {{ mod.hidden ? t('aboutKit.ed.hidden') : t('aboutKit.ed.visible') }}
       </button>
 

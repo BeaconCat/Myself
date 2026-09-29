@@ -306,8 +306,10 @@ onBeforeUnmount(() => {
             <div><h2>{{ t('studio.identity.banner') }}</h2><span>{{ t('studio.identity.bannerSub') }}</span></div>
             <StSwitch v-model="about.banner.show" />
           </div>
-          <Transition name="bn">
-            <div v-if="about.banner.show" class="bn">
+          <!-- 收起 / 展开：grid 行高 0fr ⇄ 1fr 过渡，内容常驻，高度连续变化不跳 -->
+          <div class="bn-fold" :class="{ open: about.banner.show }" :aria-hidden="!about.banner.show" :inert="!about.banner.show">
+            <div class="bn-clip">
+            <div class="bn">
               <figure class="bn-pv" :class="{ busy: uploading === 'banner' }">
                 <img :src="bannerSrc" alt="" draggable="false" :style="{ objectPosition: about.banner.focus || '50% 50%' }" />
               </figure>
@@ -326,7 +328,8 @@ onBeforeUnmount(() => {
               </div>
               <input ref="bannerInput" type="file" accept="image/*" hidden @change="upload($event, 'banner')" />
             </div>
-          </Transition>
+            </div>
+          </div>
         </section>
 
         <!-- 名片：问候 / 名字 / 签名 / 自述 / 建站日期 -->
@@ -528,11 +531,36 @@ onBeforeUnmount(() => {
   > div { display: flex; flex-direction: column; gap: 2px; }
 }
 
+.bn-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--dur-slow) var(--ease-out),
+    opacity var(--dur) var(--ease-out);
+
+  &.open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}
+
+.bn-clip { min-height: 0; overflow: hidden; }
+
+/* 内边距代替外边距：收起时不留残余高度 */
 .bn {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
   gap: 18px;
-  margin-top: 16px;
+  padding-top: 16px;
+  transform: translateY(-8px);
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+
+.bn-fold.open .bn { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bn-fold, .bn { transition: none; }
 }
 
 .bn-pv {
@@ -575,8 +603,6 @@ onBeforeUnmount(() => {
   }
 }
 
-.bn-enter-active, .bn-leave-active { transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); }
-.bn-enter-from, .bn-leave-to { opacity: 0; transform: translateY(-6px); }
 
 .pt-block {
   display: grid;

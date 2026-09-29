@@ -70,7 +70,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
         <span v-if="d.hello" class="pf-hi">{{ d.hello }}</span>
         <span class="lit">{{ d.name }}</span><span class="dotp">.</span>
       </h1>
-      <p v-if="d.alias?.trim()" class="pf-alias">{{ t('aboutKit.aka', { alias: d.alias.trim() }) }}</p>
+      <p v-if="d.alias?.trim()" class="pf-alias">{{ d.alias.trim() }}</p>
       <p v-if="lede.length" class="pf-lede">
         <template v-for="(s, i) in lede" :key="i"><em v-if="s.em">{{ s.text }}</em><template v-else>{{ s.text }}</template></template>
       </p>

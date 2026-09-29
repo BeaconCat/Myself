@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../components/ui/Icon.vue';
+import { ChevronLeft, ChevronRight, X } from 'lucide';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CoverArt, { isArtUrl } from '../common/CoverArt.vue';
@@ -270,18 +272,16 @@ onBeforeUnmount(() => {
 
       <!-- 关闭 -->
       <button class="close" :aria-label="t('viewer.close')" @click="requestClose">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
-          <path d="M6 6l12 12M18 6L6 18" />
-        </svg>
+        <Icon :icon="X" :stroke="1.6" />
       </button>
 
       <!-- 多图切换 -->
       <template v-if="images.length > 1">
         <button class="nav prev" aria-label="prev" @click.stop="go(-1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+          <Icon :icon="ChevronLeft" :stroke="1.6" />
         </button>
         <button class="nav next" aria-label="next" @click.stop="go(1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+          <Icon :icon="ChevronRight" :stroke="1.6" />
         </button>
         <span class="counter">{{ index + 1 }} / {{ images.length }}</span>
       </template>

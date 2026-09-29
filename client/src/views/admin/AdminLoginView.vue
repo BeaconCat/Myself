@@ -3,7 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi } from '../../api';
-import { useAuthStore } from '../../stores/auth';
+import { staffHome, useAuthStore } from '../../stores/auth';
 import { useConfigStore } from '../../stores/config';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
@@ -37,10 +37,10 @@ async function submit(): Promise<void> {
   error.value = '';
   try {
     const res = await adminApi.login(username.value, password.value);
-    auth.markLoggedIn();
+    auth.markLoggedIn(res.user);
     verified.value = true;
     (document.activeElement as HTMLElement | null)?.blur();
-    void router.push(res.mustChange ? { path: '/setup', query: { change: '1' } } : { name: 'admin-today' });
+    void router.push(res.mustChange ? { path: '/setup', query: { change: '1' } } : staffHome(res.user.role));
   } catch (e) {
     error.value = (e as Error).message === 'too_many_attempts' ? t('studio.login.locked') : t('studio.login.failed');
     shake();

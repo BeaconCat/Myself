@@ -302,15 +302,6 @@ async function refresh(): Promise<void> {
 
     &:active { transform: scale(0.9); background: color-mix(in oklab, var(--c) 18%, transparent); }
   }
-
-  /* KitIcon 的线性描边样式挂在 .ak 作用域下，名片在模块流之外，这里补上（品牌实心图标由 KitIcon 自带样式覆盖） */
-  :deep(svg.ak-i) {
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.6;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
 }
 
 .ab-body { padding: 0 16px; }

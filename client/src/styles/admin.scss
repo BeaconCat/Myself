@@ -639,8 +639,8 @@ a.st-stat, button.st-stat {
     fill: none;
     stroke-linecap: round;
     stroke-linejoin: round;
-    stroke-dasharray: 20;
-    stroke-dashoffset: 20;
+    stroke-dasharray: 24;
+    stroke-dashoffset: 24;
     transition: stroke-dashoffset var(--dur) var(--ease-out) 0.05s;
   }
 

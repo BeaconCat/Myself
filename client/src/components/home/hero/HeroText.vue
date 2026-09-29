@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../../components/ui/Icon.vue';
+import { ArrowRight } from 'lucide';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
@@ -263,7 +265,7 @@ defineExpose({ els, ready: settled, resplit });
     <div ref="btnEl" class="hero-cta">
       <button class="hero-btn primary" :tabindex="leaving ? -1 : undefined" @click="open">
         {{ t('hero.readMore') }}
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+        <Icon :icon="ArrowRight" :stroke="2" />
       </button>
       <router-link to="/articles" class="hero-btn ghost" :tabindex="leaving ? -1 : undefined">
         {{ t('home.allPosts') }}

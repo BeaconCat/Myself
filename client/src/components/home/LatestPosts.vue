@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../components/ui/Icon.vue';
+import { ArrowRight } from 'lucide';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { Post } from '../../api';
@@ -87,7 +89,7 @@ const sub = computed(() => {
         </router-link>
         <router-link to="/articles" class="more">
           <span>{{ t('dense.home.allPosts', { n: total }) }}</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          <Icon :icon="ArrowRight" :stroke="2" />
         </router-link>
       </div>
     </div>

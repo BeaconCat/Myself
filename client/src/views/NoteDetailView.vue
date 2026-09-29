@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../components/ui/Icon.vue';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -70,7 +72,7 @@ function openViewer(images: string[], i: number, rect: DOMRect): void {
   <main class="nd">
     <div class="bar">
       <button type="button" class="back" @click="back">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
+        <Icon :icon="ArrowLeft" :size="18" />
         {{ t('noteDetail.back') }}
       </button>
     </div>
@@ -80,11 +82,11 @@ function openViewer(images: string[], i: number, rect: DOMRect): void {
 
       <nav class="nb rise" style="--i: 1">
         <router-link v-if="older" :to="`/thoughts/${older}`" class="o">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>{{ t('noteDetail.older') }}
+          <Icon :icon="ChevronLeft" :size="16" />{{ t('noteDetail.older') }}
         </router-link>
         <span class="sp" />
         <router-link v-if="newer" :to="`/thoughts/${newer}`" class="n">
-          {{ t('noteDetail.newer') }}<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+          {{ t('noteDetail.newer') }}<Icon :icon="ChevronRight" :size="16" />
         </router-link>
       </nav>
 

@@ -61,7 +61,6 @@ export default {
   /* 关于页组件库（about-kit v2）：前台模块 + 后台模块编辑器 */
   aboutKit: {
     kicker: '关于 · 第 {n} 天',
-    aka: '又名 {alias}',
     doing: '正在做',
     city: '所在城市',
     localTime: '本地时间',

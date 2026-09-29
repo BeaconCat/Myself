@@ -2,7 +2,8 @@
 import { useI18n } from 'vue-i18n';
 import type { AboutModule } from '../../../stores/config';
 import type { UsesData } from '../../../about/types';
-import { ICONS, USES_ICONS } from '../../../about/icons';
+import { USES_ICONS } from '../../../about/icons';
+import KitIcon from '../../../about/parts/KitIcon.vue';
 import EdList from './EdList.vue';
 import { useModuleData } from './useModuleData';
 
@@ -18,8 +19,7 @@ const { t } = useI18n();
       <input v-model="g.title" class="a-input grp" type="text" :placeholder="t('aboutKit.ed.groupTitle')" />
       <EdList v-slot="{ item }" :items="g.items" :make="() => ({ icon: 'laptop', name: '', desc: '', tag: '' })" compact>
         <div class="line">
-          <!-- eslint-disable-next-line vue/no-v-html -->
-          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" v-html="ICONS[item.icon || 'link'] ?? ICONS.link" />
+          <span class="ic"><KitIcon :name="item.icon || 'link'" :size="18" /></span>
           <select v-model="item.icon" class="a-input w-num">
             <option v-for="ic in USES_ICONS" :key="ic" :value="ic">{{ ic }}</option>
           </select>
@@ -38,16 +38,12 @@ const { t } = useI18n();
 .grp { font-weight: 600; }
 
 .ic {
+  display: grid;
+  place-items: center;
   width: 30px;
   height: 30px;
   flex-shrink: 0;
-  padding: 6px;
   border-radius: var(--r-sm);
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
   color: var(--text-2);
   background: var(--fill);
 }

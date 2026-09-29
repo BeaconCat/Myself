@@ -10,11 +10,13 @@ import DoorArt from './studio/DoorArt.vue';
 import MediaViewer from './studio/MediaViewer.vue';
 import QualityPanel from './studio/QualityPanel.vue';
 import { toast } from './studio/toast';
+import { useAuthStore } from '../../stores/auth';
 import { formatSize, sizeParts } from './studio/format';
 import type { MediaRef } from './studio/types';
 
 /** 素材：瀑布流 + 拖放上传 + 大图查看/裁切；「图片优化」标签页负责扫描与后台压缩 */
 const { t } = useI18n();
+const isAdmin = computed(() => useAuthStore().isAdmin);
 const route = useRoute();
 const router = useRouter();
 
@@ -158,6 +160,7 @@ onMounted(() => {
       </div>
       <div class="act">
         <StSeg
+          v-if="isAdmin"
           :model-value="tab"
           :options="[
             { value: 'library', label: t('studio.media.tabLibrary') },
@@ -178,7 +181,7 @@ onMounted(() => {
           <div class="st-stat"><b>{{ sizeParts(stats.total)[0] }}<span class="u">{{ sizeParts(stats.total)[1] }}</span></b><small>{{ t('studio.media.statSize') }}</small></div>
           <div class="st-stat"><b>{{ sizeParts(stats.posts)[0] }}<span class="u">{{ sizeParts(stats.posts)[1] }}</span></b><small>{{ t('studio.media.sPosts', { n: stats.postsN }) }}</small></div>
           <div class="st-stat"><b>{{ sizeParts(stats.notes)[0] }}<span class="u">{{ sizeParts(stats.notes)[1] }}</span></b><small>{{ t('studio.media.sNotes', { n: stats.notesN }) }}</small></div>
-          <button type="button" class="st-stat" :disabled="!compressCount" @click="setTab('optimize')">
+          <button type="button" class="st-stat" :disabled="!compressCount || !isAdmin" @click="setTab('optimize')">
             <b :class="{ warn: compressCount }">{{ compressCount }}</b><small>{{ t('studio.media.sZip') }}</small>
           </button>
         </div>

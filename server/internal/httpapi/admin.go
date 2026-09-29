@@ -294,7 +294,7 @@ func publicUsersConfig(t config.Typed) config.Map {
 	return config.Map{
 		"enabled": u.Enabled,
 		"readers": config.Map{"enabled": u.ReadersOn(), "signup": u.Readers.Signup},
-		"authors": config.Map{"enabled": u.AuthorsOn()},
+		"authors": config.Map{"enabled": u.AuthorsOn(), "directPublish": u.AuthorsOn() && u.Authors.DirectPublish},
 		"comments": config.Map{
 			"enabled": u.CommentsOn(), "anonymous": u.CommentsOn() && u.Comments.Anonymous, "moderation": u.Comments.Moderation,
 		},

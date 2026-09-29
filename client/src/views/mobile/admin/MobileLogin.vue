@@ -8,7 +8,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi } from '../../../api';
-import { useAuthStore } from '../../../stores/auth';
+import { staffHome, useAuthStore } from '../../../stores/auth';
 import { useConfigStore } from '../../../stores/config';
 import { REVEAL_EVENT } from '../../../stores/loading';
 import MaIcon from '../../../components/mobile-admin/MaIcon.vue';
@@ -52,7 +52,7 @@ async function submit(): Promise<void> {
   error.value = '';
   try {
     const res = await adminApi.login(username.value, password.value);
-    auth.markLoggedIn();
+    auth.markLoggedIn(res.user);
     success.value = true;
     (document.activeElement as HTMLElement | null)?.blur();
     if (res.mustChange) {
@@ -61,7 +61,7 @@ async function submit(): Promise<void> {
     }
     const name = config.cfg.about.name || '';
     window.addEventListener(REVEAL_EVENT, () => toast(t('mobileAdmin.login.welcome'), name), { once: true });
-    void router.replace('/admin');
+    void router.replace(staffHome(res.user.role));
   } catch (e) {
     error.value = (e as Error).message === 'too_many_attempts' ? t('mobileAdmin.login.locked') : t('mobileAdmin.login.failed');
     shake();

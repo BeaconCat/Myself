@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="T">
+import Icon from '../../../components/ui/Icon.vue';
+import { ChevronDown, ChevronUp, Plus, X } from 'lucide';
 import { useI18n } from 'vue-i18n';
 
 /**
@@ -23,13 +25,13 @@ function move(i: number, delta: number): void {
         <div class="el-body"><slot :item="item" :index="index" /></div>
         <div class="el-ops">
           <button type="button" :disabled="index === 0" :title="t('aboutKit.ed.up')" @click="move(index, -1)">
-            <svg viewBox="0 0 24 24"><path d="m6 15 6-6 6 6" /></svg>
+            <Icon :icon="ChevronUp" />
           </button>
           <button type="button" :disabled="index === items.length - 1" :title="t('aboutKit.ed.down')" @click="move(index, 1)">
-            <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+            <Icon :icon="ChevronDown" />
           </button>
           <button type="button" class="del" :title="t('aboutKit.ed.remove')" @click="items.splice(index, 1)">
-            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            <Icon :icon="X" />
           </button>
         </div>
       </div>
@@ -40,7 +42,7 @@ function move(i: number, delta: number): void {
       class="a-btn ghost el-add"
       @click="items.push(make())"
     >
-      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>{{ addLabel || t('aboutKit.ed.add') }}
+      <Icon :icon="Plus" />{{ addLabel || t('aboutKit.ed.add') }}
     </button>
   </div>
 </template>

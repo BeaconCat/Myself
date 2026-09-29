@@ -4,6 +4,7 @@ import {
   siDiscord,
   siDouban,
   siFacebook,
+  siFigma,
   siGitee,
   siGithub,
   siGitlab,
@@ -76,6 +77,7 @@ export const BRANDS: Record<string, Brand> = {
   pixiv: b('pixiv', siPixiv),
   gitlab: b('GitLab', siGitlab),
   gitee: b('Gitee', siGitee),
+  figma: b('Figma', siFigma),
 };
 
 /** 名片上最多展示的链接按钮数 */

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../components/ui/Icon.vue';
+import { ArrowUp } from 'lucide';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -25,9 +27,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll));
 <template>
   <Transition name="btt">
     <button v-if="show" type="button" class="btt" :aria-label="t('noteDetail.toTop')" :title="t('noteDetail.toTop')" @click="toTop">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12 19V5M6 11l6-6 6 6" />
-      </svg>
+      <Icon :icon="ArrowUp" :size="20" />
     </button>
   </Transition>
 </template>

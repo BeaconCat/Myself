@@ -135,7 +135,7 @@ async function finish(): Promise<void> {
   busy.value = true;
   error.value = '';
   try {
-    await adminApi.setup({
+    const res = await adminApi.setup({
       code: form.code.trim(),
       username: form.username.trim(),
       password: form.password,
@@ -143,7 +143,7 @@ async function finish(): Promise<void> {
       identity: { name: form.name.trim(), tagline: form.tagline.trim(), motto: form.motto.trim() },
       demo: form.demo,
     });
-    auth.markLoggedIn();
+    auth.markLoggedIn(res.user);
     await config.load();
     dir.value = 1;
     step.value = 'done';

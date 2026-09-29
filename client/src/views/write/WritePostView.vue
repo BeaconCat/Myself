@@ -4,6 +4,8 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi, thumbOf, type MediaItem, type PostDraft } from '../../api';
 import { useDialogStore } from '../../stores/dialog';
+import { useAuthStore } from '../../stores/auth';
+import { useConfigStore } from '../../stores/config';
 import RichEditor from '../../components/admin/RichEditor.vue';
 import CoverUploader from '../../components/admin/CoverUploader.vue';
 import '../admin/studio/i18n';
@@ -24,6 +26,11 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const dialog = useDialogStore();
+const auth = useAuthStore();
+const config = useConfigStore();
+/** 协作作者；未开「直接发布」时发布即提交审阅（服务端存为草稿） */
+const isAuthor = computed(() => auth.role === 'author');
+const review = computed(() => isAuthor.value && !config.cfg.users?.authors.directPublish);
 
 const id = ref<number | null>(null);
 const draft = reactive<PostDraft>({
@@ -213,10 +220,17 @@ function openPublish(): void {
 const stage = reactive({ open: false, title: '', cover: '', url: '', meta: '' });
 
 async function confirmPublish(): Promise<void> {
+  if (review.value) {
+    if (!(await save('published'))) return;
+    draft.status = 'draft';
+    pubOpen.value = false;
+    toast(t('studio.write.submitted'), { icon: 'send' });
+    return;
+  }
   const first = draft.status !== 'published';
   if (!(await save('published'))) return;
   pubOpen.value = false;
-  if (first && announce.value) {
+  if (first && announce.value && !isAuthor.value) {
     const lines = [t('studio.write.announceText', { title: draft.title }), draft.excerpt, `[${t('studio.write.readMore')}](/articles/${draft.slug})`];
     adminApi.createNote({ contentMd: lines.filter(Boolean).join('\n\n'), mood: '', images: [], pinned: false })
       .then(() => refreshCounts())
@@ -543,6 +557,8 @@ onBeforeUnmount(() => {
       :minutes="minutes"
       :republish="republish"
       :busy="busy"
+      :author="isAuthor"
+      :review="review"
       @close="pubOpen = false"
       @confirm="confirmPublish"
     />

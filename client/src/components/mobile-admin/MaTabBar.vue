@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * V2 贴底底栏：概览 / 内容 / 凸起 + / 素材 / 我的。
- * 选中：图标线性 → 实心（.f 填充 + .d 镂空），图标着 --ink、文字 --text，不发光，并做一次弹跳；
+ * 选中：图标描边加粗，图标着 --ink、文字 --text，不发光，并做一次弹跳；
  * 中央 + 为实底 --solid / --on-solid + 中性紧阴影，打开 action sheet 时旋转成 ×。
  */
 import { ref, watch } from 'vue';
@@ -120,8 +120,7 @@ watch(
     color: var(--text);
 
     :deep(.ma-ic) { color: var(--ink); }
-    :deep(.ma-ic .f) { fill: currentColor; }
-    :deep(.ma-ic .d) { stroke: var(--cut); }
+    :deep(.ma-ic) { stroke-width: 2.1; }
   }
 
   &.pop :deep(.ma-ic) {

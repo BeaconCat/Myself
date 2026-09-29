@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../../components/ui/Icon.vue';
+import { ChevronLeft, ChevronRight, X } from 'lucide';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CoverArt, { coverKindOf } from './CoverArt.vue';
@@ -642,7 +644,7 @@ defineExpose({ els });
         :title="t('heroLab.prevCover')"
         @click.stop="emit('step', -1)"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5.5 8.5 12l6.5 6.5" /></svg>
+        <Icon :icon="ChevronLeft" />
       </button>
       <button
         type="button"
@@ -652,7 +654,7 @@ defineExpose({ els });
         :title="t('heroLab.nextCover')"
         @click.stop="emit('step', 1)"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" /></svg>
+        <Icon :icon="ChevronRight" />
       </button>
     </template>
 
@@ -660,17 +662,15 @@ defineExpose({ els });
     <Teleport to="body">
       <div v-if="lightboxOn" class="lb" :class="{ closing: lbClosing }" @click="onBackdropTap">
         <button class="lb-close" :aria-label="t('viewer.close')" @click="closeLightbox">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
+          <Icon :icon="X" :stroke="2.4" />
         </button>
 
         <template v-if="covers.length > 1">
           <button class="lb-nav prev" aria-label="prev" @click.stop="lbGo(-1)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+            <Icon :icon="ChevronLeft" :stroke="2.4" />
           </button>
           <button class="lb-nav next" aria-label="next" @click.stop="lbGo(1)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+            <Icon :icon="ChevronRight" :stroke="2.4" />
           </button>
           <span class="lb-counter">{{ (expandedIndex ?? 0) + 1 }} / {{ covers.length }}</span>
         </template>

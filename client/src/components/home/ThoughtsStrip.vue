@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../components/ui/Icon.vue';
+import { ArrowRight, ChevronLeft, ChevronRight, MessageSquare } from 'lucide';
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
@@ -65,10 +67,10 @@ function open(id: number): void {
   <section class="thoughts-sec">
     <SectionHead v-reveal :title="t('home.thoughts')" :sub="t('home.thoughtsSub')" to="/thoughts" :link-text="t('home.allThoughts')">
       <button class="ib" :aria-label="t('home.scrollLeft')" @click="page(-1)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+        <Icon :icon="ChevronLeft" :stroke="2" />
       </button>
       <button class="ib" :aria-label="t('home.scrollRight')" @click="page(1)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+        <Icon :icon="ChevronRight" :stroke="2" />
       </button>
     </SectionHead>
 
@@ -102,14 +104,14 @@ function open(id: number): void {
           <span v-if="n.images.length > 3" class="more">+{{ n.images.length - 3 }}</span>
         </div>
         <div v-else class="qt">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5h14v10H9l-4 4z" /></svg>
+          <Icon :icon="MessageSquare" />
           {{ t('home.plainNote') }}
         </div>
       </div>
 
       <router-link to="/thoughts" class="tcard all">
         <span class="go">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          <Icon :icon="ArrowRight" :stroke="2" />
         </span>
         <span class="all-t">{{ t('home.moreThoughts', { n: total }) }}</span>
       </router-link>

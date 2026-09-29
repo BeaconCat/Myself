@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../components/ui/Icon.vue';
+import { ArrowRight } from 'lucide';
 /** 首页分区标题：小字副标题 + 宋体标题；右侧额外操作（slot）+ 文字链接 */
 defineProps<{ title: string; sub?: string; loading?: boolean; to?: string; linkText?: string }>();
 </script>
@@ -14,7 +16,7 @@ defineProps<{ title: string; sub?: string; loading?: boolean; to?: string; linkT
       <slot />
       <router-link v-if="to && linkText" :to="to" class="link">
         <span>{{ linkText }}</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+        <Icon :icon="ArrowRight" :stroke="2" />
       </router-link>
     </div>
   </header>

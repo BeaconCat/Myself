@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../components/ui/Icon.vue';
+import { Check } from 'lucide';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import './studio/i18n';
@@ -53,7 +55,7 @@ const tip = computed(() => t('studio.reserved.commentsTip'));
     <div class="st-note-bar st-rise"><SIcon name="info" />{{ t('studio.reserved.comments') }}</div>
 
     <div v-if="tab === 'pending'" class="bulk">
-      <label class="st-ckrow"><span class="st-ck"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" /></svg></span>{{ t('studio.comments.selectAll') }}</label>
+      <label class="st-ckrow"><span class="st-ck"><Icon :icon="Check" /></span>{{ t('studio.comments.selectAll') }}</label>
       <span class="sp" />
       <button type="button" class="st-btn q sm st-tip" :data-tip="tip" disabled><SIcon name="check" :size="18" />{{ t('studio.comments.approveAll') }}</button>
     </div>
@@ -69,7 +71,7 @@ const tip = computed(() => t('studio.reserved.commentsTip'));
 
     <div class="cm-list">
       <div v-for="(c, i) in list" :key="`${tab}-${i}`" class="cm st-rise" :style="{ '--i': i }">
-        <span class="st-ck"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" /></svg></span>
+        <span class="st-ck"><Icon :icon="Check" /></span>
         <span class="av" :style="{ background: c.c }">{{ c.n[0] }}</span>
         <div class="body">
           <div class="who">

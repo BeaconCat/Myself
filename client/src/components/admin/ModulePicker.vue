@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../components/ui/Icon.vue';
+import { Check, Search, X } from 'lucide';
 import { computed, ref } from 'vue';
 import { MODULE_GROUPS, MODULE_REGISTRY } from '../../about/registry';
 import ModulePreview from './modules/ModulePreview.vue';
@@ -51,16 +53,11 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
         <header class="p-head">
           <h3>添加模块</h3>
           <div class="p-search">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.8-3.8" />
-            </svg>
+            <Icon :icon="Search" :stroke="2.2" />
             <input v-model="keyword" type="search" placeholder="搜索模块…" />
           </div>
           <button class="p-close" aria-label="关闭" @click="emit('close')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
+            <Icon :icon="X" :stroke="2.4" />
           </button>
         </header>
 
@@ -78,18 +75,14 @@ const SPAN_COLS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
               >
                 <div class="p-top">
                   <span class="p-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                      <path :d="m.icon" />
-                    </svg>
+                    <Icon :icon="m.icon" :stroke="1.8" />
                   </span>
                   <div class="p-meta">
                     <strong>{{ m.name }}<em>{{ m.type }}</em></strong>
                     <span>{{ m.desc }}</span>
                   </div>
                   <span class="p-check" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M5 13l4 4 10-10" />
-                    </svg>
+                    <Icon :icon="Check" :stroke="3" />
                   </span>
                 </div>
                 <!-- 模块迷你预览 -->

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, thumbOf, type MediaItem } from '../../../api';
+import { useAuthStore } from '../../../stores/auth';
 import { useDialogStore } from '../../../stores/dialog';
 import './i18n';
 import SIcon from './SIcon.vue';
@@ -22,6 +23,8 @@ const index = defineModel<number>('index', { default: -1 });
 const emit = defineEmits<{ changed: []; open: [ref: MediaRef] }>();
 
 const { t } = useI18n();
+/** 裁剪与删除只对站长开放（协作作者只能浏览和上传） */
+const isAdmin = computed(() => useAuthStore().isAdmin);
 const dialog = useDialogStore();
 
 const item = computed(() => props.items[index.value] ?? null);
@@ -305,7 +308,7 @@ onBeforeUnmount(() => {
             <dt>{{ t('studio.media.kvCrop') }}</dt>
             <dd>{{ item.crop ? t('studio.media.cropYes', { w: item.crop.width, h: item.crop.height }) : t('studio.media.cropNo') }}</dd>
           </dl>
-          <div>
+          <div v-if="isAdmin">
             <div class="st-flabel"><span>{{ t('studio.media.ratio') }}</span><button type="button" class="st-link" @click="resetFull">{{ t('studio.media.full') }}</button></div>
             <div class="ratios">
               <button v-for="r in RATIOS" :key="r.label" type="button" :class="{ on: ratio === r.v }" @click="setRatio(r.v)">
@@ -322,9 +325,9 @@ onBeforeUnmount(() => {
             <p v-if="!itemRefs.length">{{ t('studio.media.unused') }}</p>
           </div>
           <div class="acts">
-            <button type="button" class="st-btn p" :disabled="busy || loadingImg || ratio === null" @click="applyCrop"><SIcon name="crop" :size="16" />{{ t('studio.media.applyCrop') }}</button>
+            <button v-if="isAdmin" type="button" class="st-btn p" :disabled="busy || loadingImg || ratio === null" @click="applyCrop"><SIcon name="crop" :size="16" />{{ t('studio.media.applyCrop') }}</button>
             <a class="st-ibtn ring" :href="item.url" :download="item.name" :title="t('studio.media.download')"><SIcon name="download" /></a>
-            <button type="button" class="st-ibtn ring" :disabled="busy" :title="t('studio.delete')" @click="remove"><SIcon name="trash" /></button>
+            <button v-if="isAdmin" type="button" class="st-ibtn ring" :disabled="busy" :title="t('studio.delete')" @click="remove"><SIcon name="trash" /></button>
           </div>
         </aside>
       </div>

@@ -124,8 +124,7 @@ watch(index, (now, before) => {
   &.on {
     color: var(--lift-fg);
 
-    :deep(.m-ic .f) { fill: currentColor; }
-    :deep(.m-ic .d) { stroke: var(--cut); }
+    :deep(.m-ic) { stroke-width: 2.1; }
   }
 
   &.pop :deep(.m-ic) { animation: pop 0.5s var(--ease-spring); }

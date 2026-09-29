@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 线性图标：内联 SVG（离线），选中态由父级给 .on 后填充 .f 面。 */
+/** 移动后台图标：Lucide 标准图标（离线），选中态由父级加粗描边。 */
 import { computed } from 'vue';
 import { ICONS, type IconName } from './icons';
 
@@ -21,8 +21,6 @@ const body = computed(() => ICONS[props.name]);
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
-
-  .f { fill: transparent; transition: fill var(--dur) var(--ease-out); }
-  .d { transition: stroke var(--dur) var(--ease-out); }
+  transition: stroke-width var(--dur) var(--ease-out);
 }
 </style>

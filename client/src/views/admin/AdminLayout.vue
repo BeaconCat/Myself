@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { useAuthStore } from '../../stores/auth';
+import { canEnterAdmin, staffHome, useAuthStore } from '../../stores/auth';
 import { useConfigStore } from '../../stores/config';
 import { useThemeStore } from '../../stores/theme';
 import './studio/i18n';
@@ -59,6 +59,12 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
     ],
   },
 ];
+
+/** 按角色裁剪：作者只看到自己的写作页，空分组整组隐去 */
+const groups = computed(() =>
+  GROUPS.map((g) => ({ ...g, items: g.items.filter((it) => canEnterAdmin(auth.role, it.name)) })).filter((g) => g.items.length),
+);
+const home = computed(() => staffHome(auth.role ?? 'admin'));
 
 /** 写作页归属到对应列表高亮 */
 const ALIAS: Record<string, string> = {
@@ -131,8 +137,10 @@ function setPalette(id: string, e: MouseEvent): void {
 }
 
 /* ===== 账号 ===== */
-const displayName = computed(() => config.cfg.about?.name || 'Myself');
-const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
+/* 当前登录用户；站长未设头像 / 名字时回落到站点身份 */
+const displayName = computed(() => auth.user?.name || config.cfg.about?.name || 'Myself');
+const avatar = computed(() => auth.user?.avatar || config.cfg.about?.avatar || '/favicon-64.png');
+const roleLabel = computed(() => t(`studio.users.r_${auth.role ?? 'admin'}`));
 
 async function logout(): Promise<void> {
   await auth.logout();
@@ -166,7 +174,7 @@ function onKey(e: KeyboardEvent): void {
   const el = document.activeElement as HTMLElement | null;
   const typing = !!el && (/INPUT|TEXTAREA|SELECT/.test(el.tagName) || el.isContentEditable);
   if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'n' && !immersive.value) {
+  if (e.key === 'n' && !immersive.value && auth.isAdmin) {
     e.preventDefault();
     if (route.name === 'admin-today') window.dispatchEvent(new CustomEvent('studio:compose'));
     else void router.push({ name: 'admin-write-note' });
@@ -193,7 +201,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="studio app" :class="{ immersive }">
     <aside class="side" :aria-hidden="immersive">
-      <router-link :to="{ name: 'admin-today' }" class="brand">
+      <router-link :to="home" class="brand">
         <img src="/favicon-64.png" alt="" draggable="false" />
         <div>
           <b>{{ config.cfg.site.title || 'Myself' }}</b>
@@ -211,7 +219,7 @@ onBeforeUnmount(() => {
           :class="{ show: ind.show, up: !ind.down, snap }"
           :style="{ top: `${ind.top}px`, bottom: `${ind.bottom}px` }"
         />
-        <template v-for="(g, gi) in GROUPS" :key="gi">
+        <template v-for="(g, gi) in groups" :key="gi">
           <div v-if="g.label" class="nav-label">{{ t(`studio.nav.${g.label}`) }}</div>
           <router-link
             v-for="item in g.items"
@@ -229,11 +237,13 @@ onBeforeUnmount(() => {
 
       <div class="side-foot">
         <div class="me">
-          <span class="avatar"><img :src="avatar" alt="" /></span>
-          <div class="who">
-            <b>{{ displayName }}</b>
-            <small>{{ t('studio.role') }}</small>
-          </div>
+          <router-link class="who-link" to="/account" :title="t('studio.account')">
+            <span class="avatar"><img :src="avatar" alt="" /></span>
+            <div class="who">
+              <b>{{ displayName }}</b>
+              <small>{{ roleLabel }}</small>
+            </div>
+          </router-link>
           <router-link class="ext" to="/" :title="t('studio.viewSite')">
             <SIcon name="external" :size="16" />
           </router-link>
@@ -473,6 +483,21 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 6px 4px 10px 6px;
+
+  .who-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    margin: -4px;
+    padding: 4px;
+    border-radius: var(--r-md);
+    color: inherit;
+    transition: background var(--dur-fast);
+
+    &:hover { background: var(--hover); }
+  }
 
   .who { min-width: 0; flex: 1; }
 

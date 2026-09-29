@@ -10,7 +10,7 @@ import {
 import { MOBILE_QUERY } from '../composables/useDevice';
 import { useLoadingStore } from '../stores/loading';
 import { configLoaded, useConfigStore } from '../stores/config';
-import { hasSessionHint } from '../stores/auth';
+import { canEnterAdmin, hasSessionHint, roleHint, staffHome } from '../stores/auth';
 
 import { adminChildren } from './admin';
 import { mobileAdminLogin, mobileAdminViews } from './mobile-admin';
@@ -160,6 +160,11 @@ router.beforeEach(async (to, from) => {
   // 后台鉴权
   if (to.meta.admin && !hasSessionHint()) {
     return { path: '/admin/login' };
+  }
+  // 角色裁剪（仅预判，真实权限以服务端为准）：读者回前台，作者只进自己的写作页
+  if (to.meta.admin) {
+    const role = roleHint() ?? 'admin';
+    if (!canEnterAdmin(role, String(to.name ?? ''))) return staffHome(role);
   }
   const skip = performance.now() < skipCoverUntil;
   skipCoverUntil = 0;

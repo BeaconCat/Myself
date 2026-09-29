@@ -208,9 +208,9 @@ export interface PostDraft {
 export const adminApi = {
   /** 登录：成功后服务端写入会话 Cookie；mustChange = 仍在用历史默认口令，需先改密 */
   login: (username: string, password: string) =>
-    publicPost<{ ok: boolean; mustChange?: boolean }>('/auth/login', { username, password }),
+    publicPost<{ ok: boolean; mustChange?: boolean; user: SessionUser }>('/auth/login', { username, password }),
   setupStatus: () => get<{ needsSetup: boolean }>('/setup'),
-  setup: (payload: SetupPayload) => publicPost<{ ok: boolean }>('/setup', payload),
+  setup: (payload: SetupPayload) => publicPost<{ ok: boolean; user: SessionUser }>('/setup', payload),
   verifySetupCode: (code: string) => publicPost<{ ok: boolean }>('/setup/verify', { code }),
   /** 改密：其它会话全部失效，当前会话由服务端换发新 Cookie */
   changePassword: (oldPassword: string, newPassword: string) =>

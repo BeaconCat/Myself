@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../components/ui/Icon.vue';
+import { Check } from 'lucide';
 import { computed, onBeforeUnmount, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import '../admin/studio/i18n';
@@ -19,6 +21,10 @@ const props = defineProps<{
   minutes: number;
   republish: boolean;
   busy: boolean;
+  /** 协作作者：不能置顶、不发随想预告 */
+  author?: boolean;
+  /** 作者投稿需站长审阅：发布改为「提交审阅」 */
+  review?: boolean;
 }>();
 const pinned = defineModel<boolean>('pinned', { default: false });
 const announce = defineModel<boolean>('announce', { default: false });
@@ -64,7 +70,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
     </div>
 
     <div class="pub-r">
-      <h3>{{ republish ? t('studio.write.pubUpdateTitle') : t('studio.write.pubTitle') }}</h3>
+      <h3>{{ review ? t('studio.write.reviewTitle') : republish ? t('studio.write.pubUpdateTitle') : t('studio.write.pubTitle') }}</h3>
 
       <div class="st-flabel">{{ t('studio.write.when') }}</div>
       <div class="when">
@@ -78,14 +84,15 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
         <span class="mono">{{ t('studio.write.nowText') }}</span>
       </div>
 
-      <div class="st-flabel">{{ t('studio.write.after') }}</div>
-      <div class="opts">
+      <p v-if="review" class="review-note"><SIcon name="clock" :size="16" />{{ t('studio.write.reviewNote') }}</p>
+      <div v-if="!author" class="st-flabel">{{ t('studio.write.after') }}</div>
+      <div v-if="!author" class="opts">
         <label class="st-ckrow" @click.prevent="pinned = !pinned">
-          <span class="st-ck" :class="{ on: pinned }"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" /></svg></span>
+          <span class="st-ck" :class="{ on: pinned }"><Icon :icon="Check" /></span>
           {{ t('studio.write.optPin') }}
         </label>
         <label v-if="!republish" class="st-ckrow" @click.prevent="announce = !announce">
-          <span class="st-ck" :class="{ on: announce }"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" /></svg></span>
+          <span class="st-ck" :class="{ on: announce }"><Icon :icon="Check" /></span>
           {{ t('studio.write.optAnnounce') }}
         </label>
       </div>
@@ -101,7 +108,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
         <span class="kb"><kbd class="st-kbd">Ctrl</kbd><kbd class="st-kbd">Enter</kbd></span>
         <button type="button" class="st-btn g" @click="emit('close')">{{ t('studio.write.moreEdit') }}</button>
         <button type="button" class="st-btn p" :disabled="busy || !title.trim()" @click="emit('confirm')">
-          <SIcon name="send" :size="16" />{{ republish ? t('studio.write.update') : t('studio.write.publish') }}
+          <SIcon name="send" :size="16" />{{ review ? t('studio.write.submitReview') : republish ? t('studio.write.update') : t('studio.write.publish') }}
         </button>
       </div>
     </div>
@@ -115,6 +122,21 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
   grid-template-columns: 340px 1fr;
   padding: 0;
   overflow: hidden;
+}
+
+.review-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 4px 0 6px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--well);
+  font-size: 13px;
+  color: var(--st-ink-2);
+  line-height: 1.55;
+
+  :deep(svg) { flex: none; margin-top: 2px; }
 }
 
 .pub-l {

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../../../components/ui/Icon.vue';
+import { GalleryHorizontalEnd, Pause, Play, SkipForward } from 'lucide';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import HeroCarousel from '../HeroCarousel.vue';
@@ -162,14 +164,13 @@ const MAX_MS = 1600;
           :title="playing ? t('heroLab.pause') : t('heroLab.play')"
           @click="playing = !playing"
         >
-          <svg v-if="playing" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6v12M15 6v12" /></svg>
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8 5.5v13l11-6.5z" /></svg>
+          <Icon :icon="playing ? Pause : Play" />
         </button>
         <button class="ib" :aria-label="t('heroLab.next')" :title="t('heroLab.next')" @click="carousel?.next()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l6 6-6 6" /><path d="M17 6v12" /></svg>
+          <Icon :icon="SkipForward" />
         </button>
         <button class="ib txt" :title="t('heroLab.rotateOnly')" @click="previewRotate">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="12" height="10" rx="2" /><path d="M8 4.5h10a2 2 0 0 1 2 2v8" /></svg>
+          <Icon :icon="GalleryHorizontalEnd" />
           <span>{{ t('heroLab.rotateOnly') }}</span>
         </button>
         <span class="sep" />

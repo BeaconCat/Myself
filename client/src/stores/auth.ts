@@ -74,3 +74,19 @@ export function hasSessionHint(): boolean {
 export function roleHint(): UserRole | null {
   return localStorage.getItem(ROLE_KEY) as UserRole | null;
 }
+
+/** 协作作者可进入的后台页：自己的文章、写文章、素材 */
+export const AUTHOR_ROUTES = new Set(['admin-posts', 'admin-write-post', 'admin-media']);
+
+/** 该角色能否进入某个后台页 */
+export function canEnterAdmin(role: UserRole | null, name: string): boolean {
+  if (role === 'admin') return true;
+  return role === 'author' && AUTHOR_ROUTES.has(name);
+}
+
+/** 登录后的落脚点：站长进概览、作者进文章、读者回前台 */
+export function staffHome(role: UserRole): { name: string } | { path: string } {
+  if (role === 'admin') return { name: 'admin-today' };
+  if (role === 'author') return { name: 'admin-posts' };
+  return { path: '/' };
+}
