@@ -343,8 +343,8 @@ func (u Users) ReadersOn() bool { return u.Enabled && u.Readers.Enabled }
 // AuthorsOn 协作作者生效（总开关 + 作者开关）。
 func (u Users) AuthorsOn() bool { return u.Enabled && u.Authors.Enabled }
 
-// CommentsOn 评论生效（依附读者体系）。
-func (u Users) CommentsOn() bool { return u.ReadersOn() && u.Comments.Enabled }
+// CommentsOn 评论生效（总开关 + 评论开关）；谁能发由 createComment 决定：已登录用户，或开了匿名时的访客。
+func (u Users) CommentsOn() bool { return u.Enabled && u.Comments.Enabled }
 
 // Mail SMTP 发信配置。
 type Mail struct {

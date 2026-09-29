@@ -238,7 +238,9 @@ type adminComment struct {
 	Target      string `json:"target"`
 	TargetTitle string `json:"targetTitle"`
 	TargetLink  string `json:"targetLink"`
-	HasLink     bool   `json:"hasLink"`
+	// TargetKey 发表评论用的 key（文章 slug / 随想 id / 留言墙为空），后台回复时原样带回
+	TargetKey string `json:"targetKey"`
+	HasLink   bool   `json:"hasLink"`
 	IPHash      string `json:"ipHash"`
 }
 
@@ -282,9 +284,10 @@ func (s *Server) adminListComments(w http.ResponseWriter, r *http.Request) {
 		}
 		switch it.Target {
 		case "post":
-			it.TargetTitle, it.TargetLink = ptitle, "/articles/"+pslug
+			it.TargetTitle, it.TargetLink, it.TargetKey = ptitle, "/articles/"+pslug, pslug
 		case "note":
-			it.TargetTitle, it.TargetLink = nbody, "/thoughts"
+			key := strconv.FormatInt(targetID, 10)
+			it.TargetTitle, it.TargetLink, it.TargetKey = nbody, "/thoughts/"+key, key
 		default:
 			it.TargetTitle, it.TargetLink = "留言墙", "/about"
 		}

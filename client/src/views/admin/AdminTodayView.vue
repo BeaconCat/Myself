@@ -31,6 +31,8 @@ const notesTotal = ref(0);
 const media = ref<MediaItem[] | null>(null);
 const backups = ref<BackupInfo[] | null>(null);
 const composer = ref<InstanceType<typeof NoteComposer> | null>(null);
+/** 待审评论数（null = 读取中） */
+const pendingComments = ref<number | null>(null);
 
 async function load(): Promise<void> {
   const from = new Date(now);
@@ -46,6 +48,7 @@ async function load(): Promise<void> {
   loaded.value = true;
   adminApi.media().then((m) => (media.value = m)).catch(() => (media.value = []));
   adminApi.backups().then((b) => (backups.value = b)).catch(() => (backups.value = []));
+  adminApi.comments('pending').then((c) => (pendingComments.value = c.length)).catch(() => (pendingComments.value = 0));
   adminApi.qualityScan()
     .then((q) => (quality.value = q.filter((i) => i.compressible)))
     .catch(() => (quality.value = []));
@@ -334,13 +337,19 @@ onBeforeUnmount(() => {
             >{{ job ? t('studio.today.compressBusy') : t('studio.today.compress') }}</button>
           </div>
 
-          <div class="todo-i muted" style="--c: var(--ink)">
-            <span class="ti"><SIcon name="message" :size="20" /></span>
+          <div class="todo-i" :class="{ done: pendingComments === 0 }" style="--c: var(--ink)">
+            <span class="ti"><SIcon :name="pendingComments === 0 ? 'check' : 'message'" :size="20" /></span>
             <div class="tx">
-              <b>{{ t('studio.today.commentTodo') }}</b>
-              <small>{{ t('studio.today.commentSub') }}</small>
+              <template v-if="pendingComments">
+                <b>{{ t('studio.today.commentTodoN', { n: pendingComments }) }}</b>
+                <small>{{ t('studio.today.commentSubN') }}</small>
+              </template>
+              <template v-else>
+                <b>{{ t('studio.today.commentClear') }}</b>
+                <small>{{ t('studio.today.commentClearSub') }}</small>
+              </template>
             </div>
-            <router-link class="st-btn g sm" :to="{ name: 'admin-comments' }">{{ t('studio.view') }}</router-link>
+            <router-link v-if="pendingComments" class="st-btn g sm" :to="{ name: 'admin-comments' }">{{ t('studio.today.review') }}</router-link>
           </div>
         </div>
       </section>

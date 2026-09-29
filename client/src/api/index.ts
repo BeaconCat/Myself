@@ -416,6 +416,8 @@ export interface AdminComment extends CommentItem {
   target: CommentTarget;
   targetTitle: string;
   targetLink: string;
+  /** 发表评论用的 key（文章 slug / 随想 id / 留言墙为空），后台回复时带回 */
+  targetKey: string;
   hasLink: boolean;
   ipHash: string;
 }
