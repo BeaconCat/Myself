@@ -46,7 +46,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll));
   border: 0;
   border-radius: 50%;
   color: var(--text);
-  background: color-mix(in oklab, var(--bg) 72%, transparent);
+  background: color-mix(in oklab, var(--bg) 97%, transparent);
   backdrop-filter: blur(20px) saturate(170%);
   -webkit-backdrop-filter: blur(20px) saturate(170%);
   box-shadow: inset 0 0 0 0.5px var(--line-2), 0 10px 26px -14px rgb(0 0 0 / 0.45);

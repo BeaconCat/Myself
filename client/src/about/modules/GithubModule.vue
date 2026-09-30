@@ -94,7 +94,7 @@ const shortType = (type: string) => (type || 'event').replace(/Event$/, '').toLo
 
 <template>
   <ModHead :title="title">
-    <a class="ak-link-arrow gh-user" :href="`https://github.com/${user}`" target="_blank" rel="noopener">@{{ user }}<KitIcon name="arrow" :size="15" /></a>
+    <a v-if="user" class="ak-link-arrow gh-user" :href="`https://github.com/${user}`" target="_blank" rel="noopener">@{{ user }}<KitIcon name="arrow" :size="15" /></a>
   </ModHead>
   <div class="ak-statbar gh-head">
     <div v-for="[k, v] in head" :key="k" class="ak-stat"><b><CountUp :value="v" /></b><span>{{ k }}</span></div>

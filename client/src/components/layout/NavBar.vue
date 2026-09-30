@@ -210,13 +210,13 @@ onBeforeUnmount(() => {
 /* ===== 共用：毛玻璃胶囊面（中性描边 + 中性阴影，无主色描边 / 外发光） ===== */
 %glass {
   /* 近实底：部分环境（无 GPU、远程桌面、无头浏览器）声明支持模糊却不渲染，半透明底会让正文透出压住导航文字 */
-  background: color-mix(in oklab, var(--bg) 93%, transparent);
+  background: color-mix(in oklab, var(--bg) 97%, transparent);
   backdrop-filter: blur(20px) saturate(170%);
   -webkit-backdrop-filter: blur(20px) saturate(170%);
   box-shadow: inset 0 0 0 0.5px var(--line-2), 0 8px 24px -16px rgb(0 0 0 / 0.5);
 
   :root[data-mode='light'] & {
-    background: color-mix(in oklab, var(--bg) 90%, rgb(255 255 255 / 0.9));
+    background: color-mix(in oklab, var(--bg) 94%, #fff);
     box-shadow: inset 0 0 0 0.5px var(--line-2), 0 1px 2px rgb(16 24 40 / 0.04), 0 10px 28px -18px rgb(16 24 40 / 0.35);
   }
 

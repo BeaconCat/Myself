@@ -52,7 +52,8 @@ const timers: Record<string, number> = {};
 function notify(where: keyof typeof notes, ok: boolean, text: string): void {
   notes[where] = { ok, text };
   window.clearTimeout(timers[where]);
-  timers[where] = window.setTimeout(() => (notes[where] = null), 4200);
+  // 成功提示几秒后自动收起；错误一直留着，直到下一次操作或重新提交
+  if (ok) timers[where] = window.setTimeout(() => (notes[where] = null), 4200);
 }
 
 const ERR: Record<string, string> = {
@@ -152,6 +153,7 @@ const accountSec = ref<HTMLElement | null>(null);
 
 async function edit(which: Editing): Promise<void> {
   editing.value = editing.value === which ? null : which;
+  notes.account = null;
   Object.assign(form, { login: user.value?.login ?? '', email: '', emailPw: '', old: '', next: '', confirm: '' });
   await nextTick();
   accountSec.value?.querySelector<HTMLInputElement>('.fold.open input')?.focus();

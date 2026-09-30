@@ -115,13 +115,13 @@ function onMode(e: MouseEvent): void {
   padding: 0 4px 0 10px;
   /* 与导航胶囊同一圆角规则（--r-base 默认时为胶囊） */
   border-radius: var(--nav-r, var(--r-pill));
-  background: color-mix(in oklab, var(--bg) 72%, transparent);
+  background: color-mix(in oklab, var(--bg) 97%, transparent);
   backdrop-filter: blur(20px) saturate(170%);
   -webkit-backdrop-filter: blur(20px) saturate(170%);
   box-shadow: inset 0 0 0 0.5px var(--line-2), 0 8px 24px -16px rgb(0 0 0 / 0.5);
 
   :root[data-mode='light'] & {
-    background: color-mix(in oklab, var(--bg) 70%, rgb(255 255 255 / 0.4));
+    background: color-mix(in oklab, var(--bg) 94%, #fff);
     box-shadow: inset 0 0 0 0.5px var(--line-2), 0 1px 2px rgb(16 24 40 / 0.04), 0 10px 28px -18px rgb(16 24 40 / 0.35);
   }
 
