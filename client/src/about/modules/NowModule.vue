@@ -31,7 +31,7 @@ const now = useClock();
 </template>
 
 <style scoped lang="scss">
-.nw { list-style: none; display: flex; flex-direction: column; justify-content: space-between; flex: 1; margin-bottom: 16px; }
+.nw { list-style: none; display: flex; flex-direction: column; margin-bottom: 16px; }
 
 .nw li {
   display: grid;
