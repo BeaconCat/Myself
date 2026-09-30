@@ -161,3 +161,33 @@ func TestImportPosts(t *testing.T) {
 		t.Fatalf("hugo dry: %+v", out)
 	}
 }
+
+// 全量备份：数据库（含用户、文章、设置）+ 全部素材，含压缩前原版与裁切原图；缩略图不进包
+func TestBackupIsComplete(t *testing.T) {
+	e := newEnv(t)
+	img := e.uploadFiles(pngOf(color.RGBA{R: 1, G: 2, B: 3, A: 255}))[0]
+	if res := e.server.compressNamed(img.Name, 70); res == nil || res.Error != "" {
+		t.Fatalf("compress: %+v", res)
+	}
+	r := e.do(http.MethodGet, "/uploads/thumbs/"+strings.TrimSuffix(img.Name, ".png")+".webp", nil, nil)
+	r.Body.Close()
+	var b struct{ Name string }
+	e.call(http.MethodPost, "/api/v1/admin/backups", nil, &b, http.StatusCreated)
+	zr, err := zip.OpenReader(e.server.BackupDir + "/" + b.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer zr.Close()
+	has := map[string]bool{}
+	for _, f := range zr.File {
+		has[f.Name] = true
+		if strings.HasPrefix(f.Name, "uploads/thumbs/") || strings.HasSuffix(f.Name, "-wal") {
+			t.Fatalf("unexpected entry %s", f.Name)
+		}
+	}
+	for _, want := range []string{"data/myself.db", "uploads/.precompress/" + img.Name, "uploads/.originals/" + img.Name} {
+		if !has[want] {
+			t.Fatalf("backup missing %s: %v", want, has)
+		}
+	}
+}

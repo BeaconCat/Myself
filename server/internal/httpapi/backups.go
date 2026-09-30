@@ -76,6 +76,14 @@ func addDirToZip(zw *zip.Writer, root, prefix string) error {
 			return err
 		}
 		if d.IsDir() {
+			// 缩略图按需生成，不必进备份
+			if prefix == "uploads" && path == filepath.Join(root, "thumbs") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		// WAL 已在备份前合并进主库，-wal / -shm 不再需要
+		if strings.HasSuffix(path, "-wal") || strings.HasSuffix(path, "-shm") {
 			return nil
 		}
 		rel, err := filepath.Rel(root, path)
