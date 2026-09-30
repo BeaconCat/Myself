@@ -52,6 +52,11 @@ async function submit(): Promise<void> {
   error.value = '';
   try {
     const res = await adminApi.login(username.value, password.value);
+    if (res.user.role === 'reader') {
+      // 读者没有后台权限：不保留这次登录
+      await auth.logout();
+      throw new Error('not_staff');
+    }
     auth.markLoggedIn(res.user);
     success.value = true;
     (document.activeElement as HTMLElement | null)?.blur();
@@ -63,7 +68,8 @@ async function submit(): Promise<void> {
     window.addEventListener(REVEAL_EVENT, () => toast(t('mobileAdmin.login.welcome'), name), { once: true });
     void router.replace(staffHome(res.user.role));
   } catch (e) {
-    error.value = (e as Error).message === 'too_many_attempts' ? t('mobileAdmin.login.locked') : t('mobileAdmin.login.failed');
+    const code = (e as Error).message;
+    error.value = code === 'too_many_attempts' ? t('mobileAdmin.login.locked') : code === 'not_staff' ? t('mobileAdmin.login.notStaff') : t('mobileAdmin.login.failed');
     shake();
     navigator.vibrate?.([12, 40, 12]);
   } finally {

@@ -50,6 +50,8 @@ var (
 
 // Service 认证服务。
 type Service struct {
+	// TTL 登录有效期（后台「登录保持时长」）；nil 用默认 7 天
+	TTL       func() time.Duration
 	db        *store.DB
 	mu        sync.Mutex
 	setupCode string
@@ -246,6 +248,16 @@ func (s *Service) secret() ([]byte, error) {
 }
 
 // Issue 为用户签发 JWT。
+// ttl 当前登录有效期（由站点配置提供，未设置时 7 天）。
+func (s *Service) ttl() time.Duration {
+	if s.TTL != nil {
+		if d := s.TTL(); d > 0 {
+			return d
+		}
+	}
+	return tokenTTL
+}
+
 func (s *Service) Issue(u *store.User) (string, error) {
 	secret, err := s.secret()
 	if err != nil {
@@ -257,7 +269,7 @@ func (s *Service) Issue(u *store.User) (string, error) {
 		"role": u.Role,
 		"tv":   u.TokenVersion,
 		"iat":  now.Unix(),
-		"exp":  now.Add(tokenTTL).Unix(),
+		"exp":  now.Add(s.ttl()).Unix(),
 	})
 	return token.SignedString(secret)
 }

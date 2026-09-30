@@ -465,7 +465,8 @@ h1 { font: 700 26px/1.3 var(--font-serif); letter-spacing: 0.01em; }
 .err-enter-from, .err-leave-to { opacity: 0; transform: translateY(-4px); }
 
 @media (max-width: 767px) {
-  .acc { padding: 32px 16px 120px; place-items: start center; }
+  /* 移动端：卡片在可视区（去掉底栏占位）内垂直居中 */
+  .acc { min-height: 100dvh; padding: 24px 16px calc(104px + env(safe-area-inset-bottom)); place-items: center; }
   .card { padding: 24px 20px 22px; }
 }
 </style>

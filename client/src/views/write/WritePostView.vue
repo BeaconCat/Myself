@@ -471,7 +471,7 @@ onBeforeUnmount(() => {
         <div>
           <div class="st-flabel"><span>{{ t('studio.write.covers') }}</span><span>{{ t('studio.write.coversHint') }}</span></div>
           <CoverUploader v-model="draft.covers" :max="3" />
-          <button type="button" class="st-link pick-btn" @click="openPicker"><SIcon name="image" :size="14" />{{ t('studio.write.pickFromLib') }}</button>
+          <button v-if="!isAuthor" type="button" class="st-link pick-btn" @click="openPicker"><SIcon name="image" :size="14" />{{ t('studio.write.pickFromLib') }}</button>
         </div>
         <div>
           <div class="st-flabel">{{ t('studio.write.tags') }}</div>

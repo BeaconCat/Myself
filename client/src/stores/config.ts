@@ -33,6 +33,8 @@ export interface SiteConfig {
   users?: UsersConfig;
   /** 发信（仅后台设置接口返回） */
   mail?: MailConfig;
+  /** 登录保持时长（仅后台设置接口返回） */
+  session?: { duration: SessionDuration };
   /** 第三方登录（仅后台设置接口返回） */
   oauth?: { github: { clientId: string; clientSecret: string } };
   /** url：站点对外地址（邮件链接、RSS、第三方登录回调用；留空时取当前访问地址） */
@@ -92,6 +94,9 @@ export interface UsersConfig {
   /** 访客回应（喜欢 / 灵感 / 会心 / 共鸣），缺省开启 */
   reactions?: boolean;
 }
+
+/** 登录保持时长：1 天 / 7 天 / 30 天 / 1 年 / 永久（访问时续期） */
+export type SessionDuration = '1d' | '7d' | '30d' | '1y' | 'forever';
 
 export interface MailConfig {
   enabled: boolean;
@@ -157,6 +162,36 @@ export const FALLBACK_CONFIG: SiteConfig = {
   },
 };
 
+/* ---------- 站点配置载入失败时的退避重试（1s → 2s → 4s … 封顶 15s；恢复联网 / 回到页面时立即重试） ---------- */
+let retryTimer = 0;
+let retryDelay = 1000;
+let retryFn: (() => void) | null = null;
+const retryNow = (): void => {
+  if (!retryFn) return;
+  window.clearTimeout(retryTimer);
+  retryFn();
+};
+
+function scheduleRetry(fn: () => void): void {
+  if (!retryFn) {
+    window.addEventListener('online', retryNow);
+    window.addEventListener('focus', retryNow);
+  }
+  retryFn = fn;
+  window.clearTimeout(retryTimer);
+  retryTimer = window.setTimeout(fn, retryDelay);
+  retryDelay = Math.min(15000, retryDelay * 2);
+}
+
+function stopRetry(): void {
+  if (!retryFn) return;
+  window.clearTimeout(retryTimer);
+  window.removeEventListener('online', retryNow);
+  window.removeEventListener('focus', retryNow);
+  retryFn = null;
+  retryDelay = 1000;
+}
+
 let markLoaded: () => void = () => undefined;
 /** 首次载入完成（成功或回退）即兑现；路由守卫据此判断是否需要初始化 */
 export const configLoaded = new Promise<void>((resolve) => { markLoaded = resolve; });
@@ -177,7 +212,12 @@ export const useConfigStore = defineStore('config', {
         const cfg = await api.siteConfig<SiteConfig>();
         normalizeIdentity(cfg.about);
         this.cfg = cfg;
-      } catch { /* 后端未启动时用回退配置 */ }
+        stopRetry();
+      } catch {
+        // 后端暂时不可用（重启、网络抖动）：先用回退配置渲染，后台退避重试，拿到后替换，
+        // 避免整页一直停在出厂默认内容上
+        scheduleRetry(() => this.load());
+      }
       this.loaded = true;
       markLoaded();
       document.title = this.cfg.site.title;

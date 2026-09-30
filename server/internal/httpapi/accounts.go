@@ -92,7 +92,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u *store.U
 	if err != nil {
 		return err
 	}
-	setSession(w, r, token)
+	s.setSession(w, r, token)
 	return nil
 }
 
@@ -154,6 +154,12 @@ func (s *Server) session(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"loggedIn": false})
 		return
 	}
+	// 永久登录：每次打开站点校准会话时续期 Cookie（浏览器 Cookie 最长约 400 天）
+	if s.Config.Typed().SessionForever() {
+		if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
+			s.setSession(w, r, c.Value)
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"loggedIn": true, "mustChange": u.MustChange, "user": s.publicUser(u)})
 }
 
@@ -191,7 +197,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "bad_credentials")
 		return
 	}
-	setSession(w, r, token)
+	s.setSession(w, r, token)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

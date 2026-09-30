@@ -5,6 +5,8 @@ import type { Note } from '../../api';
 import CoverArt from '../common/CoverArt.vue';
 import EngageBar from '../engage/EngageBar.vue';
 import { useRouter } from 'vue-router';
+import { Pin } from 'lucide';
+import Icon from '../ui/Icon.vue';
 import { ymdOf } from '../post/content';
 import { render as renderMarkdown } from '../../utils/markdown';
 
@@ -65,6 +67,7 @@ function openAt(e: MouseEvent, i: number): void {
         <span class="handle">@{{ handle }}</span>
         <span class="dotsep" />
         <time :datetime="note.createdAt.replace(' ', 'T')" :title="note.createdAt.slice(0, 16)">{{ when }}</time>
+        <span v-if="note.pinned" class="pin"><Icon :icon="Pin" :size="12" :stroke="2" />{{ t('noteDetail.pinned') }}</span>
         <button v-if="note.mood" type="button" class="tag" @click="emit('mood', note.mood)">{{ note.mood }}</button>
       </header>
       <!-- eslint-disable-next-line vue/no-v-html -->
@@ -142,6 +145,21 @@ function openAt(e: MouseEvent, i: number): void {
 }
 
 /* 心情：「# 名称」纯文字，可点击按心情搜索 */
+/* 置顶：主色轻染小胶囊 */
+.pin {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px 1px 6px;
+  border-radius: var(--r-pill);
+  background: color-mix(in oklab, var(--ink) 12%, transparent);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
 .tag {
   flex: none;
   margin-left: auto;

@@ -7,6 +7,7 @@ import (
 	"log"
 	"maps"
 	"strings"
+	"time"
 
 	"myself/server/internal/store"
 )
@@ -130,6 +131,7 @@ const defaultJSON = `{
     "login": { "github": false },
     "reactions": true
   },
+  "session": { "duration": "7d" },
   "mail": { "enabled": false, "host": "", "port": 587, "username": "", "password": "", "from": "", "security": "starttls" },
   "oauth": { "github": { "clientId": "", "clientSecret": "" } }
 }`
@@ -300,6 +302,10 @@ type Typed struct {
 	} `json:"backup"`
 	Users Users `json:"users"`
 	Mail  Mail  `json:"mail"`
+	// Session 登录保持时长：1d / 7d / 30d / 1y / forever
+	Session struct {
+		Duration string `json:"duration"`
+	} `json:"session"`
 	OAuth struct {
 		GitHub struct {
 			ClientID     string `json:"clientId"`
@@ -360,6 +366,25 @@ type Mail struct {
 
 // Ready 发信配置完整可用。
 func (m Mail) Ready() bool { return m.Enabled && m.Host != "" && m.Port > 0 && m.From != "" }
+
+// SessionForever 登录永久有效（会话 Cookie 随访问续期）。
+func (t Typed) SessionForever() bool { return t.Session.Duration == "forever" }
+
+// SessionTTL 登录令牌有效期；未知取值按 7 天。永久 = 100 年（仍可通过改密 / 停用立即吊销）。
+func (t Typed) SessionTTL() time.Duration {
+	const day = 24 * time.Hour
+	switch t.Session.Duration {
+	case "1d":
+		return day
+	case "30d":
+		return 30 * day
+	case "1y":
+		return 365 * day
+	case "forever":
+		return 100 * 365 * day
+	}
+	return 7 * day
+}
 
 // GitHubLoginReady GitHub 登录已开启且配置了 OAuth 应用。
 func (t Typed) GitHubLoginReady() bool {

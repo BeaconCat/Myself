@@ -11,7 +11,6 @@ import (
 // SameSite=Strict 挡住跨站请求携带 Cookie；另要求写操作带自定义头并校验 Origin（CSRF 纵深防御）。
 const (
 	sessionCookie = "myself_session"
-	sessionTTL    = 7 * 24 * time.Hour
 	// csrfHeader 前端所有写请求都带 X-Requested-With: myself；跨站表单无法设置自定义头。
 	csrfHeader = "X-Requested-With"
 	csrfValue  = "myself"
@@ -22,12 +21,17 @@ func secureRequest(r *http.Request) bool {
 }
 
 // setSession 写入会话 Cookie（仅 /api/ 路径携带）。
-func setSession(w http.ResponseWriter, r *http.Request, token string) {
+// maxCookieAge 浏览器对 Cookie 有效期的上限（Chrome 约 400 天）；更长的登录靠访问时续期。
+const maxCookieAge = 400 * 24 * time.Hour
+
+// setSession 写入会话 Cookie，有效期跟随后台「登录保持时长」。
+func (s *Server) setSession(w http.ResponseWriter, r *http.Request, token string) {
+	age := min(s.Config.Typed().SessionTTL(), maxCookieAge)
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookie,
 		Value:    token,
 		Path:     "/api/",
-		MaxAge:   int(sessionTTL.Seconds()),
+		MaxAge:   int(age.Seconds()),
 		HttpOnly: true,
 		Secure:   secureRequest(r),
 		SameSite: http.SameSiteStrictMode,

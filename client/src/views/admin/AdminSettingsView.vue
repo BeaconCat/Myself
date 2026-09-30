@@ -25,7 +25,7 @@ const loaded = ref(false);
 const busy = ref(false);
 
 /** 只比较本页负责的字段 */
-const mine = () => stableJson([cfg.site, cfg.loading, cfg.thoughts, cfg.covers, cfg.timezone, cfg.github, cfg.mail, cfg.oauth, cfg.users?.login]);
+const mine = () => stableJson([cfg.site, cfg.loading, cfg.thoughts, cfg.covers, cfg.timezone, cfg.github, cfg.mail, cfg.oauth, cfg.users?.login, cfg.session]);
 const dirty = computed(() => loaded.value && mine() !== snapshot.value);
 
 const SECTIONS = ['site', 'loading', 'content', 'timezone', 'github', 'mail', 'login', 'account'] as const;
@@ -45,6 +45,7 @@ async function load(): Promise<void> {
     cfg.site.url ??= '';
     cfg.mail = { enabled: false, host: '', port: 587, username: '', password: '', from: '', security: 'starttls', ...(remote.mail ?? {}) };
     cfg.oauth = { github: { clientId: '', clientSecret: '', ...(remote.oauth?.github ?? {}) } };
+    cfg.session = { duration: '7d', ...(remote.session ?? {}) };
     cfg.users = {
       ...(remote.users ?? FALLBACK_CONFIG.users!),
       login: { github: false, ...(remote.users?.login ?? {}) },
@@ -70,6 +71,7 @@ async function save(): Promise<void> {
       github: cfg.github,
       mail: cfg.mail,
       oauth: cfg.oauth,
+      session: cfg.session,
       users: { login: { github: !!cfg.users?.login.github } },
     })));
     snapshot.value = mine();

@@ -328,6 +328,7 @@ export default {
       title: '内容',
       sub: '{posts} 篇文章 · {notes} 条随想 · {drafts} 份草稿',
       posts: '文章',
+      comments: '评论',
       notes: '随想',
       draft: '草稿',
       published: '已发布',
@@ -507,6 +508,7 @@ export default {
       loggingIn: '登录中',
       failed: '用户名或密码不正确',
       locked: '尝试次数过多，请 15 分钟后再试',
+      notStaff: '这个账号没有后台权限，请在前台登录',
       welcome: '欢迎回来',
       verified: '验证通过',
       backSite: '返回站点',
@@ -729,6 +731,7 @@ export default {
     newer: '更新一条',
     notFound: '这条随想不存在或已删除',
     toTop: '回到顶部',
+    pinned: '置顶',
   },
   /* 互动：回应 / 评论 / 分享 */
   engage: {

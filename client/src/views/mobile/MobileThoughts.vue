@@ -158,6 +158,7 @@ const mediaCount = computed(() => media.value.length);
             <div class="post-main">
               <header>
                 <b>{{ fullName }}</b><span>@{{ handle }} · {{ md(n.createdAt) }}</span>
+                <i v-if="n.pinned" class="m-pin">{{ t('noteDetail.pinned') }}</i>
                 <em v-if="n.mood" class="m-mood">{{ n.mood }}</em>
               </header>
               <!-- eslint-disable-next-line vue/no-v-html -->
@@ -327,6 +328,18 @@ const mediaCount = computed(() => media.value.length);
     }
 
     .m-mood { margin-left: auto; }
+
+    .m-pin {
+      flex: none;
+      padding: 0 7px;
+      border-radius: var(--r-pill);
+      background: color-mix(in oklab, var(--ink) 12%, transparent);
+      color: var(--ink);
+      font-size: 11.5px;
+      font-style: normal;
+      font-weight: 500;
+      line-height: 18px;
+    }
   }
 }
 

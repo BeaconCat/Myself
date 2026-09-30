@@ -112,6 +112,16 @@ func scanComment(rows *sql.Rows) (commentItem, string, error) {
 	return it, status, err
 }
 
+// authorOfTarget 协作作者在自己的文章下发言（回复读者）直接公开。
+func (s *Server) authorOfTarget(u *store.User, target string, targetID int64) bool {
+	if u == nil || u.Role != store.RoleAuthor || target != "post" {
+		return false
+	}
+	var n int
+	_ = s.DB.QueryRow(`SELECT COUNT(*) FROM posts WHERE id = ? AND author_id = ?`, targetID, u.ID).Scan(&n)
+	return n > 0
+}
+
 // GET /comments?target=post|note|guestbook&key= 已公开的评论 + 当前用户自己待审的
 func (s *Server) listComments(w http.ResponseWriter, r *http.Request) {
 	cfg := s.Config.Typed()
@@ -214,7 +224,7 @@ func (s *Server) createComment(w http.ResponseWriter, r *http.Request) {
 	case u != nil:
 		uid = u.ID
 		switch {
-		case u.Role == store.RoleAdmin, cfg.Users.Comments.Moderation == "none":
+		case u.Role == store.RoleAdmin, cfg.Users.Comments.Moderation == "none", s.authorOfTarget(u, target, targetID):
 			status = "approved"
 		case cfg.Users.Comments.Moderation == "first":
 			var n int
@@ -257,12 +267,40 @@ type adminComment struct {
 	IPHash    string `json:"ipHash"`
 }
 
-// GET /admin/comments?status=pending|approved|spam
+// commentScope 后台评论的可见范围：协作作者只能管理自己文章下的评论。
+func commentScope(r *http.Request) (string, []any) {
+	if u := userOf(r); u != nil && u.Role == store.RoleAuthor {
+		return ` AND c.target = 'post' AND c.target_id IN (SELECT id FROM posts WHERE author_id = ?)`, []any{u.ID}
+	}
+	return "", nil
+}
+
+// ownsComments 协作作者只能处理自己文章下的评论（站长不限）。
+func (s *Server) ownsComments(r *http.Request, ids []int64) (bool, error) {
+	scope, args := commentScope(r)
+	if scope == "" || len(ids) == 0 {
+		return true, nil
+	}
+	ph := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+	q := `SELECT COUNT(*) FROM comments c WHERE c.id IN (` + ph + `)` + scope
+	all := make([]any, 0, len(ids)+len(args))
+	for _, id := range ids {
+		all = append(all, id)
+	}
+	var n int
+	if err := s.DB.QueryRow(q, append(all, args...)...).Scan(&n); err != nil {
+		return false, err
+	}
+	return n == len(ids), nil
+}
+
+// GET /admin/comments?status=pending|approved|spam（协作作者只看自己文章下的）
 func (s *Server) adminListComments(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	if status != "approved" && status != "spam" {
 		status = "pending"
 	}
+	scope, scopeArgs := commentScope(r)
 	rows, err := s.DB.Query(`SELECT c.id, COALESCE(c.parent_id, 0), c.body, c.created_at, c.status, COALESCE(c.user_id, 0), c.guest_name,
 		COALESCE(u.name, ''), COALESCE(u.avatar, ''), COALESCE(u.role, ''),
 		c.target, c.target_id, COALESCE(p.title, ''), COALESCE(p.slug, ''), COALESCE(substr(n.content_md, 1, 40), ''), c.ip_hash
@@ -270,7 +308,7 @@ func (s *Server) adminListComments(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN users u ON u.id = c.user_id
 		LEFT JOIN posts p ON c.target = 'post' AND p.id = c.target_id
 		LEFT JOIN notes n ON c.target = 'note' AND n.id = c.target_id
-		WHERE c.status = ? ORDER BY c.id DESC LIMIT 200`, status)
+		WHERE c.status = ?`+scope+` ORDER BY c.id DESC LIMIT 200`, append([]any{status}, scopeArgs...)...)
 	if err != nil {
 		fail(w, err)
 		return
@@ -365,6 +403,10 @@ func (s *Server) adminUpdateComment(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_json")
 		return
 	}
+	if ok, err := s.ownsComments(r, []int64{pathID(r)}); err != nil || !ok {
+		writeError(w, http.StatusNotFound, "not_found")
+		return
+	}
 	if err := s.setCommentStatus([]int64{pathID(r)}, b.strOr("status")); err != nil {
 		if errors.Is(err, errBadStatus) {
 			writeError(w, http.StatusBadRequest, "invalid_status")
@@ -378,6 +420,10 @@ func (s *Server) adminUpdateComment(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /admin/comments/{id}（连同回复）
 func (s *Server) adminDeleteComment(w http.ResponseWriter, r *http.Request) {
+	if ok, err := s.ownsComments(r, []int64{pathID(r)}); err != nil || !ok {
+		writeError(w, http.StatusNotFound, "not_found")
+		return
+	}
 	if err := s.deleteComments([]int64{pathID(r)}); err != nil {
 		fail(w, err)
 		return
@@ -398,6 +444,10 @@ func (s *Server) adminBatchComments(w http.ResponseWriter, r *http.Request) {
 		if f, ok := v.(float64); ok && f > 0 && len(ids) < 500 {
 			ids = append(ids, int64(f))
 		}
+	}
+	if ok, err := s.ownsComments(r, ids); err != nil || !ok {
+		writeError(w, http.StatusNotFound, "not_found")
+		return
 	}
 	var err error
 	if b.truthy("delete") {

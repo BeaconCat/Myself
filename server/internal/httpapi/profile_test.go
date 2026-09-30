@@ -219,3 +219,43 @@ func TestChangeLoginAndEmail(t *testing.T) {
 		}
 	}
 }
+
+// 登录保持时长：Cookie 有效期跟随后台配置；永久时校准会话会续期 Cookie。
+func TestSessionDuration(t *testing.T) {
+	e := newEnv(t)
+	login := func() *http.Cookie {
+		res := e.do(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"username":"admin","password":"`+testPassword+`"}`),
+			map[string]string{"Content-Type": "application/json", "X-Requested-With": "myself"})
+		defer res.Body.Close()
+		for _, c := range res.Cookies() {
+			if c.Name == sessionCookie {
+				return c
+			}
+		}
+		t.Fatal("no session cookie")
+		return nil
+	}
+	if c := login(); c.MaxAge != 7*24*3600 {
+		t.Fatalf("default max-age = %d", c.MaxAge)
+	}
+	e.call(http.MethodPut, "/api/v1/admin/settings", map[string]any{"session": map[string]any{"duration": "1d"}}, nil, http.StatusOK)
+	if c := login(); c.MaxAge != 24*3600 {
+		t.Fatalf("1d max-age = %d", c.MaxAge)
+	}
+	e.call(http.MethodPut, "/api/v1/admin/settings", map[string]any{"session": map[string]any{"duration": "forever"}}, nil, http.StatusOK)
+	c := login()
+	if c.MaxAge != int(maxCookieAge.Seconds()) {
+		t.Fatalf("forever max-age = %d", c.MaxAge)
+	}
+	res := e.do(http.MethodGet, "/api/v1/auth/session", nil, map[string]string{"Cookie": sessionCookie + "=" + c.Value})
+	res.Body.Close()
+	renewed := false
+	for _, rc := range res.Cookies() {
+		if rc.Name == sessionCookie && rc.Value == c.Value && rc.MaxAge == c.MaxAge {
+			renewed = true
+		}
+	}
+	if !renewed {
+		t.Fatal("forever session should be renewed on session check")
+	}
+}

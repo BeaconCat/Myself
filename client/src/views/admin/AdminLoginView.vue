@@ -37,12 +37,18 @@ async function submit(): Promise<void> {
   error.value = '';
   try {
     const res = await adminApi.login(username.value, password.value);
+    if (res.user.role === 'reader') {
+      // 读者没有后台权限：不保留这次登录
+      await auth.logout();
+      throw new Error('not_staff');
+    }
     auth.markLoggedIn(res.user);
     verified.value = true;
     (document.activeElement as HTMLElement | null)?.blur();
     void router.push(res.mustChange ? { path: '/setup', query: { change: '1' } } : staffHome(res.user.role));
   } catch (e) {
-    error.value = (e as Error).message === 'too_many_attempts' ? t('studio.login.locked') : t('studio.login.failed');
+    const code = (e as Error).message;
+    error.value = code === 'too_many_attempts' ? t('studio.login.locked') : code === 'not_staff' ? t('studio.login.notStaff') : t('studio.login.failed');
     shake();
   } finally {
     busy.value = false;

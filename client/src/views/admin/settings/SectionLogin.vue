@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { SiteConfig } from '../../../stores/config';
+import type { SessionDuration, SiteConfig } from '../../../stores/config';
+import StSeg from '../studio/StSeg.vue';
 import '../studio/i18n';
 import SIcon from '../studio/SIcon.vue';
 import StSwitch from '../studio/StSwitch.vue';
@@ -19,6 +20,16 @@ const oauth = computed(() => props.cfg.oauth!.github);
 const login = computed(() => props.cfg.users!.login);
 const showSecret = ref(false);
 
+/** 登录保持时长：对之后的新登录生效 */
+const DURATIONS: SessionDuration[] = ['1d', '7d', '30d', '1y', 'forever'];
+const duration = computed({
+  get: () => props.cfg.session?.duration ?? '7d',
+  set: (v: SessionDuration) => {
+    props.cfg.session = { duration: v };
+  },
+});
+const durationOptions = computed(() => DURATIONS.map((v) => ({ value: v, label: t(`studio.settings.session_${v}`) })));
+
 /** 与服务端 siteBase 一致：配置了站点地址用站点地址，否则用当前访问的地址 */
 const base = computed(() => (props.cfg.site.url?.startsWith('http') ? props.cfg.site.url.replace(/\/+$/, '') : window.location.origin));
 const callback = computed(() => `${base.value}/api/v1/auth/github/callback`);
@@ -30,6 +41,11 @@ async function copy(): Promise<void> {
 </script>
 
 <template>
+  <div class="st-opt">
+    <div>{{ t('studio.settings.sessionTitle') }}<small>{{ duration === 'forever' ? t('studio.settings.sessionForeverSub') : t('studio.settings.sessionSub') }}</small></div>
+    <StSeg v-model="duration" :options="durationOptions" />
+  </div>
+
   <div class="st-opt">
     <div>{{ t('studio.settings.ghLogin') }}<small>{{ t('studio.settings.ghLoginSub') }}</small></div>
     <StSwitch v-model="login.github" />

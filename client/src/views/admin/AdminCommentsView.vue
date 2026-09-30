@@ -5,6 +5,7 @@ import { Check, MessageSquareDashed } from 'lucide';
 import { accountApi, adminApi, type AdminComment, type CommentStatus } from '../../api';
 import { useConfigStore } from '../../stores/config';
 import { useDialogStore } from '../../stores/dialog';
+import { useAuthStore } from '../../stores/auth';
 import Icon from '../../components/ui/Icon.vue';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
@@ -20,6 +21,9 @@ import { initial, plainText, relTime } from './studio/format';
 const { t } = useI18n();
 const config = useConfigStore();
 const dialog = useDialogStore();
+const auth = useAuthStore();
+/** 协作作者看到的是自己文章下的评论 */
+const descKey = computed(() => (auth.isAdmin ? 'studio.comments.desc' : 'studio.comments.descAuthor'));
 
 type Tab = CommentStatus;
 const tab = ref<Tab>('pending');
@@ -170,7 +174,7 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
     <div class="st-vh">
       <div>
         <h1>{{ t('studio.comments.title') }}</h1>
-        <p>{{ t('studio.comments.desc') }}</p>
+        <p>{{ t(descKey) }}</p>
       </div>
       <div class="act">
         <StSeg :model-value="tab" :options="TABS" @update:model-value="setTab" />
@@ -179,7 +183,7 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
 
     <div v-if="!commentsOn" class="st-note-bar st-rise">
       <SIcon name="info" />{{ t('studio.comments.off') }}
-      <router-link class="st-link" :to="{ name: 'admin-users' }">{{ t('studio.comments.goSwitch') }}</router-link>
+      <router-link v-if="auth.isAdmin" class="st-link" :to="{ name: 'admin-users' }">{{ t('studio.comments.goSwitch') }}</router-link>
     </div>
 
     <div v-if="list.length" class="bulk">

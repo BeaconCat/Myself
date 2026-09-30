@@ -203,6 +203,9 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
 <template>
   <MaPage :title="t('mobileAdmin.content.title')" :sub="sub" @refresh="refresh">
     <template #right>
+      <button v-if="isAuthor" class="icbtn tap" :aria-label="t('mobileAdmin.content.comments')" @click="router.push({ name: 'admin-comments' })">
+        <MaIcon name="comment" :size="20" />
+      </button>
       <button class="icbtn tap" :class="{ on: searching }" :aria-label="t('mobileAdmin.common.search')" @click="toggleSearch">
         <MaIcon :name="searching ? 'close' : 'search'" :size="20" />
       </button>

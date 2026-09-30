@@ -23,9 +23,9 @@ const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const auth = useAuthStore();
-/** 协作作者：只有内容（仅文章）与素材两个标签，+ 里不能发随想 */
+/** 协作作者：只有内容（仅文章）标签，评论从内容页右上角进入；+ 里不能发随想 */
 const isAuthor = computed(() => auth.role === 'author');
-const tabs = computed<AdminTab[] | undefined>(() => (isAuthor.value ? ['content', 'media'] : undefined));
+const tabs = computed<AdminTab[] | undefined>(() => (isAuthor.value ? ['content'] : undefined));
 
 /* ---------- 路由 → 底栏标签 / 视图层级 ---------- */
 const TAB_OF: Record<string, AdminTab> = {

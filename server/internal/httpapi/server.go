@@ -81,6 +81,10 @@ func New(d Deps) *Server {
 	if err := os.MkdirAll(d.BackupDir, 0o700); err != nil {
 		log.Fatalf("[myself-server] mkdir %s: %v", d.BackupDir, err)
 	}
+	// 登录有效期跟随后台配置
+	if d.Auth != nil {
+		d.Auth.TTL = func() time.Duration { return d.Config.Typed().SessionTTL() }
+	}
 	return s
 }
 
@@ -146,7 +150,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+p+"/admin/apikeys", admin(s.listAPIKeys))
 	mux.HandleFunc("POST "+p+"/admin/apikeys", admin(s.createAPIKey))
 	mux.HandleFunc("DELETE "+p+"/admin/apikeys/{id}", admin(s.deleteAPIKey))
-	mux.HandleFunc("GET "+p+"/admin/media", staff(s.listMedia))
+	mux.HandleFunc("GET "+p+"/admin/media", admin(s.listMedia))
 	mux.HandleFunc("POST "+p+"/admin/media", staff(s.uploadMedia))
 	mux.HandleFunc("POST "+p+"/admin/media/{name}/crop", admin(s.cropMedia))
 	mux.HandleFunc("GET "+p+"/admin/media/{name}/original", admin(s.mediaOriginal))
@@ -169,10 +173,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+p+"/admin/invites", admin(s.adminListInvites))
 	mux.HandleFunc("POST "+p+"/admin/invites", admin(s.adminCreateInvite))
 	mux.HandleFunc("DELETE "+p+"/admin/invites/{id}", admin(s.adminDeleteInvite))
-	mux.HandleFunc("GET "+p+"/admin/comments", admin(s.adminListComments))
-	mux.HandleFunc("PUT "+p+"/admin/comments/{id}", admin(s.adminUpdateComment))
-	mux.HandleFunc("DELETE "+p+"/admin/comments/{id}", admin(s.adminDeleteComment))
-	mux.HandleFunc("POST "+p+"/admin/comments/batch", admin(s.adminBatchComments))
+	mux.HandleFunc("GET "+p+"/admin/comments", staff(s.adminListComments))
+	mux.HandleFunc("PUT "+p+"/admin/comments/{id}", staff(s.adminUpdateComment))
+	mux.HandleFunc("DELETE "+p+"/admin/comments/{id}", staff(s.adminDeleteComment))
+	mux.HandleFunc("POST "+p+"/admin/comments/batch", staff(s.adminBatchComments))
 	mux.HandleFunc("POST "+p+"/admin/mail/test", admin(s.mailTest))
 
 	// 外部通道（X-Api-Key）

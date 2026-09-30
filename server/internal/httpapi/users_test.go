@@ -140,6 +140,41 @@ func TestAuthorInviteAndScope(t *testing.T) {
 	if pub.Author == nil {
 		t.Fatal("public post should carry author byline")
 	}
+
+	// 评论管理：作者只看到、只能处理自己文章下的评论；在自己文章下的回复直接公开
+	e.enableUsers(map[string]any{"comments": map[string]any{"enabled": true, "anonymous": true, "moderation": "all"}})
+	h := map[string]string{"Content-Type": "application/json", "X-Requested-With": "myself"}
+	post := func(slug string) int64 {
+		var out struct{ ID int64 }
+		res := e.do(http.MethodPost, "/api/v1/comments", strings.NewReader(`{"target":"post","key":"`+slug+`","body":"hi","guestName":"路人"}`), h)
+		json.NewDecoder(res.Body).Decode(&out)
+		res.Body.Close()
+		return out.ID
+	}
+	mine, others := post("by-author"), post("welcome-to-myself")
+	var items []struct{ ID int64 }
+	c, raw := e.asRaw(tok, http.MethodGet, "/api/v1/admin/comments?status=pending")
+	json.Unmarshal(raw, &items)
+	if c != http.StatusOK || len(items) != 1 || items[0].ID != mine {
+		t.Fatalf("author comment list: %d %s", c, raw)
+	}
+	if c, _ := e.as(tok, http.MethodPut, "/api/v1/admin/comments/"+itoa(others), map[string]string{"status": "approved"}); c != http.StatusNotFound {
+		t.Fatalf("author approved others' comment: %d", c)
+	}
+	if c, _ := e.as(tok, http.MethodPost, "/api/v1/admin/comments/batch", map[string]any{"ids": []int64{mine, others}, "delete": true}); c != http.StatusNotFound {
+		t.Fatalf("author batch on others: %d", c)
+	}
+	if c, _ := e.as(tok, http.MethodPut, "/api/v1/admin/comments/"+itoa(mine), map[string]string{"status": "approved"}); c != http.StatusOK {
+		t.Fatalf("author approve own: %d", c)
+	}
+	c, reply := e.as(tok, http.MethodPost, "/api/v1/comments", map[string]any{"target": "post", "key": "by-author", "body": "谢谢", "parentId": mine})
+	if c != http.StatusCreated || reply["pending"] != false {
+		t.Fatalf("author reply on own post: %d %v", c, reply)
+	}
+	// 作者不能浏览素材库（仍可上传）
+	if c, _ := e.as(tok, http.MethodGet, "/api/v1/admin/media", nil); c != http.StatusForbidden {
+		t.Fatalf("author on media list: %d", c)
+	}
 }
 
 func TestCommentModeration(t *testing.T) {
@@ -241,4 +276,13 @@ func TestAdminUserManagement(t *testing.T) {
 	if !strings.Contains(string(data), "'=HYPERLINK") {
 		t.Fatalf("csv not escaped: %s", data)
 	}
+}
+
+// asRaw 以指定令牌发 GET，返回状态码与原始响应体。
+func (e *env) asRaw(token, method, path string) (int, []byte) {
+	e.t.Helper()
+	res := e.do(method, path, nil, map[string]string{"Authorization": "Bearer " + token})
+	defer res.Body.Close()
+	data, _ := io.ReadAll(res.Body)
+	return res.StatusCode, data
 }
