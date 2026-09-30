@@ -50,7 +50,8 @@ const portrait = computed(() => {
   const r = typeof p.radius === 'number' ? p.radius : null;
   return {
     src: p.src || config.cfg.site.logo || '/logo-1024.webp',
-    logo: !p.src,
+    // 内置 logo 图自带圆角底（按原样显示、不套圆角）；上传的站点 logo 与普通形象图一样跟随圆角设置
+    logo: !p.src && !config.cfg.site.logo,
     fade: p.fade || 'left',
     style: {
       '--pr': r != null && Number.isFinite(r) ? `${r}px` : undefined,
@@ -296,7 +297,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
   mask-image: linear-gradient(to top, transparent 0%, rgb(0 0 0 / 0.04) calc(var(--fw, 50%) * 0.115), rgb(0 0 0 / 0.14) calc(var(--fw, 50%) * 0.25), rgb(0 0 0 / 0.3) calc(var(--fw, 50%) * 0.385), rgb(0 0 0 / 0.5) calc(var(--fw, 50%) * 0.52), rgb(0 0 0 / 0.7) calc(var(--fw, 50%) * 0.654), rgb(0 0 0 / 0.86) calc(var(--fw, 50%) * 0.77), rgb(0 0 0 / 0.96) calc(var(--fw, 50%) * 0.885), #000 var(--fw, 50%));
 }
 
-/* 未配置形象图：站点 logo 原图自带圆角底，直接全尺寸显示，不再套底框 */
+/* 未配置形象图也未上传站点 logo：内置 logo 原图自带圆角底，直接全尺寸显示，不再套底框 */
 .pf-portrait.logo .pf-frame {
   width: min(100%, 520px);
   border-radius: 0;
