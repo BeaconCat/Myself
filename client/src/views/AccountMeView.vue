@@ -226,7 +226,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
       <!-- 头像 + 名字 -->
       <section class="head rise">
         <button type="button" class="av" :title="t('account.me.changeAvatar')" @click="pick">
-          <img v-if="user.avatar" :src="user.avatar" alt="" referrerpolicy="no-referrer" />
+          <img v-if="auth.avatar" :src="auth.avatar" alt="" referrerpolicy="no-referrer" />
           <span v-else class="ini">{{ initial }}</span>
           <span class="cam"><Icon :icon="Camera" :size="20" /></span>
         </button>

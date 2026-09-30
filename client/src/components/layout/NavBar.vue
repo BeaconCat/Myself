@@ -148,7 +148,7 @@ onBeforeUnmount(() => {
     </router-link>
     <!-- 我的账号 / 登录 -->
     <router-link v-if="auth.loggedIn" to="/account" class="round-btn me-btn" :title="t('account.me.profile')">
-      <img v-if="me?.avatar" :src="me.avatar" alt="" referrerpolicy="no-referrer" />
+      <img v-if="auth.avatar" :src="auth.avatar" alt="" referrerpolicy="no-referrer" />
       <span v-else-if="me">{{ meInitial }}</span>
       <UiIcon v-else name="user" class="s" />
     </router-link>

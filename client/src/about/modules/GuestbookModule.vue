@@ -120,7 +120,7 @@ const loginTo = computed(() => ({ path: '/account/login', query: { next: route.f
 
   <form v-if="canWrite" class="gb-form" @submit.prevent="submit">
     <span class="av me">
-      <img v-if="auth.user?.avatar" :src="auth.user.avatar" alt="" referrerpolicy="no-referrer" />
+      <img v-if="auth.avatar" :src="auth.avatar" alt="" referrerpolicy="no-referrer" />
       <template v-else>{{ (auth.user?.name || t('aboutKit.guestbook.visitorShort')).slice(0, 1) }}</template>
     </span>
     <input v-if="!auth.loggedIn" v-model="guestName" class="nm" maxlength="24" :placeholder="t('aboutKit.guestbook.namePh')" autocomplete="nickname" />

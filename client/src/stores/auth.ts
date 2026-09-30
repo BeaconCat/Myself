@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
 import type { SessionUser, UserRole } from '../api';
+import { useConfigStore } from './config';
+import { BUILTIN_LOGO } from '../utils/siteLogo';
 
 /**
  * 登录态。令牌只存在服务端下发的 HttpOnly 会话 Cookie 里，页面脚本读不到；
@@ -22,6 +24,19 @@ export const useAuthStore = defineStore('auth', {
     /** 可进后台：站长与协作作者 */
     staff: (s) => s.loggedIn && (s.role === 'admin' || s.role === 'author'),
     isAdmin: (s) => s.loggedIn && s.role === 'admin',
+    /**
+     * 当前用户展示的头像。站长没单独设置时直接跟随站点身份（身份头像 → 站点 logo → 内置 logo），
+     * 在前端按站点配置实时解析：后台改了身份头像，顶栏 / 账号页 / 留言墙立即同步，不必重新登录。
+     */
+    avatar(s): string {
+      const u = s.user;
+      if (!u) return '';
+      if (u.role === 'admin' && (u.avatarDefault || !u.avatar)) {
+        const cfg = useConfigStore().cfg;
+        return cfg.about.avatar || cfg.site.logo || BUILTIN_LOGO;
+      }
+      return u.avatar;
+    },
   },
   actions: {
     /** 登录 / 注册 / 初始化 / 改密成功后：服务端已写入会话 Cookie，这里记下提示与用户资料 */
