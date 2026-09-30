@@ -259,3 +259,27 @@ func TestSessionDuration(t *testing.T) {
 		t.Fatal("forever session should be renewed on session check")
 	}
 }
+
+// 删除用户时头像文件一并删除。
+func TestDeleteUserRemovesAvatar(t *testing.T) {
+	e := newEnv(t)
+	e.enableUsers(map[string]any{"enabled": true, "readers": map[string]any{"enabled": true, "signup": "open"}})
+	tok := e.signup(map[string]any{"email": "d@example.com", "name": "丁", "password": "password123"})
+	_, out := e.uploadAvatarAs(tok, 64, 64)
+	file := filepath.Join(e.root, "uploads", strings.TrimPrefix(userField(out, "avatarPending"), "/uploads/"))
+	var list struct {
+		Items []struct {
+			ID    int64
+			Email string
+		}
+	}
+	e.call(http.MethodGet, "/api/v1/admin/users", nil, &list, http.StatusOK)
+	for _, u := range list.Items {
+		if u.Email == "d@example.com" {
+			e.call(http.MethodDelete, "/api/v1/admin/users/"+itoa(u.ID), nil, nil, http.StatusOK)
+		}
+	}
+	if _, err := os.Stat(file); !os.IsNotExist(err) {
+		t.Fatal("avatar file should be removed with the user")
+	}
+}

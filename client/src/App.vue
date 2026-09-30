@@ -48,6 +48,7 @@ watch(shrunk, (on) => {
       <!-- 换页发生在路由遮罩背后，不再套 out-in 过渡：旧页根节点自带的 transition 会被 Vue 当成离场时长，
            白白推迟新页挂载；入场由遮罩揭幕 + 页面自身 rise / reveal 承担 -->
       <!-- 随想列表保活：从详情返回时保留已加载的条目与滚动位置 -->
+      <!-- 不播遮罩的换页（标准 / 简约档位下的栏目内切换）由路由 afterEach 给本容器播一段淡入（见 router/index.ts） -->
       <router-view v-slot="{ Component }">
         <KeepAlive include="ThoughtsView">
           <component :is="Component" />

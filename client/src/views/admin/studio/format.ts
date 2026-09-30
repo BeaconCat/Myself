@@ -7,6 +7,8 @@ const tr = (k: string, v?: Record<string, unknown>): string => (v ? i18n.global.
 export function formatSize(bytes: number): string {
   if (bytes >= 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  // 0 字节显示 0；有内容但不足 1 KB 时按 1 KB 显示
+  if (bytes <= 0) return '0 KB';
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 

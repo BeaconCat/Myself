@@ -54,6 +54,8 @@ export interface SiteConfig {
     /** 全局圆角基准（px，0–24，默认 10）；前台、移动端、后台共用 */
     radius: number;
   };
+  /** 全站动画：route = 切页动效档位 */
+  motion?: { route: RouteMotion };
   hero: {
     intervalMs: number;
     count: number;
@@ -95,6 +97,12 @@ export interface UsersConfig {
   reactions?: boolean;
 }
 
+/**
+ * 切页动效：rich = 每次换页都播全屏遮罩；standard = 只在大栏目之间（首页 / 文章 / 随想 / 关于）播全屏遮罩，
+ * 栏目内（列表 ↔ 详情等）用轻量渐入；minimal = 从不播切页遮罩，只保留首次载入的全屏揭幕。
+ */
+export type RouteMotion = 'rich' | 'standard' | 'minimal';
+
 /** 登录保持时长：1 天 / 7 天 / 30 天 / 1 年 / 永久（访问时续期） */
 export type SessionDuration = '1d' | '7d' | '30d' | '1y' | 'forever';
 
@@ -127,6 +135,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
       { id: 'winter', name: '冬 · 霜蓝', primary: '#0078ff', primaryDeep: '#005fd6' },
     ],
   },
+  motion: { route: 'standard' },
   hero: { intervalMs: 3000, count: 4, pinnedRule: 'pinned-first', textAnim: 'lightscan', cardAnim: 'hinge', rotateAnim: 'lift' },
   thoughts: { subtitle: '碎片化的想法、心情与瞬间，短到装不下一篇文章。' },
   covers: { expandMs: 10000 },

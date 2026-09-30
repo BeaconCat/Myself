@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi } from '../../api';
-import { FALLBACK_CONFIG, useConfigStore, type SiteConfig, type ThemePreset } from '../../stores/config';
+import { FALLBACK_CONFIG, useConfigStore, type SiteConfig, type ThemePreset, type RouteMotion } from '../../stores/config';
 import { useDialogStore } from '../../stores/dialog';
 import { applyRadius, useThemeStore, type UiStyle } from '../../stores/theme';
 import { derivePalette } from '../../themes/derive';
@@ -11,6 +11,8 @@ import HeroMixer from '../../components/home/hero/HeroMixer.vue';
 import type { CardChoreoId, RotateChoreoId, TextChoreoId } from '../../components/home/hero/choreo/types';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
+import Icon from '../../components/ui/Icon.vue';
+import { Feather, Layers, Sparkles, type IconNode } from 'lucide';
 import StSwitch from './studio/StSwitch.vue';
 import StSeg from './studio/StSeg.vue';
 import LightCover from './studio/LightCover.vue';
@@ -26,8 +28,19 @@ const config = useConfigStore();
 const theme = useThemeStore();
 const dialog = useDialogStore();
 
-type Pick2 = Pick<SiteConfig, 'theme' | 'hero'>;
-const cfg = reactive<Pick2>(JSON.parse(JSON.stringify({ theme: config.cfg.theme, hero: config.cfg.hero })));
+type Pick2 = Pick<SiteConfig, 'theme' | 'hero'> & { motion: { route: RouteMotion } };
+const cfg = reactive<Pick2>(JSON.parse(JSON.stringify({
+  theme: config.cfg.theme,
+  hero: config.cfg.hero,
+  motion: { route: config.cfg.motion?.route ?? 'standard' },
+})));
+
+/** 全站动画档位 */
+const MOTIONS: { id: RouteMotion; icon: IconNode }[] = [
+  { id: 'rich', icon: Sparkles },
+  { id: 'standard', icon: Layers },
+  { id: 'minimal', icon: Feather },
+];
 const snapshot = ref('');
 const loaded = ref(false);
 const busy = ref(false);
@@ -39,6 +52,7 @@ async function load(): Promise<void> {
     const remote = (await adminApi.settings()) as unknown as SiteConfig;
     cfg.theme = JSON.parse(JSON.stringify(remote.theme ?? FALLBACK_CONFIG.theme));
     cfg.hero = { ...FALLBACK_CONFIG.hero, ...(remote.hero ?? {}) };
+    cfg.motion = { route: 'standard', ...(remote.motion ?? {}) };
     cfg.theme.radius = clampRadius(cfg.theme.radius ?? FALLBACK_CONFIG.theme.radius ?? 10);
   } catch {
     toast(t('studio.loadFailed'), { icon: 'x' });
@@ -404,6 +418,28 @@ onBeforeUnmount(() => {
             <div><b>{{ t('studio.appearance.radiusCard') }}</b><small>{{ t('studio.appearance.radiusCardMeta') }}</small></div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- 全站动画 -->
+    <div class="motion-sec">
+      <div class="st-sec-t"><h2>{{ t('studio.appearance.motion') }}</h2></div>
+      <p class="desc">{{ t('studio.appearance.motionDesc') }}</p>
+      <div class="motion-opts" role="radiogroup" :aria-label="t('studio.appearance.motion')">
+        <button
+          v-for="m in MOTIONS"
+          :key="m.id"
+          type="button"
+          role="radio"
+          class="mo-c"
+          :class="{ on: cfg.motion.route === m.id }"
+          :aria-checked="cfg.motion.route === m.id"
+          @click="cfg.motion.route = m.id"
+        >
+          <span class="ic"><Icon :icon="m.icon" :size="20" /></span>
+          <b>{{ t(`studio.appearance.motion_${m.id}`) }}<em v-if="m.id === 'standard'">{{ t('studio.appearance.motionDefault') }}</em></b>
+          <small>{{ t(`studio.appearance.motion_${m.id}Sub`) }}</small>
+        </button>
       </div>
     </div>
 
@@ -957,5 +993,61 @@ h2 { font: 700 22px/1.3 var(--font-serif); margin: 0 0 4px; }
   .view { padding: 28px 32px 64px; }
   .ap { grid-template-columns: 1fr; }
   .pv-wrap { position: static; }
+}
+
+/* ---------- 全站动画 ---------- */
+.motion-sec {
+  margin-top: 36px;
+
+  .desc { margin: -6px 0 16px; font-size: 14px; color: var(--st-ink-3); }
+}
+
+.motion-opts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.mo-c {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px 18px 18px;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--line-2);
+  text-align: left;
+  color: var(--st-ink);
+  transition: box-shadow var(--dur-fast), background var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+
+  &:hover { transform: translateY(-2px); }
+
+  .ic {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    margin-bottom: 4px;
+    border-radius: var(--r-md);
+    background: var(--well);
+    color: var(--st-ink-2);
+    transition: background var(--dur-fast), color var(--dur-fast);
+  }
+
+  b { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+  em { font-style: normal; font-size: 11.5px; font-weight: 500; padding: 1px 7px; border-radius: var(--r-pill); background: var(--well-2); color: var(--st-ink-3); }
+  small { font-size: 13px; line-height: 1.6; color: var(--st-ink-3); }
+
+  &.on {
+    background: var(--tint);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--ink) 45%, transparent), 0 0 0 3px color-mix(in oklab, var(--ink) 10%, transparent);
+
+    .ic { background: var(--ink); color: var(--paper); }
+  }
+}
+
+@media (max-width: 1180px) {
+  .motion-opts { grid-template-columns: 1fr; }
 }
 </style>

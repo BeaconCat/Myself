@@ -48,6 +48,8 @@ export const useLoadingStore = defineStore('loading', {
     bootOverlayVisible: true,
     /** 路由遮罩盖住阶段；变为 false 即揭幕开始（RouteLoading 同帧开始下滑退场） */
     routeLoading: false,
+    /** 本次换页不播遮罩、改用轻量渐入（标准 / 简约档位下的栏目内切换） */
+    softNav: false,
     /** 路由遮罩仍在屏上（含下滑退场动画期间） */
     routeOverlayVisible: false,
     /** 页面就绪门闩：目标页数据未就绪时揭幕等待，避免揭开后内容才闪出 */

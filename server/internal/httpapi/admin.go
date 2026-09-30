@@ -258,6 +258,7 @@ func (s *Server) siteConfig(w http.ResponseWriter, _ *http.Request) {
 		"loading":    cfg["loading"],
 		"theme":      cfg["theme"],
 		"hero":       cfg["hero"],
+		"motion":     cfg["motion"],
 		"thoughts":   cfg["thoughts"],
 		"covers":     cfg["covers"],
 		"timezone":   cfg["timezone"],

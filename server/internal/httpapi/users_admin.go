@@ -154,6 +154,9 @@ func (s *Server) adminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
+	// 头像文件随账号一起删除
+	s.removeAvatarFile(u.Avatar)
+	s.removeAvatarFile(u.AvatarPending)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 

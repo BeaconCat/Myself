@@ -109,11 +109,21 @@ export function skipNextRouteCover(): void {
   skipCoverUntil = performance.now() + 1500;
 }
 
-/** 是否为需要播放遮罩的站内跳转（首屏、后台内部标签、同页 query/hash 变化都不播；桌面与移动端一致） */
+/** 大栏目：路径第一段（首页为空）；后台整体算一个栏目 */
+const section = (r: RouteLocationNormalized): string => (r.meta.admin ? 'admin' : r.path.split('/')[1] ?? '');
+
+/**
+ * 是否为需要播放全屏遮罩的站内跳转（首屏、后台内部标签、同页 query/hash 变化都不播；桌面与移动端一致）。
+ * 按后台「外观 · 全站动画」档位：丰富 = 每次换页；标准 = 只在大栏目之间；简约 = 从不。
+ */
 function playsCover(to: RouteLocationNormalized, from: RouteLocationNormalized): boolean {
   if (!from.matched.length) return false;
   if (to.meta.admin && from.meta.admin) return false;
-  return to.path !== from.path;
+  if (to.path === from.path) return false;
+  const mode = useConfigStore().cfg.motion?.route ?? 'standard';
+  if (mode === 'minimal') return false;
+  if (mode === 'standard') return section(to) !== section(from);
+  return true;
 }
 
 /** 路由懒加载函数（非已解析组件对象） */
@@ -174,6 +184,8 @@ router.beforeEach(async (to, from) => {
   const skip = performance.now() < skipCoverUntil;
   skipCoverUntil = 0;
   covering = !skip && playsCover(to, from);
+  // 不播遮罩的真正换页：前台页面用轻量渐入（后台有自己的切页动效）
+  useLoadingStore().softNav = !covering && !skip && !!from.matched.length && to.path !== from.path && !to.meta.admin && !from.meta.admin;
   const ready = preload(to);
   if (!covering) {
     await ready;
@@ -186,8 +198,19 @@ router.beforeEach(async (to, from) => {
   if (import.meta.env.DEV) performance.mark('route:covered');
 });
 
+/**
+ * 轻量切页：不播遮罩的换页给页面容器播一段淡入（只动透明度：容器上加位移会让页内 fixed 元素跟着偏移）。
+ * 在导航确认的同一帧起播，旧页随即淡去、新页挂载后接着淡入。
+ */
+function softFade(): void {
+  if (reduced()) return;
+  const el = document.querySelector<HTMLElement>('.app-shell .route-view');
+  el?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 360, easing: 'cubic-bezier(.2,.8,.3,1)' });
+}
+
 router.afterEach((to, _from, failure) => {
   const loading = useLoadingStore();
+  if (!failure && loading.softNav) softFade();
   // 未播遮罩（或上一次播遮罩的导航被本次不播遮罩的导航取代时仍需收尾）
   if (!covering && !loading.routeLoading) return;
   // 被更新的导航取代：由新导航负责揭幕
