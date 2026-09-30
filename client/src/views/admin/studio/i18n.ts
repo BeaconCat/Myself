@@ -430,6 +430,8 @@ const studio = {
     fade_none: '不渐隐',
     radius: '圆角',
     radiusAuto: '跟随全局',
+    fadeWidth: '渐隐宽度',
+    fadeOff: '不渐隐',
     focusX: '焦点 · 横向',
     focusY: '焦点 · 纵向',
     card: '名片',

@@ -52,9 +52,19 @@ const portrait = computed(() => {
     src: p.src || config.cfg.site.logo || '/logo-1024.webp',
     logo: !p.src,
     fade: p.fade || 'left',
-    style: { '--pr': r != null && Number.isFinite(r) ? `${r}px` : undefined, '--pf': p.focus || '50% 40%' },
+    style: {
+      '--pr': r != null && Number.isFinite(r) ? `${r}px` : undefined,
+      '--pf': p.focus || '50% 40%',
+      '--fw': `${fadeWidth(p.fadeWidth)}%`,
+    },
   };
 });
+
+/** 渐隐宽度：10–80%，缺省 50% */
+function fadeWidth(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? Math.min(80, Math.max(10, n)) : 50;
+}
 
 const plain = computed(() => props.variant === 'plain');
 /** 名片按钮：身份页勾选的链接（最多 3 个），与移动端名片一致 */
@@ -277,13 +287,13 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 
 /* 渐隐：仅左缘，缓动曲线式多段停靠，过渡区约 45%，无硬边；底部保持清晰 */
 .fade-left .pf-frame {
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.04) 6%, rgb(0 0 0 / 0.14) 13%, rgb(0 0 0 / 0.3) 20%, rgb(0 0 0 / 0.5) 27%, rgb(0 0 0 / 0.7) 34%, rgb(0 0 0 / 0.86) 40%, rgb(0 0 0 / 0.96) 46%, #000 52%);
-  mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.04) 6%, rgb(0 0 0 / 0.14) 13%, rgb(0 0 0 / 0.3) 20%, rgb(0 0 0 / 0.5) 27%, rgb(0 0 0 / 0.7) 34%, rgb(0 0 0 / 0.86) 40%, rgb(0 0 0 / 0.96) 46%, #000 52%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.04) calc(var(--fw, 50%) * 0.115), rgb(0 0 0 / 0.14) calc(var(--fw, 50%) * 0.25), rgb(0 0 0 / 0.3) calc(var(--fw, 50%) * 0.385), rgb(0 0 0 / 0.5) calc(var(--fw, 50%) * 0.52), rgb(0 0 0 / 0.7) calc(var(--fw, 50%) * 0.654), rgb(0 0 0 / 0.86) calc(var(--fw, 50%) * 0.77), rgb(0 0 0 / 0.96) calc(var(--fw, 50%) * 0.885), #000 var(--fw, 50%));
+  mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.04) calc(var(--fw, 50%) * 0.115), rgb(0 0 0 / 0.14) calc(var(--fw, 50%) * 0.25), rgb(0 0 0 / 0.3) calc(var(--fw, 50%) * 0.385), rgb(0 0 0 / 0.5) calc(var(--fw, 50%) * 0.52), rgb(0 0 0 / 0.7) calc(var(--fw, 50%) * 0.654), rgb(0 0 0 / 0.86) calc(var(--fw, 50%) * 0.77), rgb(0 0 0 / 0.96) calc(var(--fw, 50%) * 0.885), #000 var(--fw, 50%));
 }
 
 .fade-bottom .pf-frame {
-  -webkit-mask-image: linear-gradient(to top, transparent 0%, rgb(0 0 0 / 0.14) 10%, rgb(0 0 0 / 0.42) 20%, rgb(0 0 0 / 0.74) 30%, rgb(0 0 0 / 0.94) 38%, #000 44%);
-  mask-image: linear-gradient(to top, transparent 0%, rgb(0 0 0 / 0.14) 10%, rgb(0 0 0 / 0.42) 20%, rgb(0 0 0 / 0.74) 30%, rgb(0 0 0 / 0.94) 38%, #000 44%);
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, rgb(0 0 0 / 0.04) calc(var(--fw, 50%) * 0.115), rgb(0 0 0 / 0.14) calc(var(--fw, 50%) * 0.25), rgb(0 0 0 / 0.3) calc(var(--fw, 50%) * 0.385), rgb(0 0 0 / 0.5) calc(var(--fw, 50%) * 0.52), rgb(0 0 0 / 0.7) calc(var(--fw, 50%) * 0.654), rgb(0 0 0 / 0.86) calc(var(--fw, 50%) * 0.77), rgb(0 0 0 / 0.96) calc(var(--fw, 50%) * 0.885), #000 var(--fw, 50%));
+  mask-image: linear-gradient(to top, transparent 0%, rgb(0 0 0 / 0.04) calc(var(--fw, 50%) * 0.115), rgb(0 0 0 / 0.14) calc(var(--fw, 50%) * 0.25), rgb(0 0 0 / 0.3) calc(var(--fw, 50%) * 0.385), rgb(0 0 0 / 0.5) calc(var(--fw, 50%) * 0.52), rgb(0 0 0 / 0.7) calc(var(--fw, 50%) * 0.654), rgb(0 0 0 / 0.86) calc(var(--fw, 50%) * 0.77), rgb(0 0 0 / 0.96) calc(var(--fw, 50%) * 0.885), #000 var(--fw, 50%));
 }
 
 /* 未配置形象图：站点 logo 原图自带圆角底，直接全尺寸显示，不再套底框 */

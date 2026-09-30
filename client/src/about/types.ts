@@ -25,6 +25,8 @@ export interface Portrait {
   src: string;
   /** 渐隐方向：left = 左缘向左渐隐（默认） */
   fade: 'left' | 'bottom' | 'none';
+  /** 渐隐宽度（占图片宽 / 高的百分比，10–80，默认 50）：从完全透明过渡到不透明的距离 */
+  fadeWidth?: number;
   /** 圆角 px；未配置时跟随全局 --r-xl */
   radius?: number;
   /** object-position，如 '50% 30%' */

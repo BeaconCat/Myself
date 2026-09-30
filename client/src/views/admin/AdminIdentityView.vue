@@ -129,14 +129,16 @@ const radiusAuto = computed<boolean>({
   },
 });
 
-const focus = computed(() => {
-  const [x, y] = (about.portrait.focus || '50% 40%').split(/\s+/).map((s) => parseFloat(s));
-  return { x: Number.isFinite(x) ? x : 50, y: Number.isFinite(y) ? y : 40 };
+/** 形象图渐隐宽度（10–80%，默认 50%）；「不渐隐」时停用 */
+const fadeW = computed({
+  get: () => {
+    const n = Number(about.portrait.fadeWidth);
+    return Number.isFinite(n) && n > 0 ? Math.min(80, Math.max(10, n)) : 50;
+  },
+  set: (v: number) => {
+    about.portrait.fadeWidth = v;
+  },
 });
-function setFocus(axis: 'x' | 'y', v: number): void {
-  const f = { ...focus.value, [axis]: v };
-  about.portrait.focus = `${f.x}% ${f.y}%`;
-}
 
 /* ---------- 链接 ---------- */
 function addLink(): void {
@@ -294,7 +296,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="pt-block">
-              <figure class="pt-thumb" :class="[`fade-${about.portrait.fade}`, { logo: !about.portrait.src, busy: uploading === 'portrait' }]" @click="portraitInput?.click()">
+              <figure class="pt-thumb" :class="[`fade-${about.portrait.fade}`, { logo: !about.portrait.src, busy: uploading === 'portrait' }]" :style="{ '--fw': `${fadeW}%` }" @click="portraitInput?.click()">
                 <span class="pt-frame" :style="{ borderRadius: radiusAuto ? 'var(--r-lg)' : `${Math.round((about.portrait.radius ?? 24) * 0.5)}px` }">
                   <img :src="about.portrait.src || site.logo || '/logo-1024.webp'" alt="" draggable="false" :style="{ objectPosition: about.portrait.focus || '50% 40%' }" />
                 </span>
@@ -329,15 +331,12 @@ onBeforeUnmount(() => {
                     <input v-model.number="about.portrait.radius" type="range" min="0" max="80" :disabled="radiusAuto" />
                   </div>
                 </div>
-                <div class="ctl two">
-                  <label>
-                    <span class="st-flabel">{{ t('studio.identity.focusX') }}<em>{{ focus.x }}%</em></span>
-                    <input type="range" min="0" max="100" :value="focus.x" @input="setFocus('x', Number(($event.target as HTMLInputElement).value))" />
-                  </label>
-                  <label>
-                    <span class="st-flabel">{{ t('studio.identity.focusY') }}<em>{{ focus.y }}%</em></span>
-                    <input type="range" min="0" max="100" :value="focus.y" @input="setFocus('y', Number(($event.target as HTMLInputElement).value))" />
-                  </label>
+                <div class="ctl">
+                  <span class="st-flabel">
+                    {{ t('studio.identity.fadeWidth') }}
+                    <em>{{ about.portrait.fade === 'none' ? t('studio.identity.fadeOff') : `${fadeW}%` }}</em>
+                  </span>
+                  <input v-model.number="fadeW" type="range" min="10" max="80" step="1" :disabled="about.portrait.fade === 'none'" :aria-label="t('studio.identity.fadeWidth')" />
                 </div>
               </div>
             </div>
@@ -701,13 +700,13 @@ onBeforeUnmount(() => {
 }
 
 .fade-left .pt-frame {
-  -webkit-mask-image: linear-gradient(to right, transparent, rgb(0 0 0 / 0.3) 20%, rgb(0 0 0 / 0.86) 40%, #000 52%);
-  mask-image: linear-gradient(to right, transparent, rgb(0 0 0 / 0.3) 20%, rgb(0 0 0 / 0.86) 40%, #000 52%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.14) calc(var(--fw, 50%) * 0.25), rgb(0 0 0 / 0.5) calc(var(--fw, 50%) * 0.52), rgb(0 0 0 / 0.86) calc(var(--fw, 50%) * 0.77), #000 var(--fw, 50%));
+  mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.14) calc(var(--fw, 50%) * 0.25), rgb(0 0 0 / 0.5) calc(var(--fw, 50%) * 0.52), rgb(0 0 0 / 0.86) calc(var(--fw, 50%) * 0.77), #000 var(--fw, 50%));
 }
 
 .fade-bottom .pt-frame {
-  -webkit-mask-image: linear-gradient(to top, transparent, rgb(0 0 0 / 0.42) 20%, rgb(0 0 0 / 0.94) 38%, #000 44%);
-  mask-image: linear-gradient(to top, transparent, rgb(0 0 0 / 0.42) 20%, rgb(0 0 0 / 0.94) 38%, #000 44%);
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, rgb(0 0 0 / 0.14) calc(var(--fw, 50%) * 0.25), rgb(0 0 0 / 0.5) calc(var(--fw, 50%) * 0.52), rgb(0 0 0 / 0.86) calc(var(--fw, 50%) * 0.77), #000 var(--fw, 50%));
+  mask-image: linear-gradient(to top, transparent 0%, rgb(0 0 0 / 0.14) calc(var(--fw, 50%) * 0.25), rgb(0 0 0 / 0.5) calc(var(--fw, 50%) * 0.52), rgb(0 0 0 / 0.86) calc(var(--fw, 50%) * 0.77), #000 var(--fw, 50%));
 }
 
 .pt-ctrl { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
