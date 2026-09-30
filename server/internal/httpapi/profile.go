@@ -63,7 +63,7 @@ func (s *Server) publicUser(u *store.User) map[string]any {
 	return map[string]any{
 		"id": u.ID, "login": u.Login, "email": u.Email, "name": u.Name, "role": u.Role,
 		"avatar": s.avatarOf(u.Role, u.Avatar), "avatarDefault": u.Role == store.RoleAdmin && u.Avatar == "",
-		"avatarPending": u.AvatarPending, "loginNextChange": next,
+		"avatarPending": u.AvatarPending, "loginNextChange": next, "emailPending": s.pendingEmail(u.ID),
 		"hasPassword": u.PasswordHash != "", "github": u.GitHubID != 0, "emailVerified": u.EmailVerified,
 		"mustChange": u.MustChange,
 	}
@@ -181,7 +181,19 @@ func (s *Server) changeLogin(w http.ResponseWriter, r *http.Request) {
 	s.writeMe(w, u.ID)
 }
 
-// PUT /me/email {email, password} 修改邮箱：已设密码的账号需验证当前密码；改后邮箱待验证，能发信时发验证邮件。
+// emailChangeTTL 换绑邮箱确认链接的有效期。
+const emailChangeTTL = 24 * time.Hour
+
+// pendingEmail 用户待确认的新邮箱（最近一条未使用、未过期的换绑令牌）。
+func (s *Server) pendingEmail(uid int64) string {
+	var email string
+	_ = s.DB.QueryRow(`SELECT email FROM user_tokens WHERE kind = 'email' AND user_id = ? AND used_at IS NULL
+		AND expires_at > datetime('now') ORDER BY id DESC LIMIT 1`, uid).Scan(&email)
+	return email
+}
+
+// PUT /me/email {email, password} 添加 / 更换邮箱：已设密码的账号需验证当前密码；
+// 向新邮箱发确认邮件，点开链接后才真正换绑（并标记已验证）。站点未配置发信时无法添加。
 func (s *Server) changeEmail(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
 	if d := s.limiter.blocked(ip); d > 0 {
@@ -212,30 +224,65 @@ func (s *Server) changeEmail(w http.ResponseWriter, r *http.Request) {
 		s.writeMe(w, u.ID)
 		return
 	}
-	if _, err := s.DB.Exec(`UPDATE users SET email = ?, email_verified = 0 WHERE id = ?`, email, u.ID); err != nil {
-		if store.IsUniqueErr(err) {
-			writeError(w, http.StatusConflict, "email_taken")
-			return
-		}
+	if other, err := s.DB.UserBy(`email = ?`, email); err != nil {
+		fail(w, err)
+		return
+	} else if other != nil {
+		writeError(w, http.StatusConflict, "email_taken")
+		return
+	}
+	cfg := s.Config.Typed()
+	if !cfg.Mail.Ready() {
+		writeError(w, http.StatusServiceUnavailable, "mail_unavailable")
+		return
+	}
+	// 新的换绑请求作废旧的
+	if _, err := s.DB.Exec(`DELETE FROM user_tokens WHERE kind = 'email' AND user_id = ? AND used_at IS NULL`, u.ID); err != nil {
 		fail(w, err)
 		return
 	}
-	sent := false
-	if s.Config.Typed().Mail.Ready() {
-		if fresh, err := s.DB.UserByID(u.ID); err == nil && fresh != nil {
-			if err := s.sendVerifyMail(r, fresh); err != nil {
-				s.logMail(err)
-			} else {
-				sent = true
-			}
-		}
+	raw, err := s.Auth.CreateToken("email", u.ID, "", email, "", emailChangeTTL)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	base := s.siteBase(r)
+	site := cfg.Site.Title
+	title, line := "确认你的新邮箱", "你正在为「"+site+"」账号绑定这个邮箱。点下面的按钮确认，之后就可以用它登录和找回密码。"
+	if u.Email != "" {
+		title, line = "确认更换邮箱", "你正在把「"+site+"」账号的邮箱从 "+u.Email+" 更换为这个邮箱。点下面的按钮确认，确认前原邮箱仍然有效。"
+	}
+	if err := s.sendLetter(email, letter{
+		Subject:   title + " · " + site,
+		Preheader: "点按钮确认，这个邮箱才会绑定到你的账号。",
+		Title:     title,
+		Greeting:  u.Name + "，你好：",
+		Lines:     []string{line},
+		Action:    &mailAction{Label: "确认邮箱", URL: base + "/account/verify?token=" + raw},
+		Expire:    "链接 24 小时内有效，只能使用一次。",
+		Note:      "如果这不是你本人的操作，忽略这封邮件即可，账号不会有任何变化。",
+	}, base); err != nil {
+		s.logMail(err)
+		_, _ = s.DB.Exec(`DELETE FROM user_tokens WHERE kind = 'email' AND user_id = ? AND used_at IS NULL`, u.ID)
+		writeError(w, http.StatusBadGateway, "mail_failed")
+		return
 	}
 	fresh, err := s.DB.UserByID(u.ID)
 	if err != nil || fresh == nil {
 		fail(w, errors.New("user vanished"))
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "verifySent": sent, "user": s.publicUser(fresh)})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "user": s.publicUser(fresh)})
+}
+
+// DELETE /me/email/pending 取消待确认的换绑。
+func (s *Server) cancelEmailChange(w http.ResponseWriter, r *http.Request) {
+	u := userOf(r)
+	if _, err := s.DB.Exec(`DELETE FROM user_tokens WHERE kind = 'email' AND user_id = ? AND used_at IS NULL`, u.ID); err != nil {
+		fail(w, err)
+		return
+	}
+	s.writeMe(w, u.ID)
 }
 
 // PUT /admin/users/{id}/avatar {action: approve|reject} 审核待审头像。

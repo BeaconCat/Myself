@@ -363,6 +363,8 @@ export interface SessionUser {
   avatarPending?: string;
   /** 登录名冷却中：下次可修改的时间（UTC，空 = 现在就能改） */
   loginNextChange?: string;
+  /** 待确认的新邮箱（已发确认邮件，点链接后才换绑） */
+  emailPending?: string;
 }
 
 export interface AdminUser {
@@ -459,7 +461,8 @@ export const accountApi = {
     accountCall<{ ok: boolean; mustChange?: boolean; user: SessionUser }>('POST', '/auth/login', { username, password }),
   register: (body: { email: string; name: string; password: string; invite?: string; website?: string }) =>
     accountCall<{ ok: boolean; pending?: boolean; user?: SessionUser }>('POST', '/auth/register', body),
-  verify: (token: string) => accountCall<{ ok: boolean; user: SessionUser }>('POST', '/auth/verify', { token }),
+  /** 邮箱验证链接：注册验证与换绑邮箱共用；emailChanged = 这是一次换绑 */
+  verify: (token: string) => accountCall<{ ok: boolean; emailChanged?: boolean; user: SessionUser }>('POST', '/auth/verify', { token }),
   forgot: (email: string) => accountCall<{ ok: boolean }>('POST', '/auth/forgot', { email }),
   resetInfo: (token: string) => accountCall<{ email: string }>('GET', `/auth/reset?token=${encodeURIComponent(token)}`),
   reset: (token: string, password: string) =>
@@ -479,8 +482,10 @@ export const accountApi = {
   deleteAvatar: (pendingOnly = false) =>
     accountCall<{ ok: boolean; user: SessionUser }>('DELETE', pendingOnly ? '/me/avatar?pending=1' : '/me/avatar'),
   changeLogin: (login: string) => accountCall<{ ok: boolean; user: SessionUser }>('PUT', '/me/login', { login }),
+  /** 添加 / 更换邮箱：向新邮箱发确认邮件，点链接后才换绑 */
   changeEmail: (email: string, password: string) =>
-    accountCall<{ ok: boolean; verifySent: boolean; user: SessionUser }>('PUT', '/me/email', { email, password }),
+    accountCall<{ ok: boolean; user: SessionUser }>('PUT', '/me/email', { email, password }),
+  cancelEmailChange: () => accountCall<{ ok: boolean; user: SessionUser }>('DELETE', '/me/email/pending'),
   changePassword: (oldPassword: string, newPassword: string) =>
     accountCall<{ ok: boolean }>('PUT', '/auth/password', { oldPassword, newPassword }),
   logout: () => accountCall<{ ok: boolean }>('POST', '/auth/logout'),

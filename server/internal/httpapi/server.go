@@ -58,6 +58,8 @@ type Server struct {
 	reacts        reactLimiter
 	thumbs        singleflight.Group
 	backupMu      sync.Mutex
+	// mailer 发信实现；nil 用 SMTP（sendWith），测试里替换成捕获函数
+	mailer func(c config.Mail, to, subject, text, htmlBody string) error
 }
 
 // New 构造 Server 并准备目录。
@@ -129,6 +131,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("DELETE "+p+"/me/avatar", member(s.deleteAvatar))
 	mux.HandleFunc("PUT "+p+"/me/login", member(s.changeLogin))
 	mux.HandleFunc("PUT "+p+"/me/email", member(s.changeEmail))
+	mux.HandleFunc("DELETE "+p+"/me/email/pending", member(s.cancelEmailChange))
 	// 文章与素材上传：管理员 + 协作作者（作者只能看到 / 修改自己的文章）
 	mux.HandleFunc("GET "+p+"/admin/posts", staff(s.adminListPosts))
 	mux.HandleFunc("GET "+p+"/admin/posts/{id}", staff(s.adminGetPost))

@@ -27,7 +27,11 @@ func (s *Server) sendLetter(to string, l letter, base string) error {
 	if err != nil {
 		return err
 	}
-	return sendWith(s.Config.Typed().Mail, to, l.Subject, text, htmlBody)
+	send := s.mailer
+	if send == nil {
+		send = sendWith
+	}
+	return send(s.Config.Typed().Mail, to, l.Subject, text, htmlBody)
 }
 
 func (s *Server) logMail(err error) {

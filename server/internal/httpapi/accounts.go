@@ -361,6 +361,10 @@ func (s *Server) verifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	t, err := s.Auth.PeekToken("verify", b.strOr("token"))
 	if err != nil {
+		// 同一个验证页也承接换绑邮箱的确认链接
+		t, err = s.Auth.PeekToken("email", b.strOr("token"))
+	}
+	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_token")
 		return
 	}
@@ -368,7 +372,16 @@ func (s *Server) verifyEmail(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_token")
 		return
 	}
-	if _, err := s.DB.Exec(`UPDATE users SET email_verified = 1, status = CASE status WHEN 'pending' THEN 'active' ELSE status END WHERE id = ?`, t.UserID); err != nil {
+	if t.Kind == "email" {
+		if _, err := s.DB.Exec(`UPDATE users SET email = ?, email_verified = 1 WHERE id = ?`, t.Email, t.UserID); err != nil {
+			if store.IsUniqueErr(err) {
+				writeError(w, http.StatusConflict, "email_taken")
+				return
+			}
+			fail(w, err)
+			return
+		}
+	} else if _, err := s.DB.Exec(`UPDATE users SET email_verified = 1, status = CASE status WHEN 'pending' THEN 'active' ELSE status END WHERE id = ?`, t.UserID); err != nil {
 		fail(w, err)
 		return
 	}
@@ -383,7 +396,7 @@ func (s *Server) verifyEmail(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "user": s.publicUser(u)})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "emailChanged": t.Kind == "email", "user": s.publicUser(u)})
 }
 
 /* ===== 找回密码 ===== */

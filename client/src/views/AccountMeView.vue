@@ -67,6 +67,8 @@ const ERR: Record<string, string> = {
   weak_password: 'account.err.weak',
   invalid_image: 'account.me.badImage',
   file_too_large: 'account.me.tooLarge',
+  mail_unavailable: 'account.me.emailNoMail',
+  mail_failed: 'account.me.mailFailed',
 };
 const explain = (e: unknown): string => t(ERR[(e as Error).message] ?? 'account.err.generic');
 
@@ -186,8 +188,16 @@ function saveEmail(): Promise<void> {
   return run(async () => {
     const res = await accountApi.changeEmail(form.email.trim(), form.emailPw);
     apply(res.user);
-    return res.verifySent ? t('account.me.emailSent', { email: res.user.email }) : t('account.me.emailSaved');
+    return t('account.me.emailSent', { email: res.user.emailPending ?? form.email.trim() });
   });
+}
+
+async function cancelEmail(): Promise<void> {
+  try {
+    apply((await accountApi.cancelEmailChange()).user);
+  } catch (e) {
+    notify('account', false, explain(e));
+  }
 }
 
 function savePassword(): Promise<void> {
@@ -299,7 +309,11 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
               {{ user.email || t('account.me.noEmail') }}
               <em v-if="user.email" class="chip" :class="{ ok: user.emailVerified }">{{ user.emailVerified ? t('account.me.verified') : t('account.me.unverified') }}</em>
             </span>
-            <small>{{ t('account.me.emailHint') }}</small>
+            <small v-if="user.emailPending" class="pend">
+              {{ t('account.me.emailPending', { email: user.emailPending }) }}
+              <button type="button" class="link" @click="cancelEmail">{{ t('account.me.cancelChange') }}</button>
+            </small>
+            <small v-else>{{ t('account.me.emailHint') }}</small>
           </div>
           <button type="button" class="btn ghost sm" @click="edit('email')">
             {{ editing === 'email' ? t('account.me.cancel') : user.email ? t('account.me.edit') : t('account.me.add') }}
@@ -318,8 +332,12 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
                   <input v-model="form.emailPw" type="password" autocomplete="current-password" />
                 </label>
               </div>
-              <p class="warn">{{ mailReady ? t('account.me.emailWarn') : t('account.me.emailWarnNoMail') }}</p>
-              <div class="ft"><button type="submit" class="btn" :disabled="busy || !form.email.trim()">{{ t('account.me.save') }}</button></div>
+              <p v-if="mailReady" class="warn">{{ user.email ? t('account.me.emailWarnChange') : t('account.me.emailWarnAdd') }}</p>
+              <p v-else class="warn bad">
+                {{ t('account.me.emailNoMail') }}
+                <router-link v-if="isOwner" :to="{ name: 'admin-settings' }">{{ t('account.me.goMail') }}</router-link>
+              </p>
+              <div class="ft"><button type="submit" class="btn" :disabled="busy || !mailReady || !form.email.trim()">{{ t('account.me.sendConfirm') }}</button></div>
             </form>
           </div>
         </div>
@@ -539,11 +557,14 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
   & + .fold + .row, & + .row { box-shadow: 0 -0.5px 0 var(--line-2); }
 
   .ic { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--fill); color: var(--text-2); }
-  .tx { flex: 1; min-width: 0; display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 2px 12px; align-items: baseline; }
-  b { font-size: 14px; font-weight: 500; color: var(--text-2); }
+  .tx { flex: 1; min-width: 0; display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 2px 12px; align-items: center; }
+  /* 标签跨两行，与右侧「值 + 说明」整体垂直居中 */
+  b { grid-row: 1 / span 2; align-self: center; font-size: 14px; font-weight: 500; color: var(--text-2); }
   .val { font-size: 15px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; }
   .val.mono { font-family: var(--font-mono); font-size: 14px; }
   small { grid-column: 2; font-size: 12.5px; color: var(--text-3); line-height: 1.5; }
+  small.pend { color: color-mix(in oklab, var(--accent-yellow) 70%, var(--text)); }
+  small .link { margin-left: 6px; font-size: 12.5px; }
   .state { color: var(--ink); display: grid; place-items: center; width: 32px; }
 }
 
@@ -581,6 +602,8 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
 
   .field input { background: var(--bg); }
   .warn { font-size: 12.5px; line-height: 1.6; color: var(--text-3); }
+  .warn.bad { color: color-mix(in oklab, var(--accent-red) 75%, var(--text)); }
+  .warn a { margin-left: 6px; color: var(--ink); }
   .ft { display: flex; justify-content: flex-end; }
 }
 
@@ -643,6 +666,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
   .two { grid-template-columns: 1fr; }
   .head { flex-wrap: wrap; }
   .row .tx { grid-template-columns: 1fr; }
+  .row b { grid-row: auto; }
   .row small { grid-column: 1; }
   .editor { margin-left: 0; }
 }

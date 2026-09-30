@@ -44,6 +44,8 @@ const error = ref('');
 /** 完成态：注册待验证 / 找回邮件已发 / 验证中 / 验证成功 */
 const done = ref<'' | 'pending' | 'sent' | 'verifying' | 'verified'>('');
 const invite = ref<{ role: 'author' | 'reader'; email: string } | null>(null);
+/** 验证链接是一次换绑邮箱（而不是注册验证） */
+const emailChanged = ref(false);
 const resetEmail = ref('');
 const cardEl = ref<HTMLElement | null>(null);
 
@@ -154,6 +156,7 @@ async function prepare(): Promise<void> {
     try {
       const res = await accountApi.verify(q('token'));
       auth.markLoggedIn(res.user);
+      emailChanged.value = !!res.emailChanged;
       done.value = 'verified';
     } catch (e) {
       done.value = '';
@@ -168,7 +171,7 @@ const githubHref = computed(() => accountApi.githubUrl({ mode: 'login', next: ne
 
 const title = computed(() => {
   if (done.value === 'pending' || done.value === 'sent') return t('account.checkMail');
-  if (done.value === 'verified') return t('account.verified');
+  if (done.value === 'verified') return emailChanged.value ? t('account.emailChanged') : t('account.verified');
   if (mode.value === 'join' && invite.value) return t('account.joinTitle', { role: t(`account.role_${invite.value.role}`) });
   return t(`account.title_${mode.value}`);
 });
@@ -176,7 +179,7 @@ const sub = computed(() => {
   if (done.value === 'pending') return t('account.pendingSub', { email: form.email });
   if (done.value === 'sent') return t('account.sentSub');
   if (done.value === 'verifying') return t('account.verifying');
-  if (done.value === 'verified') return t('account.verifiedSub');
+  if (done.value === 'verified') return emailChanged.value ? t('account.emailChangedSub') : t('account.verifiedSub');
   if (mode.value === 'reset' && resetEmail.value) return t('account.resetSub', { email: resetEmail.value });
   if (mode.value === 'join' && invite.value) return t('account.joinSub', { site: config.cfg.site.title });
   return t(`account.sub_${mode.value}`, { site: config.cfg.site.title });

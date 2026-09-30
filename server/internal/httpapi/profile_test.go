@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"myself/server/internal/config"
 )
 
 // uploadAvatarAs 以指定令牌上传一张 w×h 的 PNG 头像，返回状态码与响应。
@@ -177,16 +179,39 @@ func TestChangeLoginAndEmail(t *testing.T) {
 		t.Fatalf("cooldown not enforced: %d %v", c, out)
 	}
 
+	// 未配置发信：无法添加邮箱（需要验证邮件）
+	if c, out := e.as(tok, http.MethodPut, "/api/v1/me/email", map[string]string{"email": "new@example.com", "password": "password123"}); c != http.StatusServiceUnavailable {
+		t.Fatalf("email change without mail: %d %v", c, out)
+	}
+	e.call(http.MethodPut, "/api/v1/admin/settings", map[string]any{"mail": map[string]any{
+		"enabled": true, "host": "smtp.example.com", "port": 465, "security": "tls", "from": "Myself <a@example.com>",
+	}}, nil, http.StatusOK)
+	var sentTo, sentText string
+	e.server.mailer = func(_ config.Mail, to, _, text, _ string) error {
+		sentTo, sentText = to, text
+		return nil
+	}
+
 	if c, _ := e.as(tok, http.MethodPut, "/api/v1/me/email", map[string]string{"email": "new@example.com", "password": "wrong-pass"}); c != http.StatusUnauthorized {
 		t.Fatalf("wrong password accepted: %d", c)
 	}
 	if c, _ := e.as(tok, http.MethodPut, "/api/v1/me/email", map[string]string{"email": "b@example.com", "password": "password123"}); c != http.StatusConflict {
 		t.Fatalf("taken email accepted: %d", c)
 	}
+	// 发确认邮件；确认前邮箱不变、显示待确认
 	c, out = e.as(tok, http.MethodPut, "/api/v1/me/email", map[string]string{"email": "New@Example.com", "password": "password123"})
 	u, _ := out["user"].(map[string]any)
-	if c != http.StatusOK || u["email"] != "new@example.com" || u["emailVerified"] != false {
-		t.Fatalf("change email: %d %v", c, out)
+	if c != http.StatusOK || u["email"] != "a@example.com" || u["emailPending"] != "new@example.com" || sentTo != "new@example.com" {
+		t.Fatalf("request email change: %d %v to=%s", c, out, sentTo)
+	}
+	token := strings.Fields(sentText[strings.Index(sentText, "token=")+len("token="):])[0]
+	c, out = e.as("", http.MethodPost, "/api/v1/auth/verify", map[string]string{"token": token})
+	u, _ = out["user"].(map[string]any)
+	if c != http.StatusOK || out["emailChanged"] != true || u["email"] != "new@example.com" || u["emailVerified"] != true || u["emailPending"] != "" {
+		t.Fatalf("confirm email change: %d %v", c, out)
+	}
+	if c, _ := e.as("", http.MethodPost, "/api/v1/auth/verify", map[string]string{"token": token}); c != http.StatusBadRequest {
+		t.Fatalf("token reused: %d", c)
 	}
 	for _, id := range []string{"jia", "new@example.com"} {
 		if c, _ := e.as("", http.MethodPost, "/api/v1/auth/login", map[string]string{"username": id, "password": "password123"}); c != http.StatusOK {
