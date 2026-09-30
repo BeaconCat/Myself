@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useIdentity } from '../about/useIdentity';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api';
 import ImageViewer, { type OriginRect } from '../components/media/ImageViewer.vue';
@@ -118,12 +118,23 @@ function onScroll(): void {
   stuck.value = isStuck(ctl.value, NAV_H);
 }
 
+/**
+ * 吸顶判定不只靠滚动事件：刷新后浏览器恢复滚动位置、从详情返回（KeepAlive）恢复位置、
+ * 入场 rise 动画结束（位移归零）时都不会触发 scroll，需主动再判一次，否则毛玻璃底不出现。
+ */
+function recheck(): void {
+  requestAnimationFrame(onScroll);
+  window.setTimeout(onScroll, 700);
+}
+
 function onResize(): void {
   placeLift(true);
 }
 
 onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true });
+  ctl.value?.addEventListener('animationend', onScroll);
+  recheck();
   window.addEventListener('resize', onResize);
   void index.loadMoods();
   void loadTotals();
@@ -132,7 +143,10 @@ onMounted(() => {
   void document.fonts?.ready.then(() => placeLift(true));
 });
 
+onActivated(recheck);
+
 onBeforeUnmount(() => {
+  ctl.value?.removeEventListener('animationend', onScroll);
   window.removeEventListener('scroll', onScroll);
   window.removeEventListener('resize', onResize);
 });

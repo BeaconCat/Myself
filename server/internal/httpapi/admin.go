@@ -281,6 +281,8 @@ func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_config")
 		return
 	}
+	// 改站点名称时，仍沿用旧名的启动文案 / 发件人名称跟着改
+	config.FollowSiteTitle(s.Config.Get(), patch)
 	merged, err := s.Config.Save(patch)
 	if err != nil {
 		fail(w, err)

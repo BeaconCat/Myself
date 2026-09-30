@@ -305,7 +305,8 @@ const TOOLS: (Tool | 'sep')[] = [
   { icon: 'link', title: t('studio.write.tool.link'), run: () => rich.value?.setLink(), active: () => !!ed()?.isActive('link') },
   { icon: 'image', title: t('studio.write.tool.image'), run: () => rich.value?.pickImage() },
   { icon: 'collage', title: t('studio.write.tool.collage'), run: () => rich.value?.pickCollage() },
-  { icon: 'table', title: t('studio.write.tool.table'), run: () => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), active: () => !!ed()?.isActive('table') },
+  { icon: 'media', title: t('studio.write.tool.media'), run: () => rich.value?.pickMedia() },
+  { icon: 'table', title: t('studio.write.tool.table'), run: () => rich.value?.insertTable(), active: () => !!ed()?.isActive('table') },
 ];
 /** 依赖编辑器事务版本号，保证激活态实时刷新 */
 const activeMap = computed(() => {

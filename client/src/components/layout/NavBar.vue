@@ -330,9 +330,10 @@ onBeforeUnmount(() => {
 /* 我的账号：头像填满圆钮，无头像时显示首字 */
 .me-btn {
   overflow: hidden;
-  padding: 0;
+  /* 头像内缩一圈，露出与其它圆按钮相同的毛玻璃描边，视觉大小一致；圆角同心收小 */
+  padding: 3px;
 
-  img { width: 100%; height: 100%; object-fit: cover; }
+  img { width: 100%; height: 100%; object-fit: cover; border-radius: min(50%, calc(var(--nav-r) - 3px)); }
   span { font: 600 15px var(--font-serif); color: var(--text); }
 }
 

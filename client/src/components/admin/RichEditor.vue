@@ -1,23 +1,34 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, shallowRef, watch } from 'vue';
 import { Editor, EditorContent } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
-import { adminApi } from '../../api';
-import { useDialogStore } from '../../stores/dialog';
+import {
+  BetweenHorizontalEnd, BetweenHorizontalStart, BetweenVerticalEnd, BetweenVerticalStart,
+  ExternalLink, Grid2x2X, Minus, PanelTop, Pencil, Unlink,
+} from 'lucide';
+import type { MediaItem, MediaKindName } from '../../api';
 import { useI18n } from 'vue-i18n';
 import '../../views/admin/studio/i18n';
 import SIcon from '../../views/admin/studio/SIcon.vue';
+import StModal from '../../views/admin/studio/StModal.vue';
+import MediaLibraryModal from '../../views/admin/studio/MediaLibraryModal.vue';
+import Icon from '../ui/Icon.vue';
+import GalleryEditor from './editor/GalleryEditor.vue';
+import { Gallery, MediaEmbed, ResizableImage } from './editor/embeds';
+import { defaultGallery, type GalleryData, type MediaData, type MediaKind } from '../../utils/embeds';
+import { mediaKind } from '../../utils/mediaKind';
 
 /**
  * 所见即所得编辑器：对外始终以 Markdown 交换（统一内容规范），内部用 Tiptap 富文本编辑。
  * - 默认：自带工具栏；lite：精简工具栏（随想）；bare：不渲染工具栏，由外部通过 expose 的命令驱动
  *   （写文章页的浮动胶囊工具条）。
+ * - 插图 / 媒体 / 拼图统一走素材库模态框（可就地上传、可填外链）；拼图进拼图编辑器。
+ * - 光标在链接上时浮出链接气泡（打开 / 编辑 / 移除），在表格里时浮出表格工具条（增删行列、表头、删表）。
  */
 const props = defineProps<{
   modelValue: string;
@@ -27,7 +38,6 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string]; typing: [] }>();
 
-const dialog = useDialogStore();
 const { t } = useI18n();
 let applyingExternal = false;
 /** 每次事务 +1：外部工具条据此刷新激活态 */
@@ -37,16 +47,48 @@ function currentMarkdown(): string {
   return (editor.storage as unknown as { markdown: { getMarkdown: () => string } }).markdown.getMarkdown();
 }
 
+/* ===== 素材库 / 拼图编辑器（节点视图经 hooks 调起） ===== */
+const lib = reactive({
+  open: false,
+  title: '',
+  accept: ['image'] as MediaKindName[],
+  multiple: false,
+  done: (_items: MediaItem[]) => {},
+});
+function openLibrary(opts: { title: string; accept: MediaKindName[]; multiple: boolean; done: (items: MediaItem[]) => void }): void {
+  Object.assign(lib, opts, { open: true });
+}
+
+const gal = reactive({ open: false, value: null as GalleryData | null, done: (_d: GalleryData) => {} });
+
+const hooks = {
+  replaceMedia: (kind: MediaKind, done: (next: Partial<MediaData>) => void) => {
+    const accept: MediaKindName[] = kind === 'archive' || kind === 'file' ? ['archive', 'file'] : [kind];
+    openLibrary({
+      title: t('studio.embed.replaceTitle'),
+      accept,
+      multiple: false,
+      done: ([m]) => m && done({ src: m.url, title: m.title || '' }),
+    });
+  },
+  editGallery: (data: GalleryData, done: (next: GalleryData) => void) => {
+    Object.assign(gal, { open: true, value: data, done });
+  },
+};
+
 const editor = new Editor({
   extensions: [
-    StarterKit.configure({ link: { openOnClick: false } }),
-    Table.configure({ resizable: true }),
+    StarterKit.configure({ link: { openOnClick: false, autolink: true, defaultProtocol: 'https' } }),
+    Table.configure({ resizable: true, cellMinWidth: 60 }),
     TableRow,
-    TableHeader,
-    TableCell,
+    // 单元格只容纳一段行内内容（与 GFM 表格一致）：不能再嵌表格 / 列表等块，换行用 Shift+Enter
+    TableHeader.extend({ content: 'paragraph' }),
+    TableCell.extend({ content: 'paragraph' }),
     TaskList,
     TaskItem.configure({ nested: true }),
-    Image.configure({ inline: true, allowBase64: false }),
+    ResizableImage.configure({ inline: true, allowBase64: false }),
+    MediaEmbed.configure(hooks),
+    Gallery.configure(hooks),
     Placeholder.configure({ placeholder: () => props.placeholder ?? '' }),
     Markdown.configure({ html: false, linkify: true, breaks: false }),
   ],
@@ -73,46 +115,156 @@ watch(
 
 onBeforeUnmount(() => editor.destroy());
 
-/* ===== 命令 ===== */
-async function setLink(): Promise<void> {
-  const prev = editor.getAttributes('link').href as string | undefined;
-  const url = await dialog.prompt({ title: t('studio.editor.linkTitle'), inputValue: prev ?? 'https://', confirmText: t('studio.editor.ok') });
-  if (url === null) return;
-  if (!url) {
-    editor.chain().focus().unsetLink().run();
-    return;
-  }
-  editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+/* ===== 插入 ===== */
+/** 图片：素材库多选，逐张插入（行内图片） */
+function pickImage(): void {
+  openLibrary({
+    title: t('studio.embed.imageTitle'),
+    accept: ['image'],
+    multiple: true,
+    done: (items) => {
+      const chain = editor.chain().focus();
+      items.forEach((m) => chain.setImage({ src: m.url, alt: m.title?.replace(/\.[a-z0-9]+$/i, '') ?? '' }));
+      chain.run();
+    },
+  });
+}
+
+/** 视频 / 音频 / 压缩包 / 文件：素材库多选，按类型插入媒体节点（图片也可混选，按图片插入） */
+function pickMedia(): void {
+  openLibrary({
+    title: t('studio.embed.mediaTitle'),
+    accept: ['video', 'audio', 'archive', 'file', 'image'],
+    multiple: true,
+    done: (items) => {
+      const nodes = items.map((m) => {
+        const k = mediaKind(m);
+        if (k === 'image') return { type: 'image', attrs: { src: m.url } };
+        return { type: 'mediaEmbed', attrs: { kind: k, src: m.url, title: m.title || '' } };
+      });
+      editor.chain().focus().insertContent(nodes).run();
+    },
+  });
+}
+
+/** 拼图：打开拼图编辑器，保存后插入 */
+function pickCollage(): void {
+  Object.assign(gal, {
+    open: true,
+    value: defaultGallery(),
+    done: (d: GalleryData) => editor.chain().focus().insertContent({ type: 'gallery', attrs: { data: d } }).run(),
+  });
 }
 
 async function insertImageUrl(): Promise<void> {
-  const url = await dialog.prompt({ title: t('studio.editor.imageTitle'), message: t('studio.editor.imageMsg'), placeholder: '/uploads/…' });
-  if (url) editor.chain().focus().setImage({ src: url }).run();
+  pickImage();
 }
 
-/** 上传并插入；collage=true 时多图并排插入同一段落（前台渲染成宫格） */
-async function uploadInsert(files: File[], collage = false): Promise<void> {
-  const list = files.filter((f) => f.type.startsWith('image/'));
-  if (!list.length) return;
-  const uploaded = await adminApi.uploadMedia(list);
+/* ===== 链接：气泡 + 编辑框 ===== */
+const root = ref<HTMLElement | null>(null);
+const linkDlg = reactive({ open: false, text: '', url: '', editing: false, error: '' });
+
+/** 规范化链接：补 https://；只放行 http(s) / mailto / tel / 站内路径 / 锚点 */
+function normalizeUrl(raw: string): string | null {
+  const s = raw.trim();
+  if (!s) return '';
+  if (/^(https?:|mailto:|tel:)/i.test(s) || s.startsWith('/') || s.startsWith('#')) return s;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return null;
+  if (/^[\w-]+(\.[\w-]+)+(:\d+)?(\/|$|\?|#)/.test(s)) return `https://${s}`;
+  return null;
+}
+
+function setLink(): void {
+  const { from, to, empty } = editor.state.selection;
+  const inLink = editor.isActive('link');
+  if (inLink) editor.chain().extendMarkRange('link').run();
+  const sel = editor.state.selection;
+  linkDlg.text = editor.state.doc.textBetween(sel.from, sel.to, ' ') || (empty ? '' : editor.state.doc.textBetween(from, to, ' '));
+  linkDlg.url = (editor.getAttributes('link').href as string | undefined) ?? '';
+  linkDlg.editing = inLink;
+  linkDlg.error = '';
+  linkDlg.open = true;
+}
+
+function applyLink(): void {
+  const url = normalizeUrl(linkDlg.url);
+  if (url === null) {
+    linkDlg.error = t('studio.link.bad');
+    return;
+  }
   const chain = editor.chain().focus();
-  uploaded.forEach((item, i) => {
-    if (collage && i > 0) chain.insertContent(' ');
-    chain.setImage({ src: item.url });
-  });
-  chain.run();
+  if (!url) {
+    chain.extendMarkRange('link').unsetLink().run();
+    linkDlg.open = false;
+    return;
+  }
+  const text = linkDlg.text.trim() || url;
+  const { empty } = editor.state.selection;
+  const current = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ');
+  if (empty || text !== current) {
+    chain.insertContent({ type: 'text', text, marks: [{ type: 'link', attrs: { href: url } }] }).run();
+  } else {
+    chain.extendMarkRange('link').setLink({ href: url }).run();
+  }
+  linkDlg.open = false;
 }
 
-const fileInput = ref<HTMLInputElement | null>(null);
-const collageInput = ref<HTMLInputElement | null>(null);
-
-function onPick(e: Event, collage: boolean): void {
-  const input = e.target as HTMLInputElement;
-  if (input.files?.length) void uploadInsert([...input.files], collage);
-  input.value = '';
+function unlink(): void {
+  editor.chain().focus().extendMarkRange('link').unsetLink().run();
 }
 
-type Cmd = { icon: string; title: string; run: () => unknown; active?: () => boolean; table?: boolean } | { divider: true };
+function openHref(): void {
+  const href = editor.getAttributes('link').href as string | undefined;
+  if (href) window.open(href, '_blank', 'noopener,noreferrer');
+}
+
+/** 浮层定位：相对编辑器根节点 */
+function relRect(r: DOMRect): { x: number; y: number; w: number; h: number } {
+  const box = root.value?.getBoundingClientRect();
+  return { x: r.left - (box?.left ?? 0), y: r.top - (box?.top ?? 0), w: r.width, h: r.height };
+}
+
+const bubble = computed(() => {
+  void version.value;
+  if (!editor.isFocused || !editor.isActive('link') || !root.value) return null;
+  const href = (editor.getAttributes('link').href as string | undefined) ?? '';
+  const pos = editor.view.coordsAtPos(editor.state.selection.from);
+  const r = relRect(new DOMRect(pos.left, pos.top, 0, pos.bottom - pos.top));
+  return { href, x: r.x, y: r.y + r.h + 8 };
+});
+
+/* ===== 表格工具条 ===== */
+const tableBar = computed(() => {
+  void version.value;
+  if (!editor.isActive('table') || !root.value) return null;
+  const dom = editor.view.domAtPos(editor.state.selection.from).node as HTMLElement;
+  const el = (dom.nodeType === 1 ? dom : dom.parentElement)?.closest('table');
+  if (!el) return null;
+  const r = relRect(el.getBoundingClientRect());
+  return { x: r.x, y: r.y - 44 };
+});
+
+const TABLE_TOOLS = computed(() => [
+  { icon: BetweenHorizontalStart, title: t('studio.table.rowBefore'), run: () => editor.chain().focus().addRowBefore().run() },
+  { icon: BetweenHorizontalEnd, title: t('studio.table.rowAfter'), run: () => editor.chain().focus().addRowAfter().run() },
+  { icon: Minus, title: t('studio.table.rowDelete'), label: t('studio.table.row'), run: () => editor.chain().focus().deleteRow().run() },
+  'sep' as const,
+  { icon: BetweenVerticalStart, title: t('studio.table.colBefore'), run: () => editor.chain().focus().addColumnBefore().run() },
+  { icon: BetweenVerticalEnd, title: t('studio.table.colAfter'), run: () => editor.chain().focus().addColumnAfter().run() },
+  { icon: Minus, title: t('studio.table.colDelete'), label: t('studio.table.col'), run: () => editor.chain().focus().deleteColumn().run() },
+  'sep' as const,
+  { icon: PanelTop, title: t('studio.table.header'), run: () => editor.chain().focus().toggleHeaderRow().run() },
+  { icon: Grid2x2X, title: t('studio.table.remove'), danger: true, run: () => editor.chain().focus().deleteTable().run() },
+]);
+
+/** 插入表格：光标已在表格里时不插（不允许表格套表格） */
+function insertTable(): void {
+  if (editor.isActive('table')) return;
+  editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+}
+
+/* ===== 自带工具栏（非 bare） ===== */
+type Cmd = { icon: string; title: string; run: () => unknown; active?: () => boolean } | { divider: true };
 
 const c = () => editor.chain().focus();
 const TOOLBAR: Cmd[] = [
@@ -133,26 +285,33 @@ const TOOLBAR: Cmd[] = [
 const FULL_EXTRA: Cmd[] = [
   { divider: true },
   { icon: 'codeBlock', title: t('studio.editor.codeBlock'), run: () => c().toggleCodeBlock().run(), active: () => editor.isActive('codeBlock') },
-  { icon: 'table', title: t('studio.editor.table'), run: () => c().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), active: () => editor.isActive('table') },
+  { icon: 'table', title: t('studio.editor.table'), run: insertTable, active: () => editor.isActive('table') },
   { icon: 'hr', title: t('studio.editor.hr'), run: () => c().setHorizontalRule().run() },
-  { icon: 'image', title: t('studio.editor.image'), run: () => fileInput.value?.click() },
-  { icon: 'collage', title: t('studio.editor.collage'), run: () => collageInput.value?.click() },
+  { icon: 'image', title: t('studio.editor.image'), run: pickImage },
+  { icon: 'collage', title: t('studio.editor.collage'), run: pickCollage },
+  { icon: 'media', title: t('studio.editor.media'), run: pickMedia },
 ];
 const toolbar = props.lite ? TOOLBAR : [...TOOLBAR, ...FULL_EXTRA];
+
+function onLibPick(items: MediaItem[]): void {
+  lib.done(items);
+}
 
 defineExpose({
   editor: editorRef,
   version,
   setLink,
   insertImageUrl,
-  pickImage: () => fileInput.value?.click(),
-  pickCollage: () => collageInput.value?.click(),
+  pickImage,
+  pickCollage,
+  pickMedia,
+  insertTable,
   focus: () => editor.commands.focus(),
 });
 </script>
 
 <template>
-  <div class="rich" :class="{ lite, bare }">
+  <div ref="root" class="rich" :class="{ lite, bare }">
     <div v-if="!bare" class="toolbar" :data-v="version">
       <template v-for="(item, i) in toolbar" :key="i">
         <span v-if="'divider' in item" class="divider" />
@@ -166,18 +325,65 @@ defineExpose({
         ><SIcon :name="item.icon" :size="16" /></button>
       </template>
     </div>
-    <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="onPick($event, false)" />
-    <input ref="collageInput" type="file" accept="image/*" multiple hidden @change="onPick($event, true)" />
     <EditorContent class="content" :editor="editor" @keydown="emit('typing')" />
+
+    <!-- 链接气泡 -->
+    <Transition name="rb-pop">
+      <div v-if="bubble" class="rb link-bubble" :style="{ left: `${bubble.x}px`, top: `${bubble.y}px` }" @mousedown.prevent>
+        <span class="href" :title="bubble.href">{{ bubble.href }}</span>
+        <button type="button" :title="t('studio.link.open')" @click="openHref"><Icon :icon="ExternalLink" :size="15" /></button>
+        <button type="button" :title="t('studio.link.edit')" @click="setLink"><Icon :icon="Pencil" :size="15" /></button>
+        <button type="button" :title="t('studio.link.remove')" @click="unlink"><Icon :icon="Unlink" :size="15" /></button>
+      </div>
+    </Transition>
+
+    <!-- 表格工具条 -->
+    <Transition name="rb-pop">
+      <div v-if="tableBar" class="rb table-bar" :style="{ left: `${tableBar.x}px`, top: `${tableBar.y}px` }" @mousedown.prevent>
+        <template v-for="(tool, i) in TABLE_TOOLS" :key="i">
+          <span v-if="tool === 'sep'" class="sep" />
+          <button v-else type="button" :class="{ danger: tool.danger }" :title="tool.title" @click="tool.run()">
+            <Icon :icon="tool.icon" :size="15" /><small v-if="tool.label">{{ tool.label }}</small>
+          </button>
+        </template>
+      </div>
+    </Transition>
+
+    <MediaLibraryModal
+      :open="lib.open"
+      :title="lib.title"
+      :accept="lib.accept"
+      :multiple="lib.multiple"
+      @pick="onLibPick"
+      @close="lib.open = false"
+    />
+    <GalleryEditor :open="gal.open" :value="gal.value" @save="(d) => gal.done(d)" @close="gal.open = false" />
+
+    <StModal :open="linkDlg.open" panel-class="link-dlg" @close="linkDlg.open = false">
+      <h3>{{ linkDlg.editing ? t('studio.link.editTitle') : t('studio.link.addTitle') }}</h3>
+      <div class="st-flabel">{{ t('studio.link.text') }}</div>
+      <label class="st-field"><input v-model="linkDlg.text" :placeholder="t('studio.link.textPh')" @keydown.enter.prevent="applyLink" /></label>
+      <div class="st-flabel">{{ t('studio.link.url') }}</div>
+      <label class="st-field" :class="{ bad: linkDlg.error }">
+        <input v-model="linkDlg.url" placeholder="https://" autofocus @keydown.enter.prevent="applyLink" @input="linkDlg.error = ''" />
+      </label>
+      <p class="hint" :class="{ err: linkDlg.error }">{{ linkDlg.error || t('studio.link.hint') }}</p>
+      <div class="acts">
+        <button v-if="linkDlg.editing" type="button" class="st-btn g" @click="linkDlg.url = ''; applyLink()">{{ t('studio.link.remove') }}</button>
+        <span class="sp" />
+        <button type="button" class="st-btn g" @click="linkDlg.open = false">{{ t('studio.cancel') }}</button>
+        <button type="button" class="st-btn p" @click="applyLink">{{ t('studio.editor.ok') }}</button>
+      </div>
+    </StModal>
   </div>
 </template>
 
 <style scoped lang="scss">
 .rich {
+  position: relative;
   border-radius: var(--r-sm);
   background: var(--surface);
   box-shadow: 0 0 0 1px var(--border);
-  overflow: hidden;
 
   &:focus-within { box-shadow: 0 0 0 1px color-mix(in oklab, var(--ink) 70%, transparent), 0 0 0 3px color-mix(in oklab, var(--ink) 18%, transparent); }
 
@@ -185,7 +391,6 @@ defineExpose({
     border-radius: 0;
     background: none;
     box-shadow: none;
-    overflow: visible;
   }
 }
 
@@ -196,6 +401,7 @@ defineExpose({
   gap: 2px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--border);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
   background: var(--surface-2);
   position: sticky;
   top: 0;
@@ -249,20 +455,59 @@ defineExpose({
   h1, h2, h3 { font-family: var(--font-serif); line-height: 1.4; }
   ul, ol { padding-left: 26px; }
 
+  /* 待办：复选框与首行文字垂直居中（高度取一行的行高） */
   ul[data-type='taskList'] {
     list-style: none;
-    padding-left: 4px;
+    padding-left: 2px;
 
     li {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       align-items: flex-start;
 
-      > label { margin-top: 0.35em; }
-      input[type='checkbox'] { accent-color: var(--solid); }
-      > div { flex: 1; }
+      > label {
+        flex: none;
+        height: 1lh;
+        display: flex;
+        align-items: center;
+        margin: 0;
+        user-select: none;
+      }
+
+      > div { flex: 1; min-width: 0; }
+      > div > p { margin: 0; }
 
       &[data-checked='true'] > div { color: var(--text-2); text-decoration: line-through; }
+    }
+
+    input[type='checkbox'] {
+      appearance: none;
+      width: 17px;
+      height: 17px;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      border-radius: var(--r-xs);
+      cursor: pointer;
+      background: var(--paper, var(--surface));
+      box-shadow: 0 0 0 1.5px var(--line-3, var(--border)) inset;
+      transition: background var(--dur-fast), box-shadow var(--dur-fast);
+
+      /* 勾：两条边框旋转而成（CSS 形状，非图标） */
+      &::after {
+        content: '';
+        width: 4px;
+        height: 8px;
+        margin-top: -2px;
+        border: solid var(--on-solid, #fff);
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg) scale(0);
+        transition: transform var(--dur-fast) var(--ease-spring);
+      }
+
+      &:checked { background: var(--solid); box-shadow: 0 0 0 1.5px var(--solid) inset; }
+      &:checked::after { transform: rotate(45deg) scale(1); }
+      &:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
     }
   }
 
@@ -286,13 +531,26 @@ defineExpose({
     code { background: none; padding: 0; color: inherit; }
   }
 
+  /* 表格：固定布局等分列宽（拖动列宽后按拖动结果），拖柄只在悬停列边时出现 */
+  .tableWrapper { overflow-x: auto; margin: 1.2em 0; }
+
   table {
     border-collapse: collapse;
     width: 100%;
     table-layout: fixed;
+    margin: 0;
 
-    th, td { border: 1px solid var(--border); padding: 7px 12px; vertical-align: top; position: relative; }
-    th { background: var(--surface-2); font-weight: 600; }
+    th, td {
+      border: 1px solid var(--line-2, var(--border));
+      padding: 8px 12px;
+      vertical-align: top;
+      position: relative;
+      min-width: 60px;
+
+      > p { margin: 0; }
+    }
+
+    th { background: var(--well, var(--surface-2)); font-weight: 600; text-align: left; }
 
     .selectedCell::after {
       content: '';
@@ -304,14 +562,16 @@ defineExpose({
 
     .column-resize-handle {
       position: absolute;
-      right: -2px;
+      right: -1px;
       top: 0;
       bottom: 0;
-      width: 4px;
-      background: var(--ink);
-      cursor: col-resize;
+      width: 2px;
+      background: color-mix(in oklab, var(--ink) 70%, transparent);
+      pointer-events: none;
     }
   }
+
+  &.resize-cursor { cursor: col-resize; }
 
   img {
     max-width: 100%;
@@ -347,4 +607,59 @@ defineExpose({
     border-radius: 0 var(--r-xs) var(--r-xs) 0;
   }
 }
+
+/* ---------- 浮层：链接气泡 / 表格工具条 ---------- */
+.rb {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--r-sm);
+  background: var(--paper, var(--surface));
+  box-shadow: 0 0 0 1px var(--line-2, var(--border)), var(--shadow-pop, 0 8px 24px rgba(0, 0, 0, 0.12));
+
+  button {
+    height: 30px;
+    min-width: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    color: var(--st-ink-2, var(--text-2));
+    background: none;
+
+    small { font-size: 11.5px; }
+    &:hover { color: var(--st-ink, var(--text)); background: var(--hover, var(--surface-2)); }
+    &.danger:hover { color: #fff; background: color-mix(in oklab, var(--red, #ff0032) 85%, black); }
+  }
+
+  .sep { width: 1px; height: 18px; margin: 0 3px; background: var(--line-2, var(--border)); }
+}
+
+.link-bubble .href {
+  max-width: 280px;
+  padding: 0 8px;
+  font: 12.5px var(--font-mono);
+  color: var(--st-ink-2, var(--text-2));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rb-pop-enter-active, .rb-pop-leave-active { transition: opacity var(--dur-fast), transform var(--dur-fast) var(--ease-out); }
+.rb-pop-enter-from, .rb-pop-leave-to { opacity: 0; transform: translateY(4px); }
+
+:global(.st-modal.link-dlg) { width: min(480px, calc(100vw - 32px)); }
+:global(.st-modal.link-dlg .st-flabel) { margin: 12px 0 6px; }
+:global(.st-modal.link-dlg .st-field.bad) { box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--red) 70%, transparent) inset; }
+:global(.st-modal.link-dlg .hint) { margin: 8px 0 0; font-size: 12.5px; color: var(--st-ink-3); }
+:global(.st-modal.link-dlg .hint.err) { color: var(--red); }
+:global(.st-modal.link-dlg .acts) { display: flex; gap: 8px; margin-top: 18px; }
+:global(.st-modal.link-dlg .acts .sp) { flex: 1; }
 </style>

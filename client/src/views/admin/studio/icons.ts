@@ -2,7 +2,7 @@ import {
   Archive, ArrowLeft, ArrowRight, Bold, Calendar, Check, ChevronDown, ChevronUp, Clock, Code, Copy, Cpu, Crop, DoorOpen,
   Download, Ellipsis, ExternalLink, Eye, EyeOff, Feather, FileCode, FileText, Flag, GitBranch, Globe, GripVertical,
   Hash, Heart, Image, Info, Italic, KeyRound, LayoutDashboard, LayoutGrid, Layers, Link, List, ListOrdered, ListTodo,
-  Lock, LogOut, Mail, MessageSquare, Minus, Moon, Palette, PanelRight, PenLine, Pin, Play, Plus, Quote, Redo2,
+  Lock, LogOut, Mail, MessageSquare, Minus, Moon, Palette, Paperclip, PanelRight, PenLine, Pin, Play, Plus, Quote, Redo2,
   RefreshCw, Reply, Search, Send, SeparatorHorizontal, Settings, Shield, Shrink, Smile, Sparkles, SquareCode,
   SquareTerminal, Strikethrough, Sun, Table, Trash2, Undo2, Upload, User, Users, WandSparkles, X, ZoomIn,
 } from 'lucide';
@@ -55,6 +55,7 @@ export const ICONS: Record<string, string> = iconSet({
   undo: Undo2,
   redo: Redo2,
   collage: LayoutDashboard,
+  media: Paperclip,
   markdown: FileCode,
   upload: Upload,
   download: Download,

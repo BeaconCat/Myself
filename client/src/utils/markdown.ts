@@ -30,6 +30,10 @@ import typescript from 'highlight.js/lib/languages/typescript';
 import xml from 'highlight.js/lib/languages/xml';
 import yaml from 'highlight.js/lib/languages/yaml';
 import { i18n } from '../i18n';
+import { ArrowUpRight } from 'lucide';
+import { iconMarkup } from './lucide';
+import { embedsPlugin } from './embeds';
+import { sizeStyle, splitSize } from './mediaSize';
 
 const LANGS: Record<string, Parameters<typeof hljs.registerLanguage>[1]> = {
   bash, c, cpp, css, diff, go, ini, java, javascript, json, kotlin, markdown,
@@ -84,6 +88,16 @@ function escapeHtml(s: string): string {
 function createRenderer(): MarkdownIt {
   const md: MarkdownIt = new MarkdownIt({ linkify: true, highlight }).use(taskLists);
 
+  /* 嵌入块：拼图、视频 / 音频 / 文件 / 压缩包（语法见 utils/embeds.ts） */
+  md.use(embedsPlugin, {
+    mode: 'site',
+    labels: () => ({
+      download: i18n.global.t('content.embed.download'),
+      preview: i18n.global.t('content.embed.preview'),
+      open: i18n.global.t('content.embed.open'),
+    }),
+  });
+
   /* 标题锚点：渲染时收集 TOC 到 env.toc */
   md.core.ruler.push('heading_anchor', (state: StateCore) => {
     const env = state.env as { toc?: TocItem[]; used?: Map<string, number> };
@@ -111,7 +125,13 @@ function createRenderer(): MarkdownIt {
   const defaultImage = md.renderer.rules.image!;
   md.renderer.rules.image = (tokens, idx, options, env, self) => {
     const token = tokens[idx];
-    const src = (token.attrGet('src') ?? '').trim();
+    // 地址片段里的尺寸 / 对齐（编辑器拖动改尺寸写入，见 utils/mediaSize.ts）
+    const sized = splitSize((token.attrGet('src') ?? '').trim());
+    const src = sized.src;
+    token.attrSet('src', src);
+    const style = sizeStyle(sized);
+    if (style) token.attrSet('style', style);
+    if (sized.align) token.attrJoin('class', `md-img al-${sized.align}`);
     const local = /^\/(?!\/)/.test(src) || src.startsWith('data:image/');
     if (!local && !/^https:\/\//i.test(src)) return '';
     if (!local) token.attrSet('referrerpolicy', 'no-referrer');
@@ -127,8 +147,20 @@ function createRenderer(): MarkdownIt {
     if (/^https?:\/\//i.test(href)) {
       tokens[idx].attrSet('target', '_blank');
       tokens[idx].attrSet('rel', 'noopener noreferrer nofollow');
+      tokens[idx].attrJoin('class', 'ext');
+      tokens[idx].meta = { ...(tokens[idx].meta ?? {}), external: true };
     }
     return defaultLinkOpen(tokens, idx, options, env, self);
+  };
+
+  /* 外链末尾一枚小箭头（Lucide ArrowUpRight），提示会离开本站；自动识别出的裸链接同样处理 */
+  const extIcon = `<svg class="ext-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconMarkup(ArrowUpRight)}</svg>`;
+  const defaultLinkClose = md.renderer.rules.link_close ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));
+  md.renderer.rules.link_close = (tokens, idx, options, env, self) => {
+    let open = idx - 1;
+    while (open >= 0 && tokens[open].type !== 'link_open') open--;
+    const ext = open >= 0 && (tokens[open].meta as { external?: boolean } | null)?.external;
+    return (ext ? extIcon : '') + defaultLinkClose(tokens, idx, options, env, self);
   };
   return md;
 }

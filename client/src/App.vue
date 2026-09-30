@@ -5,6 +5,7 @@ import NavBar from './components/layout/NavBar.vue';
 import AppLoading from './components/loading/AppLoading.vue';
 import RouteLoading from './components/loading/RouteLoading.vue';
 import AppModal from './components/ui/AppModal.vue';
+import ArchivePreview from './components/embed/ArchivePreview.vue';
 import SearchPalette from './components/search/SearchPalette.vue';
 import SiteFooter from './components/common/SiteFooter.vue';
 import BackToTop from './components/common/BackToTop.vue';
@@ -62,6 +63,7 @@ watch(shrunk, (on) => {
   <RouteLoading />
   <AppLoading />
   <AppModal />
+  <ArchivePreview />
 </template>
 
 <style scoped lang="scss">

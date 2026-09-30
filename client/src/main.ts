@@ -18,6 +18,7 @@ import './styles/base.scss';
 import './styles/motion.scss';
 import './styles/highlight.scss';
 import './styles/admin.scss';
+import './styles/embeds.scss';
 
 const app = createApp(App);
 const pinia = createPinia();

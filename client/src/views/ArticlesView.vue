@@ -170,6 +170,11 @@ const stuck = ref(false);
 function onScroll(): void {
   stuck.value = isStuck(filterbar.value, NAV_H);
 }
+/** 刷新恢复滚动位置、入场动画结束时不触发 scroll：主动补判（同随想页） */
+function recheck(): void {
+  requestAnimationFrame(onScroll);
+  window.setTimeout(onScroll, 700);
+}
 
 /* 「/」聚焦搜索 */
 const input = ref<HTMLInputElement | null>(null);
@@ -187,6 +192,8 @@ let io: IntersectionObserver | null = null;
 
 onMounted(async () => {
   window.addEventListener('scroll', onScroll, { passive: true });
+  filterbar.value?.addEventListener('animationend', onScroll);
+  recheck();
   window.addEventListener('keydown', onKey);
   io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) void loadMore(); }, { rootMargin: '400px' });
   if (sentinel.value) io.observe(sentinel.value);
