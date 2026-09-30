@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -215,6 +216,12 @@ func (s *Server) changeEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := userOf(r)
+	// 外发邮件按用户限频（15 分钟 3 封），防止拿站点当垃圾邮件中继
+	mailKey := "mail:" + strconv.FormatInt(u.ID, 10)
+	if d := s.mailLimiter.blocked(mailKey); d > 0 {
+		tooMany(w, d)
+		return
+	}
 	email := strings.ToLower(strings.TrimSpace(b.strOr("email")))
 	if !emailRe.MatchString(email) {
 		writeError(w, http.StatusBadRequest, "invalid_email")
@@ -255,7 +262,12 @@ func (s *Server) changeEmail(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	base := s.siteBase(r)
+	base := s.linkBase(r, false)
+	if base == "" {
+		writeError(w, http.StatusServiceUnavailable, "site_url_required")
+		return
+	}
+	s.mailLimiter.fail(mailKey)
 	site := cfg.Site.Title
 	title, line := "确认你的新邮箱", "你正在为「"+site+"」账号绑定这个邮箱。点下面的按钮确认，之后就可以用它登录和找回密码。"
 	if u.Email != "" {

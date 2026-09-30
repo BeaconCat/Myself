@@ -191,6 +191,10 @@ func TestChangeLoginAndEmail(t *testing.T) {
 		sentTo, sentText = to, text
 		return nil
 	}
+	// 邮件链接只用配置的站点地址
+	if _, err := e.server.Config.Save(config.Map{"site": config.Map{"url": "https://blog.example"}}); err != nil {
+		t.Fatal(err)
+	}
 
 	if c, _ := e.as(tok, http.MethodPut, "/api/v1/me/email", map[string]string{"email": "new@example.com", "password": "wrong-pass"}); c != http.StatusUnauthorized {
 		t.Fatalf("wrong password accepted: %d", c)

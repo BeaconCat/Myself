@@ -70,13 +70,28 @@ func csrfOK(r *http.Request) bool {
 	if r.Header.Get(csrfHeader) != csrfValue {
 		return false
 	}
-	if origin := r.Header.Get("Origin"); origin != "" {
-		u, err := url.Parse(origin)
-		if err != nil || !strings.EqualFold(u.Host, r.Host) {
-			return false
-		}
+	if origin := r.Header.Get("Origin"); origin != "" && !sameOrigin(origin, r.Host) {
+		return false
 	}
 	return true
+}
+
+// sameOrigin Origin 头的主机是否与请求 Host 一致
+func sameOrigin(origin, host string) bool {
+	u, err := url.Parse(origin)
+	return err == nil && u.Host != "" && strings.EqualFold(u.Host, host)
+}
+
+// withCSRF 公开的写接口（登录 / 注册 / 找回密码等）同样要求自定义头与同源 Origin：
+// 防止跨站表单把受害者登录进攻击者账号（登录 CSRF）、强制登出或代发邮件。
+func withCSRF(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !csrfOK(r) {
+			writeError(w, http.StatusForbidden, "csrf")
+			return
+		}
+		h(w, r)
+	}
 }
 
 // POST /auth/logout 清除会话 Cookie（无需登录，幂等）

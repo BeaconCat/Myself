@@ -151,7 +151,7 @@ func (s *Server) mailTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	site := s.Config.Typed().Site.Title
-	base := s.siteBase(r)
+	base := s.linkBase(r, true)
 	if err := s.sendLetter(to, letter{
 		Subject:   "「" + site + "」发信测试",
 		Preheader: "发信配置可用：注册验证、找回密码与邀请邮件都会以这个样式送达。",

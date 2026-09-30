@@ -108,6 +108,10 @@ func (e *env) do(method, path string, body io.Reader, headers map[string]string)
 	if err != nil {
 		e.t.Fatal(err)
 	}
+	// 与前端一致：默认带 CSRF 自定义头；需要测「缺头」时显式传空值
+	if _, ok := headers["X-Requested-With"]; !ok {
+		req.Header.Set("X-Requested-With", "myself")
+	}
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -431,7 +435,7 @@ func TestPasswordChangeRevokesTokens(t *testing.T) {
 
 func TestCookieSessionCSRF(t *testing.T) {
 	e := newEnv(t)
-	cookie := map[string]string{"Cookie": "myself_session=" + e.token, "Content-Type": "application/json"}
+	cookie := map[string]string{"Cookie": "myself_session=" + e.token, "Content-Type": "application/json", "X-Requested-With": ""}
 	// 读操作只凭 Cookie 即可
 	if res := e.do(http.MethodGet, "/api/v1/admin/settings", nil, cookie); res.StatusCode != http.StatusOK {
 		t.Fatalf("cookie GET: %d", res.StatusCode)

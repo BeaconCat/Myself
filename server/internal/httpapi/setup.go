@@ -102,6 +102,8 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.limiter.success(ip)
+	// 初始化时没填站点地址：用站长浏览器的 Origin 记下（邮件链接只认配置的地址）
+	s.rememberSiteURL(r)
 
 	// 站点与身份：只取白名单字段，空值不覆盖默认
 	patch := config.Map{}

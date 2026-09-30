@@ -55,6 +55,8 @@ type Service struct {
 	db        *store.DB
 	mu        sync.Mutex
 	setupCode string
+	// changeCode 管理员仍在用历史默认口令时的改密码（启动日志打印）；强制改密必须附带，防止他人抢先登录后改密
+	changeCode string
 	// dummyHash 用户不存在时也跑一遍 scrypt，消除时序差。
 	dummyHash string
 }
@@ -137,14 +139,89 @@ func (s *Service) Init() error {
 		return err
 	}
 	if need {
-		code, err := RandomHex(4)
+		code, err := newOneTimeCode()
 		if err != nil {
 			return err
 		}
-		s.setupCode = strings.ToUpper(code)
+		s.setupCode = code
 		log.Printf("[myself-server] 站点尚未初始化：打开 /setup，初始化码 %s（仅本次启动有效）", s.setupCode)
 	}
+	// 旧库管理员仍是历史默认口令：默认口令写在源码里，谁都能登录；强制改密时须附带只打印在日志里的改密码
+	var hashes []string
+	rows, err := s.db.Query(`SELECT password_hash FROM users WHERE role = ? AND must_change = 1`, store.RoleAdmin)
+	if err == nil {
+		for rows.Next() {
+			var h string
+			if rows.Scan(&h) == nil {
+				hashes = append(hashes, h)
+			}
+		}
+		rows.Close()
+	}
+	for _, h := range hashes {
+		if VerifyPassword(legacyDefaultPassword, h) {
+			if s.changeCode, err = newOneTimeCode(); err != nil {
+				return err
+			}
+			log.Printf("[myself-server] 管理员仍在使用历史默认口令：登录后修改密码时需填写改密码 %s（仅本次启动有效）", s.changeCode)
+			break
+		}
+	}
 	return nil
+}
+
+// newOneTimeCode 一次性口令：16 位十六进制（64 bit），按 4 位一组显示；输入时忽略横线与空格
+func newOneTimeCode() (string, error) {
+	raw, err := RandomHex(8)
+	if err != nil {
+		return "", err
+	}
+	raw = strings.ToUpper(raw)
+	return raw[0:4] + "-" + raw[4:8] + "-" + raw[8:12] + "-" + raw[12:16], nil
+}
+
+// normCode 规范化用户输入的一次性口令（大写、去掉横线与空白）
+func normCode(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '-' || r == ' ' || r == '\t' {
+			return -1
+		}
+		return r
+	}, strings.ToUpper(strings.TrimSpace(s)))
+}
+
+// CheckChangeCode 强制改密时校验改密码；没有待改的默认口令时总是通过
+func (s *Service) CheckChangeCode(code string) bool {
+	s.mu.Lock()
+	want := s.changeCode
+	s.mu.Unlock()
+	if want == "" {
+		return true
+	}
+	return subtle.ConstantTimeCompare([]byte(normCode(code)), []byte(normCode(want))) == 1
+}
+
+// ChangeCodeUsed 默认口令已改掉：清除改密码
+func (s *Service) ChangeCodeUsed() {
+	s.mu.Lock()
+	s.changeCode = ""
+	s.mu.Unlock()
+}
+
+// NeedsChangeCode 当前是否要求改密码（前端据此显示输入框）
+func (s *Service) NeedsChangeCode() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.changeCode != ""
+}
+
+// RotateSecret 更换签名密钥：已签发的所有令牌立即失效（从备份恢复后调用，避免备份里的旧密钥 / 已吊销会话复活）
+func (s *Service) RotateSecret() error {
+	v, err := RandomHex(32)
+	if err != nil {
+		return err
+	}
+	return s.db.SetSetting("jwt_secret", v)
 }
 
 // migrateLegacyAdmin 旧版把唯一管理员存在 settings（admin_username / admin_password / token_version / admin_must_change）：
@@ -201,7 +278,7 @@ func (s *Service) CheckSetupCode(code string) error {
 	if s.setupCode == "" {
 		return ErrAlreadySetup
 	}
-	if subtle.ConstantTimeCompare([]byte(strings.ToUpper(strings.TrimSpace(code))), []byte(s.setupCode)) != 1 {
+	if subtle.ConstantTimeCompare([]byte(normCode(code)), []byte(normCode(s.setupCode))) != 1 {
 		return ErrBadSetupCode
 	}
 	return nil
@@ -218,7 +295,7 @@ func (s *Service) Setup(code, login, password, name string) (int64, error) {
 	if !need || s.setupCode == "" {
 		return 0, ErrAlreadySetup
 	}
-	if subtle.ConstantTimeCompare([]byte(strings.ToUpper(strings.TrimSpace(code))), []byte(s.setupCode)) != 1 {
+	if subtle.ConstantTimeCompare([]byte(normCode(code)), []byte(normCode(s.setupCode))) != 1 {
 		return 0, ErrBadSetupCode
 	}
 	hash, err := HashPassword(password)
@@ -329,6 +406,10 @@ func (s *Service) VerifyToken(raw string) (*store.User, error) {
 	}
 	if tv, _ := claims["tv"].(float64); int(tv) != u.TokenVersion {
 		return nil, errors.New("token revoked")
+	}
+	// 按当前「登录保持时长」判定：后台把时长调短后，早先按长时长签发的令牌也随之失效
+	if iat, ok := claims["iat"].(float64); !ok || time.Since(time.Unix(int64(iat), 0)) > s.ttl() {
+		return nil, errors.New("token expired by policy")
 	}
 	return u, nil
 }

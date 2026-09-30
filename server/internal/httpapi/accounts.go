@@ -98,6 +98,9 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u *store.U
 
 /* ===== 登录 / 会话 / 改密 ===== */
 
+// errNoSiteURL 后台未配置站点地址：不能对外发带链接的邮件
+var errNoSiteURL = errors.New("site url not configured: set it in Settings before sending account mails")
+
 // POST /auth/login {username|email, password}：失败计数按 IP 锁定；成功写入 HttpOnly 会话 Cookie。
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
@@ -113,6 +116,11 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	id := b.strOr("username")
 	if id == "" {
 		id = b.strOr("email")
+	}
+	acct := "acct:" + strings.ToLower(strings.TrimSpace(id))
+	if d := s.acctLimiter.blocked(acct); d > 0 {
+		tooMany(w, d)
+		return
 	}
 	var (
 		u   *store.User
@@ -131,6 +139,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	case u == nil:
 		s.limiter.fail(ip)
+		s.acctLimiter.fail(acct)
 		writeError(w, http.StatusUnauthorized, "bad_credentials")
 		return
 	}
@@ -139,6 +148,10 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.limiter.success(ip)
+	s.acctLimiter.success(acct)
+	if u.Role == store.RoleAdmin {
+		s.rememberSiteURL(r)
+	}
 	if err := s.startSession(w, r, u); err != nil {
 		fail(w, err)
 		return
@@ -183,6 +196,12 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "weak_password")
 		return
 	}
+	// 仍是历史默认口令的管理员：改密须附带启动日志里的改密码（默认口令人人可知，防他人抢先登录后改密）
+	if me := userOf(r); me.MustChange && !s.Auth.CheckChangeCode(b.strOr("changeCode")) {
+		s.limiter.fail(ip)
+		writeError(w, http.StatusForbidden, "change_code_required")
+		return
+	}
 	var (
 		token string
 		err   error
@@ -196,6 +215,9 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		s.limiter.fail(ip)
 		writeError(w, http.StatusUnauthorized, "bad_credentials")
 		return
+	}
+	if userOf(r).MustChange {
+		s.Auth.ChangeCodeUsed()
 	}
 	s.setSession(w, r, token)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
@@ -344,7 +366,11 @@ func (s *Server) sendVerifyMail(r *http.Request, u *store.User) error {
 	if err != nil {
 		return err
 	}
-	link := s.siteBase(r) + "/account/verify?token=" + raw
+	base := s.linkBase(r, false)
+	if base == "" {
+		return errNoSiteURL
+	}
+	link := base + "/account/verify?token=" + raw
 	site := s.Config.Typed().Site.Title
 	return s.sendLetter(u.Email, letter{
 		Subject:   "验证你在「" + site + "」的邮箱",
@@ -355,7 +381,7 @@ func (s *Server) sendVerifyMail(r *http.Request, u *store.User) error {
 		Action:    &mailAction{Label: "验证邮箱", URL: link},
 		Expire:    "链接 48 小时内有效，只能使用一次。",
 		Note:      "如果这不是你本人的操作，忽略这封邮件即可，不会有任何影响。",
-	}, s.siteBase(r))
+	}, base)
 }
 
 // POST /auth/verify {token} 验证邮箱并登录
@@ -426,7 +452,11 @@ func (s *Server) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	s.signupLimiter.fail(ip)
 	email := strings.TrimSpace(b.strOr("email"))
-	if u, err := s.DB.UserBy(`email = ?`, email); err == nil && u != nil && u.Status == store.StatusActive {
+	// 链接只用配置的站点地址（不信任请求 Host，防止重置令牌被投递到攻击者域名）；未配置时不发
+	base := s.linkBase(r, false)
+	if base == "" {
+		s.logMail(errNoSiteURL)
+	} else if u, err := s.DB.UserBy(`email = ?`, email); err == nil && u != nil && u.Status == store.StatusActive {
 		go func(u store.User, base string) {
 			raw, err := s.Auth.CreateToken("reset", u.ID, "", u.Email, "", time.Hour)
 			if err != nil {
@@ -447,7 +477,7 @@ func (s *Server) forgotPassword(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				s.logMail(err)
 			}
-		}(*u, s.siteBase(r))
+		}(*u, base)
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

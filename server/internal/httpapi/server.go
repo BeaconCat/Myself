@@ -55,11 +55,15 @@ type Server struct {
 	limiter   *attemptLimiter
 	// signupLimiter 注册 / 找回密码按 IP 计次（与登录锁定分开，避免互相影响）
 	signupLimiter *attemptLimiter
-	oauth         oauthStates
-	comments      commentLimiter
-	reacts        reactLimiter
-	thumbs        singleflight.Group
-	backupMu      sync.Mutex
+	// acctLimiter 按登录名计失败次数（与按 IP 叠加）
+	acctLimiter *attemptLimiter
+	// mailLimiter 按用户限制「确认邮箱」等外发邮件（15 分钟 3 封）
+	mailLimiter *attemptLimiter
+	oauth       oauthStates
+	comments    commentLimiter
+	reacts      reactLimiter
+	thumbs      singleflight.Group
+	backupMu    sync.Mutex
 	// mediaHashMu 串行化素材哈希回填
 	mediaHashMu sync.Mutex
 	// mailer 发信实现；nil 用 SMTP（sendWith），测试里替换成捕获函数
@@ -76,6 +80,8 @@ func New(d Deps) *Server {
 		jobs:           newJobRegistry(),
 		limiter:        newAttemptLimiter(),
 		signupLimiter:  newAttemptLimiter(),
+		acctLimiter:    &attemptLimiter{m: map[string]*failEntry{}, limit: accountFailLimit},
+		mailLimiter:    &attemptLimiter{m: map[string]*failEntry{}, limit: 3},
 	}
 	for _, dir := range []string{s.originalsDir, s.precompressDir, s.thumbsDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -116,14 +122,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /feed", s.rssFeed)
 	mux.HandleFunc("GET /feed.xml", s.rssFeed)
 	mux.HandleFunc("GET "+p+"/github-status", s.githubStatus)
-	mux.HandleFunc("POST "+p+"/auth/login", s.login)
-	mux.HandleFunc("POST "+p+"/auth/logout", s.logout)
+	mux.HandleFunc("POST "+p+"/auth/login", withCSRF(s.login))
+	mux.HandleFunc("POST "+p+"/auth/logout", withCSRF(s.logout))
 	mux.HandleFunc("GET "+p+"/auth/session", s.session)
-	mux.HandleFunc("POST "+p+"/auth/register", s.register)
-	mux.HandleFunc("POST "+p+"/auth/verify", s.verifyEmail)
-	mux.HandleFunc("POST "+p+"/auth/forgot", s.forgotPassword)
+	mux.HandleFunc("POST "+p+"/auth/register", withCSRF(s.register))
+	mux.HandleFunc("POST "+p+"/auth/verify", withCSRF(s.verifyEmail))
+	mux.HandleFunc("POST "+p+"/auth/forgot", withCSRF(s.forgotPassword))
 	mux.HandleFunc("GET "+p+"/auth/reset", s.resetInfo)
-	mux.HandleFunc("POST "+p+"/auth/reset", s.resetPassword)
+	mux.HandleFunc("POST "+p+"/auth/reset", withCSRF(s.resetPassword))
 	mux.HandleFunc("GET "+p+"/auth/invite", s.inviteInfo)
 	mux.HandleFunc("GET "+p+"/auth/github/start", s.githubStart)
 	mux.HandleFunc("GET "+p+"/auth/github/callback", s.githubCallback)
@@ -131,8 +137,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+p+"/comments", s.createComment)
 	mux.HandleFunc("GET "+p+"/archive/{name}", s.archiveListing)
 	mux.HandleFunc("GET "+p+"/setup", s.setupStatus)
-	mux.HandleFunc("POST "+p+"/setup", s.setup)
-	mux.HandleFunc("POST "+p+"/setup/verify", s.setupVerify)
+	mux.HandleFunc("POST "+p+"/setup", withCSRF(s.setup))
+	mux.HandleFunc("POST "+p+"/setup/verify", withCSRF(s.setupVerify))
 
 	// 管理员
 	mux.HandleFunc("PUT "+p+"/auth/password", member(s.changePassword))
@@ -225,7 +231,8 @@ func logMiddleware(next http.Handler) http.Handler {
 		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(sw, r)
 		if strings.HasPrefix(r.URL.Path, "/api/") || sw.status >= 400 {
-			log.Printf("%s %s %d %s", r.Method, r.URL.RequestURI(), sw.status, time.Since(start).Round(time.Millisecond))
+			// 只记路径：重置令牌、邀请码、OAuth code 都在查询串里，不能进日志
+			log.Printf("%s %s %d %s", r.Method, r.URL.Path, sw.status, time.Since(start).Round(time.Millisecond))
 		}
 	})
 }

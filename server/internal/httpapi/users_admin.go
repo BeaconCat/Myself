@@ -239,7 +239,7 @@ func (s *Server) adminResetLink(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	link := s.siteBase(r) + "/account/reset?token=" + raw
+	link := s.linkBase(r, true) + "/account/reset?token=" + raw
 	sent := false
 	if b.truthy("send") && u.Email != "" {
 		site := s.Config.Typed().Site.Title
@@ -252,7 +252,7 @@ func (s *Server) adminResetLink(w http.ResponseWriter, r *http.Request) {
 			Action:    &mailAction{Label: "设置新密码", URL: link},
 			Expire:    "链接 24 小时内有效，只能使用一次。",
 			Note:      "如果你并没有向站长请求重置，可以忽略这封邮件，原密码仍然有效。",
-		}, s.siteBase(r)); err != nil {
+		}, s.linkBase(r, true)); err != nil {
 			s.logMail(err)
 		} else {
 			sent = true
@@ -351,7 +351,7 @@ func (s *Server) adminCreateInvite(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	link := s.siteBase(r) + "/account/join?code=" + raw
+	link := s.linkBase(r, true) + "/account/join?code=" + raw
 	sent := false
 	if b.truthy("send") && email != "" {
 		site := s.Config.Typed().Site.Title
@@ -365,7 +365,7 @@ func (s *Server) adminCreateInvite(w http.ResponseWriter, r *http.Request) {
 			Action:    &mailAction{Label: "接受邀请", URL: link},
 			Expire:    "邀请 " + strconv.Itoa(days) + " 天内有效，只能使用一次。",
 			Note:      "如果你不认识发出邀请的站点，忽略这封邮件即可。",
-		}, s.siteBase(r)); err != nil {
+		}, s.linkBase(r, true)); err != nil {
 			s.logMail(err)
 		} else {
 			sent = true

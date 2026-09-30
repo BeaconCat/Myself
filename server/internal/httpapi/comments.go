@@ -31,12 +31,14 @@ type commentLimiter struct {
 }
 
 func (c *commentLimiter) allow(ip string) bool {
+	ip = limitKey(ip)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.m == nil {
 		c.m = map[string][]time.Time{}
 	}
 	now := time.Now()
+	pruneWindows(c.m, now, commentWindow)
 	kept := c.m[ip][:0]
 	for _, t := range c.m[ip] {
 		if now.Sub(t) < commentWindow {

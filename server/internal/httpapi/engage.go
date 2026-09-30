@@ -36,12 +36,14 @@ type reactLimiter struct {
 }
 
 func (l *reactLimiter) allow(ip string) bool {
+	ip = limitKey(ip)
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.m == nil {
 		l.m = map[string][]time.Time{}
 	}
 	now := time.Now()
+	pruneWindows(l.m, now, time.Minute)
 	kept := l.m[ip][:0]
 	for _, t := range l.m[ip] {
 		if now.Sub(t) < time.Minute {

@@ -18,7 +18,7 @@ func TestReactionsToggleAndEngage(t *testing.T) {
 	id := notes.Items[0].ID
 	body := `{"target":"note","id":` + itoa(id) + `,"kind":"like"}`
 	// 无自定义头：拒绝（防跨站刷量）
-	if res := e.do(http.MethodPost, "/api/v1/reactions", strings.NewReader(body), map[string]string{"Content-Type": "application/json"}); res.StatusCode != http.StatusForbidden {
+	if res := e.do(http.MethodPost, "/api/v1/reactions", strings.NewReader(body), map[string]string{"Content-Type": "application/json", "X-Requested-With": ""}); res.StatusCode != http.StatusForbidden {
 		t.Fatalf("reaction without header: %d", res.StatusCode)
 	}
 	h := map[string]string{"Content-Type": "application/json", "X-Requested-With": "myself"}

@@ -61,10 +61,37 @@ func (s *Server) siteBase(r *http.Request) string {
 		return strings.TrimRight(u, "/")
 	}
 	scheme := "http"
-	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+	if secureRequest(r) {
 		scheme = "https"
 	}
 	return scheme + "://" + r.Host
+}
+
+// linkBase 邮件等「离站」链接的站点根地址：只用后台配置的 site.url，绝不信任请求里的 Host
+// （否则攻击者伪造 Host 发起找回密码，站长收到的真实邮件就会把重置令牌送到攻击者域名）。
+// trusted=true 表示请求来自已登录的站长（例如生成重置 / 邀请链接），这时才允许按请求推断兜底。
+// 返回空串表示未配置站点地址，调用方应拒绝发出链接。
+func (s *Server) linkBase(r *http.Request, trusted bool) string {
+	if u, _ := config.Sub(s.Config.Get(), "site")["url"].(string); strings.HasPrefix(u, "http") {
+		return strings.TrimRight(u, "/")
+	}
+	if trusted {
+		return s.siteBase(r)
+	}
+	return ""
+}
+
+// rememberSiteURL 站点地址还没配置时，用站长浏览器的 Origin 记下来（初始化、站长登录时调用）。
+// Origin 由浏览器设置、页面脚本改不了；调用前请求已通过口令 / 初始化码校验，且 Origin 与 Host 一致。
+func (s *Server) rememberSiteURL(r *http.Request) {
+	if u, _ := config.Sub(s.Config.Get(), "site")["url"].(string); strings.HasPrefix(u, "http") {
+		return
+	}
+	origin := r.Header.Get("Origin")
+	if !strings.HasPrefix(origin, "http") || !sameOrigin(origin, r.Host) {
+		return
+	}
+	_, _ = s.Config.Save(config.Map{"site": config.Map{"url": strings.TrimRight(origin, "/")}})
 }
 
 // GET /feed RSS 订阅源

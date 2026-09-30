@@ -60,10 +60,17 @@ func (o *oauthStates) take(key string) (oauthState, bool) {
 
 // safeNext 只允许站内相对路径作为登录后的落点（防开放重定向）。
 func safeNext(p string) string {
-	if strings.HasPrefix(p, "/") && !strings.HasPrefix(p, "//") && !strings.HasPrefix(p, "/\\") {
-		return p
+	// 控制字符（浏览器解析 URL 时会剔除，"/\t/evil.com" 就成了 "//evil.com"）与反斜杠一律拒绝
+	for _, c := range p {
+		if c < 0x20 || c == 0x7f || c == '\\' {
+			return "/"
+		}
 	}
-	return "/"
+	u, err := url.Parse(p)
+	if err != nil || u.Scheme != "" || u.Host != "" || !strings.HasPrefix(p, "/") || strings.HasPrefix(p, "//") {
+		return "/"
+	}
+	return p
 }
 
 func (s *Server) oauthRedirectURI(r *http.Request) string {
