@@ -14,6 +14,7 @@ import { MODULE_EDITORS } from '../../components/admin/modules';
 import ModuleFrame from '../../components/admin/modules/ModuleFrame.vue';
 import ModulePicker from '../../components/admin/ModulePicker.vue';
 import ModuleLivePreview from '../../about/ModuleLivePreview.vue';
+import { BUILTIN_LOGO } from '../../utils/siteLogo';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
 import Icon from '../../components/ui/Icon.vue';
@@ -99,7 +100,7 @@ let toggling = false;
 
 /** 收起编辑区：只把表单部分高度收到 0 并淡出（预览保留），再交给 FLIP 把卡片送回原宽度 */
 async function foldEditor(id: string): Promise<void> {
-  const ed = grid.value?.querySelector<HTMLElement>(`[data-id="${id}"] > .ed > .ed-form`);
+  const ed = grid.value?.querySelector<HTMLElement>(`[data-id="${id}"] > .mb > .ed-form`);
   if (!ed || reduceMotion()) return;
   const h = ed.offsetHeight;
   const anim = ed.animate(
@@ -403,9 +404,9 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
 
     <!-- 站点身份：只读摘要，内容在「身份」页统一编辑 -->
     <div class="identity st-rise">
-      <img class="av" :src="about.avatar || '/favicon-256.png'" alt="" />
+      <img class="av" :src="about.avatar || config.cfg.site.logo || BUILTIN_LOGO" alt="" />
       <div class="id-main">
-        <b>{{ about.name || 'Myself' }}</b>
+        <b>{{ about.name || config.cfg.site.title }}</b>
         <small>{{ plainText(about.tagline) }} · {{ t('studio.about.since', { d: about.foundedAt }) }}</small>
       </div>
       <span class="count">{{ t('studio.about.count', { n: about.modules.length, v: visibleCount }) }}</span>
@@ -444,13 +445,10 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
             </button>
           </span>
         </div>
-        <div v-if="expanded !== mod.id" class="mb" :title="metaOf(mod.type)?.desc" @click="toggleExpand(mod)">
-          <ModuleLivePreview :mod="mod" :about="about" />
-        </div>
-        <div v-else class="ed">
-          <!-- 编辑时预览随改动实时更新；与收起态同一位置、同一高度上限，收起时只收表单，预览原地不动 -->
-          <ModuleLivePreview :mod="mod" :about="about" />
-          <div class="ed-form">
+        <!-- 预览全程是同一个实例（展开 / 收起不重建，不重播入场、不重新测高）；编辑时随改动实时更新，表单挂在它下方 -->
+        <div class="mb" :class="{ open: expanded === mod.id }" :title="expanded === mod.id ? undefined : metaOf(mod.type)?.desc" @click="expanded !== mod.id && toggleExpand(mod)">
+          <ModuleLivePreview class="pv" :mod="mod" :about="about" />
+          <div v-if="expanded === mod.id" class="ed-form" @click.stop>
             <ModuleFrame :mod="mod">
               <component :is="MODULE_EDITORS[mod.type]" v-if="MODULE_EDITORS[mod.type]" :mod="mod" />
             </ModuleFrame>
@@ -558,7 +556,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
 
   &.open { box-shadow: 0 0 0 1px color-mix(in oklab, var(--ink) 55%, transparent), 0 0 0 3px color-mix(in oklab, var(--ink) 16%, transparent); }
 
-  &.off .mb { opacity: 0.4; filter: grayscale(1); }
+  &.off .mb > .pv { opacity: 0.4; filter: grayscale(1); }
 }
 
 :root[data-mode='dark'] .mod { background: var(--well); }
@@ -635,12 +633,9 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
 .mb {
   padding: 8px 16px 16px;
   cursor: pointer;
-  transition: opacity var(--dur), filter var(--dur);
-}
 
-/* 展开态与收起态（.mb）内边距一致：预览在两态间位置不变 */
-.ed {
-  padding: 8px 16px 16px;
+  &.open { cursor: default; }
+  > .pv { transition: opacity var(--dur), filter var(--dur); }
 
   .ed-form { padding-top: 16px; animation: ed-in var(--dur-slow) var(--ease-out); }
   .ed-ft { display: flex; justify-content: flex-end; margin-top: 10px; }
