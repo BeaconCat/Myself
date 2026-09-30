@@ -103,7 +103,9 @@ html:not(.vt-contract)::view-transition-new(root) {
   );
 }
 
-::view-transition-group(vt-ring) { z-index: 4; animation: none; }
+/* 正片叠底融进页面（浅色）；深色背景上正片叠底几乎看不见，改用滤色 */
+::view-transition-group(vt-ring) { z-index: 4; animation: none; mix-blend-mode: multiply; }
+:root[data-mode='dark']::view-transition-group(vt-ring) { mix-blend-mode: screen; }
 ::view-transition-old(vt-ring) { display: none; }
 ::view-transition-new(vt-ring) { animation: none; }
 
