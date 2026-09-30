@@ -58,6 +58,8 @@ type Server struct {
 	reacts        reactLimiter
 	thumbs        singleflight.Group
 	backupMu      sync.Mutex
+	// mediaHashMu 串行化素材哈希回填
+	mediaHashMu sync.Mutex
 	// mailer 发信实现；nil 用 SMTP（sendWith），测试里替换成捕获函数
 	mailer func(c config.Mail, to, subject, text, htmlBody string) error
 }
@@ -152,6 +154,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("DELETE "+p+"/admin/apikeys/{id}", admin(s.deleteAPIKey))
 	mux.HandleFunc("GET "+p+"/admin/media", admin(s.listMedia))
 	mux.HandleFunc("POST "+p+"/admin/media", staff(s.uploadMedia))
+	mux.HandleFunc("POST "+p+"/admin/media/lookup", staff(s.lookupMedia))
 	mux.HandleFunc("POST "+p+"/admin/media/{name}/crop", admin(s.cropMedia))
 	mux.HandleFunc("GET "+p+"/admin/media/{name}/original", admin(s.mediaOriginal))
 	mux.HandleFunc("DELETE "+p+"/admin/media/{name}", admin(s.deleteMedia))

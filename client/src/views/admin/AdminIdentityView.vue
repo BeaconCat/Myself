@@ -16,6 +16,7 @@ import { settle, stableJson } from './studio/state';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
 import StSwitch from './studio/StSwitch.vue';
+import MediaPicker from './studio/MediaPicker.vue';
 import { toast } from './studio/toast';
 
 /**
@@ -74,6 +75,25 @@ async function save(): Promise<void> {
 /* ---------- 图片上传（头像 / 形象图） ---------- */
 const uploading = ref<'' | 'avatar' | 'portrait' | 'banner' | 'logo'>('');
 const logoInput = ref<HTMLInputElement | null>(null);
+
+/* ---------- 从素材库选择 ---------- */
+type PickTarget = '' | 'logo' | 'avatar' | 'portrait' | 'banner';
+const picking = ref<PickTarget>('');
+const pickCurrent = computed(() => {
+  switch (picking.value) {
+    case 'logo': return site.logo;
+    case 'avatar': return about.avatar;
+    case 'portrait': return about.portrait.src;
+    case 'banner': return about.banner.src;
+    default: return '';
+  }
+});
+function onPicked(url: string): void {
+  if (picking.value === 'logo') site.logo = url;
+  else if (picking.value === 'avatar') about.avatar = url;
+  else if (picking.value === 'portrait') about.portrait.src = url;
+  else if (picking.value === 'banner') about.banner.src = url;
+}
 const bannerInput = ref<HTMLInputElement | null>(null);
 const avatarInput = ref<HTMLInputElement | null>(null);
 const portraitInput = ref<HTMLInputElement | null>(null);
@@ -251,6 +271,7 @@ onBeforeUnmount(() => {
               </div>
               <div class="row-btns">
                 <button v-if="site.logo" type="button" class="st-btn q sm" @click="site.logo = ''">{{ t('studio.identity.useBuiltinLogo') }}</button>
+                <button type="button" class="st-btn g sm" @click="picking = 'logo'">{{ t('studio.identity.fromLibrary') }}</button>
                 <button type="button" class="st-btn g sm" :disabled="!!uploading" @click="logoInput?.click()">{{ site.logo ? t('studio.identity.replace') : t('studio.identity.upload') }}</button>
               </div>
             </div>
@@ -267,6 +288,7 @@ onBeforeUnmount(() => {
               </div>
               <div class="row-btns">
                 <button v-if="about.avatar" type="button" class="st-btn q sm" @click="about.avatar = ''">{{ t('studio.identity.useLogo') }}</button>
+                <button type="button" class="st-btn g sm" @click="picking = 'avatar'">{{ t('studio.identity.fromLibrary') }}</button>
                 <button type="button" class="st-btn g sm" :disabled="!!uploading" @click="avatarInput?.click()">{{ about.avatar ? t('studio.identity.replace') : t('studio.identity.upload') }}</button>
               </div>
             </div>
@@ -287,6 +309,7 @@ onBeforeUnmount(() => {
                   </div>
                   <div class="row-btns">
                     <button v-if="about.portrait.src" type="button" class="st-btn q sm" @click="about.portrait.src = ''">{{ t('studio.identity.useLogo') }}</button>
+                    <button type="button" class="st-btn g sm" @click="picking = 'portrait'">{{ t('studio.identity.fromLibrary') }}</button>
                     <button type="button" class="st-btn g sm" :disabled="!!uploading" @click="portraitInput?.click()">{{ about.portrait.src ? t('studio.identity.replace') : t('studio.identity.upload') }}</button>
                   </div>
                 </div>
@@ -343,6 +366,9 @@ onBeforeUnmount(() => {
                   :title="SCENE_LABELS[id]"
                   @click="about.banner.src = coverSrc(id)"
                 ><img :src="`/covers/${id}-s.webp`" alt="" draggable="false" /></button>
+                <button type="button" class="up" :title="t('studio.identity.fromLibrary')" @click="picking = 'banner'">
+                  <SIcon name="image" :size="18" />
+                </button>
                 <button type="button" class="up" :disabled="!!uploading" :title="t('studio.identity.upload')" @click="bannerInput?.click()">
                   <SIcon name="upload" :size="18" />
                 </button>
@@ -443,6 +469,14 @@ onBeforeUnmount(() => {
         <p class="pv-foot">{{ t('studio.identity.previewFoot') }}</p>
       </aside>
     </div>
+  
+    <MediaPicker
+      :open="!!picking"
+      :title="picking ? t(`studio.identity.pick_${picking}`) : ''"
+      :current="pickCurrent"
+      @pick="onPicked"
+      @close="picking = ''"
+    />
   </section>
 </template>
 

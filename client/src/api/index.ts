@@ -243,21 +243,43 @@ export const adminApi = {
   deleteApiKey: (id: number) =>
     authed<{ ok: boolean }>(`/admin/apikeys/${id}`, { method: 'DELETE' }),
   media: () => authed<MediaItem[]>('/admin/media'),
+  /**
+   * 上传素材（带查重）：浏览器先算每个文件的 SHA-256 问服务端，已存在的直接复用（duplicate = true）、不再上传；
+   * 其余正常上传（服务端写入时还会再查一次）。返回顺序与传入一致。
+   */
   uploadMedia: async (files: File[]): Promise<MediaItem[]> => {
-    const form = new FormData();
-    for (const f of files) form.append('files', f);
-    const res = await fetch(`${BASE}/admin/media`, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: ADMIN_HEADERS,
-      body: form,
-    });
-    if (res.status === 401) {
-      kickToLogin();
-      throw new Error('unauthorized');
+    const hashes = await Promise.all(files.map(sha256Hex));
+    let known: Record<string, MediaItem> = {};
+    const asked = hashes.filter((h): h is string => !!h);
+    if (asked.length) {
+      known = await authed<Record<string, MediaItem>>('/admin/media/lookup', { method: 'POST', body: JSON.stringify({ hashes: asked }) })
+        .catch(() => ({}));
     }
-    if (!res.ok) throw new Error(`api_error_${res.status}`);
-    return res.json() as Promise<MediaItem[]>;
+    const fresh = files.filter((_, i) => !(hashes[i] && known[hashes[i]!]));
+    let uploaded: MediaItem[] = [];
+    if (fresh.length) {
+      const form = new FormData();
+      for (const f of fresh) form.append('files', f);
+      const res = await fetch(`${BASE}/admin/media`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: ADMIN_HEADERS,
+        body: form,
+      });
+      if (res.status === 401) {
+        kickToLogin();
+        throw new Error('unauthorized');
+      }
+      if (!res.ok) throw new Error(`api_error_${res.status}`);
+      uploaded = (await res.json()) as MediaItem[];
+    }
+    const out: MediaItem[] = [];
+    for (let i = 0; i < files.length; i += 1) {
+      const hit = hashes[i] ? known[hashes[i]!] : undefined;
+      const next = hit ?? uploaded.shift();
+      if (next) out.push(next);
+    }
+    return out;
   },
   /** 原图二进制（重裁 UI 用，取 blob） */
   mediaOriginal: async (name: string): Promise<Blob> => {
@@ -503,6 +525,17 @@ export const accountApi = {
     accountCall<{ ok: boolean; id: number; pending: boolean }>('POST', '/comments', body),
 };
 
+/** 文件内容的 SHA-256（十六进制）；非安全上下文（http 且非 localhost）没有 crypto.subtle 时返回 null */
+async function sha256Hex(file: Blob): Promise<string | null> {
+  if (!globalThis.crypto?.subtle) return null;
+  try {
+    const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return null;
+  }
+}
+
 export interface MediaItem {
   name: string;
   url: string;
@@ -512,6 +545,8 @@ export interface MediaItem {
   hasOriginal: boolean;
   crop: { left: number; top: number; width: number; height: number } | null;
   createdAt: string;
+  /** 与已有素材内容相同：没有新存，返回的是已有的那张 */
+  duplicate?: boolean;
 }
 
 export interface BackupInfo {

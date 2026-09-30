@@ -2,10 +2,11 @@ package httpapi
 
 import (
 	"crypto/rand"
-	"errors"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"math"
 	"net/http"
@@ -45,6 +46,8 @@ type mediaItem struct {
 	HasOriginal bool          `json:"hasOriginal"`
 	Crop        *imaging.Rect `json:"crop"`
 	CreatedAt   string        `json:"createdAt"`
+	// Duplicate 与已有素材内容相同：没有新存一份，返回的是已有的那张
+	Duplicate bool `json:"duplicate,omitempty"`
 }
 
 func (s *Server) fileInfo(name string) (mediaItem, error) {
@@ -133,6 +136,7 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var saved []string
+	dups := map[string]bool{}
 	for len(saved) < maxUploadFiles {
 		part, err := reader.NextPart()
 		if err == io.EOF {
@@ -156,7 +160,9 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 			fail(w, err)
 			return
 		}
-		n, err := io.Copy(dst, io.LimitReader(part, maxUploadBytes+1))
+		// 边写边算哈希，用于查重
+		h := sha256.New()
+		n, err := io.Copy(io.MultiWriter(dst, h), io.LimitReader(part, maxUploadBytes+1))
 		dst.Close()
 		if err != nil || n > maxUploadBytes {
 			os.Remove(filepath.Join(s.UploadDir, name))
@@ -173,7 +179,21 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		if _, err := s.DB.Exec(`INSERT OR IGNORE INTO media (name) VALUES (?)`, name); err != nil {
+		sum := hex.EncodeToString(h.Sum(nil))
+		// 与已有素材内容相同：丢弃新文件，返回已有的那张
+		if err := s.ensureMediaHashes(); err != nil {
+			fail(w, err)
+			return
+		}
+		if existing := s.mediaByHash(sum, name); existing != "" {
+			os.Remove(filepath.Join(s.UploadDir, name))
+			_, _ = s.DB.Exec(`DELETE FROM media WHERE name = ?`, name)
+			saved = append(saved, existing)
+			dups[existing] = true
+			continue
+		}
+		if _, err := s.DB.Exec(`INSERT INTO media (name, sha256) VALUES (?, ?)
+			ON CONFLICT(name) DO UPDATE SET sha256 = excluded.sha256`, name, sum); err != nil {
 			fail(w, err)
 			return
 		}
@@ -186,6 +206,7 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 			fail(w, err)
 			return
 		}
+		item.Duplicate = dups[name]
 		items = append(items, item)
 	}
 	writeJSON(w, http.StatusCreated, items)

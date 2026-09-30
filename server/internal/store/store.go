@@ -101,10 +101,15 @@ CREATE TABLE IF NOT EXISTS media (
 		// 待审头像（非站长上传后等站长审核）与登录名上次修改时间（每 30 天可改一次）
 		`ALTER TABLE users ADD COLUMN avatar_pending TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE users ADD COLUMN login_changed_at TEXT`,
+		// 素材查重：原始上传内容的 SHA-256
+		`ALTER TABLE media ADD COLUMN sha256 TEXT`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return err
 		}
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_media_sha ON media(sha256)`); err != nil {
+		return err
 	}
 	return nil
 }

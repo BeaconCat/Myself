@@ -98,7 +98,11 @@ async function upload(files: File[]): Promise<void> {
   uploading.value = true;
   try {
     const res = await adminApi.uploadMedia(list);
-    toast(t('studio.media.uploaded', { n: res.length }), { icon: 'upload' });
+    const dup = res.filter((m) => m.duplicate).length;
+    toast(
+      dup ? t('studio.media.uploadedDup', { n: res.length - dup, d: dup }) : t('studio.media.uploaded', { n: res.length }),
+      { icon: 'upload' },
+    );
     await load();
     void loadQuality();
   } catch {
