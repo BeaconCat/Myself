@@ -384,6 +384,18 @@ onBeforeUnmount(() => {
   if (drag) cancelAnimationFrame(drag.raf);
 });
 
+/** 章节编号：与前台一致，只数未隐藏的章节 */
+const chapterNos = computed(() => {
+  const out: Record<string, string> = {};
+  let n = 0;
+  for (const m of about.modules) {
+    if (m.type !== 'chapter') continue;
+    if (!m.hidden) n += 1;
+    out[m.id] = String(Math.max(1, n)).padStart(2, '0');
+  }
+  return out;
+});
+
 const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).length);
 </script>
 
@@ -447,7 +459,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
         </div>
         <!-- 预览全程是同一个实例（展开 / 收起不重建，不重播入场、不重新测高）；编辑时随改动实时更新，表单挂在它下方 -->
         <div class="mb" :class="{ open: expanded === mod.id }" :title="expanded === mod.id ? undefined : metaOf(mod.type)?.desc" @click="expanded !== mod.id && toggleExpand(mod)">
-          <ModuleLivePreview class="pv" :mod="mod" :about="about" />
+          <ModuleLivePreview class="pv" :mod="mod" :about="about" :no="chapterNos[mod.id]" />
           <div v-if="expanded === mod.id" class="ed-form" @click.stop>
             <ModuleFrame :mod="mod">
               <component :is="MODULE_EDITORS[mod.type]" v-if="MODULE_EDITORS[mod.type]" :mod="mod" />
@@ -479,7 +491,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
         <b>{{ titleOf(draggingMod) }}</b>
       </div>
       <div class="mb">
-        <ModuleLivePreview :mod="draggingMod" :about="about" />
+        <ModuleLivePreview :mod="draggingMod" :about="about" :no="chapterNos[draggingMod.id]" />
       </div>
     </div>
 

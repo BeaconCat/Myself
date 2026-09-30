@@ -9,17 +9,14 @@ import './kit.scss';
 /**
  * 单个模块的高保真预览（后台「关于」积木卡片用）：真实模块组件按「卡片宽 ÷ ZOOM」的宽度排版
  * （模块内部的容器查询按这个宽度生效），再缩小 ZOOM 倍铺满卡片，看起来是前台的等比缩略；
- * 超过 maxHeight 的部分底部渐隐截断。只读：不接收指针事件。
+ * 按真实高度完整显示（不截断）。只读：不接收指针事件。
  */
 const props = withDefaults(defineProps<{
   mod: AboutModule;
   about: Partial<Identity>;
-  /** 预览区最大高度（缩放后的像素）；缺省按模块类型取 DEFAULT_MAX */
-  maxHeight?: number;
-}>(), { maxHeight: undefined });
-
-/** 默认高度上限：身份区是整页门面，给足高度完整展示；其余模块截取上部 */
-const DEFAULT_MAX: Record<string, number> = { profile: 760 };
+  /** 章节编号（01、02…），与前台按顺序自动编号一致 */
+  no?: string;
+}>(), { no: '01' });
 
 /** 缩略比例：文字约为前台的八成，既看得清又不喧宾夺主 */
 const ZOOM = 0.8;
@@ -56,17 +53,13 @@ onMounted(() => {
 });
 onBeforeUnmount(() => ro?.disconnect());
 
-const limit = computed(() => props.maxHeight ?? DEFAULT_MAX[props.mod.type] ?? 300);
-const height = computed(() => Math.min(natural.value, limit.value));
-const clipped = computed(() => natural.value > limit.value + 1);
 </script>
 
 <template>
   <div
     ref="box"
     class="mp"
-    :class="{ clipped }"
-    :style="{ height: natural ? `${height}px` : undefined }"
+    :style="{ height: natural ? `${natural}px` : undefined }"
     aria-hidden="true"
     inert
   >
@@ -86,7 +79,7 @@ const clipped = computed(() => natural.value > limit.value + 1);
             :variant="item.variant"
             :span="item.span"
             :title="item.title"
-            no="01"
+            :no="no"
           />
         </div>
       </section>
@@ -102,10 +95,6 @@ const clipped = computed(() => natural.value > limit.value + 1);
   pointer-events: none;
   user-select: none;
   transition: height var(--dur) var(--ease-out);
-
-  &.clipped {
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
-  }
 }
 
 /* 排版宽度 = 卡片宽 ÷ ZOOM，左上角为原点缩小回卡片宽 */
