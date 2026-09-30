@@ -139,7 +139,7 @@ function setPalette(id: string, e: MouseEvent): void {
 /* ===== 账号 ===== */
 /* 当前登录用户；站长未设头像 / 名字时回落到站点身份 */
 const displayName = computed(() => auth.user?.name || config.cfg.about?.name || 'Myself');
-const avatar = computed(() => auth.user?.avatar || config.cfg.about?.avatar || '/favicon-64.png');
+const avatar = computed(() => auth.user?.avatar || config.cfg.about?.avatar || config.cfg.site.logo || '/favicon-64.png');
 const roleLabel = computed(() => t(`studio.users.r_${auth.role ?? 'admin'}`));
 
 async function logout(): Promise<void> {
@@ -202,7 +202,7 @@ onBeforeUnmount(() => {
   <div class="studio app" :class="{ immersive }">
     <aside class="side" :aria-hidden="immersive">
       <router-link :to="home" class="brand">
-        <img src="/favicon-64.png" alt="" draggable="false" />
+        <img :src="config.cfg.site.logo || '/favicon-64.png'" alt="" draggable="false" />
         <div>
           <b>{{ config.cfg.site.title || 'Myself' }}</b>
           <small>{{ t('studio.brandSub') }}</small>

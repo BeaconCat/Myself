@@ -35,8 +35,9 @@ const loaded = ref(false);
 const busy = ref(false);
 
 /** 网站名称（site.title）：与「设置 · 站点标题」是同一个字段，这里一并编辑 */
-const site = reactive({ title: config.cfg.site.title });
-const state = () => stableJson([about, site.title]);
+/** 网站名称与站点 logo 属于 site，和身份一起在这里编辑 */
+const site = reactive({ title: config.cfg.site.title, logo: config.cfg.site.logo ?? '' });
+const state = () => stableJson([about, site.title, site.logo]);
 const dirty = computed(() => loaded.value && state() !== snapshot.value);
 
 async function load(): Promise<void> {
@@ -44,6 +45,7 @@ async function load(): Promise<void> {
     const remote = (await adminApi.settings()) as unknown as SiteConfig;
     Object.assign(about, JSON.parse(JSON.stringify(remote.about ?? {})));
     site.title = remote.site?.title ?? site.title;
+    site.logo = remote.site?.logo ?? '';
   } catch {
     toast(t('studio.loadFailed'), { icon: 'x' });
   }
@@ -58,7 +60,7 @@ async function save(): Promise<void> {
   if (busy.value || !dirty.value) return;
   busy.value = true;
   try {
-    await adminApi.saveSettings({ about: JSON.parse(JSON.stringify(about)), site: { title: site.title.trim() || 'Myself' } });
+    await adminApi.saveSettings({ about: JSON.parse(JSON.stringify(about)), site: { title: site.title.trim() || 'Myself', logo: site.logo } });
     snapshot.value = state();
     await config.load();
     toast(t('studio.identity.saved'));
@@ -70,12 +72,13 @@ async function save(): Promise<void> {
 }
 
 /* ---------- 图片上传（头像 / 形象图） ---------- */
-const uploading = ref<'' | 'avatar' | 'portrait' | 'banner'>('');
+const uploading = ref<'' | 'avatar' | 'portrait' | 'banner' | 'logo'>('');
+const logoInput = ref<HTMLInputElement | null>(null);
 const bannerInput = ref<HTMLInputElement | null>(null);
 const avatarInput = ref<HTMLInputElement | null>(null);
 const portraitInput = ref<HTMLInputElement | null>(null);
 
-async function upload(e: Event, target: 'avatar' | 'portrait' | 'banner'): Promise<void> {
+async function upload(e: Event, target: 'avatar' | 'portrait' | 'banner' | 'logo'): Promise<void> {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
   input.value = '';
@@ -86,6 +89,7 @@ async function upload(e: Event, target: 'avatar' | 'portrait' | 'banner'): Promi
     if (!up) return;
     if (target === 'avatar') about.avatar = up.url;
     else if (target === 'banner') about.banner.src = up.url;
+    else if (target === 'logo') site.logo = up.url;
     else about.portrait.src = up.url;
   } catch {
     toast(t('studio.identity.uploadFailed'), { icon: 'x' });
@@ -234,9 +238,26 @@ onBeforeUnmount(() => {
         <section class="st-card st-rise" style="--i: 0">
           <div class="st-sec-t"><h2>{{ t('studio.identity.look') }}</h2><span>{{ t('studio.identity.lookSub') }}</span></div>
           <div class="look">
+            <!-- 站点 logo：后台品牌、登录页、浏览器标签图标，以及头像 / 形象图未上传时的回退 -->
+            <div class="av-block">
+              <button type="button" class="av logo" :class="{ busy: uploading === 'logo' }" :title="t('studio.identity.logoPick')" @click="logoInput?.click()">
+                <img :src="site.logo || '/favicon-256.png'" alt="" draggable="false" />
+                <span class="av-over"><SIcon name="upload" :size="20" /></span>
+              </button>
+              <input ref="logoInput" type="file" accept="image/*" hidden @change="upload($event, 'logo')" />
+              <div class="av-meta">
+                <b>{{ t('studio.identity.logo') }}</b>
+                <small>{{ t('studio.identity.logoSub') }}</small>
+              </div>
+              <div class="row-btns">
+                <button v-if="site.logo" type="button" class="st-btn q sm" @click="site.logo = ''">{{ t('studio.identity.useBuiltinLogo') }}</button>
+                <button type="button" class="st-btn g sm" :disabled="!!uploading" @click="logoInput?.click()">{{ site.logo ? t('studio.identity.replace') : t('studio.identity.upload') }}</button>
+              </div>
+            </div>
+
             <div class="av-block">
               <button type="button" class="av" :class="{ busy: uploading === 'avatar' }" :title="t('studio.identity.avatarPick')" @click="avatarInput?.click()">
-                <img :src="about.avatar || '/favicon-256.png'" alt="" draggable="false" />
+                <img :src="about.avatar || site.logo || '/favicon-256.png'" alt="" draggable="false" />
                 <span class="av-over"><SIcon name="upload" :size="20" /></span>
               </button>
               <input ref="avatarInput" type="file" accept="image/*" hidden @change="upload($event, 'avatar')" />
@@ -253,7 +274,7 @@ onBeforeUnmount(() => {
             <div class="pt-block">
               <figure class="pt-thumb" :class="[`fade-${about.portrait.fade}`, { logo: !about.portrait.src, busy: uploading === 'portrait' }]" @click="portraitInput?.click()">
                 <span class="pt-frame" :style="{ borderRadius: radiusAuto ? 'var(--r-lg)' : `${Math.round((about.portrait.radius ?? 24) * 0.5)}px` }">
-                  <img :src="about.portrait.src || '/logo-1024.webp'" alt="" draggable="false" :style="{ objectPosition: about.portrait.focus || '50% 40%' }" />
+                  <img :src="about.portrait.src || site.logo || '/logo-1024.webp'" alt="" draggable="false" :style="{ objectPosition: about.portrait.focus || '50% 40%' }" />
                 </span>
                 <span class="pt-over"><SIcon name="upload" :size="20" /></span>
               </figure>
@@ -865,4 +886,8 @@ input[type='range']:disabled { opacity: 0.4; }
   }
   .lk .ops { flex-direction: row; align-items: center; }
 }
+
+/* 站点 logo：圆角方块（与头像的圆形区分） */
+.av.logo { border-radius: var(--r-lg); }
+.av.logo img { border-radius: inherit; }
 </style>

@@ -224,7 +224,7 @@ function syncNow(): void {
   <MaPage :title="t('mobileAdmin.today.title')" :eyebrow="greeting" @refresh="refresh">
     <template #left>
       <button class="av-btn tap" :aria-label="t('mobileAdmin.today.viewSite')" @click="openSite">
-        <img :src="config.cfg.about.avatar || '/favicon-256.png'" alt="" draggable="false" />
+        <img :src="config.cfg.about.avatar || config.cfg.site.logo || '/favicon-256.png'" alt="" draggable="false" />
       </button>
     </template>
     <template #right>

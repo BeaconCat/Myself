@@ -89,7 +89,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <form class="form" @submit.prevent="submit">
-        <img class="logo" src="/favicon-64.png" alt="" draggable="false" />
+        <img class="logo" :src="config.cfg.site.logo || '/favicon-64.png'" alt="" draggable="false" />
         <h1>{{ t('studio.login.title') }}</h1>
         <p class="sub">{{ t('studio.login.sub') }}</p>
 

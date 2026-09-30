@@ -22,7 +22,7 @@ import { copyText, toast } from '../../components/mobile/shell';
 const { t } = useI18n();
 const config = useConfigStore();
 const about = computed(() => config.cfg.about);
-const avatar = computed(() => about.value.avatar || '/favicon-256.png');
+const avatar = computed(() => about.value.avatar || config.cfg.site.logo || '/favicon-256.png');
 const handle = computed(() => config.cfg.github.username || 'myself');
 const banner = computed(() => (about.value.banner?.show ? about.value.banner.src || '/covers/05.webp' : ''));
 const bannerFocus = computed(() => about.value.banner?.focus || '50% 50%');

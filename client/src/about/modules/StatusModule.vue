@@ -18,7 +18,7 @@ const COLORS: Record<string, string> = { online: '#00c853', focus: '#ffb300', aw
 const color = computed(() => COLORS[d.value.state] ?? COLORS.online);
 
 /** 头像：站点身份的头像，其次形象图，最后回落 logo；时区取身份状态 */
-const avatar = computed(() => config.cfg.about.avatar || config.cfg.about.portrait?.src || '/favicon-256.png');
+const avatar = computed(() => config.cfg.about.avatar || config.cfg.about.portrait?.src || config.cfg.site.logo || '/favicon-256.png');
 const tz = computed(() => Number(config.cfg.about.status?.tz ?? 8));
 const clock = computed(() => zoned(now.value, tz.value));
 const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit.status.justNow'));

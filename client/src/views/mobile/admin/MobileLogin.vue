@@ -85,7 +85,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('ma-lock'));
   <div class="ma-root ml" :class="{ success }">
     <main class="ml-main">
       <div class="brand">
-        <img class="logo" src="/favicon-256.png" alt="" draggable="false" />
+        <img class="logo" :src="config.cfg.site.logo || '/favicon-256.png'" alt="" draggable="false" />
       </div>
       <h1>{{ t('mobileAdmin.login.title') }}</h1>
       <p class="sub">{{ config.cfg.site.title }} · {{ t('mobileAdmin.login.sub') }}</p>

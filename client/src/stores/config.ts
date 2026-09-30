@@ -3,6 +3,7 @@ import { api } from '../api';
 import type { CardChoreoId, RotateChoreoId, TextChoreoId } from '../components/home/hero/choreo/types';
 import DEFAULT_ABOUT_MODULES from '../about/default-modules.json';
 import { normalizeIdentity, type Identity } from '../about/identity';
+import { applyFavicon } from '../utils/siteLogo';
 
 /**
  * 关于页可排序模块（data 结构由模块注册表约定，见 about/types.ts）。
@@ -38,7 +39,7 @@ export interface SiteConfig {
   /** 第三方登录（仅后台设置接口返回） */
   oauth?: { github: { clientId: string; clientSecret: string } };
   /** url：站点对外地址（邮件链接、RSS、第三方登录回调用；留空时取当前访问地址） */
-  site: { title: string; subtitle: string; listEndText: string; url?: string };
+  site: { title: string; subtitle: string; listEndText: string; url?: string; logo?: string };
   loading: { bootText: string; routeText: string };
   theme: {
     defaultPaletteId: string;
@@ -230,6 +231,7 @@ export const useConfigStore = defineStore('config', {
       this.loaded = true;
       markLoaded();
       document.title = this.cfg.site.title;
+      applyFavicon(this.cfg.site.logo ?? '');
     },
   },
 });

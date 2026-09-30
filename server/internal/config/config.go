@@ -19,6 +19,7 @@ const defaultJSON = `{
   "site": {
     "title": "Myself",
     "subtitle": "个人博客",
+    "logo": "",
     "listEndText": "—— 到底啦 ——"
   },
   "loading": { "bootText": "Myself", "routeText": "加载中" },

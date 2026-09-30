@@ -229,7 +229,7 @@ onMounted(() => {
 onBeforeUnmount(() => document.removeEventListener('mousedown', outside));
 defineExpose({ focus });
 
-const avatar = computed(() => config.cfg.about?.avatar || '/favicon-64.png');
+const avatar = computed(() => config.cfg.about?.avatar || config.cfg.site.logo || '/favicon-64.png');
 </script>
 
 <template>

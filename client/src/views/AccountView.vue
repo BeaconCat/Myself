@@ -8,6 +8,7 @@ import { accountApi, type SessionUser } from '../api';
 import { useAuthStore } from '../stores/auth';
 import { useConfigStore } from '../stores/config';
 import { useIdentity } from '../about/useIdentity';
+import { useSiteLogo } from '../utils/siteLogo';
 import Icon from '../components/ui/Icon.vue';
 
 /**
@@ -21,7 +22,8 @@ const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const config = useConfigStore();
-const { avatar, fullName } = useIdentity();
+const { fullName } = useIdentity();
+const { logo } = useSiteLogo();
 
 const mode = computed<Mode>(() => String(route.name ?? 'account-login').replace('account-', '') as Mode);
 const users = computed(() => config.cfg.users);
@@ -199,7 +201,7 @@ const nextQuery = computed(() => (next.value !== '/' ? { next: next.value } : {}
   <main class="acc">
     <div ref="cardEl" class="card rise">
       <router-link to="/" class="brand">
-        <img :src="avatar" alt="" draggable="false" />
+        <img :src="logo" alt="" draggable="false" />
         <span>{{ config.cfg.site.title || fullName }}</span>
       </router-link>
 

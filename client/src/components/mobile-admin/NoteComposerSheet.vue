@@ -43,7 +43,7 @@ const moodLabels = computed(() => MOODS.map((m) => t(`mobileAdmin.note.moods.${m
 const customMood = computed(() => (mood.value && !moodLabels.value.includes(mood.value) ? mood.value : ''));
 const count = computed(() => content.value.length);
 const canPost = computed(() => !!content.value.trim() && !busy.value && !uploads.value.length);
-const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
+const avatar = computed(() => config.cfg.about.avatar || config.cfg.site.logo || '/favicon-256.png');
 const name = computed(() => config.cfg.about.name || 'Myself');
 
 const state = (): string => JSON.stringify([content.value, mood.value, images.value, pinned.value]);

@@ -50,7 +50,7 @@ function refresh(done: () => void): void {
   void load().finally(done);
 }
 
-const avatar = computed(() => config.cfg.about.avatar || '/favicon-256.png');
+const avatar = computed(() => config.cfg.about.avatar || config.cfg.site.logo || '/favicon-256.png');
 const name = computed(() => config.cfg.about.name || 'Myself');
 
 /* ---------- 外观：仅本机生效 ---------- */

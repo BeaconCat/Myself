@@ -49,7 +49,7 @@ const portrait = computed(() => {
   const p: Partial<ProfileData['portrait']> = d.value.portrait ?? {};
   const r = typeof p.radius === 'number' ? p.radius : null;
   return {
-    src: p.src || '/logo-1024.webp',
+    src: p.src || config.cfg.site.logo || '/logo-1024.webp',
     logo: !p.src,
     fade: p.fade || 'left',
     style: { '--pr': r != null && Number.isFinite(r) ? `${r}px` : undefined, '--pf': p.focus || '50% 40%' },
