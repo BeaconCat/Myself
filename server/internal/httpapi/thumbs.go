@@ -67,7 +67,7 @@ func (s *Server) removeThumb(name string) {
 func (s *Server) serveThumb(w http.ResponseWriter, r *http.Request) {
 	file := r.PathValue("name")
 	name := safeName(strings.TrimSuffix(file, ".webp"))
-	if name == "" || !strings.HasSuffix(file, ".webp") || !allowedExt[imaging.Ext(name)] {
+	if name == "" || !strings.HasSuffix(file, ".webp") || !isImage(name) {
 		http.NotFound(w, r)
 		return
 	}

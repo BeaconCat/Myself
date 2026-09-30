@@ -21,10 +21,9 @@ import (
 	"myself/server/internal/imaging"
 )
 
-var allowedExt = map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".webp": true, ".gif": true}
-
 const (
 	maxUploadFiles = 20
+	// maxUploadBytes 图片单文件上限（非图片见 maxFileBytes）
 	maxUploadBytes = 20 << 20
 )
 
@@ -41,7 +40,13 @@ func safeName(name string) string {
 type mediaItem struct {
 	Name string `json:"name"`
 	// Title 显示名（上传时的原文件名或重命名后的名字）；为空时前端显示 Name
-	Title       string        `json:"title"`
+	Title string `json:"title"`
+	// Kind 类别：image / video / audio / archive / file
+	Kind string `json:"kind"`
+	// Ext 小写扩展名（不带点）
+	Ext string `json:"ext"`
+	// Mime 直出时的 Content-Type
+	Mime        string        `json:"mime"`
 	URL         string        `json:"url"`
 	Thumb       string        `json:"thumb"`
 	Size        int64         `json:"size"`
@@ -59,12 +64,19 @@ func (s *Server) fileInfo(name string) (mediaItem, error) {
 	if err != nil {
 		return mediaItem{}, err
 	}
+	kind, ext, mime, _ := mediaKind(name)
 	item := mediaItem{
 		Name:      name,
+		Kind:      kind,
+		Ext:       ext,
+		Mime:      mime,
 		URL:       "/uploads/" + name,
-		Thumb:     thumbURL(name),
 		Size:      stat.Size(),
 		CreatedAt: isoTime(stat.ModTime()),
+	}
+	// 缩略图只有图片才有
+	if kind == kindImage {
+		item.Thumb = thumbURL(name)
 	}
 	if _, err := os.Stat(filepath.Join(s.originalsDir, name)); err == nil {
 		item.HasOriginal = true
@@ -88,7 +100,7 @@ func (s *Server) fileInfo(name string) (mediaItem, error) {
 	return item, nil
 }
 
-// listUploads 列出公开素材文件名（跳过点文件与不支持的扩展）。
+// listUploads 列出公开素材文件名（跳过点文件、子目录与不接受的类型）；filter 为 nil 时列出所有类别。
 func (s *Server) listUploads(filter map[string]bool) ([]string, error) {
 	entries, err := os.ReadDir(s.UploadDir)
 	if err != nil {
@@ -97,7 +109,10 @@ func (s *Server) listUploads(filter map[string]bool) ([]string, error) {
 	var names []string
 	for _, e := range entries {
 		// 用户头像（avatar-*）由个人资料管理，不进素材库
-		if e.IsDir() || strings.HasPrefix(e.Name(), ".") || strings.HasPrefix(e.Name(), avatarPrefix) || !filter[imaging.Ext(e.Name())] {
+		if e.IsDir() || strings.HasPrefix(e.Name(), ".") || strings.HasPrefix(e.Name(), avatarPrefix) {
+			continue
+		}
+		if _, _, _, ok := mediaKind(e.Name()); !ok || (filter != nil && !filter[imaging.Ext(e.Name())]) {
 			continue
 		}
 		names = append(names, e.Name())
@@ -107,7 +122,7 @@ func (s *Server) listUploads(filter map[string]bool) ([]string, error) {
 
 // GET /admin/media 素材列表
 func (s *Server) listMedia(w http.ResponseWriter, _ *http.Request) {
-	names, err := s.listUploads(allowedExt)
+	names, err := s.listUploads(nil)
 	if err != nil {
 		fail(w, err)
 		return
@@ -132,10 +147,12 @@ func randomFilename(ext string) string {
 }
 
 // POST /admin/media 上传（单个/批量，字段 files）
+// 图片校验文件头、上限 20MB；视频 / 音频 / 压缩包 / 其它文件只看扩展名、上限 512MB。
+// 不接受的类型（可执行 / 标记类、无扩展名）静默跳过；一个都没存下且有被拒的，回 400 unsupported_type。
 func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 	// 全局 ReadTimeout 较短；大批量上传单独放宽
 	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(15 * time.Minute))
-	r.Body = http.MaxBytesReader(w, r.Body, int64(maxUploadFiles)*maxUploadBytes+1<<20)
+	r.Body = http.MaxBytesReader(w, r.Body, int64(maxUploadFiles)*maxFileBytes+1<<20)
 	reader, err := r.MultipartReader()
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_multipart")
@@ -143,6 +160,7 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 	}
 	var saved []string
 	dups := map[string]bool{}
+	rejected := 0
 	for len(saved) < maxUploadFiles {
 		part, err := reader.NextPart()
 		if err == io.EOF {
@@ -155,12 +173,17 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 		if part.FormName() != "files" || part.FileName() == "" {
 			continue
 		}
-		ext := imaging.Ext(part.FileName())
-		if !allowedExt[ext] {
+		kind, ext, _, ok := mediaKind(part.FileName())
+		if !ok {
+			rejected++
 			_, _ = io.Copy(io.Discard, part)
 			continue
 		}
-		name := randomFilename(ext)
+		limit := int64(maxFileBytes)
+		if kind == kindImage {
+			limit = maxUploadBytes
+		}
+		name := randomFilename("." + ext)
 		dst, err := os.Create(filepath.Join(s.UploadDir, name))
 		if err != nil {
 			fail(w, err)
@@ -168,22 +191,25 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 		}
 		// 边写边算哈希，用于查重
 		h := sha256.New()
-		n, err := io.Copy(io.MultiWriter(dst, h), io.LimitReader(part, maxUploadBytes+1))
+		n, err := io.Copy(io.MultiWriter(dst, h), io.LimitReader(part, limit+1))
 		dst.Close()
-		if err != nil || n > maxUploadBytes {
+		if err != nil || n > limit {
 			os.Remove(filepath.Join(s.UploadDir, name))
 			writeError(w, http.StatusRequestEntityTooLarge, "file_too_large")
 			return
 		}
-		// 文件头必须与扩展名一致、像素数在上限内；否则不入库
-		if _, err := imaging.Meta(filepath.Join(s.UploadDir, name)); err != nil {
-			os.Remove(filepath.Join(s.UploadDir, name))
-			if errors.Is(err, imaging.ErrTooLarge) {
-				writeError(w, http.StatusRequestEntityTooLarge, "image_too_large")
-			} else {
-				writeError(w, http.StatusBadRequest, "invalid_image")
+		// 图片：文件头必须与扩展名一致、像素数在上限内；否则不入库。
+		// 其它类别不解析内容：直出时固定 Content-Type 并附带 nosniff，非媒体一律作附件下载
+		if kind == kindImage {
+			if _, err := imaging.Meta(filepath.Join(s.UploadDir, name)); err != nil {
+				os.Remove(filepath.Join(s.UploadDir, name))
+				if errors.Is(err, imaging.ErrTooLarge) {
+					writeError(w, http.StatusRequestEntityTooLarge, "image_too_large")
+				} else {
+					writeError(w, http.StatusBadRequest, "invalid_image")
+				}
+				return
 			}
-			return
 		}
 		sum := hex.EncodeToString(h.Sum(nil))
 		// 与已有素材内容相同：丢弃新文件，返回已有的那张
@@ -207,6 +233,10 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		saved = append(saved, name)
+	}
+	if len(saved) == 0 && rejected > 0 {
+		writeError(w, http.StatusBadRequest, "unsupported_type")
+		return
 	}
 	items := make([]mediaItem, 0, len(saved))
 	for _, name := range saved {
@@ -240,6 +270,10 @@ func (s *Server) cropMedia(w http.ResponseWriter, r *http.Request) {
 	publicPath := filepath.Join(s.UploadDir, name)
 	if name == "" || !fileExists(publicPath) {
 		writeError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	if !isImage(name) {
+		writeError(w, http.StatusBadRequest, "not_image")
 		return
 	}
 	var b body
@@ -301,7 +335,7 @@ func (s *Server) cropMedia(w http.ResponseWriter, r *http.Request) {
 // GET /admin/media/{name}/original 原图（重裁 UI 用）
 func (s *Server) mediaOriginal(w http.ResponseWriter, r *http.Request) {
 	name := safeName(r.PathValue("name"))
-	if name == "" {
+	if name == "" || !isImage(name) {
 		writeError(w, http.StatusNotFound, "not_found")
 		return
 	}

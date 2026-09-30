@@ -129,6 +129,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+p+"/auth/github/callback", s.githubCallback)
 	mux.HandleFunc("GET "+p+"/comments", s.listComments)
 	mux.HandleFunc("POST "+p+"/comments", s.createComment)
+	mux.HandleFunc("GET "+p+"/archive/{name}", s.archiveListing)
 	mux.HandleFunc("GET "+p+"/setup", s.setupStatus)
 	mux.HandleFunc("POST "+p+"/setup", s.setup)
 	mux.HandleFunc("POST "+p+"/setup/verify", s.setupVerify)
@@ -232,25 +233,6 @@ type statusWriter struct {
 func (w *statusWriter) WriteHeader(code int) {
 	w.status = code
 	w.ResponseWriter.WriteHeader(code)
-}
-
-// uploadsHandler 素材直链：只接受单段、通过 safeName 且扩展名在白名单内的文件名；
-// 不列目录，不暴露点目录（.originals）与子目录（含 Windows 8.3 短名绕过）。
-func (s *Server) uploadsHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		name := safeName(r.URL.Path)
-		if name == "" || strings.HasPrefix(name, ".") || !allowedExt[strings.ToLower(filepath.Ext(name))] {
-			http.NotFound(w, r)
-			return
-		}
-		p := filepath.Join(s.UploadDir, name)
-		if st, err := os.Stat(p); err != nil || st.IsDir() {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Cache-Control", "public, max-age=86400")
-		http.ServeFile(w, r, p)
-	})
 }
 
 // recoverMiddleware 兜底 500，等价 Express 错误处理器。

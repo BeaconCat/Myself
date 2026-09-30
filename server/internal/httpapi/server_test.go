@@ -240,7 +240,8 @@ func TestMediaUploadCropThumb(t *testing.T) {
 	}
 	img.Set(0, 0, color.NRGBA{255, 0, 0, 128})
 	png.Encode(part, img)
-	txt, _ := mw.CreateFormFile("files", "x.txt")
+	// 可执行 / 标记类型静默跳过
+	txt, _ := mw.CreateFormFile("files", "x.html")
 	txt.Write([]byte("nope"))
 	mw.Close()
 

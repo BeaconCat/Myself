@@ -37,7 +37,7 @@ func hashFile(path string) (string, error) {
 func (s *Server) ensureMediaHashes() error {
 	s.mediaHashMu.Lock()
 	defer s.mediaHashMu.Unlock()
-	names, err := s.listUploads(allowedExt)
+	names, err := s.listUploads(nil)
 	if err != nil {
 		return err
 	}
