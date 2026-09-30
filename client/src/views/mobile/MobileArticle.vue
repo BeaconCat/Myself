@@ -13,6 +13,7 @@ import BottomSheet from '../../components/mobile/BottomSheet.vue';
 import EngageBar from '../../components/engage/EngageBar.vue';
 import CommentSection from '../../components/engage/CommentSection.vue';
 import { copyText, monthDay, readMinutes, toast } from '../../components/mobile/shell';
+import IdentityName from '../../components/common/IdentityName.vue';
 
 /**
  * 移动端文章详情（沉浸阅读）：底栏隐藏；顶部返回条随滚动变毛玻璃并浮现标题 + 阅读进度线；
@@ -158,8 +159,8 @@ onBeforeUnmount(() => { tocOpen.value = false; });
 
 const me = useIdentity();
 const byline = computed(() => (post.value?.author
-  ? { avatar: post.value.author.avatar || '/favicon-256.png', name: post.value.author.name, sign: '' }
-  : { avatar: me.avatar.value, name: me.fullName.value, sign: me.sign.value }));
+  ? { avatar: post.value.author.avatar || '/favicon-256.png', name: post.value.author.name, alias: '', sign: '' }
+  : { avatar: me.avatar.value, name: me.name.value, alias: me.alias.value, sign: me.sign.value }));
 </script>
 
 <template>
@@ -196,7 +197,7 @@ const byline = computed(() => (post.value?.author
             <p v-if="post.excerpt" class="lede m-in" style="--i: 2">{{ post.excerpt }}</p>
             <div class="by m-in" style="--i: 3">
               <span class="av"><img class="m-avatar" :src="byline.avatar" alt="" draggable="false" /></span>
-              <div><b>{{ byline.name }}</b><template v-if="byline.sign"><br /><small>{{ byline.sign }}</small></template></div>
+              <div><b><IdentityName :name="byline.name" :alias="byline.alias" /></b><template v-if="byline.sign"><br /><small>{{ byline.sign }}</small></template></div>
             </div>
           </div>
           <!-- eslint-disable-next-line vue/no-v-html -->

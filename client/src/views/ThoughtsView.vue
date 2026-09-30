@@ -27,7 +27,7 @@ const feed = useNotesFeed(sentinel);
 const { notes, tab, keyword, loading, loadingMore, hasMore, dateFrom, dateTo, loadedOnce } = feed;
 const index = useNotesIndex();
 
-const { avatar, fullName: name } = useIdentity();
+const { avatar, name, alias } = useIdentity();
 const handle = computed(() => config.cfg.github.username || 'myself');
 
 const booting = computed(() => !loadedOnce.value);
@@ -207,6 +207,7 @@ onBeforeUnmount(() => {
                   :note="n"
                   :avatar="avatar"
                   :name="name"
+                  :alias="alias"
                   :handle="handle"
                   @open="openViewer"
                   @mood="pickMood"

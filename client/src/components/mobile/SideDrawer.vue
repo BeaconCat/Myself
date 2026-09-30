@@ -10,6 +10,7 @@ import { useThemeStore, type Mode, type UiStyle } from '../../stores/theme';
 import { circularReveal } from '../../utils/circularReveal';
 import MIcon from './MIcon.vue';
 import { closeDrawer, copyText, shell, toast } from './shell';
+import IdentityName from '../common/IdentityName.vue';
 
 /**
  * 侧边抽屉：作者卡 / 外观（深浅 + 色盘）/ 标签云 / 更多（RSS、GitHub、关于站点）/ 管理后台。
@@ -23,7 +24,7 @@ const theme = useThemeStore();
 const auth = useAuthStore();
 
 const about = computed(() => config.cfg.about);
-const { avatar, fullName, sign } = useIdentity();
+const { avatar, name, alias, sign } = useIdentity();
 const handle = computed(() => config.cfg.github.username || 'myself');
 const days = computed(() => {
   const start = new Date(`${about.value.foundedAt || '2026-01-01'}T00:00:00`).getTime();
@@ -77,7 +78,7 @@ function openGithub(): void {
       <div class="who">
         <span class="av"><img class="m-avatar" :src="avatar" alt="" draggable="false" /></span>
         <div>
-          <b>{{ fullName }}</b>
+          <b><IdentityName :name="name" :alias="alias" /></b>
           <small>{{ sign || `@${handle} · ${t('mobile.online')}` }}</small>
         </div>
       </div>

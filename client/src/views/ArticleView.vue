@@ -16,6 +16,7 @@ import CommentSection from '../components/engage/CommentSection.vue';
 import { copyText, dotted, readMinutes, wordCount } from '../components/post/content';
 import { useLoadingStore } from '../stores/loading';
 import { renderWithToc, type TocItem } from '../utils/markdown';
+import IdentityName from '../components/common/IdentityName.vue';
 
 /**
  * 桌面文章详情：封面带（多封面手风琴 / 光影构成）→ 标签·日期·时长 → 宋体标题 → 导语 → 署名
@@ -49,8 +50,8 @@ const words = computed(() => wordCount(post.value?.contentMd ?? ''));
 const me = useIdentity();
 /** 作者栏：协作作者的文章署作者本人，其余为站点身份 */
 const byline = computed(() => (post.value?.author
-  ? { avatar: post.value.author.avatar || '/favicon-256.png', name: post.value.author.name, sign: '' }
-  : { avatar: me.avatar.value, name: me.fullName.value, sign: me.sign.value }));
+  ? { avatar: post.value.author.avatar || '/favicon-256.png', name: post.value.author.name, alias: '', sign: '' }
+  : { avatar: me.avatar.value, name: me.name.value, alias: me.alias.value, sign: me.sign.value }));
 
 /* ---------- 数据 ---------- */
 let seq = 0;
@@ -288,7 +289,7 @@ const C = 2 * Math.PI * 9;
             <div class="by rise" style="--i: 4">
               <span class="av"><img :src="byline.avatar" alt="" draggable="false" /></span>
               <div>
-                <b>{{ byline.name }}</b>
+                <b><IdentityName :name="byline.name" :alias="byline.alias" /></b>
                 <small v-if="byline.sign">{{ byline.sign }}</small>
               </div>
               <span class="grow" />

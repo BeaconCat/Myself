@@ -15,6 +15,11 @@ export function useIdentity() {
     hasAvatar: computed(() => !!about.value.avatar),
     name: computed(() => about.value.name || config.cfg.site.title),
     fullName: computed(() => displayName(about.value, config.cfg.site.title)),
+    /** 别名（与名字相同或为空时为空串）：展示时用 IdentityName 小一号、浅一色跟在名字后 */
+    alias: computed(() => {
+      const a = (about.value.alias ?? '').trim();
+      return a && a !== (about.value.name || config.cfg.site.title) ? a : '';
+    }),
     sign: computed(() => plainText(about.value.tagline)),
     motto: computed(() => about.value.motto),
   };

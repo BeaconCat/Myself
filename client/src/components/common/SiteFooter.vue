@@ -5,6 +5,7 @@ import { useConfigStore } from '../../stores/config';
 import { useThemeStore } from '../../stores/theme';
 import UiIcon from '../ui/UiIcon.vue';
 import { useIdentity } from '../../about/useIdentity';
+import IdentityName from './IdentityName.vue';
 
 /** 桌面前台页脚：站点身份（头像 + 名字（别名）+ 签名）、导航、RSS / GitHub、版权（网站名称）+ 当前色盘 */
 const { t } = useI18n();
@@ -12,7 +13,7 @@ const config = useConfigStore();
 const theme = useThemeStore();
 
 const siteName = computed(() => config.cfg.site.title || t('common.siteName'));
-const { avatar, hasAvatar, fullName: name, sign: tagline } = useIdentity();
+const { avatar, hasAvatar, name, alias, sign: tagline } = useIdentity();
 const sign = computed(() => tagline.value || config.cfg.site.subtitle);
 const year = new Date().getFullYear();
 /** 引擎源码仓库（固定，不随站长配置变化） */
@@ -37,7 +38,7 @@ const links = [
       <router-link to="/" class="who">
         <img class="logo" :class="{ face: hasAvatar }" :src="avatar" alt="" width="40" height="40" />
         <span>
-          <b>{{ name }}</b>
+          <b><IdentityName :name="name" :alias="alias" /></b>
           <small>{{ sign }}</small>
         </span>
       </router-link>

@@ -319,8 +319,8 @@ onBeforeUnmount(() => {
           </div>
           <div class="refs">
             <div class="st-flabel">{{ t('studio.media.usedIn') }}</div>
-            <button v-for="r in itemRefs" :key="`${r.kind}-${r.id}`" type="button" @click="emit('open', r)">
-              <SIcon :name="r.kind === 'post' ? 'doc' : 'feather'" :size="16" /><span>{{ r.title }}</span>
+            <button v-for="r in itemRefs" :key="`${r.kind}-${r.id}-${r.title}`" type="button" @click="emit('open', r)">
+              <SIcon :name="r.kind === 'post' ? 'doc' : r.kind === 'note' ? 'feather' : r.kind === 'identity' ? 'user' : 'layers'" :size="16" /><span>{{ r.title }}</span>
             </button>
             <p v-if="!itemRefs.length">{{ t('studio.media.unused') }}</p>
           </div>

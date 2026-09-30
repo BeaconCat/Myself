@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi, api, type AdminPost, type MediaItem, type Note } from '../../api';
+import type { SiteConfig } from '../../stores/config';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
 import StSeg from './studio/StSeg.vue';
@@ -59,6 +60,22 @@ async function loadRefs(): Promise<void> {
     }
     notes.forEach((n) => n.images.forEach((u) => add(u, { kind: 'note', id: n.id, title: n.contentMd.slice(0, 28) || t('studio.nav.notes') })));
   } catch { /* 引用信息缺失不影响素材浏览 */ }
+  // 身份与关于页：删掉它们用着的图同样会让页面缺图
+  try {
+    const cfg = (await adminApi.settings()) as unknown as SiteConfig;
+    const about = cfg.about;
+    const identity: [string | undefined, string][] = [
+      [cfg.site?.logo, t('studio.identity.logo')],
+      [about?.avatar, t('studio.identity.avatar')],
+      [about?.portrait?.src, t('studio.identity.portrait')],
+      [about?.banner?.src, t('studio.identity.banner')],
+    ];
+    identity.forEach(([u, label], i) => {
+      if (u) add(u, { kind: 'identity', id: i, title: t('studio.media.refIdentity', { what: label }) });
+    });
+    const raw = JSON.stringify(about?.modules ?? []);
+    for (const u of new Set(raw.match(/\/uploads\/[A-Za-z0-9.-]+/g) ?? [])) add(u, { kind: 'about', id: 0, title: t('studio.media.refAbout') });
+  } catch { /* 忽略 */ }
   refs.value = map;
 }
 
@@ -76,20 +93,24 @@ const stats = computed(() => {
   let notes = 0;
   let postsN = 0;
   let notesN = 0;
+  /** 身份与关于页用到的图 */
+  let site = 0;
   for (const it of items.value) {
     const r = refs.value[it.url] ?? [];
     if (r.some((x) => x.kind === 'post')) {
       posts += it.size;
       postsN += 1;
-    } else if (r.length) {
+    } else if (r.some((x) => x.kind === 'note')) {
       notes += it.size;
       notesN += 1;
+    } else if (r.length) {
+      site += it.size;
     }
   }
-  const other = Math.max(0, total - posts - notes);
+  const other = Math.max(0, total - posts - notes - site);
   const otherN = Math.max(0, items.value.length - postsN - notesN);
   const pct = (n: number) => (total ? `${(n / total) * 100}%` : '0%');
-  return { total, posts, notes, other, pct, postsN, notesN, otherN };
+  return { total, posts, notes, site, other, pct, postsN, notesN, otherN };
 });
 
 async function upload(files: File[]): Promise<void> {
@@ -141,7 +162,9 @@ function onChanged(): void {
 function openRef(r: MediaRef): void {
   viewing.value = -1;
   if (r.kind === 'post') void router.push({ name: 'admin-write-post', query: { id: String(r.id) } });
-  else void router.push({ name: 'admin-write-note', query: { id: String(r.id) } });
+  else if (r.kind === 'note') void router.push({ name: 'admin-write-note', query: { id: String(r.id) } });
+  else if (r.kind === 'identity') void router.push({ name: 'admin-identity' });
+  else void router.push({ name: 'admin-about' });
 }
 
 function setTab(v: Tab): void {
@@ -194,11 +217,13 @@ onMounted(() => {
           <div class="ub">
             <i :style="{ width: stats.pct(stats.posts), background: 'var(--ink)' }" />
             <i :style="{ width: stats.pct(stats.notes), background: 'color-mix(in oklab, var(--ink) 45%, var(--well-2))' }" />
+            <i v-if="stats.site" :style="{ width: stats.pct(stats.site), background: 'color-mix(in oklab, var(--ink) 35%, var(--line-3))' }" />
             <i :style="{ width: stats.pct(stats.other), background: 'var(--line-3)' }" />
           </div>
           <div class="st-legend">
             <span><i class="sw" style="--c: var(--ink)" />{{ t('studio.media.lgPosts', { size: formatSize(stats.posts) }) }}</span>
             <span><i class="sw" style="--c: color-mix(in oklab, var(--ink) 45%, var(--well-2))" />{{ t('studio.media.lgNotes', { size: formatSize(stats.notes) }) }}</span>
+            <span v-if="stats.site"><i class="sw" style="--c: color-mix(in oklab, var(--ink) 35%, var(--line-3))" />{{ t('studio.media.lgSite', { size: formatSize(stats.site) }) }}</span>
             <span><i class="sw" style="--c: var(--line-3)" />{{ t('studio.media.lgOther', { size: formatSize(stats.other) }) }}</span>
           </div>
         </div>

@@ -12,6 +12,7 @@ import MIcon from '../../components/mobile/MIcon.vue';
 import EngageBar from '../../components/engage/EngageBar.vue';
 import { useRouter } from 'vue-router';
 import { monthDay, openSearch } from '../../components/mobile/shell';
+import IdentityName from '../../components/common/IdentityName.vue';
 
 /**
  * 移动端随想：信息流 / 媒体 segmented（横排，滑块回弹，视图按方向滑入）；
@@ -36,7 +37,7 @@ const loadedOnce = ref(false);
 watch(loading, (on, was) => { if (was && !on) loadedOnce.value = true; });
 const showSkeleton = computed(() => loading.value || !loadedOnce.value);
 
-const { avatar, fullName } = useIdentity();
+const { avatar, name, alias, fullName } = useIdentity();
 const handle = computed(() => config.cfg.github.username || 'myself');
 
 const viewDir = ref<'in-r' | 'in-l'>('in-r');
@@ -157,7 +158,7 @@ const mediaCount = computed(() => media.value.length);
             <span class="av"><img class="m-avatar" :src="avatar" alt="" draggable="false" /></span>
             <div class="post-main">
               <header>
-                <b>{{ fullName }}</b><span>@{{ handle }} · {{ md(n.createdAt) }}</span>
+                <b><IdentityName :name="name" :alias="alias" /></b><span>@{{ handle }} · {{ md(n.createdAt) }}</span>
                 <i v-if="n.pinned" class="m-pin">{{ t('noteDetail.pinned') }}</i>
                 <em v-if="n.mood" class="m-mood">{{ n.mood }}</em>
               </header>

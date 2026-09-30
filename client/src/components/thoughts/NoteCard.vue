@@ -9,6 +9,7 @@ import { Pin } from 'lucide';
 import Icon from '../ui/Icon.vue';
 import { ymdOf } from '../post/content';
 import { render as renderMarkdown } from '../../utils/markdown';
+import IdentityName from '../common/IdentityName.vue';
 
 /**
  * 单条随想：头像 + 头部（名字 · @handle · 时间 · 右侧「# 心情」可点）+ Markdown 正文 + 配图宫格 + 互动栏。
@@ -16,7 +17,7 @@ import { render as renderMarkdown } from '../../utils/markdown';
  * 配图 1 / 2 / 3 / 4 / 5–9 张对应单图、双拼、三拼、四宫格、九宫格；无图随想只有正文。
  * 服务端占位图与缺图统一走 CoverArt 光影构成。
  */
-const props = defineProps<{ note: Note; avatar: string; name: string; handle: string; detail?: boolean }>();
+const props = defineProps<{ note: Note; avatar: string; name: string; alias?: string; handle: string; detail?: boolean }>();
 const emit = defineEmits<{
   open: [images: string[], index: number, rect: DOMRect];
   mood: [mood: string];
@@ -63,7 +64,7 @@ function openAt(e: MouseEvent, i: number): void {
     <span class="av"><img :src="avatar" alt="" draggable="false" /></span>
     <div class="main">
       <header class="hd">
-        <b>{{ name }}</b>
+        <b><IdentityName :name="name" :alias="alias" /></b>
         <span class="handle">@{{ handle }}</span>
         <span class="dotsep" />
         <time :datetime="note.createdAt.replace(' ', 'T')" :title="note.createdAt.slice(0, 16)">{{ when }}</time>

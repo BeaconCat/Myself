@@ -6,6 +6,7 @@ import { useIdentity } from '../../about/useIdentity';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useConfigStore } from '../../stores/config';
+import IdentityName from '../common/IdentityName.vue';
 
 /**
  * 首页「关于」小卡：头像 + 名字 + 座右铭 + 一行统计（运行天数 / 文章 / 随想 / 年提交），
@@ -44,7 +45,7 @@ const ghUrl = computed(() => `https://github.com/${config.cfg.github.username}`)
     <header class="head">
       <span class="av"><img :src="me.avatar.value" alt="" draggable="false" /></span>
       <div class="who">
-        <b>{{ me.fullName.value }}</b>
+        <b><IdentityName :name="me.name.value" :alias="me.alias.value" /></b>
         <q v-if="about.motto">{{ about.motto }}</q>
       </div>
       <div class="soc">

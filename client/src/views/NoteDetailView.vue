@@ -21,7 +21,7 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const config = useConfigStore();
-const { avatar, fullName } = useIdentity();
+const { avatar, name, alias } = useIdentity();
 const handle = computed(() => config.cfg.github.username || 'myself');
 
 const note = ref<Note | null>(null);
@@ -78,7 +78,7 @@ function openViewer(images: string[], i: number, rect: DOMRect): void {
     </div>
 
     <template v-if="note">
-      <NoteCard class="rise" :note="note" :avatar="avatar" :name="fullName" :handle="handle" detail @open="openViewer" @mood="(m) => router.push({ path: '/thoughts', query: { q: m } })" />
+      <NoteCard class="rise" :note="note" :avatar="avatar" :name="name" :alias="alias" :handle="handle" detail @open="openViewer" @mood="(m) => router.push({ path: '/thoughts', query: { q: m } })" />
 
       <nav class="nb rise" style="--i: 1">
         <router-link v-if="older" :to="`/thoughts/${older}`" class="o">
