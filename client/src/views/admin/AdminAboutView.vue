@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { settle, stableJson } from './studio/state';
 import { migrateModules } from '../../about/migrate';
-import { injectIdentity, normalizeIdentity, plainText } from '../../about/identity';
+import { normalizeIdentity, plainText } from '../../about/identity';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -13,6 +13,7 @@ import type { Span } from '../../about/types';
 import { MODULE_EDITORS } from '../../components/admin/modules';
 import ModuleFrame from '../../components/admin/modules/ModuleFrame.vue';
 import ModulePicker from '../../components/admin/ModulePicker.vue';
+import ModuleLivePreview from '../../about/ModuleLivePreview.vue';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
 import Icon from '../../components/ui/Icon.vue';
@@ -70,12 +71,6 @@ async function save(): Promise<void> {
 }
 
 /* ===== 模块 ===== */
-/** 卡片摘要：身份区 / 格言的内容来自站点身份，先注入再取摘要 */
-function summaryOf(mod: AboutModule): string {
-  const meta = metaOf(mod.type);
-  return plainText(meta?.summary(injectIdentity(mod, about).data)) || meta?.desc || '';
-}
-
 function addModules(types: string[]): void {
   const added = types.map((type) => createModule(type));
   about.modules.push(...added);
@@ -102,9 +97,9 @@ function toggleHidden(mod: AboutModule): void {
 const reduceMotion = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 let toggling = false;
 
-/** 收起编辑区：先把 .ed 高度收到 0 并淡出，再交给 FLIP 把卡片送回原宽度 */
+/** 收起编辑区：只把表单部分高度收到 0 并淡出（预览保留），再交给 FLIP 把卡片送回原宽度 */
 async function foldEditor(id: string): Promise<void> {
-  const ed = grid.value?.querySelector<HTMLElement>(`[data-id="${id}"] > .ed`);
+  const ed = grid.value?.querySelector<HTMLElement>(`[data-id="${id}"] > .ed > .ed-form`);
   if (!ed || reduceMotion()) return;
   const h = ed.offsetHeight;
   const anim = ed.animate(
@@ -442,17 +437,26 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
             <SIcon name="pen" :size="18" />
           </button>
           <PopMenu :items="menu(mod)" />
+          <!-- 展开时最右侧浮出收起按钮，原有按钮随宽度过渡左移 -->
+          <span class="fold" :class="{ on: expanded === mod.id }">
+            <button type="button" class="st-ibtn sm" :tabindex="expanded === mod.id ? 0 : -1" :title="t('studio.about.collapse')" @click="toggleExpand(mod)">
+              <SIcon name="chevronU" :size="18" />
+            </button>
+          </span>
         </div>
-        <div v-if="expanded !== mod.id" class="mb" @click="toggleExpand(mod)">
-          <p class="sum">{{ summaryOf(mod) }}</p>
-          <p class="desc">{{ metaOf(mod.type)?.desc }}</p>
+        <div v-if="expanded !== mod.id" class="mb" :title="metaOf(mod.type)?.desc" @click="toggleExpand(mod)">
+          <ModuleLivePreview :mod="mod" :about="about" />
         </div>
         <div v-else class="ed">
-          <ModuleFrame :mod="mod">
-            <component :is="MODULE_EDITORS[mod.type]" v-if="MODULE_EDITORS[mod.type]" :mod="mod" />
-          </ModuleFrame>
-          <div class="ed-ft">
-            <button type="button" class="st-btn q sm" @click="toggleExpand(mod)">{{ t('studio.about.collapse') }}</button>
+          <!-- 编辑时预览随改动实时更新；与收起态同一位置、同一高度上限，收起时只收表单，预览原地不动 -->
+          <ModuleLivePreview :mod="mod" :about="about" />
+          <div class="ed-form">
+            <ModuleFrame :mod="mod">
+              <component :is="MODULE_EDITORS[mod.type]" v-if="MODULE_EDITORS[mod.type]" :mod="mod" />
+            </ModuleFrame>
+            <div class="ed-ft">
+              <button type="button" class="st-btn q sm" @click="toggleExpand(mod)">{{ t('studio.about.collapse') }}</button>
+            </div>
           </div>
         </div>
         <span
@@ -477,8 +481,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
         <b>{{ titleOf(draggingMod) }}</b>
       </div>
       <div class="mb">
-        <p class="sum">{{ summaryOf(draggingMod) }}</p>
-        <p class="desc">{{ metaOf(draggingMod.type)?.desc }}</p>
+        <ModuleLivePreview :mod="draggingMod" :about="about" />
       </div>
     </div>
 
@@ -603,40 +606,43 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
   }
 
   .sp { flex: 1; }
+
+  /* 收起按钮：宽度从 0 过渡到按钮宽（含间距），左侧按钮随之平滑左移；按钮本身稍后淡入 */
+  .fold {
+    display: flex;
+    width: 0;
+    margin-left: -8px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: width var(--dur) var(--ease-out), margin-left var(--dur) var(--ease-out), opacity var(--dur-fast);
+
+    &.on {
+      width: 28px;
+      margin-left: 0;
+      opacity: 1;
+      pointer-events: auto;
+      transition: width var(--dur) var(--ease-out), margin-left var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out) 0.1s;
+    }
+
+    .st-ibtn { flex: none; color: var(--ink); background: var(--tint); }
+  }
   .st-ibtn.sm { width: 28px; height: 28px; border-radius: var(--r-xs); }
   :deep(.st-ibtn) { width: 28px; height: 28px; border-radius: var(--r-xs); }
 }
 
+/* 预览区：前台真实模块等比缩略，直接铺在卡片上（卡片风格的模块自带外框） */
 .mb {
-  padding: 12px 18px 18px 44px;
+  padding: 8px 16px 16px;
   cursor: pointer;
   transition: opacity var(--dur), filter var(--dur);
-
-  .sum {
-    margin: 0 0 4px;
-    font: 500 15px/1.6 var(--font-serif);
-    color: var(--st-ink);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .desc {
-    margin: 0;
-    font-size: 12.5px;
-    color: var(--st-ink-3);
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
 }
 
+/* 展开态与收起态（.mb）内边距一致：预览在两态间位置不变 */
 .ed {
-  padding: 14px 18px 16px;
-  animation: ed-in var(--dur-slow) var(--ease-out);
+  padding: 8px 16px 16px;
 
+  .ed-form { padding-top: 16px; animation: ed-in var(--dur-slow) var(--ease-out); }
   .ed-ft { display: flex; justify-content: flex-end; margin-top: 10px; }
 }
 

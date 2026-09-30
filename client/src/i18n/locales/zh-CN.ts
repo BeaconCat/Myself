@@ -128,7 +128,7 @@ export default {
       mottoFromIdentity: '格言文字与署名来自站点身份，在「身份」页统一编辑。',
       flourish: '收尾装饰', flourish_line: '落款线', flourish_horizon: '地平线', flourish_quote: '引号', flourish_none: '无',
       galleryHint: '上传的照片按顺序显示；下面逐张填写标题 / 地点 / 日期，也可添加无照片的光影占位。', addScene: '添加光影占位', place: '地点',
-      placesHint: '输入常用城市名会自动填入经纬度；只能有一个常住地（黄色）。', city: '城市', lon: '经度', lat: '纬度', year: '年份', home: '常住',
+      placesHint: '输入常用城市名会自动填入经纬度；只能有一个常住地（地图与列表中以星标标出）。', city: '城市', lon: '经度', lat: '纬度', year: '年份', home: '常住',
       addGroup: '添加分组', groupTitle: '分组标题', tagsHint: '用逗号分隔多个标签', starHint: '点击设为主技能',
       role: '角色', glyph: '徽标', spec: '规格 / 说明', tag: '标签',
       single: '同时只展开一条', question: '问题', answer: '回答（支持 `行内代码`）',

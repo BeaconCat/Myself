@@ -1,5 +1,5 @@
 import {
-  Archive, ArrowLeft, ArrowRight, Bold, Calendar, Check, ChevronDown, Clock, Code, Copy, Cpu, Crop, DoorOpen,
+  Archive, ArrowLeft, ArrowRight, Bold, Calendar, Check, ChevronDown, ChevronUp, Clock, Code, Copy, Cpu, Crop, DoorOpen,
   Download, Ellipsis, ExternalLink, Eye, EyeOff, Feather, FileCode, FileText, Flag, GitBranch, Globe, GripVertical,
   Hash, Heart, Image, Info, Italic, KeyRound, LayoutDashboard, LayoutGrid, Layers, Link, List, ListOrdered, ListTodo,
   Lock, LogOut, Mail, MessageSquare, Minus, Moon, Palette, PanelRight, PenLine, Pin, Play, Plus, Quote, Redo2,
@@ -31,6 +31,7 @@ export const ICONS: Record<string, string> = iconSet({
   arrowR: ArrowRight,
   arrowL: ArrowLeft,
   chevronD: ChevronDown,
+  chevronU: ChevronUp,
   check: Check,
   x: X,
   more: Ellipsis,
