@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"hash/crc32"
 	"image/color"
 	"mime/multipart"
@@ -14,6 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/scrypt"
+
+	"myself/server/internal/auth"
 	"myself/server/internal/config"
 )
 
@@ -233,5 +237,37 @@ func TestSettingsSecretsMasked(t *testing.T) {
 	e.call(http.MethodPut, "/api/v1/admin/settings", map[string]any{"mail": map[string]any{"password": ""}}, nil, http.StatusOK)
 	if e.server.Config.Typed().Mail.Password != "" {
 		t.Fatal("clearing secret failed")
+	}
+}
+
+// 旧格式口令哈希照常能登录，并在登录成功时升级为带参数的新格式
+func TestPasswordHashUpgrade(t *testing.T) {
+	e := newEnv(t)
+	salt := "00112233445566778899aabbccddeeff"
+	key, _ := scrypt.Key([]byte(testPassword), []byte(salt), 16384, 8, 1, 64)
+	legacy := salt + ":" + hex.EncodeToString(key)
+	if _, err := e.server.DB.Exec(`UPDATE users SET password_hash = ? WHERE login = 'admin'`, legacy); err != nil {
+		t.Fatal(err)
+	}
+	e.sessionFrom(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "admin", "password": testPassword})
+	var h string
+	e.server.DB.QueryRow(`SELECT password_hash FROM users WHERE login = 'admin'`).Scan(&h)
+	if !strings.HasPrefix(h, "scrypt$") || !auth.VerifyPassword(testPassword, h) || auth.NeedsRehash(h) {
+		t.Fatalf("hash not upgraded: %s", h)
+	}
+}
+
+// 改密后，之前发出的重置链接作废
+func TestResetTokensRevokedOnPasswordChange(t *testing.T) {
+	e := newEnv(t)
+	var id int64
+	e.server.DB.QueryRow(`SELECT id FROM users WHERE login = 'admin'`).Scan(&id)
+	raw, err := e.server.Auth.CreateToken("reset", id, "", "", "", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.call(http.MethodPut, "/api/v1/auth/password", map[string]string{"oldPassword": testPassword, "newPassword": "another-pass-9"}, nil, http.StatusOK)
+	if _, err := e.server.Auth.PeekToken("reset", raw); err == nil {
+		t.Fatal("reset token still valid after password change")
 	}
 }

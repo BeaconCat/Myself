@@ -173,8 +173,8 @@ func tooMany(w http.ResponseWriter, d time.Duration) {
 	writeError(w, http.StatusTooManyRequests, "too_many_attempts")
 }
 
-// scryptSlots 限制同时进行的口令哈希计算（每次约 16MB 内存），防止并发登录拖垮进程。
-var scryptSlots = make(chan struct{}, 4)
+// scryptSlots 限制同时进行的口令哈希计算（当前参数每次约 128MB 内存），防止并发登录拖垮进程。
+var scryptSlots = make(chan struct{}, 2)
 
 func withScryptSlot(fn func()) {
 	scryptSlots <- struct{}{}

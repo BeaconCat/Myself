@@ -15,6 +15,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -66,36 +67,74 @@ func New(db *store.DB) *Service {
 	return &Service{db: db}
 }
 
-// HashPassword 生成 `salt:hash` 格式的 scrypt 哈希。
+// ScryptN 新口令哈希的 scrypt 代价参数（OWASP 建议 2^17，r=8，每次约 128MB 内存）。
+// 参数写进哈希本身，日后再调高也不影响已有口令；测试里调低以免拖慢。
+var ScryptN = 1 << 17
+
+// legacyScryptN 旧格式 `salt:hash` 固定使用的参数
+const legacyScryptN = 16384
+
+// HashPassword 生成 `scrypt$N$r$p$salt$hash` 格式的哈希（参数随哈希保存）。
 func HashPassword(password string) (string, error) {
 	saltBytes := make([]byte, 16)
 	if _, err := rand.Read(saltBytes); err != nil {
 		return "", err
 	}
 	salt := hex.EncodeToString(saltBytes)
-	// Node 端把 salt 十六进制字符串本身作为盐字节，这里保持一致。
-	key, err := scrypt.Key([]byte(password), []byte(salt), 16384, 8, 1, 64)
+	// 沿用 Node 实现的约定：盐的十六进制字符串本身作为盐字节
+	key, err := scrypt.Key([]byte(password), []byte(salt), ScryptN, 8, 1, 64)
 	if err != nil {
 		return "", err
 	}
-	return salt + ":" + hex.EncodeToString(key), nil
+	return fmt.Sprintf("scrypt$%d$8$1$%s$%s", ScryptN, salt, hex.EncodeToString(key)), nil
 }
 
-// VerifyPassword 常量时间比较口令与存储哈希。
+// parseHash 解析存储的哈希：新格式带参数；旧格式 `salt:hash` 用固定参数
+func parseHash(stored string) (n, r, p int, salt string, want []byte, ok bool) {
+	if rest, isNew := strings.CutPrefix(stored, "scrypt$"); isNew {
+		parts := strings.Split(rest, "$")
+		if len(parts) != 5 {
+			return
+		}
+		var err error
+		if n, err = strconv.Atoi(parts[0]); err != nil || n < 2 || n > 1<<22 || n&(n-1) != 0 {
+			return
+		}
+		if r, err = strconv.Atoi(parts[1]); err != nil || r < 1 || r > 32 {
+			return
+		}
+		if p, err = strconv.Atoi(parts[2]); err != nil || p < 1 || p > 16 {
+			return
+		}
+		salt = parts[3]
+		want, err = hex.DecodeString(parts[4])
+		return n, r, p, salt, want, err == nil && salt != "" && len(want) > 0
+	}
+	s, hashHex, found := strings.Cut(stored, ":")
+	if !found || s == "" || hashHex == "" {
+		return
+	}
+	w, err := hex.DecodeString(hashHex)
+	return legacyScryptN, 8, 1, s, w, err == nil
+}
+
+// VerifyPassword 常量时间比较口令与存储哈希（新旧两种格式）。
 func VerifyPassword(password, stored string) bool {
-	salt, hashHex, ok := strings.Cut(stored, ":")
-	if !ok || salt == "" || hashHex == "" {
+	n, r, p, salt, want, ok := parseHash(stored)
+	if !ok {
 		return false
 	}
-	want, err := hex.DecodeString(hashHex)
-	if err != nil {
-		return false
-	}
-	got, err := scrypt.Key([]byte(password), []byte(salt), 16384, 8, 1, len(want))
+	got, err := scrypt.Key([]byte(password), []byte(salt), n, r, p, len(want))
 	if err != nil {
 		return false
 	}
 	return subtle.ConstantTimeCompare(got, want) == 1
+}
+
+// NeedsRehash 哈希是旧格式或参数低于当前标准：登录成功时顺手按新参数重算
+func NeedsRehash(stored string) bool {
+	n, _, _, _, _, ok := parseHash(stored)
+	return ok && (!strings.HasPrefix(stored, "scrypt$") || n < ScryptN)
 }
 
 // RandomHex n 字节随机数的十六进制串。
@@ -371,6 +410,14 @@ func (s *Service) Authenticate(identifier, password string) (*store.User, error)
 	case store.StatusDisabled:
 		return u, ErrDisabled
 	}
+	// 旧格式 / 旧参数的哈希：口令刚验证通过，按当前参数重算保存（不吊销会话）
+	if NeedsRehash(u.PasswordHash) {
+		if h, err := HashPassword(password); err == nil {
+			if _, err := s.db.Exec(`UPDATE users SET password_hash = ? WHERE id = ? AND password_hash = ?`, h, u.ID, u.PasswordHash); err == nil {
+				u.PasswordHash = h
+			}
+		}
+	}
 	return u, nil
 }
 
@@ -426,7 +473,16 @@ func (s *Service) SetPassword(userID int64, password string) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec(`UPDATE users SET password_hash = ?, must_change = 0, token_version = token_version + 1 WHERE id = ?`, hash, userID)
+	if _, err = s.db.Exec(`UPDATE users SET password_hash = ?, must_change = 0, token_version = token_version + 1 WHERE id = ?`, hash, userID); err != nil {
+		return err
+	}
+	// 已发出、尚未使用的重置链接一并作废：改过密码后，旧链接不能再用来改一次
+	return s.RevokeTokens(userID, "reset")
+}
+
+// RevokeTokens 作废某用户尚未使用的某类一次性令牌
+func (s *Service) RevokeTokens(userID int64, kind string) error {
+	_, err := s.db.Exec(`DELETE FROM user_tokens WHERE user_id = ? AND kind = ? AND used_at IS NULL`, userID, kind)
 	return err
 }
 
