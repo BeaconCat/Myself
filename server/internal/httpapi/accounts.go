@@ -85,13 +85,6 @@ func (s *Server) requireRole(roles ...string) func(http.HandlerFunc) http.Handle
 }
 
 // publicUser 下发给前端的当前用户信息（不含口令哈希等）。
-func publicUser(u *store.User) map[string]any {
-	return map[string]any{
-		"id": u.ID, "login": u.Login, "email": u.Email, "name": u.Name, "avatar": u.Avatar, "role": u.Role,
-		"hasPassword": u.PasswordHash != "", "github": u.GitHubID != 0, "emailVerified": u.EmailVerified,
-		"mustChange": u.MustChange,
-	}
-}
 
 // startSession 签发令牌并写入会话 Cookie。
 func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u *store.User) error {
@@ -151,7 +144,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.DB.TouchUser(u.ID)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "mustChange": u.MustChange, "user": publicUser(u)})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "mustChange": u.MustChange, "user": s.publicUser(u)})
 }
 
 // GET /auth/session 当前登录状态与用户信息
@@ -161,7 +154,7 @@ func (s *Server) session(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"loggedIn": false})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"loggedIn": true, "mustChange": u.MustChange, "user": publicUser(u)})
+	writeJSON(w, http.StatusOK, map[string]any{"loggedIn": true, "mustChange": u.MustChange, "user": s.publicUser(u)})
 }
 
 // PUT /auth/password 改密：该用户其它会话全部失效，当前会话换发新 Cookie
@@ -202,7 +195,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-// PUT /me 修改自己的昵称 / 头像
+// PUT /me 修改自己的昵称（头像走 /me/avatar 上传 + 审核，不接受任意外链）
 func (s *Server) updateMe(w http.ResponseWriter, r *http.Request) {
 	var b body
 	if err := readJSON(w, r, &b); err != nil {
@@ -215,16 +208,11 @@ func (s *Server) updateMe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_name")
 		return
 	}
-	avatar := strings.TrimSpace(b.strOr("avatar"))
-	if avatar != "" && !strings.HasPrefix(avatar, "/uploads/") && !strings.HasPrefix(avatar, "https://") {
-		writeError(w, http.StatusBadRequest, "invalid_avatar")
-		return
-	}
-	if _, err := s.DB.Exec(`UPDATE users SET name = ?, avatar = ? WHERE id = ?`, name, avatar, u.ID); err != nil {
+	if _, err := s.DB.Exec(`UPDATE users SET name = ? WHERE id = ?`, name, u.ID); err != nil {
 		fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	s.writeMe(w, u.ID)
 }
 
 var emailRe = regexp.MustCompile(`^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$`)
@@ -342,7 +330,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "user": publicUser(u)})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "user": s.publicUser(u)})
 }
 
 func (s *Server) sendVerifyMail(r *http.Request, u *store.User) error {
@@ -395,7 +383,7 @@ func (s *Server) verifyEmail(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "user": publicUser(u)})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "user": s.publicUser(u)})
 }
 
 /* ===== 找回密码 ===== */
@@ -492,5 +480,5 @@ func (s *Server) resetPassword(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "user": publicUser(u)})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "user": s.publicUser(u)})
 }

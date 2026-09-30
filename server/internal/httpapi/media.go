@@ -87,7 +87,8 @@ func (s *Server) listUploads(filter map[string]bool) ([]string, error) {
 	}
 	var names []string
 	for _, e := range entries {
-		if e.IsDir() || strings.HasPrefix(e.Name(), ".") || !filter[imaging.Ext(e.Name())] {
+		// 用户头像（avatar-*）由个人资料管理，不进素材库
+		if e.IsDir() || strings.HasPrefix(e.Name(), ".") || strings.HasPrefix(e.Name(), avatarPrefix) || !filter[imaging.Ext(e.Name())] {
 			continue
 		}
 		names = append(names, e.Name())

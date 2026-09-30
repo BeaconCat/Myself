@@ -330,6 +330,9 @@ export const adminApi = {
   createInvite: (body: { role: 'author' | 'reader'; email?: string; days?: number; note?: string; send?: boolean }) =>
     authed<{ url: string; sent: boolean; days: number }>('/admin/invites', { method: 'POST', body: JSON.stringify(body) }),
   deleteInvite: (id: number) => authed<{ ok: boolean }>(`/admin/invites/${id}`, { method: 'DELETE' }),
+  /** 审核用户待审头像 */
+  reviewAvatar: (id: number, action: 'approve' | 'reject') =>
+    authed<{ ok: boolean }>(`/admin/users/${id}/avatar`, { method: 'PUT', body: JSON.stringify({ action }) }),
   comments: (status: CommentStatus) => authed<AdminComment[]>(`/admin/comments?status=${status}`),
   setCommentStatus: (id: number, status: CommentStatus) =>
     authed<{ ok: boolean }>(`/admin/comments/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
@@ -354,6 +357,12 @@ export interface SessionUser {
   github: boolean;
   emailVerified: boolean;
   mustChange: boolean;
+  /** 站长正在使用「身份」里的头像（没有单独设置） */
+  avatarDefault?: boolean;
+  /** 待站长审核的新头像 */
+  avatarPending?: string;
+  /** 登录名冷却中：下次可修改的时间（UTC，空 = 现在就能改） */
+  loginNextChange?: string;
 }
 
 export interface AdminUser {
@@ -363,6 +372,8 @@ export interface AdminUser {
   name: string;
   avatar: string;
   role: UserRole;
+  /** 待审核的新头像 */
+  avatarPending?: string;
   status: 'active' | 'pending' | 'disabled';
   github: boolean;
   hasPassword: boolean;
@@ -381,6 +392,8 @@ export interface UserStats {
   comments: number;
   commentsMonth: number;
   pending: number;
+  /** 待审头像数 */
+  avatars?: number;
 }
 
 export interface InviteInfo {
@@ -452,7 +465,22 @@ export const accountApi = {
   reset: (token: string, password: string) =>
     accountCall<{ ok: boolean; user: SessionUser }>('POST', '/auth/reset', { token, password }),
   invite: (code: string) => accountCall<{ role: 'author' | 'reader'; email: string }>('GET', `/auth/invite?code=${encodeURIComponent(code)}`),
-  updateMe: (name: string, avatar: string) => accountCall<{ ok: boolean }>('PUT', '/me', { name, avatar }),
+  updateMe: (name: string) => accountCall<{ ok: boolean; user: SessionUser }>('PUT', '/me', { name }),
+  /** 上传已裁切的头像：站长直接生效，其他人进入待审 */
+  uploadAvatar: async (blob: Blob): Promise<{ ok: boolean; user: SessionUser }> => {
+    const form = new FormData();
+    form.append('file', blob, blob.type === 'image/webp' ? 'avatar.webp' : 'avatar.png');
+    const res = await fetch(`${BASE}/me/avatar`, { method: 'POST', credentials: 'same-origin', headers: ADMIN_HEADERS, body: form });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((data as { error?: string }).error ?? `api_error_${res.status}`);
+    return data as { ok: boolean; user: SessionUser };
+  },
+  /** 移除头像（连同待审的）；站长恢复为身份头像 */
+  deleteAvatar: (pendingOnly = false) =>
+    accountCall<{ ok: boolean; user: SessionUser }>('DELETE', pendingOnly ? '/me/avatar?pending=1' : '/me/avatar'),
+  changeLogin: (login: string) => accountCall<{ ok: boolean; user: SessionUser }>('PUT', '/me/login', { login }),
+  changeEmail: (email: string, password: string) =>
+    accountCall<{ ok: boolean; verifySent: boolean; user: SessionUser }>('PUT', '/me/email', { email, password }),
   changePassword: (oldPassword: string, newPassword: string) =>
     accountCall<{ ok: boolean }>('PUT', '/auth/password', { oldPassword, newPassword }),
   logout: () => accountCall<{ ok: boolean }>('POST', '/auth/logout'),

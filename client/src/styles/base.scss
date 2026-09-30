@@ -75,6 +75,15 @@ html:not(.vt-contract)::view-transition-new(root) {
 .vt-contract::view-transition-old(root) { z-index: 2; }
 .vt-contract::view-transition-new(root) { z-index: 1; }
 
+/*
+ * 顶栏风格切换（简洁 / 卡片）单独成层、浮在两张整页快照之上，始终显示新画面的实时渲染：
+ * 否则 contract 方向时旧快照一直盖着它直到收拢，选中块的滑动看不见、最后一下跳过去。
+ */
+.nav-pc .style-seg { view-transition-name: style-seg; }
+::view-transition-group(style-seg) { z-index: 3; animation: none; }
+::view-transition-old(style-seg) { display: none; }
+::view-transition-new(style-seg) { animation: none; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

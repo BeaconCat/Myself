@@ -91,15 +91,21 @@ type User struct {
 	MustChange    bool
 	CreatedAt     string
 	LastActiveAt  string
+	// AvatarPending 待站长审核的头像（空 = 没有）
+	AvatarPending string
+	// LoginChangedAt 登录名上次修改时间（空 = 从未改过）
+	LoginChangedAt string
 }
 
 const userColumns = `id, login, COALESCE(email, ''), name, avatar, role, status, password_hash, COALESCE(github_id, 0),
-	email_verified, token_version, must_change, created_at, COALESCE(last_active_at, '')`
+	email_verified, token_version, must_change, created_at, COALESCE(last_active_at, ''),
+	avatar_pending, COALESCE(login_changed_at, '')`
 
 func scanUser(s scanner) (*User, error) {
 	var u User
 	err := s.Scan(&u.ID, &u.Login, &u.Email, &u.Name, &u.Avatar, &u.Role, &u.Status, &u.PasswordHash, &u.GitHubID,
-		&u.EmailVerified, &u.TokenVersion, &u.MustChange, &u.CreatedAt, &u.LastActiveAt)
+		&u.EmailVerified, &u.TokenVersion, &u.MustChange, &u.CreatedAt, &u.LastActiveAt,
+		&u.AvatarPending, &u.LoginChangedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

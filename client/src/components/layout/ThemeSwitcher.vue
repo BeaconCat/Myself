@@ -198,10 +198,11 @@ function onMode(e: MouseEvent): void {
     border-radius: inherit;
     background: none;
     color: var(--text-3);
-    transition: color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+    /* 图标变色与选中块同速，避免图标先到、块后到 */
+    transition: color var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 
     &:hover { color: var(--text); }
-    &:active { transform: scale(0.9); }
+    &:active { transform: scale(0.94); }
     &.on { color: var(--ink); }
 
     &:focus-visible {
@@ -210,17 +211,22 @@ function onMode(e: MouseEvent): void {
     }
   }
 
+  /*
+   * 选中块：与轨道同心（圆角 = 轨道圆角 - 2px 内边距），只描一道 0.5px 细边、不投影，贴合在轨道里而不是浮在上面；
+   * 滑动用 ease-out（不回弹越界），与图标变色同一时长。
+   */
   .thumb {
     position: absolute;
     top: 2px;
     bottom: 2px;
     left: 2px;
     width: 30px;
-    border-radius: inherit;
+    border-radius: min(var(--r-pill), calc(var(--nav-r-in, 16px) - 4px));
     background: var(--lift);
-    box-shadow: var(--lift-shadow);
+    box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--ink) 30%, transparent);
     transform: translateX(calc(var(--i, 0) * 100%));
-    transition: transform var(--dur) var(--ease-spring);
+    transition: transform var(--dur) var(--ease-out);
+    will-change: transform;
   }
 }
 

@@ -159,7 +159,7 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "user": publicUser(admin)})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "user": s.publicUser(admin)})
 }
 
 func str(v any) string {

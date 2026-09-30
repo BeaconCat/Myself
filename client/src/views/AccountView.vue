@@ -314,6 +314,13 @@ const nextQuery = computed(() => (next.value !== '/' ? { next: next.value } : {}
   box-shadow: inset 0 0 0 0.5px var(--line-2), 0 30px 60px -40px rgb(0 0 0 / 0.45);
 }
 
+/* 简洁风格：不要卡片面，表单直接落在页面上 */
+:root[data-style='clean'] .card {
+  padding: 8px 4px;
+  background: transparent;
+  box-shadow: none;
+}
+
 .brand {
   display: inline-flex;
   align-items: center;

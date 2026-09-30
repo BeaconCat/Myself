@@ -125,6 +125,10 @@ func (s *Server) Handler() http.Handler {
 	// 管理员
 	mux.HandleFunc("PUT "+p+"/auth/password", member(s.changePassword))
 	mux.HandleFunc("PUT "+p+"/me", member(s.updateMe))
+	mux.HandleFunc("POST "+p+"/me/avatar", member(s.uploadAvatar))
+	mux.HandleFunc("DELETE "+p+"/me/avatar", member(s.deleteAvatar))
+	mux.HandleFunc("PUT "+p+"/me/login", member(s.changeLogin))
+	mux.HandleFunc("PUT "+p+"/me/email", member(s.changeEmail))
 	// 文章与素材上传：管理员 + 协作作者（作者只能看到 / 修改自己的文章）
 	mux.HandleFunc("GET "+p+"/admin/posts", staff(s.adminListPosts))
 	mux.HandleFunc("GET "+p+"/admin/posts/{id}", staff(s.adminGetPost))
@@ -158,6 +162,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT "+p+"/admin/users/{id}", admin(s.adminUpdateUser))
 	mux.HandleFunc("DELETE "+p+"/admin/users/{id}", admin(s.adminDeleteUser))
 	mux.HandleFunc("POST "+p+"/admin/users/{id}/reset", admin(s.adminResetLink))
+	mux.HandleFunc("PUT "+p+"/admin/users/{id}/avatar", admin(s.adminReviewAvatar))
 	mux.HandleFunc("GET "+p+"/admin/invites", admin(s.adminListInvites))
 	mux.HandleFunc("POST "+p+"/admin/invites", admin(s.adminCreateInvite))
 	mux.HandleFunc("DELETE "+p+"/admin/invites/{id}", admin(s.adminDeleteInvite))

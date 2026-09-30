@@ -146,6 +146,9 @@ func (s *Server) listComments(w http.ResponseWriter, r *http.Request) {
 		}
 		items = append(items, it)
 	}
+	for i := range items {
+		items[i].Author.Avatar = s.avatarOf(items[i].Author.Role, items[i].Author.Avatar)
+	}
 	if cfg.Users.ReactionsOn() && len(items) > 0 {
 		if err := s.attachLikes(w, r, items); err != nil {
 			fail(w, err)
@@ -302,6 +305,7 @@ func (s *Server) adminListComments(w http.ResponseWriter, r *http.Request) {
 			it.TargetTitle, it.TargetLink = "留言墙", "/about"
 		}
 		it.HasLink = strings.Contains(it.Body, "http://") || strings.Contains(it.Body, "https://")
+		it.Author.Avatar = s.avatarOf(it.Author.Role, it.Author.Avatar)
 		out = append(out, it)
 	}
 	writeJSON(w, http.StatusOK, out)

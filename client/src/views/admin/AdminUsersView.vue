@@ -216,6 +216,28 @@ async function exportCsv(): Promise<void> {
   }
 }
 
+/* ---------- 头像审核 ---------- */
+const pendingAvatars = computed(() => users.value.filter((u) => u.avatarPending));
+const reviewing = ref(new Set<number>());
+async function review(u: AdminUser, action: 'approve' | 'reject'): Promise<void> {
+  if (reviewing.value.has(u.id)) return;
+  reviewing.value = new Set(reviewing.value).add(u.id);
+  try {
+    await adminApi.reviewAvatar(u.id, action);
+    if (action === 'approve') u.avatar = u.avatarPending ?? u.avatar;
+    u.avatarPending = '';
+    toast(action === 'approve' ? t('studio.users.avatarApproved', { name: u.name }) : t('studio.users.avatarRejected', { name: u.name }), {
+      icon: action === 'approve' ? 'check' : 'x',
+    });
+  } catch {
+    toast(t('studio.saveFailed'), { icon: 'x' });
+  } finally {
+    const s = new Set(reviewing.value);
+    s.delete(u.id);
+    reviewing.value = s;
+  }
+}
+
 /* ---------- 邀请 ---------- */
 const invites = ref<InviteInfo[]>([]);
 async function loadInvites(): Promise<void> {
@@ -368,6 +390,25 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
         <div class="tx"><b>{{ t('studio.users.reactions') }}</b><small>{{ t('studio.users.reactionsSub') }}</small></div>
         <StSwitch v-model="reactions" />
       </div>
+    </section>
+
+    <!-- 待审头像 -->
+    <section v-if="pendingAvatars.length" class="st-card av-card st-rise" style="--i: 1">
+      <div class="st-sec-t"><h2>{{ t('studio.users.avatarReview') }}</h2><span>{{ t('studio.users.avatarReviewSub') }}</span></div>
+      <TransitionGroup tag="ul" name="row" class="av-list">
+        <li v-for="u in pendingAvatars" :key="u.id">
+          <span class="pair">
+            <span class="av old" :style="{ background: u.avatar ? undefined : tint(u.name || u.login) }">
+              <img v-if="u.avatar" :src="u.avatar" alt="" /><template v-else>{{ initial(u.name || u.login) }}</template>
+            </span>
+            <SIcon name="arrowR" :size="16" class="to" />
+            <span class="av new"><img :src="u.avatarPending" alt="" /></span>
+          </span>
+          <div class="tx"><b>{{ u.name || u.login }}</b><small class="mono">{{ u.email || `@${u.login}` }}</small></div>
+          <button type="button" class="st-btn g sm" :disabled="reviewing.has(u.id)" @click="review(u, 'reject')">{{ t('studio.users.reject') }}</button>
+          <button type="button" class="st-btn p sm" :disabled="reviewing.has(u.id)" @click="review(u, 'approve')"><SIcon name="check" :size="15" />{{ t('studio.users.approve') }}</button>
+        </li>
+      </TransitionGroup>
     </section>
 
     <!-- 统计 -->
@@ -598,6 +639,48 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
   /* 文案可换行，开关始终留在同一行右侧 */
   .line > .tx { flex: 1 1 160px; }
   .line > .sw { flex: none; }
+}
+
+/* ---------- 待审头像 ---------- */
+.av-card { margin-bottom: 20px; }
+
+.av-list {
+  position: relative;
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+
+    & + li { box-shadow: 0 -1px 0 var(--line-2); }
+  }
+
+  .pair { display: flex; align-items: center; gap: 8px; }
+  .to { color: var(--st-ink-3); }
+
+  .av {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    color: #fff;
+    font: 600 15px var(--font-serif);
+    flex: none;
+
+    img { width: 100%; height: 100%; object-fit: cover; }
+    &.old { width: 32px; height: 32px; font-size: 12px; opacity: 0.7; }
+    &.new { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.5px var(--ink); }
+  }
+
+  .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  b { font-weight: 600; font-size: 15px; }
+  small { color: var(--st-ink-3); font-size: 12.5px; }
 }
 
 /* ---------- 统计 / 工具条 ---------- */

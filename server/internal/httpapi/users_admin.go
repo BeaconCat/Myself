@@ -18,6 +18,7 @@ type adminUser struct {
 	Email         string `json:"email"`
 	Name          string `json:"name"`
 	Avatar        string `json:"avatar"`
+	AvatarPending string `json:"avatarPending,omitempty"`
 	Role          string `json:"role"`
 	Status        string `json:"status"`
 	GitHub        bool   `json:"github"`
@@ -40,7 +41,8 @@ func (s *Server) adminListUsers(w http.ResponseWriter, r *http.Request) {
 	out := make([]adminUser, 0, len(users))
 	for _, u := range users {
 		out = append(out, adminUser{
-			ID: u.ID, Login: u.Login, Email: u.Email, Name: u.Name, Avatar: u.Avatar, Role: u.Role, Status: u.Status,
+			ID: u.ID, Login: u.Login, Email: u.Email, Name: u.Name, Avatar: s.avatarOf(u.Role, u.Avatar), AvatarPending: u.AvatarPending,
+			Role: u.Role, Status: u.Status,
 			GitHub: u.GitHubID != 0, HasPassword: u.PasswordHash != "", EmailVerified: u.EmailVerified,
 			CreatedAt: u.CreatedAt, LastActiveAt: u.LastActiveAt, Comments: counts[u.ID], Self: u.ID == me.ID,
 		})
@@ -57,6 +59,7 @@ func (s *Server) adminListUsers(w http.ResponseWriter, r *http.Request) {
 			"newMonth":      stat(`SELECT COUNT(*) FROM users WHERE created_at >= datetime('now', '-30 days')`),
 			"activeMonth":   stat(`SELECT COUNT(*) FROM users WHERE last_active_at >= datetime('now', '-30 days')`),
 			"authors":       stat(`SELECT COUNT(*) FROM users WHERE role = 'author'`),
+			"avatars":       stat(`SELECT COUNT(*) FROM users WHERE avatar_pending != ''`),
 			"comments":      stat(`SELECT COUNT(*) FROM comments WHERE status = 'approved'`),
 			"commentsMonth": stat(`SELECT COUNT(*) FROM comments WHERE status = 'approved' AND created_at >= datetime('now', '-30 days')`),
 			"pending":       stat(`SELECT COUNT(*) FROM comments WHERE status = 'pending'`),

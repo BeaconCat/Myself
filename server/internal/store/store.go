@@ -98,6 +98,9 @@ CREATE TABLE IF NOT EXISTS media (
 		`ALTER TABLE notes ADD COLUMN source_key INTEGER`,
 		// 文章作者（协作作者投稿；NULL = 站长）
 		`ALTER TABLE posts ADD COLUMN author_id INTEGER`,
+		// 待审头像（非站长上传后等站长审核）与登录名上次修改时间（每 30 天可改一次）
+		`ALTER TABLE users ADD COLUMN avatar_pending TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE users ADD COLUMN login_changed_at TEXT`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return err
