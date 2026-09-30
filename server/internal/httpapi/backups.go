@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"archive/zip"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -31,8 +32,7 @@ func (s *Server) createBackup() (string, error) {
 	if _, err := s.DB.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
 		log.Printf("[backup] checkpoint: %v", err)
 	}
-	name := "backup-" + backupTimestamp() + ".zip"
-	out, err := os.OpenFile(filepath.Join(s.BackupDir, name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	name, out, err := s.newBackupFile()
 	if err != nil {
 		return "", err
 	}
@@ -56,6 +56,18 @@ func (s *Server) createBackup() (string, error) {
 		return "", err
 	}
 	return name, out.Close()
+}
+
+// newBackupFile 新建一个备份文件；同一秒内多次（如恢复前的安全备份、上传的备份包）追加序号避免重名
+func (s *Server) newBackupFile() (string, *os.File, error) {
+	stamp := backupTimestamp()
+	name := "backup-" + stamp + ".zip"
+	out, err := os.OpenFile(filepath.Join(s.BackupDir, name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	for i := 1; err != nil && os.IsExist(err) && i < 100; i++ {
+		name = fmt.Sprintf("backup-%s-%d.zip", stamp, i)
+		out, err = os.OpenFile(filepath.Join(s.BackupDir, name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	}
+	return name, out, err
 }
 
 func addDirToZip(zw *zip.Writer, root, prefix string) error {

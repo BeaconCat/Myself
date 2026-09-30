@@ -351,6 +351,30 @@ export const adminApi = {
   },
   backups: () => authed<BackupInfo[]>('/admin/backups'),
   createBackup: () => authed<{ name: string }>('/admin/backups', { method: 'POST' }),
+  /** 从已有备份恢复；返回恢复前自动做的安全备份名 */
+  restoreBackup: (name: string) => authed<{ safety: string }>(`/admin/backups/${encodeURIComponent(name)}/restore`, { method: 'POST' }),
+  /** 上传备份包并恢复（包会留存在备份列表里） */
+  restoreUpload: (file: File, onProgress?: (p: number) => void) => {
+    const form = new FormData();
+    form.append('file', file);
+    return xhrForm<{ safety: string }>('/admin/backups/restore', form, onProgress);
+  },
+  /** 导出全部文章与随想为 Markdown（zip）；media=true 连同素材 */
+  exportMarkdown: async (media: boolean): Promise<Blob> => {
+    const res = await fetch(`${BASE}/admin/export/markdown${media ? '?media=1' : ''}`, { credentials: 'same-origin', headers: ADMIN_HEADERS });
+    if (res.status === 401) {
+      kickToLogin();
+      throw new Error('unauthorized');
+    }
+    if (!res.ok) throw new Error(`api_error_${res.status}`);
+    return res.blob();
+  },
+  /** 从 Hexo / Hugo / Jekyll 导入：files 的第三个参数是相对路径；dry 只识别不写入 */
+  importPosts: (files: { file: File; path: string }[], opts: { draft: boolean; dry: boolean }, onProgress?: (p: number) => void) => {
+    const form = new FormData();
+    for (const f of files) form.append('files', f.file, f.path);
+    return xhrForm<ImportResult>(`/admin/import?draft=${opts.draft ? 1 : 0}${opts.dry ? '&dry=1' : ''}`, form, onProgress);
+  },
   deleteBackup: (name: string) =>
     authed<{ ok: boolean }>(`/admin/backups/${encodeURIComponent(name)}`, { method: 'DELETE' }),
   downloadBackup: async (name: string): Promise<Blob> => {
@@ -578,6 +602,43 @@ export const accountApi = {
   postComment: (body: { target: CommentTarget; key: string; body: string; parentId?: number; guestName?: string; website?: string }) =>
     accountCall<{ ok: boolean; id: number; pending: boolean }>('POST', '/comments', body),
 };
+
+/** 导入结果：platform 识别出的来源；items 每篇的去向（reason 非空为跳过） */
+export interface ImportResult {
+  platform: 'hexo' | 'hugo' | 'jekyll' | 'markdown';
+  dry: boolean;
+  found: number;
+  created: number;
+  images: number;
+  items: { file: string; title: string; slug: string; status: 'published' | 'draft'; images: number; reason?: string }[];
+}
+
+/** 带上传进度的 multipart 请求（XHR；fetch 的请求体进度尚未普及）；非 2xx 抛出后端错误码 */
+function xhrForm<T>(path: string, form: FormData, onProgress?: (p: number) => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${BASE}${path}`);
+    xhr.withCredentials = true;
+    for (const [k, v] of Object.entries(ADMIN_HEADERS)) xhr.setRequestHeader(k, v);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(e.loaded / e.total); };
+    xhr.onload = () => {
+      if (xhr.status === 401) {
+        kickToLogin();
+        reject(new Error('unauthorized'));
+        return;
+      }
+      let data: unknown = null;
+      try { data = JSON.parse(xhr.responseText); } catch { /* 非 JSON */ }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error((data as { error?: string } | null)?.error || `api_error_${xhr.status}`));
+        return;
+      }
+      resolve(data as T);
+    };
+    xhr.onerror = () => reject(new Error('network'));
+    xhr.send(form);
+  });
+}
 
 /** 文件内容的 SHA-256（十六进制）；非安全上下文（http 且非 localhost）没有 crypto.subtle 时返回 null */
 async function sha256Hex(file: Blob): Promise<string | null> {

@@ -1,19 +1,25 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { adminApi, type BackupInfo } from '../../api';
+import { adminApi, type BackupInfo, type ImportResult } from '../../api';
 import { useDialogStore } from '../../stores/dialog';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
 import StSeg from './studio/StSeg.vue';
 import StSwitch from './studio/StSwitch.vue';
-import { saveBlob } from './studio/state';
+import StModal from './studio/StModal.vue';
+import { refreshCounts, saveBlob } from './studio/state';
+import { useRouter } from 'vue-router';
 import { toast } from './studio/toast';
 import { dateTimeText, formatSize, relTime, sizeParts } from './studio/format';
 
-/** 数据备份：立即备份（进度环）、备份记录（下载 / 删除）、自动备份间隔；导入导出为预留界面 */
+/**
+ * 数据备份：立即备份（进度环）、备份记录（下载 / 恢复 / 删除）、自动备份间隔；
+ * 迁移：从备份包恢复、导出为 Markdown、从 Hexo / Hugo / Jekyll 导入（先识别预览再导入）。
+ */
 const { t } = useI18n();
 const dialog = useDialogStore();
+const router = useRouter();
 
 const backups = ref<BackupInfo[]>([]);
 const loaded = ref(false);
@@ -114,6 +120,143 @@ function autoLabel(h: number): string {
   return t('studio.data.everyH', { n: h });
 }
 
+/* ===== 恢复 ===== */
+const restoring = ref(false);
+const restorePct = ref<number | null>(null);
+const restoreInput = ref<HTMLInputElement | null>(null);
+
+/** 恢复成功：整站数据（含设置与账号）都变了，直接刷新页面最稳妥 */
+function afterRestore(safety: string): void {
+  toast(t('studio.data.restored', { name: safety }), { icon: 'check' });
+  window.setTimeout(() => window.location.reload(), 1600);
+}
+
+function restoreError(err: unknown): void {
+  const code = (err as Error).message;
+  toast(code === 'invalid_backup' ? t('studio.data.restoreBad') : t('studio.data.restoreFailed'), { icon: 'x' });
+}
+
+async function restoreFrom(b: BackupInfo): Promise<void> {
+  if (restoring.value) return;
+  const ok = await dialog.confirm({
+    title: t('studio.data.restoreTitle', { name: b.name }),
+    message: t('studio.data.restoreBody'),
+    confirmText: t('studio.data.restoreConfirm'),
+    danger: true,
+  });
+  if (!ok) return;
+  restoring.value = true;
+  try {
+    afterRestore((await adminApi.restoreBackup(b.name)).safety);
+  } catch (err) {
+    restoreError(err);
+    restoring.value = false;
+  }
+}
+
+async function onRestoreFile(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file || restoring.value) return;
+  const ok = await dialog.confirm({
+    title: t('studio.data.restoreUploadTitle', { name: file.name }),
+    message: t('studio.data.restoreBody'),
+    confirmText: t('studio.data.restoreConfirm'),
+    danger: true,
+  });
+  if (!ok) return;
+  restoring.value = true;
+  restorePct.value = 0;
+  try {
+    const res = await adminApi.restoreUpload(file, (p) => { restorePct.value = p; });
+    afterRestore(res.safety);
+  } catch (err) {
+    restoreError(err);
+    restoring.value = false;
+  } finally {
+    restorePct.value = null;
+  }
+}
+
+/* ===== 导出 ===== */
+const exportMedia = ref(false);
+const exporting = ref(false);
+async function exportMd(): Promise<void> {
+  if (exporting.value) return;
+  exporting.value = true;
+  try {
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    saveBlob(await adminApi.exportMarkdown(exportMedia.value), `myself-markdown-${stamp}.zip`);
+    toast(t('studio.data.exported'), { icon: 'download' });
+  } catch {
+    toast(t('studio.loadFailed'), { icon: 'x' });
+  } finally {
+    exporting.value = false;
+  }
+}
+
+/* ===== 导入：选择文件夹或 zip → 过滤无关文件 → 识别预览 → 确认导入 ===== */
+const importDraft = ref(true);
+const importBusy = ref<'' | 'scan' | 'run'>('');
+const importPct = ref(0);
+const preview = ref<ImportResult | null>(null);
+let pending: { file: File; path: string }[] = [];
+const folderInput = ref<HTMLInputElement | null>(null);
+const zipInput = ref<HTMLInputElement | null>(null);
+
+/** 只上传用得到的：Markdown、图片、站点配置；跳过依赖、构建产物、主题与版本库 */
+const SKIP_DIR = /(^|\/)(node_modules|\.git|public|_site|resources|themes|\.github|\.obsidian|\.vscode)(\/|$)/;
+const KEEP_EXT = /\.(md|markdown|png|jpe?g|webp|gif|ya?ml|toml|zip)$/i;
+
+async function onImportPick(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement;
+  const files = [...(input.files ?? [])];
+  input.value = '';
+  pending = files
+    .map((file) => ({ file, path: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name }))
+    .filter(({ path }) => !SKIP_DIR.test(path) && KEEP_EXT.test(path));
+  if (!pending.length) {
+    toast(t('studio.data.importNone'), { icon: 'x' });
+    return;
+  }
+  importBusy.value = 'scan';
+  importPct.value = 0;
+  try {
+    const res = await adminApi.importPosts(pending, { draft: importDraft.value, dry: true }, (p) => { importPct.value = p; });
+    if (!res.found) toast(t('studio.data.importNone'), { icon: 'x' });
+    else preview.value = res;
+  } catch {
+    toast(t('studio.data.importFailed'), { icon: 'x' });
+  } finally {
+    importBusy.value = '';
+  }
+}
+
+async function runImport(): Promise<void> {
+  if (!pending.length || importBusy.value) return;
+  importBusy.value = 'run';
+  importPct.value = 0;
+  try {
+    const res = await adminApi.importPosts(pending, { draft: importDraft.value, dry: false }, (p) => { importPct.value = p; });
+    preview.value = null;
+    pending = [];
+    toast(t('studio.data.imported', { n: res.created, m: res.images }), {
+      icon: 'check',
+      action: t('studio.nav.posts'),
+      fn: () => void router.push({ name: 'admin-posts' }),
+    });
+    void refreshCounts();
+  } catch {
+    toast(t('studio.data.importFailed'), { icon: 'x' });
+  } finally {
+    importBusy.value = '';
+  }
+}
+
+const importable = computed(() => preview.value?.items.filter((i) => !i.reason).length ?? 0);
+
 onMounted(load);
 onBeforeUnmount(() => window.clearInterval(timer));
 </script>
@@ -157,6 +300,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
             <span class="num">{{ formatSize(b.size) }}</span>
             <span class="ops">
               <button type="button" class="st-ibtn" :title="t('studio.data.download')" @click="download(b.name)"><SIcon name="download" :size="18" /></button>
+              <button type="button" class="st-ibtn" :disabled="restoring" :title="t('studio.data.restoreHere')" @click="restoreFrom(b)"><SIcon name="undo" :size="18" /></button>
               <button type="button" class="st-ibtn" :title="t('studio.delete')" @click="remove(b)"><SIcon name="trash" :size="18" /></button>
             </span>
           </div>
@@ -190,7 +334,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
       </section>
     </div>
 
-    <!-- 迁移（预留） -->
+    <!-- 迁移 -->
     <div class="migrate">
       <div class="st-sec-t"><h2>{{ t('studio.data.migrate') }}</h2></div>
       <div class="st-note-bar"><SIcon name="info" />{{ t('studio.data.migrateNote') }}</div>
@@ -198,20 +342,67 @@ onBeforeUnmount(() => window.clearInterval(timer));
         <div class="mc">
           <span class="ic"><SIcon name="upload" :size="20" /></span>
           <div><b>{{ t('studio.data.restore') }}</b><small>{{ t('studio.data.restoreSub') }}</small></div>
-          <button type="button" class="st-btn g sm st-tip" :data-tip="t('studio.data.soonTip')" disabled>{{ t('studio.data.restoreBtn') }}</button>
+          <div class="acts">
+            <button type="button" class="st-btn g sm" :disabled="restoring" @click="restoreInput?.click()">
+              <template v-if="restoring">{{ restorePct !== null && restorePct < 1 ? `${Math.round(restorePct * 100)}%` : t('studio.data.restoring') }}</template>
+              <template v-else>{{ t('studio.data.restoreFrom') }}</template>
+            </button>
+          </div>
+          <span v-if="restorePct !== null" class="bar"><i :style="{ width: `${Math.round(restorePct * 100)}%` }" /></span>
         </div>
         <div class="mc">
           <span class="ic"><SIcon name="markdown" :size="20" /></span>
           <div><b>{{ t('studio.data.export') }}</b><small>{{ t('studio.data.exportSub') }}</small></div>
-          <button type="button" class="st-btn g sm st-tip" :data-tip="t('studio.data.soonTip')" disabled>{{ t('studio.data.exportBtn') }}</button>
+          <label class="opt"><StSwitch v-model="exportMedia" />{{ t('studio.data.exportMedia') }}</label>
+          <div class="acts">
+            <button type="button" class="st-btn g sm" :disabled="exporting" @click="exportMd">
+              <SIcon name="download" :size="16" />{{ exporting ? t('studio.data.exporting') : t('studio.data.exportBtn') }}
+            </button>
+          </div>
         </div>
         <div class="mc">
           <span class="ic"><SIcon name="layers" :size="20" /></span>
           <div><b>{{ t('studio.data.import') }}</b><small>{{ t('studio.data.importSub') }}</small></div>
-          <button type="button" class="st-btn g sm st-tip" :data-tip="t('studio.data.soonTip')" disabled>{{ t('studio.data.importBtn') }}</button>
+          <label class="opt"><StSwitch v-model="importDraft" /><span>{{ t('studio.data.importDraft') }}<em>{{ t('studio.data.importDraftSub') }}</em></span></label>
+          <div class="acts">
+            <button type="button" class="st-btn g sm" :disabled="!!importBusy" @click="folderInput?.click()">
+              <template v-if="importBusy">{{ importPct < 1 ? `${Math.round(importPct * 100)}%` : importBusy === 'scan' ? t('studio.data.importScanning') : t('studio.data.importing') }}</template>
+              <template v-else>{{ t('studio.data.importFolder') }}</template>
+            </button>
+            <button type="button" class="st-btn g sm" :disabled="!!importBusy" @click="zipInput?.click()">{{ t('studio.data.importZip') }}</button>
+          </div>
+          <span v-if="importBusy" class="bar"><i :style="{ width: `${Math.round(importPct * 100)}%` }" /></span>
         </div>
       </div>
     </div>
+
+    <input ref="restoreInput" type="file" accept=".zip" hidden @change="onRestoreFile" />
+    <input ref="folderInput" type="file" webkitdirectory multiple hidden @change="onImportPick" />
+    <input ref="zipInput" type="file" accept=".zip" hidden @change="onImportPick" />
+
+    <!-- 导入预览 -->
+    <StModal :open="!!preview" wide panel-class="imp" @close="preview = null">
+      <template v-if="preview">
+        <h3>{{ t('studio.data.importTitle', { platform: t(`studio.data.platform.${preview.platform}`), n: importable }) }}</h3>
+        <p>{{ t('studio.data.importPreviewSub') }}</p>
+        <div class="imp-list">
+          <div v-for="it in preview.items" :key="it.file" class="ir" :class="{ skip: it.reason }">
+            <div class="tt">
+              <b>{{ it.title || it.file }}</b>
+              <small class="mono">{{ it.reason ? it.file : `/${it.slug}` }}</small>
+            </div>
+            <span v-if="it.reason" class="why">{{ t(`studio.data.importSkip.${it.reason}`) }}</span>
+            <span v-else class="st-badge" :class="`st-${it.status}`"><i class="st-dot" />{{ t(`studio.data.st.${it.status}`) }}</span>
+          </div>
+        </div>
+        <div class="ft">
+          <button type="button" class="st-btn g" @click="preview = null">{{ t('studio.cancel') }}</button>
+          <button type="button" class="st-btn p" :disabled="!importable || !!importBusy" @click="runImport">
+            {{ importBusy === 'run' ? (importPct < 1 ? `${Math.round(importPct * 100)}%` : t('studio.data.importing')) : t('studio.data.importGo', { n: importable }) }}
+          </button>
+        </div>
+      </template>
+    </StModal>
   </section>
 </template>
 
@@ -322,7 +513,44 @@ onBeforeUnmount(() => window.clearInterval(timer));
   .ic { width: 44px; height: 44px; border-radius: var(--r-md); display: grid; place-items: center; background: var(--well); color: var(--st-ink-2); }
   b { display: block; font: 700 17px/1.35 var(--font-serif); margin-bottom: 4px; }
   small { font-size: 13.5px; color: var(--st-ink-3); line-height: 1.6; }
-  .st-btn { align-self: flex-start; margin-top: auto; }
+  .acts { display: flex; gap: 8px; margin-top: auto; }
+
+  .opt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--st-ink-2);
+    cursor: pointer;
+
+    em { display: block; font-style: normal; font-size: 12px; color: var(--st-ink-4); }
+  }
+
+  .bar { height: 4px; border-radius: var(--r-pill); background: var(--well-2); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--ink); transition: width var(--dur-fast); }
+}
+
+:global(.st-modal.imp) { width: min(720px, calc(100vw - 32px)); }
+
+.imp-list {
+  max-height: min(52vh, 520px);
+  overflow: auto;
+  margin: 0 -8px;
+  padding: 0 8px;
+
+  .ir {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--line);
+
+    &.skip { opacity: 0.55; }
+    .tt { flex: 1; min-width: 0; }
+    b { display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    small { font-size: 12px; color: var(--st-ink-3); }
+    .why { font-size: 12.5px; color: var(--st-ink-3); }
+  }
 }
 
 @media (max-width: 1180px) {
