@@ -38,6 +38,8 @@ export interface Note {
   mood: string;
   images: string[];
   pinned: boolean;
+  /** 已隐藏（仅后台列表里出现） */
+  hidden?: boolean;
   createdAt: string;
 }
 
@@ -70,7 +72,12 @@ export interface NoteList {
 
 export interface AdminPost extends Post {
   status: 'published' | 'draft';
+  /** 已隐藏：前台不可见 */
+  hidden?: boolean;
 }
+
+/** 批量操作：隐藏 / 取消隐藏 / 删除 */
+export type BatchAction = 'hide' | 'show' | 'delete';
 
 const BASE = '/api/v1';
 
@@ -183,8 +190,11 @@ export const api = {
   notes: (params: {
     page?: number; pageSize?: number; q?: string; media?: boolean;
     from?: string; to?: string;
+    /** 后台：连同隐藏的一起列出（需站长会话） */
+    all?: boolean;
   } = {}) => {
     const query = new URLSearchParams();
+    if (params.all) query.set('all', '1');
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
     if (params.q) query.set('q', params.q);
@@ -226,6 +236,10 @@ export const adminApi = {
     authed<{ id: number }>('/admin/posts', { method: 'POST', body: JSON.stringify(draft) }),
   updatePost: (id: number, draft: PostDraft) =>
     authed<{ ok: boolean }>(`/admin/posts/${id}`, { method: 'PUT', body: JSON.stringify(draft) }),
+  batchPosts: (ids: number[], action: BatchAction) =>
+    authed<{ affected: number }>('/admin/posts/batch', { method: 'POST', body: JSON.stringify({ ids, action }) }),
+  batchNotes: (ids: number[], action: BatchAction) =>
+    authed<{ affected: number }>('/admin/notes/batch', { method: 'POST', body: JSON.stringify({ ids, action }) }),
   deletePost: (id: number) =>
     authed<{ ok: boolean }>(`/admin/posts/${id}`, { method: 'DELETE' }),
   createNote: (note: NoteDraft) =>

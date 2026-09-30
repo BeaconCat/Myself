@@ -109,6 +109,9 @@ CREATE TABLE IF NOT EXISTS media (
 		`ALTER TABLE media ADD COLUMN compressed_from TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE media ADD COLUMN compressed_before INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE media ADD COLUMN compressed_at TEXT`,
+		// 隐藏：前台不可见（列表、详情、RSS、标签、互动一律排除），后台照常管理
+		`ALTER TABLE posts ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE notes ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return err
@@ -150,6 +153,8 @@ type Post struct {
 	UpdatedAt string   `json:"updatedAt"`
 	ContentMd *string  `json:"contentMd,omitempty"`
 	Status    string   `json:"status,omitempty"`
+	// Hidden 已隐藏（仅后台输出）
+	Hidden bool `json:"hidden,omitempty"`
 	// Author 协作作者署名；站长本人写的文章为空（前台用站点身份）
 	Author   *PostAuthor `json:"author,omitempty"`
 	AuthorID int64       `json:"-"`
@@ -176,9 +181,13 @@ type PostRow struct {
 	CreatedAt string
 	UpdatedAt string
 	AuthorID  int64
+	Hidden    int64
 }
 
-const postColumns = `id, slug, title, excerpt, content_md, covers, tags, status, pinned, created_at, updated_at, COALESCE(author_id, 0)`
+const postColumns = `id, slug, title, excerpt, content_md, covers, tags, status, pinned, created_at, updated_at, COALESCE(author_id, 0), hidden`
+
+// PublicPost 前台可见的文章：已发布且未隐藏。
+const PublicPost = `status = 'published' AND hidden = 0`
 
 // PostOpts 控制行 → API 对象的字段。
 type PostOpts struct {
@@ -206,6 +215,7 @@ func (r PostRow) ToPost(o PostOpts) Post {
 	}
 	if o.WithStatus {
 		p.Status = r.Status
+		p.Hidden = r.Hidden != 0
 	}
 	return p
 }
@@ -217,7 +227,7 @@ type scanner interface {
 func scanPost(s scanner) (PostRow, error) {
 	var r PostRow
 	err := s.Scan(&r.ID, &r.Slug, &r.Title, &r.Excerpt, &r.ContentMd, &r.Covers, &r.Tags,
-		&r.Status, &r.Pinned, &r.CreatedAt, &r.UpdatedAt, &r.AuthorID)
+		&r.Status, &r.Pinned, &r.CreatedAt, &r.UpdatedAt, &r.AuthorID, &r.Hidden)
 	return r, err
 }
 
@@ -258,12 +268,14 @@ type Note struct {
 	Mood      string   `json:"mood"`
 	Images    []string `json:"images"`
 	Pinned    *bool    `json:"pinned,omitempty"`
-	CreatedAt string   `json:"createdAt"`
+	// Hidden 已隐藏（前台查询本就排除，只会出现在后台列表里）
+	Hidden    bool   `json:"hidden,omitempty"`
+	CreatedAt string `json:"createdAt"`
 }
 
 // QueryNotes 执行 notes 查询；withPinned 控制是否输出 pinned 字段。
 func (db *DB) QueryNotes(tail string, withPinned bool, args ...any) ([]Note, error) {
-	rows, err := db.Query(`SELECT id, content_md, mood, images, pinned, created_at FROM notes `+tail, args...)
+	rows, err := db.Query(`SELECT id, content_md, mood, images, pinned, hidden, created_at FROM notes `+tail, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -272,11 +284,12 @@ func (db *DB) QueryNotes(tail string, withPinned bool, args ...any) ([]Note, err
 	for rows.Next() {
 		var n Note
 		var images string
-		var pinned int64
-		if err := rows.Scan(&n.ID, &n.ContentMd, &n.Mood, &images, &pinned, &n.CreatedAt); err != nil {
+		var pinned, hidden int64
+		if err := rows.Scan(&n.ID, &n.ContentMd, &n.Mood, &images, &pinned, &hidden, &n.CreatedAt); err != nil {
 			return nil, err
 		}
 		n.Images = ParseStrings(images)
+		n.Hidden = hidden != 0
 		if withPinned {
 			b := pinned != 0
 			n.Pinned = &b
@@ -319,7 +332,7 @@ type TagCount struct {
 func (db *DB) TagCounts() ([]TagCount, error) {
 	rows, err := db.Query(`SELECT je.value, COUNT(*) AS n, MAX(p.created_at) AS latest
 		FROM posts p, json_each(p.tags) je
-		WHERE p.status = 'published' AND json_valid(p.tags)
+		WHERE p.status = 'published' AND p.hidden = 0 AND json_valid(p.tags)
 		GROUP BY je.value ORDER BY latest DESC, n DESC`)
 	if err != nil {
 		return nil, err

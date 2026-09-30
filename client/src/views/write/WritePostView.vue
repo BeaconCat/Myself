@@ -737,6 +737,16 @@ onBeforeUnmount(() => {
         color: var(--ink);
       }
 
+      /* 右引号：跟在最后一段文字末尾，与左引号成对 */
+      > :last-child::after {
+        content: '\201D';
+        display: inline-block;
+        margin-left: 0.12em;
+        font: 700 1.6em/0 Georgia, 'Times New Roman', serif;
+        vertical-align: -0.42em;
+        color: var(--ink);
+      }
+
       p { margin: 0; }
     }
 

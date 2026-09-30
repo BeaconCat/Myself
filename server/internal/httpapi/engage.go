@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"myself/server/internal/auth"
+	"myself/server/internal/store"
 )
 
 // 互动：随想 / 文章的回应（喜欢、灵感、会心、共鸣，线性图标，不用 emoji）与评论数。
@@ -161,8 +162,8 @@ func (s *Server) engage(w http.ResponseWriter, r *http.Request) {
 
 // reactionTargets 可回应的对象 → 存在性校验（只能回应已公开的内容）。
 var reactionTargets = map[string]string{
-	"note":    `SELECT COUNT(*) FROM notes WHERE id = ?`,
-	"post":    `SELECT COUNT(*) FROM posts WHERE id = ? AND status = 'published'`,
+	"note":    `SELECT COUNT(*) FROM notes WHERE id = ? AND hidden = 0`,
+	"post":    `SELECT COUNT(*) FROM posts WHERE id = ? AND ` + store.PublicPost,
 	"comment": `SELECT COUNT(*) FROM comments WHERE id = ? AND status = 'approved'`,
 }
 
@@ -226,7 +227,12 @@ func (s *Server) toggleReaction(w http.ResponseWriter, r *http.Request) {
 // GET /notes/{id} 单条随想（详情页），附相邻两条的 id 便于上一条 / 下一条
 func (s *Server) getNote(w http.ResponseWriter, r *http.Request) {
 	id := pathID(r)
-	items, err := s.DB.QueryNotes(`WHERE id = ?`, false, id)
+	// 隐藏的随想前台 404；站长仍可打开（便于预览）
+	vis := " AND hidden = 0"
+	if s.isAdminReq(r) {
+		vis = ""
+	}
+	items, err := s.DB.QueryNotes(`WHERE id = ?`+vis, false, id)
 	if err != nil {
 		fail(w, err)
 		return
@@ -236,9 +242,9 @@ func (s *Server) getNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var prev, next int64
-	_ = s.DB.QueryRow(`SELECT id FROM notes WHERE created_at < ? OR (created_at = ? AND id < ?) ORDER BY created_at DESC, id DESC LIMIT 1`,
+	_ = s.DB.QueryRow(`SELECT id FROM notes WHERE hidden = 0 AND (created_at < ? OR (created_at = ? AND id < ?)) ORDER BY created_at DESC, id DESC LIMIT 1`,
 		items[0].CreatedAt, items[0].CreatedAt, id).Scan(&prev)
-	_ = s.DB.QueryRow(`SELECT id FROM notes WHERE created_at > ? OR (created_at = ? AND id > ?) ORDER BY created_at ASC, id ASC LIMIT 1`,
+	_ = s.DB.QueryRow(`SELECT id FROM notes WHERE hidden = 0 AND (created_at > ? OR (created_at = ? AND id > ?)) ORDER BY created_at ASC, id ASC LIMIT 1`,
 		items[0].CreatedAt, items[0].CreatedAt, id).Scan(&next)
 	writeJSON(w, http.StatusOK, map[string]any{"note": items[0], "older": prev, "newer": next})
 }

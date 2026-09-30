@@ -147,6 +147,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+p+"/admin/posts", staff(s.adminCreatePost))
 	mux.HandleFunc("PUT "+p+"/admin/posts/{id}", staff(s.adminUpdatePost))
 	mux.HandleFunc("DELETE "+p+"/admin/posts/{id}", staff(s.adminDeletePost))
+	mux.HandleFunc("POST "+p+"/admin/posts/batch", staff(s.adminBatchPosts))
+	mux.HandleFunc("POST "+p+"/admin/notes/batch", admin(s.adminBatchNotes))
 	mux.HandleFunc("POST "+p+"/admin/notes", admin(s.adminCreateNote))
 	mux.HandleFunc("PUT "+p+"/admin/notes/{id}", admin(s.adminUpdateNote))
 	mux.HandleFunc("DELETE "+p+"/admin/notes/{id}", admin(s.adminDeleteNote))

@@ -75,7 +75,7 @@ func (s *Server) resolveTarget(target, key string) (int64, bool) {
 	switch target {
 	case "post":
 		var id int64
-		err := s.DB.QueryRow(`SELECT id FROM posts WHERE slug = ? AND status = 'published'`, key).Scan(&id)
+		err := s.DB.QueryRow(`SELECT id FROM posts WHERE slug = ? AND `+store.PublicPost, key).Scan(&id)
 		return id, err == nil
 	case "note":
 		id, err := strconv.ParseInt(key, 10, 64)
@@ -83,7 +83,7 @@ func (s *Server) resolveTarget(target, key string) (int64, bool) {
 			return 0, false
 		}
 		var n int
-		_ = s.DB.QueryRow(`SELECT COUNT(*) FROM notes WHERE id = ?`, id).Scan(&n)
+		_ = s.DB.QueryRow(`SELECT COUNT(*) FROM notes WHERE id = ? AND hidden = 0`, id).Scan(&n)
 		return id, n > 0
 	case "guestbook":
 		return 0, true

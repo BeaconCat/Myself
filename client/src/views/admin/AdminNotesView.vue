@@ -1,21 +1,23 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { adminApi, api, thumbOf, type Note } from '../../api';
+import { adminApi, api, thumbOf, type BatchAction, type Note } from '../../api';
 import { useConfigStore } from '../../stores/config';
 import { useDialogStore } from '../../stores/dialog';
 import { render as renderMarkdown } from '../../utils/markdown';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
 import EmptyArt from './studio/EmptyArt.vue';
-import { Feather } from 'lucide';
+import { Check, Feather } from 'lucide';
+import Icon from '../../components/ui/Icon.vue';
+import BatchBar from './studio/BatchBar.vue';
 import NoteComposer from './studio/NoteComposer.vue';
 import { refreshCounts } from './studio/state';
 import { toast } from './studio/toast';
 import { WEEKDAYS, parseTime, ymd } from './studio/format';
 
-/** 随想：左栏输入框 + 按月分组的时间线（编辑 / 置顶 / 删除）；右栏概览统计条 + 近 6 月柱状图 */
+/** 随想：左栏输入框 + 按月分组的时间线（编辑 / 置顶 / 隐藏 / 删除，勾选后批量）；右栏概览统计条 + 近 6 月柱状图 */
 const { t } = useI18n();
 const router = useRouter();
 const config = useConfigStore();
@@ -33,7 +35,7 @@ const leaving = ref<Set<number>>(new Set());
 async function load(reset = true): Promise<void> {
   if (reset) page.value = 1;
   try {
-    const res = await api.notes({ page: page.value, pageSize: PAGE });
+    const res = await api.notes({ page: page.value, pageSize: PAGE, all: true });
     notes.value = reset ? res.items : [...notes.value, ...res.items];
     total.value = res.total;
   } catch {
@@ -148,14 +150,72 @@ async function onPublished(id: number): Promise<void> {
   void loadOverview();
 }
 
+/* ---------- 勾选与批量：日期下的勾选角标进入选择态，此后点卡片即勾选 ---------- */
+const picked = ref<Set<number>>(new Set());
+const picking = computed(() => picked.value.size > 0);
+
+function togglePick(note: Note): void {
+  const next = new Set(picked.value);
+  if (next.has(note.id)) next.delete(note.id);
+  else next.add(note.id);
+  picked.value = next;
+}
+
+function pickAll(): void {
+  picked.value = picked.value.size >= notes.value.length ? new Set() : new Set(notes.value.map((n) => n.id));
+}
+
+function onCard(note: Note, e: MouseEvent): void {
+  if (!picking.value || (e.target as HTMLElement).closest('button, a')) return;
+  togglePick(note);
+}
+
+/** 批量（或单条）隐藏 / 取消隐藏 / 删除；删除先确认 */
+async function batch(action: BatchAction, ids = [...picked.value]): Promise<void> {
+  if (!ids.length) return;
+  if (action === 'delete') {
+    const ok = await dialog.confirm({
+      title: t('studio.batch.deleteTitle', { n: ids.length }),
+      message: t('studio.batch.deleteBody'),
+      confirmText: t('studio.delete'),
+      danger: true,
+    });
+    if (!ok) return;
+  }
+  try {
+    const { affected } = await adminApi.batchNotes(ids, action);
+    const set = new Set(ids);
+    if (action === 'delete') {
+      notes.value = notes.value.filter((n) => !set.has(n.id));
+      total.value -= affected;
+    } else {
+      notes.value.forEach((n) => { if (set.has(n.id)) n.hidden = action === 'hide'; });
+    }
+    picked.value = new Set();
+    toast(t(`studio.batch.${action === 'hide' ? 'hiddenDone' : action === 'show' ? 'shownDone' : 'deletedDone'}`, { n: affected }), {
+      icon: action === 'delete' ? 'trash' : action === 'hide' ? 'eyeOff' : 'eye',
+    });
+    void refreshCounts();
+    void loadOverview();
+  } catch {
+    toast(t('studio.saveFailed'), { icon: 'x' });
+  }
+}
+
+function onKey(e: KeyboardEvent): void {
+  if (e.key === 'Escape' && picking.value) picked.value = new Set();
+}
+
 function edit(note: Note): void {
   void router.push({ name: 'admin-write-note', query: { id: String(note.id) } });
 }
 
 onMounted(() => {
+  window.addEventListener('keydown', onKey);
   void load();
   void loadOverview();
 });
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <template>
@@ -189,14 +249,15 @@ onMounted(() => {
           v-for="(it, i) in g.items"
           :key="it.note.id"
           class="tl-i st-rise"
-          :class="{ fresh: fresh === it.note.id, bye: leaving.has(it.note.id), pinned: it.note.pinned }"
+          :class="{ fresh: fresh === it.note.id, bye: leaving.has(it.note.id), pinned: it.note.pinned, on: picked.has(it.note.id), picking, hid: it.note.hidden }"
           :style="{ '--i': Math.min(i, 8) }"
         >
           <div class="d">
             <b class="mono">{{ it.day }}</b>
             <small>{{ it.week }}</small>
+            <span class="pk" :title="t('studio.batch.pick')" @click.stop="togglePick(it.note)"><span class="st-ck" :class="{ on: picked.has(it.note.id) }"><Icon :icon="Check" /></span></span>
           </div>
-          <div class="c">
+          <div class="c" @click="onCard(it.note, $event)">
             <!-- eslint-disable-next-line vue/no-v-html -->
             <div class="md" v-html="renderMarkdown(it.note.contentMd)" />
             <div v-if="it.note.images.length" class="imgs" :data-n="gridN(it.note.images.length)">
@@ -205,10 +266,14 @@ onMounted(() => {
             <div class="foot">
               <span v-if="it.note.mood" class="mood"><i class="st-dot" />{{ it.note.mood }}</span>
               <span v-if="it.note.pinned" class="pin"><SIcon name="pin" :size="16" />{{ t('studio.pinned') }}</span>
+              <span v-if="it.note.hidden" class="hid-tag" :title="t('studio.batch.hiddenHint')"><SIcon name="eyeOff" :size="15" />{{ t('studio.batch.hidden') }}</span>
               <span class="sp" />
               <span class="ops">
                 <button type="button" class="st-ibtn" :title="t('studio.edit')" @click="edit(it.note)"><SIcon name="pen" :size="18" /></button>
                 <button type="button" class="st-ibtn" :class="{ on: it.note.pinned }" :title="it.note.pinned ? t('studio.unpin') : t('studio.pin')" @click="togglePin(it.note)"><SIcon name="pin" :size="18" /></button>
+                <button type="button" class="st-ibtn" :title="it.note.hidden ? t('studio.batch.show') : t('studio.batch.hide')" @click="batch(it.note.hidden ? 'show' : 'hide', [it.note.id])">
+                  <SIcon :name="it.note.hidden ? 'eye' : 'eyeOff'" :size="18" />
+                </button>
                 <button type="button" class="st-ibtn" :title="t('studio.delete')" @click="remove(it.note)"><SIcon name="trash" :size="18" /></button>
               </span>
             </div>
@@ -220,6 +285,12 @@ onMounted(() => {
     <div v-if="notes.length < total" class="more">
       <button type="button" class="st-btn g" :disabled="loadingMore" @click="more">{{ loadingMore ? t('studio.loading') : t('studio.loadMore') }}</button>
     </div>
+
+    <BatchBar :show="picking" :count="picked.size" :total="notes.length" @all="pickAll" @clear="picked = new Set()">
+      <button type="button" class="st-btn sm" @click="batch('hide')"><SIcon name="eyeOff" :size="16" />{{ t('studio.batch.hide') }}</button>
+      <button type="button" class="st-btn sm" @click="batch('show')"><SIcon name="eye" :size="16" />{{ t('studio.batch.show') }}</button>
+      <button type="button" class="st-btn sm danger" @click="batch('delete')"><SIcon name="trash" :size="16" />{{ t('studio.delete') }}</button>
+    </BatchBar>
     </div>
 
     <aside class="side">
@@ -422,6 +493,26 @@ onMounted(() => {
 
   &:hover .ops, .ops:focus-within { opacity: 1; transform: none; }
 
+  /* 勾选角标：在日期下方，悬停浮现，选择态常显 */
+  .pk {
+    display: flex;
+    width: fit-content;
+    margin: 8px 0 0 auto;
+    padding: 2px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--dur-fast);
+  }
+
+  &:hover .pk, &.picking .pk { opacity: 1; }
+  &.picking .c { cursor: pointer; }
+  &.on .c { background: var(--tint); }
+
+  /* 已隐藏：正文与配图褪色 */
+  &.hid .md, &.hid .imgs { opacity: 0.5; }
+
+  .hid-tag { display: inline-flex; align-items: center; gap: 6px; }
+
   &.fresh .c { animation: fresh 1.6s var(--ease-out); }
   &.bye { animation: collapse 0.45s var(--ease-out) forwards; overflow: hidden; }
 }
@@ -430,6 +521,7 @@ onMounted(() => {
 @keyframes collapse { 40% { opacity: 0; transform: translateX(20px); } 100% { opacity: 0; max-height: 0; padding: 0; } }
 
 .more { display: flex; justify-content: center; margin-top: 24px; }
+
 
 @media (max-width: 1180px) {
   .view { padding: 28px 32px 64px; }

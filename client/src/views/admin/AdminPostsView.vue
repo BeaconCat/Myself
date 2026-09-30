@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { adminApi, thumbOf, type AdminPost } from '../../api';
+import { adminApi, thumbOf, type AdminPost, type BatchAction } from '../../api';
 import { useDialogStore } from '../../stores/dialog';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
@@ -10,25 +10,27 @@ import StSeg from './studio/StSeg.vue';
 import PopMenu from './studio/PopMenu.vue';
 import LightCover from './studio/LightCover.vue';
 import EmptyArt from './studio/EmptyArt.vue';
-import { FilePen } from 'lucide';
+import { Check, FilePen } from 'lucide';
+import Icon from '../../components/ui/Icon.vue';
+import BatchBar from './studio/BatchBar.vue';
 import { refreshCounts } from './studio/state';
 import { toast } from './studio/toast';
 import { dateText, relTime } from './studio/format';
 import type { MenuItem } from './studio/types';
 
-/** 文章：网格 / 列表，状态筛选，搜索，置顶，删除 */
+/** 文章：网格 / 列表，状态筛选，搜索，置顶，隐藏，删除；勾选后批量隐藏 / 取消隐藏 / 删除 */
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const dialog = useDialogStore();
 
-type Filter = 'all' | 'published' | 'draft' | 'pinned';
+type Filter = 'all' | 'published' | 'draft' | 'pinned' | 'hidden';
 type Layout = 'grid' | 'list';
 
 const LAYOUT_KEY = 'myself.studio.postsLayout';
 const posts = ref<AdminPost[]>([]);
 const loaded = ref(false);
-const filter = ref<Filter>(['published', 'draft', 'pinned'].includes(String(route.query.status)) ? (route.query.status as Filter) : 'all');
+const filter = ref<Filter>(['published', 'draft', 'pinned', 'hidden'].includes(String(route.query.status)) ? (route.query.status as Filter) : 'all');
 const query = ref('');
 const layout = ref<Layout>((() => {
   try {
@@ -58,18 +60,71 @@ const counts = computed(() => ({
   published: posts.value.filter((p) => p.status === 'published').length,
   draft: posts.value.filter((p) => p.status === 'draft').length,
   pinned: posts.value.filter((p) => p.pinned).length,
+  hidden: posts.value.filter((p) => p.hidden).length,
 }));
 
 const list = computed(() => {
   const q = query.value.trim().toLowerCase();
   return posts.value.filter((p) => {
-    if (filter.value === 'pinned' ? !p.pinned : filter.value !== 'all' && p.status !== filter.value) return false;
+    if (filter.value === 'pinned') {
+      if (!p.pinned) return false;
+    } else if (filter.value === 'hidden') {
+      if (!p.hidden) return false;
+    } else if (filter.value !== 'all' && p.status !== filter.value) return false;
     if (!q) return true;
     return `${p.title} ${p.excerpt} ${p.tags.join(' ')} ${p.slug}`.toLowerCase().includes(q);
   });
 });
 
-const FILTERS: Filter[] = ['all', 'published', 'draft', 'pinned'];
+const FILTERS: Filter[] = ['all', 'published', 'draft', 'pinned', 'hidden'];
+
+/* ---------- 勾选与批量：勾选角标进入选择态，此后点卡片即勾选 ---------- */
+const picked = ref<Set<number>>(new Set());
+const picking = computed(() => picked.value.size > 0);
+watch(filter, () => { picked.value = new Set(); });
+
+function togglePick(p: AdminPost): void {
+  const next = new Set(picked.value);
+  if (next.has(p.id)) next.delete(p.id);
+  else next.add(p.id);
+  picked.value = next;
+}
+
+function pickAll(): void {
+  picked.value = picked.value.size >= list.value.length ? new Set() : new Set(list.value.map((p) => p.id));
+}
+
+function open(p: AdminPost): void {
+  if (picking.value) togglePick(p);
+  else edit(p);
+}
+
+/** 批量（或单篇）隐藏 / 取消隐藏 / 删除；删除先确认 */
+async function batch(action: BatchAction, ids = [...picked.value]): Promise<void> {
+  if (!ids.length) return;
+  if (action === 'delete') {
+    const ok = await dialog.confirm({
+      title: t('studio.batch.deleteTitle', { n: ids.length }),
+      message: t('studio.batch.deleteBody'),
+      confirmText: t('studio.delete'),
+      danger: true,
+    });
+    if (!ok) return;
+  }
+  try {
+    const { affected } = await adminApi.batchPosts(ids, action);
+    const set = new Set(ids);
+    if (action === 'delete') posts.value = posts.value.filter((p) => !set.has(p.id));
+    else posts.value.forEach((p) => { if (set.has(p.id)) p.hidden = action === 'hide'; });
+    picked.value = new Set();
+    toast(t(`studio.batch.${action === 'hide' ? 'hiddenDone' : action === 'show' ? 'shownDone' : 'deletedDone'}`, { n: affected }), {
+      icon: action === 'delete' ? 'trash' : action === 'hide' ? 'eyeOff' : 'eye',
+    });
+    void refreshCounts();
+  } catch {
+    toast(t('studio.saveFailed'), { icon: 'x' });
+  }
+}
 
 function edit(p: AdminPost): void {
   void router.push({ name: 'admin-write-post', query: { id: String(p.id) } });
@@ -118,7 +173,8 @@ function menu(p: AdminPost): MenuItem[] {
     { icon: 'pen', label: t('studio.edit'), run: () => edit(p) },
     { icon: 'pin', label: p.pinned ? t('studio.unpin') : t('studio.pin'), run: () => void togglePin(p) },
   ];
-  if (p.status === 'published') {
+  items.push({ icon: p.hidden ? 'eye' : 'eyeOff', label: p.hidden ? t('studio.batch.show') : t('studio.batch.hide'), run: () => void batch(p.hidden ? 'show' : 'hide', [p.id]) });
+  if (p.status === 'published' && !p.hidden) {
     items.push({ icon: 'external', label: t('studio.posts.openSite'), run: () => window.open(`/articles/${encodeURIComponent(p.slug)}`, '_blank', 'noopener') });
   }
   items.push({ icon: 'trash', label: t('studio.delete'), danger: true, divider: true, run: () => void remove(p) });
@@ -128,6 +184,7 @@ function menu(p: AdminPost): MenuItem[] {
 /* 键盘：/ 聚焦搜索 */
 const searchEl = ref<HTMLInputElement | null>(null);
 function onKey(e: KeyboardEvent): void {
+  if (e.key === 'Escape' && picking.value) picked.value = new Set();
   const el = document.activeElement as HTMLElement | null;
   if (el && (/INPUT|TEXTAREA|SELECT/.test(el.tagName) || el.isContentEditable)) return;
   if (e.key === '/') {
@@ -189,10 +246,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         v-for="(p, i) in list"
         :key="p.id"
         class="pcard st-rise"
+        :class="{ on: picked.has(p.id), picking, hid: p.hidden }"
         :style="{ '--i': Math.min(i, 12) }"
-        @click="edit(p)"
+        @click="open(p)"
       >
         <LightCover class="pcv" :src="p.covers[0] ? thumbOf(p.covers[0]) : ''" :seed="p.slug">
+          <span class="pk" :title="t('studio.batch.pick')" @click.stop="togglePick(p)"><span class="st-ck" :class="{ on: picked.has(p.id) }"><Icon :icon="Check" /></span></span>
           <span v-if="p.pinned" class="pin" :title="t('studio.pinned')"><SIcon name="pin" :size="16" /></span>
         </LightCover>
         <div class="bd">
@@ -200,6 +259,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <p>{{ p.excerpt || t('studio.posts.noExcerpt') }}</p>
           <div class="meta">
             <span class="st-badge" :class="`st-${p.status}`"><i class="st-dot" />{{ t(`studio.status.${p.status}`) }}</span>
+            <span v-if="p.hidden" class="hid-tag" :title="t('studio.batch.hiddenHint')"><SIcon name="eyeOff" :size="14" />{{ t('studio.batch.hidden') }}</span>
             <span class="mono">{{ dateText(p.createdAt) }}</span>
             <span class="tags"><span v-for="tag in p.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span></span>
             <span class="more" @click.stop><PopMenu :items="menu(p)" /></span>
@@ -222,21 +282,33 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         v-for="(p, i) in list"
         :key="p.id"
         class="prow st-rise"
+        :class="{ on: picked.has(p.id), picking, hid: p.hidden }"
         :style="{ '--i': Math.min(i, 12) }"
-        @click="edit(p)"
+        @click="open(p)"
       >
-        <LightCover class="rcv" :src="p.covers[0] ? thumbOf(p.covers[0]) : ''" :seed="p.slug" />
+        <LightCover class="rcv" :src="p.covers[0] ? thumbOf(p.covers[0]) : ''" :seed="p.slug">
+          <span class="pk" :title="t('studio.batch.pick')" @click.stop="togglePick(p)"><span class="st-ck" :class="{ on: picked.has(p.id) }"><Icon :icon="Check" /></span></span>
+        </LightCover>
         <div class="tt">
           <h3><SIcon v-if="p.pinned" name="pin" :size="16" class="pin-i" />{{ p.title || t('studio.untitled') }}</h3>
           <small>/{{ p.slug }}</small>
         </div>
         <span class="tags"><span v-for="tag in p.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span></span>
-        <span><span class="st-badge" :class="`st-${p.status}`"><i class="st-dot" />{{ t(`studio.status.${p.status}`) }}</span></span>
+        <span class="stc">
+          <span class="st-badge" :class="`st-${p.status}`"><i class="st-dot" />{{ t(`studio.status.${p.status}`) }}</span>
+          <span v-if="p.hidden" class="hid-tag" :title="t('studio.batch.hiddenHint')"><SIcon name="eyeOff" :size="14" />{{ t('studio.batch.hidden') }}</span>
+        </span>
         <span class="num">{{ dateText(p.createdAt) }}</span>
         <span class="num">{{ relTime(p.updatedAt || p.createdAt) }}</span>
         <span @click.stop><PopMenu :items="menu(p)" /></span>
       </div>
     </div>
+
+    <BatchBar :show="picking" :count="picked.size" :total="list.length" @all="pickAll" @clear="picked = new Set()">
+      <button type="button" class="st-btn sm" @click="batch('hide')"><SIcon name="eyeOff" :size="16" />{{ t('studio.batch.hide') }}</button>
+      <button type="button" class="st-btn sm" @click="batch('show')"><SIcon name="eye" :size="16" />{{ t('studio.batch.show') }}</button>
+      <button type="button" class="st-btn sm danger" @click="batch('delete')"><SIcon name="trash" :size="16" />{{ t('studio.delete') }}</button>
+    </BatchBar>
   </section>
 </template>
 
@@ -373,6 +445,43 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
   &::before { content: '#'; color: var(--st-ink-4); margin-right: 2px; }
 }
+
+/* 勾选角标：悬停浮现，进入选择态后常显；已选卡片描边 */
+.pk {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 3;
+  padding: 3px;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+
+  .st-ck { width: 20px; height: 20px; background: rgba(0, 0, 0, 0.18); box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.92) inset, 0 1px 4px rgba(0, 0, 0, 0.25); }
+  .st-ck.on { background: var(--solid); box-shadow: 0 0 0 1.5px var(--solid) inset; }
+}
+
+.pcard:hover .pk, .prow:hover .pk, .picking .pk { opacity: 1; transform: none; }
+.pcard.on { box-shadow: 0 0 0 2px var(--ink), var(--sh-card-hover); }
+.prow.on { background: var(--tint); }
+.prow .rcv .pk { left: 4px; top: 4px; padding: 0; }
+.prow .rcv .pk .st-ck { width: 18px; height: 18px; }
+
+/* 已隐藏：封面褪色，标题降一级 */
+.pcard.hid .pcv, .prow.hid .rcv { filter: grayscale(0.7) opacity(0.6); }
+.pcard.hid h3, .prow.hid h3 { color: var(--st-ink-3); }
+
+.hid-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--st-ink-3);
+  white-space: nowrap;
+}
+
+.stc { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+
 
 $cols: 96px minmax(0, 1fr) 150px 96px 100px 92px 38px;
 

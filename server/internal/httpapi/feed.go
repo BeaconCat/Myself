@@ -69,7 +69,7 @@ func (s *Server) siteBase(r *http.Request) string {
 
 // GET /feed RSS 订阅源
 func (s *Server) rssFeed(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.DB.QueryPosts(`WHERE status = 'published' ORDER BY created_at DESC LIMIT 20`)
+	rows, err := s.DB.QueryPosts(`WHERE ` + store.PublicPost + ` ORDER BY created_at DESC LIMIT 20`)
 	if err != nil {
 		fail(w, err)
 		return

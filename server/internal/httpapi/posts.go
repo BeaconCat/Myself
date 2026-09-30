@@ -1,9 +1,9 @@
 package httpapi
 
 import (
-	"log"
 	"fmt"
 	"html"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -41,7 +41,7 @@ func (s *Server) listPosts(w http.ResponseWriter, r *http.Request) {
 	tag := r.URL.Query().Get("tag")
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 
-	where := []string{"status = 'published'"}
+	where := []string{store.PublicPost}
 	var args []any
 	if tag != "" {
 		// tags 为 JSON 数组文本，用引号包裹精确匹配单个标签
@@ -73,7 +73,7 @@ func (s *Server) listPosts(w http.ResponseWriter, r *http.Request) {
 
 // GET /posts/{slug} 文章详情（含 Markdown 正文）
 func (s *Server) getPost(w http.ResponseWriter, r *http.Request) {
-	row, err := s.DB.GetPost(`WHERE slug = ? AND status = 'published'`, r.PathValue("slug"))
+	row, err := s.DB.GetPost(`WHERE slug = ? AND `+store.PublicPost, r.PathValue("slug"))
 	if err != nil {
 		fail(w, err)
 		return
@@ -97,7 +97,7 @@ func (s *Server) hero(w http.ResponseWriter, _ *http.Request) {
 	if hero.PinnedRule == "pinned-first" {
 		order = "pinned DESC, created_at DESC"
 	}
-	rows, err := s.DB.QueryPosts(`WHERE status = 'published' ORDER BY `+order+` LIMIT ?`, count)
+	rows, err := s.DB.QueryPosts(`WHERE `+store.PublicPost+` ORDER BY `+order+` LIMIT ?`, count)
 	if err != nil {
 		fail(w, err)
 		return
@@ -132,6 +132,10 @@ func (s *Server) listNotes(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(qs.Get("q"))
 
 	where := []string{"1=1"}
+	// 隐藏的随想只在后台（站长带 all=1）列出
+	if qs.Get("all") != "1" || !s.isAdminReq(r) {
+		where = append(where, "hidden = 0")
+	}
 	var args []any
 	if q != "" {
 		where = append(where, `(content_md LIKE ? ESCAPE '\' OR mood LIKE ? ESCAPE '\')`)
