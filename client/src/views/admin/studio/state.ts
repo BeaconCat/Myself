@@ -11,7 +11,7 @@ export const studio = reactive({
 
 export async function refreshCounts(): Promise<void> {
   try {
-    const [posts, notes] = await Promise.all([adminApi.posts(), api.notes({ pageSize: 1 })]);
+    const [posts, notes] = await Promise.all([adminApi.posts(), api.notes({ pageSize: 1, all: true })]);
     studio.posts = posts.length;
     studio.drafts = posts.filter((p) => p.status === 'draft').length;
     studio.notes = notes.total;
