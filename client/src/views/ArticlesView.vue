@@ -59,7 +59,7 @@ const tagMax = computed(() => Math.max(1, ...tags.value.map((tg) => tg.count)));
 let seq = 0;
 
 function params(page: number) {
-  return { page, pageSize: PAGE_SIZE, tag: activeTag.value || undefined, q: keyword.value.trim() || undefined };
+  return { page, pageSize: PAGE_SIZE, tag: activeTag.value || undefined, q: keyword.value.trim() || undefined, pinnedFirst: true };
 }
 
 async function reload(): Promise<void> {
@@ -73,10 +73,7 @@ async function reload(): Promise<void> {
     total.value = res.total;
     pageNo.value = 1;
     listSeq.value += 1;
-    if (!activeTag.value && !keyword.value.trim()) {
-      allTotal.value = res.total;
-      latestAt.value = res.items[0]?.createdAt ?? '';
-    }
+    if (!activeTag.value && !keyword.value.trim()) allTotal.value = res.total;
   } catch {
     if (my === seq) failed.value = true;
   } finally {
@@ -88,7 +85,7 @@ async function reload(): Promise<void> {
 }
 
 async function loadStats(): Promise<void> {
-  if (allTotal.value) return;
+  if (latestAt.value) return;
   const all = await api.posts({ pageSize: 1 }).catch(() => null);
   if (!all) return;
   allTotal.value = all.total;
@@ -144,11 +141,12 @@ interface Group { key: string; label: string; count: number; items: { post: Post
 const groups = computed<Group[]>(() => {
   const out: Group[] = [];
   posts.value.forEach((p, i) => {
-    const key = p.createdAt.slice(0, 7);
+    // 置顶文章（接口排在最前）单独成组；其余按站点时区的年月分组
+    const { y, m } = ymdOf(p.createdAt);
+    const key = p.pinned ? 'pinned' : `${y}-${m}`;
     let g = out[out.length - 1];
     if (!g || g.key !== key) {
-      const { y, m } = ymdOf(p.createdAt);
-      g = { key, label: t('content.articles.month', { y, m }), count: 0, items: [] };
+      g = { key, label: p.pinned ? t('content.articles.pinned') : t('content.articles.month', { y, m }), count: 0, items: [] };
       out.push(g);
     }
     g.count += 1;
@@ -236,13 +234,14 @@ onBeforeUnmount(() => {
             v-model="keyword"
             type="search"
             :placeholder="t('articles.searchPlaceholder')"
+            :aria-label="t('a11y.searchArticles')"
             @input="onSearch"
             @keydown.esc="($event.target as HTMLInputElement).blur()"
           />
-          <kbd>/</kbd>
+          <kbd aria-hidden="true">/</kbd>
         </label>
         <div class="chips">
-          <button class="chip" :class="{ on: !activeTag }" @click="pickTag('')">
+          <button class="chip" :class="{ on: !activeTag }" :aria-pressed="!activeTag" :aria-label="allTotal ? t('a11y.withCount', { label: t('articles.all'), n: allTotal }) : undefined" @click="pickTag('')">
             {{ t('articles.all') }}<em v-if="allTotal">{{ allTotal }}</em>
           </button>
           <button
@@ -250,6 +249,8 @@ onBeforeUnmount(() => {
             :key="tg.name"
             class="chip"
             :class="{ on: activeTag === tg.name }"
+            :aria-pressed="activeTag === tg.name"
+            :aria-label="t('a11y.withCount', { label: tg.name, n: tg.count })"
             @click="pickTag(tg.name)"
           >
             {{ tg.name }}<em>{{ tg.count }}</em>
@@ -323,6 +324,8 @@ onBeforeUnmount(() => {
                 :key="tg.name"
                 type="button"
                 :class="{ on: activeTag === tg.name }"
+                :aria-pressed="activeTag === tg.name"
+                :aria-label="t('a11y.withCount', { label: tg.name, n: tg.count })"
                 @click="pickTag(activeTag === tg.name ? '' : tg.name)"
               >
                 <span class="nm">{{ tg.name }}</span>

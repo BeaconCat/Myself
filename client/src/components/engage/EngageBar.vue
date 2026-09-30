@@ -5,6 +5,7 @@ import type { EngageTarget, ReactionKind } from '../../api';
 import { useConfigStore } from '../../stores/config';
 import { useEngageStore } from '../../stores/engage';
 import EngageIcon from './EngageIcon.vue';
+import { copyText as writeClipboard } from '../../utils/clipboard';
 
 /**
  * 互动栏：喜欢 · 评论数 · 回应（灵感 / 会心 / 共鸣，点开小浮层挑选；已有的回应以小胶囊显示计数）· 分享 · 复制正文。
@@ -61,15 +62,17 @@ async function share(): Promise<void> {
       return;
     } catch { /* 用户取消时退回复制 */ }
   }
-  await navigator.clipboard?.writeText(url).catch(() => undefined);
+  await writeClipboard(url);
   flash('share');
 }
 async function copyText(): Promise<void> {
-  await navigator.clipboard?.writeText(props.text ?? '').catch(() => undefined);
+  await writeClipboard(props.text ?? '');
   flash('copy');
 }
 
 const n = (v: number | undefined) => (v && v > 0 ? String(v) : '');
+/** 可访问名称：「喜欢 · 3」，没有计数时只读动作名 */
+const countLabel = (label: string, v: number | undefined) => (v && v > 0 ? t('a11y.withCount', { label, n: v }) : label);
 </script>
 
 <template>
@@ -80,13 +83,14 @@ const n = (v: number | undefined) => (v && v > 0 ? String(v) : '');
       class="b like"
       :class="{ on: mine('like'), pop: popped === 'like' }"
       :aria-pressed="mine('like')"
+      :aria-label="countLabel(t('engage.like'), sum.reactions.like)"
       :title="t('engage.like')"
       @click="toggle('like')"
     >
       <EngageIcon name="like" :filled="mine('like')" /><span>{{ n(sum.reactions.like) }}</span>
     </button>
 
-    <button v-if="commentsOn" type="button" class="b" :title="t('engage.comment')" @click="emit('comment')">
+    <button v-if="commentsOn" type="button" class="b" :title="t('engage.comment')" :aria-label="countLabel(t('engage.comment'), sum.comments)" @click="emit('comment')">
       <EngageIcon name="comment" /><span>{{ n(sum.comments) }}</span>
     </button>
 
@@ -98,6 +102,8 @@ const n = (v: number | undefined) => (v && v > 0 ? String(v) : '');
         class="chip"
         :class="{ on: mine(k), pop: popped === k }"
         :title="t(`engage.${k}`)"
+        :aria-pressed="mine(k)"
+        :aria-label="countLabel(t(`engage.${k}`), sum.reactions[k])"
         @click="toggle(k)"
       >
         <EngageIcon :name="k" :size="15" /><span>{{ sum.reactions[k] }}</span>

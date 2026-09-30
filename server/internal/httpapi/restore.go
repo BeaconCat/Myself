@@ -378,7 +378,12 @@ func (s *Server) runRestore(w http.ResponseWriter, zipPath string) {
 		log.Printf("[restore] rotate secret: %v", err)
 	}
 	log.Printf("[restore] restored from %s (safety backup %s)", filepath.Base(zipPath), safety)
-	writeJSON(w, http.StatusOK, map[string]string{"safety": safety})
+	// 附上安全备份的信息：恢复后会话失效，前端无法再拉列表，直接把它插进列表里
+	resp := map[string]any{"safety": safety}
+	if info, err := os.Stat(filepath.Join(s.BackupDir, safety)); err == nil {
+		resp["backup"] = backupInfo{Name: safety, Size: info.Size(), CreatedAt: isoTime(info.ModTime())}
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // POST /admin/backups/{name}/restore 从已有备份恢复

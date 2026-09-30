@@ -18,9 +18,9 @@ import (
 
 var backupNameRe = regexp.MustCompile(`^backup-[\d-]+\.zip$`)
 
-func backupTimestamp() string {
-	// 与旧实现一致：ISO 时间去掉 [:T] → 2026-07-10-18-28-22
-	return time.Now().UTC().Format("2006-01-02-15-04-05")
+// backupTimestamp 备份文件名里的时间：按站点时区（与后台列表显示的时间一致），形如 2026-07-10-18-28-22
+func (s *Server) backupTimestamp() string {
+	return time.Now().In(s.siteLocation()).Format("2006-01-02-15-04-05")
 }
 
 // createBackup 全站备份：数据库（文章/随想/用户/配置） + 上传素材（含原图备份）。
@@ -67,7 +67,7 @@ func (s *Server) createBackupWith(prune bool) (string, error) {
 
 // newBackupFile 新建一个备份文件；同一秒内多次（如恢复前的安全备份、上传的备份包）追加序号避免重名
 func (s *Server) newBackupFile() (string, *os.File, error) {
-	stamp := backupTimestamp()
+	stamp := s.backupTimestamp()
 	name := "backup-" + stamp + ".zip"
 	out, err := os.OpenFile(filepath.Join(s.BackupDir, name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	for i := 1; err != nil && os.IsExist(err) && i < 100; i++ {
@@ -219,19 +219,38 @@ func (s *Server) deleteBackup(w http.ResponseWriter, r *http.Request) {
 // keepBackups 保留最近的备份份数，更早的自动清理。
 const keepBackups = 20
 
-// pruneBackups 按文件名（时间戳）排序，只保留最近 keep 份。
+// pruneBackups 按生成时间（文件修改时间）排序，只保留最近 keep 份。
+// 不按文件名排：文件名里的时间随站点时区变化（改时区、夏令时）不再单调。
 func (s *Server) pruneBackups(keep int) {
 	entries, err := os.ReadDir(s.BackupDir)
 	if err != nil {
 		return
 	}
-	var names []string
-	for _, e := range entries {
-		if !e.IsDir() && backupNameRe.MatchString(e.Name()) {
-			names = append(names, e.Name())
-		}
+	type entry struct {
+		name string
+		at   time.Time
 	}
-	sort.Strings(names)
+	var list []entry
+	for _, e := range entries {
+		if e.IsDir() || !backupNameRe.MatchString(e.Name()) {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		list = append(list, entry{e.Name(), info.ModTime()})
+	}
+	sort.Slice(list, func(i, j int) bool {
+		if !list[i].at.Equal(list[j].at) {
+			return list[i].at.Before(list[j].at)
+		}
+		return list[i].name < list[j].name
+	})
+	names := make([]string, len(list))
+	for i, e := range list {
+		names[i] = e.name
+	}
 	for i := 0; i < len(names)-keep; i++ {
 		if err := os.Remove(filepath.Join(s.BackupDir, names[i])); err != nil {
 			log.Printf("[backup] prune %s: %v", names[i], err)

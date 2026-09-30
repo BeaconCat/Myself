@@ -92,7 +92,7 @@ func (s *Server) fileInfo(name string) (mediaItem, error) {
 	var folder string
 	err = s.DB.QueryRow(`SELECT crop_json, created_at, COALESCE(title, ''), COALESCE(folder, '') FROM media WHERE name = ?`, name).Scan(&cropJSON, &createdAt, &title, &folder)
 	if err == nil {
-		item.CreatedAt = createdAt
+		item.CreatedAt = mediaTime(createdAt, stat.ModTime())
 		item.Title = title
 		item.Folder = folder
 		if cropJSON.Valid && cropJSON.String != "" {
@@ -143,8 +143,24 @@ func (s *Server) listMedia(w http.ResponseWriter, _ *http.Request) {
 		}
 		items = append(items, item)
 	}
-	sort.SliceStable(items, func(i, j int) bool { return items[i].CreatedAt > items[j].CreatedAt })
+	// 同一时刻（如初始化时批量导入）按文件名兜底，保证顺序稳定
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].CreatedAt != items[j].CreatedAt {
+			return items[i].CreatedAt > items[j].CreatedAt
+		}
+		return items[i].Name > items[j].Name
+	})
 	writeJSON(w, http.StatusOK, items)
+}
+
+// mediaTime 素材的上传时间（ISO，UTC）：取记录时间与文件修改时间中较早的那个。
+// media 行可能晚于文件才建（首次裁切 / 移动 / 回退时才插入），这时文件时间才是真正的上传时间；
+// 两者格式不同（SQLite datetime 与 ISO），统一解析后再比较，避免按字符串排序错位。
+func mediaTime(recorded string, mod time.Time) string {
+	if t, err := time.ParseInLocation("2006-01-02 15:04:05", recorded, time.UTC); err == nil && t.Before(mod) {
+		return isoTime(t)
+	}
+	return isoTime(mod)
 }
 
 func randomFilename(ext string) string {

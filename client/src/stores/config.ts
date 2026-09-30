@@ -143,7 +143,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
   covers: { expandMs: 10000 },
   timezone: 'Asia/Shanghai',
   github: {
-    username: 'your-github',
+    username: '',
     mode: 'manual',
     refreshMinutes: 30,
     proxy: '',
@@ -163,9 +163,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
     mottoSign: '',
     status: { doing: '', city: '', tz: 8 },
     links: [
-      { name: 'GitHub', handle: '@your-github', icon: 'github', url: 'https://github.com/your-github', primary: true },
-      { name: '邮件', handle: 'hi@example.com', icon: 'mail', url: 'mailto:hi@example.com' },
-      { name: 'RSS', handle: '/feed', icon: 'rss', url: '/feed' },
+      { name: 'RSS', handle: '/feed', icon: 'rss', url: '/feed', primary: true },
     ],
     portrait: { src: '', fade: 'left' },
     banner: { show: false, src: '' },

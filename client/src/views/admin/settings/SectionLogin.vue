@@ -48,7 +48,7 @@ async function copy(): Promise<void> {
 
   <div class="st-opt">
     <div>{{ t('studio.settings.ghLogin') }}<small>{{ t('studio.settings.ghLoginSub') }}</small></div>
-    <StSwitch v-model="login.github" />
+    <StSwitch v-model="login.github" :label="t('studio.settings.ghLogin')" />
   </div>
 
   <div class="fold" :class="{ open: login.github }" :inert="!login.github">

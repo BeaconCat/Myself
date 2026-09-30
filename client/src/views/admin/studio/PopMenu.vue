@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import SIcon from './SIcon.vue';
 import type { MenuItem } from './types';
+import './i18n';
 
-/** 「更多」弹出菜单：锚定按钮右下，点外部关闭 */
-defineProps<{ items: MenuItem[]; title?: string }>();
+/** 「更多」弹出菜单：锚定按钮右下，点外部关闭；label 为触发按钮的可访问名称（默认「更多操作」） */
+defineProps<{ items: MenuItem[]; title?: string; label?: string }>();
+const { t } = useI18n();
 
 const open = ref(false);
 const pos = ref({ top: 0, left: 0 });
@@ -45,14 +48,24 @@ defineExpose({ close });
 </script>
 
 <template>
-  <button ref="btn" type="button" class="st-ibtn" :class="{ on: open }" :title="title" @click.stop="toggle">
+  <button
+    ref="btn"
+    type="button"
+    class="st-ibtn"
+    :class="{ on: open }"
+    :title="title"
+    :aria-label="label || title || t('studio.a11y.more')"
+    aria-haspopup="menu"
+    :aria-expanded="open"
+    @click.stop="toggle"
+  >
     <SIcon name="more" />
   </button>
   <Teleport to="body">
-    <div v-if="open" ref="menu" class="studio st-menu" :style="{ top: `${pos.top}px`, left: `${pos.left}px` }" @click.stop>
+    <div v-if="open" ref="menu" class="studio st-menu" role="menu" :style="{ top: `${pos.top}px`, left: `${pos.left}px` }" @click.stop>
       <template v-for="(item, i) in items" :key="i">
         <hr v-if="item.divider" />
-        <button type="button" :class="{ d: item.danger }" @click="pick(item)">
+        <button type="button" role="menuitem" :class="{ d: item.danger }" @click="pick(item)">
           <SIcon :name="item.icon" :size="16" />{{ item.label }}
         </button>
       </template>

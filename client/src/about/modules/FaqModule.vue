@@ -27,7 +27,8 @@ const parts = (a: string) => a.split('`').map((text, i) => ({ text, code: i % 2 
   <ul class="fq">
     <li v-for="(it, i) in d.items" :key="i" :class="{ open: open.has(i) }">
       <button :aria-expanded="open.has(i)" @click="toggle(i)">{{ it.q }}<span class="pm" /></button>
-      <div class="ans">
+      <!-- 收起的答案对读屏与 Tab 都不可达（视觉上用高度动画收起，仍在 DOM 里） -->
+      <div class="ans" :aria-hidden="!open.has(i)" :inert="!open.has(i)">
         <div>
           <p><template v-for="(s, k) in parts(it.a)" :key="k"><code v-if="s.code">{{ s.text }}</code><template v-else>{{ s.text }}</template></template></p>
         </div>

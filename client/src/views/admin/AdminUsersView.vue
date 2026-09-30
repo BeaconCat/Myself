@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { siteToday } from '../../utils/date';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, type AdminUser, type InviteInfo, type UserFilter, type UserRole, type UserStats } from '../../api';
 import { useConfigStore, type UsersConfig } from '../../stores/config';
@@ -255,13 +256,35 @@ function menuOf(u: AdminUser): MenuItem[] {
   return items;
 }
 
-async function copy(url: string): Promise<void> {
-  toast((await copyText(url)) ? t('studio.copied') : t('studio.users.copyFailed'), { icon: 'copy' });
+/** 链接生成后自动选中一次（同一条链接不重复选，免得打断用户自己的选择） */
+let selectedUrl = '';
+function autoSelect(el: unknown, url: string): void {
+  if (!(el instanceof HTMLElement) || !url || url === selectedUrl) return;
+  selectedUrl = url;
+  void nextTick(() => selectLink(el));
+}
+
+/** 选中链接文本：弹窗出现时自动选中，复制失败时也保持选中，方便直接 Ctrl+C */
+function selectLink(e: Event | HTMLElement | null): void {
+  const box = e instanceof Event ? (e.currentTarget as HTMLElement | null)?.closest('.link-box') : e;
+  const code = box?.querySelector('code');
+  if (!code) return;
+  const range = document.createRange();
+  range.selectNodeContents(code);
+  const sel = window.getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(range);
+}
+
+async function copy(url: string, e?: Event): Promise<void> {
+  const ok = await copyText(url);
+  if (e) selectLink(e);
+  toast(ok ? t('studio.copied') : t('studio.users.copyFailed'), { icon: ok ? 'copy' : 'x' });
 }
 
 async function exportCsv(): Promise<void> {
   try {
-    saveBlob(await adminApi.exportUsers(), `users-${new Date().toISOString().slice(0, 10)}.csv`);
+    saveBlob(await adminApi.exportUsers(), `users-${siteToday()}.csv`);
   } catch {
     toast(t('studio.loadFailed'), { icon: 'x' });
   }
@@ -389,7 +412,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
             <div class="grp">
               <div class="sw-row">
                 <div class="tx"><b>{{ t('studio.users.readers') }}</b><small>{{ t('studio.users.readersSub') }}</small></div>
-                <StSwitch v-model="readersOn" />
+                <StSwitch v-model="readersOn" :label="t('studio.users.readers')" />
               </div>
               <div class="sub" :class="{ off: !sw.readers.enabled }">
                 <div class="line">
@@ -401,7 +424,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
                     <span>{{ t('studio.users.requireVerify') }}</span>
                     <small v-if="!mailReady">{{ t('studio.users.needMail') }}</small>
                   </div>
-                  <StSwitch v-model="requireVerify" :disabled="!mailReady && !sw.readers.requireVerify" />
+                  <StSwitch v-model="requireVerify" :label="t('studio.users.requireVerify')" :disabled="!mailReady && !sw.readers.requireVerify" />
                 </div>
               </div>
             </div>
@@ -409,7 +432,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
             <div class="grp">
               <div class="sw-row">
                 <div class="tx"><b>{{ t('studio.users.authors') }}</b><small>{{ t('studio.users.authorsSub') }}</small></div>
-                <StSwitch v-model="authorsOn" />
+                <StSwitch v-model="authorsOn" :label="t('studio.users.authors')" />
               </div>
               <div class="sub" :class="{ off: !sw.authors.enabled }">
                 <div class="line">
@@ -417,7 +440,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
                     <span>{{ t('studio.users.directPublish') }}</span>
                     <small>{{ sw.authors.directPublish ? t('studio.users.directOn') : t('studio.users.directOff') }}</small>
                   </div>
-                  <StSwitch v-model="directPublish" />
+                  <StSwitch v-model="directPublish" :label="t('studio.users.directPublish')" />
                 </div>
               </div>
             </div>
@@ -425,7 +448,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
             <div class="grp">
               <div class="sw-row">
                 <div class="tx"><b>{{ t('studio.users.comments') }}</b><small>{{ t('studio.users.commentsSub') }}</small></div>
-                <StSwitch v-model="commentsOn" />
+                <StSwitch v-model="commentsOn" :label="t('studio.users.comments')" />
               </div>
               <div class="sub" :class="{ off: !sw.comments.enabled }">
                 <div class="line">
@@ -434,7 +457,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
                 </div>
                 <div class="line">
                   <div class="tx"><span>{{ t('studio.users.anonymous') }}</span><small>{{ t('studio.users.anonymousSub') }}</small></div>
-                  <StSwitch v-model="anonymous" />
+                  <StSwitch v-model="anonymous" :label="t('studio.users.anonymous')" />
                 </div>
               </div>
             </div>
@@ -444,7 +467,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
 
       <div class="sw-row foot">
         <div class="tx"><b>{{ t('studio.users.reactions') }}</b><small>{{ t('studio.users.reactionsSub') }}</small></div>
-        <StSwitch v-model="reactions" />
+        <StSwitch v-model="reactions" :label="t('studio.users.reactions')" />
       </div>
     </section>
 
@@ -481,7 +504,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
     <!-- 用户表 -->
     <div class="tools st-rise" style="--i: 2">
       <StSeg v-model="filter" :options="FILTERS" />
-      <label class="st-field search"><SIcon name="search" :size="16" /><input v-model="q" :placeholder="t('studio.users.searchPh')" /></label>
+      <label class="st-field search"><SIcon name="search" :size="16" /><input v-model="q" :placeholder="t('studio.users.searchPh')" :aria-label="t('studio.users.searchPh')" /></label>
     </div>
 
     <table class="st-table u-table" :class="{ busy }">
@@ -531,9 +554,9 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
           <td>
             <span v-if="u.self" class="dash">—</span>
             <span v-else-if="u.status === 'pending'" class="chip pend">{{ t('studio.users.pending') }}</span>
-            <StSwitch v-else :model-value="u.status === 'active'" @update:model-value="(v: boolean) => setActive(u, v)" />
+            <StSwitch v-else :model-value="u.status === 'active'" :label="t('studio.a11y.userActive', { name: u.name || u.login })" @update:model-value="(v: boolean) => setActive(u, v)" />
           </td>
-          <td><PopMenu v-if="!u.self" :items="menuOf(u)" /></td>
+          <td><PopMenu v-if="!u.self" :items="menuOf(u)" :label="t('studio.a11y.moreOf', { name: u.name || u.login })" /></td>
         </tr>
       </TransitionGroup>
     </table>
@@ -573,7 +596,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
           ]"
         />
         <div class="st-flabel gap">{{ t('studio.users.inviteEmail') }}<em>{{ t('studio.users.optional') }}</em></div>
-        <label class="st-field"><input v-model="inv.email" type="email" placeholder="name@example.com" /></label>
+        <label class="st-field"><input v-model="inv.email" type="email" placeholder="name@example.com" :aria-label="t('studio.users.inviteEmail')" /></label>
         <div class="two">
           <label>
             <span class="st-flabel gap">{{ t('studio.users.inviteDays') }}</span>
@@ -584,7 +607,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
             <span class="st-field"><input v-model="inv.note" maxlength="60" /></span>
           </label>
         </div>
-        <label v-if="mailReady" class="st-ckrow send" :class="{ dim: !inv.email.trim() }" @click.prevent="inv.send = !inv.send">
+        <label v-if="mailReady" class="st-ckrow send" :class="{ dim: !inv.email.trim() }" role="checkbox" tabindex="0" :aria-checked="inv.send && !!inv.email.trim()" @click.prevent="inv.send = !inv.send" @keydown.enter.space.prevent="inv.send = !inv.send">
           <span class="st-ck" :class="{ on: inv.send && !!inv.email.trim() }"><SIcon name="check" /></span>{{ t('studio.users.inviteSend') }}
         </label>
         <div class="ft">
@@ -596,7 +619,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
         <div class="mi ok"><SIcon name="check" :size="22" /></div>
         <h3>{{ t('studio.users.inviteReady') }}</h3>
         <p>{{ inv.sent ? t('studio.users.inviteSent', { email: inv.email }) : t('studio.users.inviteCopy', { n: inv.days }) }}</p>
-        <div class="link-box"><code>{{ inv.url }}</code><button type="button" class="st-btn g sm" @click="copy(inv.url)"><SIcon name="copy" :size="16" />{{ t('studio.copy') }}</button></div>
+        <div :ref="(el) => autoSelect(el, inv.url)" class="link-box"><code>{{ inv.url }}</code><button type="button" class="st-btn g sm" @click="copy(inv.url, $event)"><SIcon name="copy" :size="16" />{{ t('studio.copy') }}</button></div>
         <div class="ft"><button type="button" class="st-btn p" @click="inv.open = false">{{ t('studio.users.done') }}</button></div>
       </template>
     </StModal>
@@ -606,9 +629,9 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
       <div class="mi"><SIcon name="key" :size="22" /></div>
       <h3>{{ t('studio.users.resetTitle', { name: reset.user?.name ?? '' }) }}</h3>
       <p>{{ reset.sent ? t('studio.users.resetSent', { email: reset.user?.email ?? '' }) : t('studio.users.resetDesc') }}</p>
-      <div class="link-box">
+      <div :ref="(el) => autoSelect(el, reset.busy ? '' : reset.url)" class="link-box">
         <code>{{ reset.busy ? t('studio.loading') : reset.url }}</code>
-        <button type="button" class="st-btn g sm" :disabled="reset.busy" @click="copy(reset.url)"><SIcon name="copy" :size="16" />{{ t('studio.copy') }}</button>
+        <button type="button" class="st-btn g sm" :disabled="reset.busy" @click="copy(reset.url, $event)"><SIcon name="copy" :size="16" />{{ t('studio.copy') }}</button>
       </div>
       <div class="ft"><button type="button" class="st-btn p" @click="reset.open = false">{{ t('studio.users.done') }}</button></div>
     </StModal>
@@ -895,6 +918,8 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
     font: 12.5px var(--font-mono);
     word-break: break-all;
     color: var(--st-ink-2);
+    /* 点一下即整段选中，便于手动复制 */
+    user-select: all;
   }
 }
 

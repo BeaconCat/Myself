@@ -393,7 +393,7 @@ onBeforeUnmount(() => {
             <dt>{{ t('studio.media.kvFile') }}</dt><dd class="mono file">{{ item.name }}</dd>
             <template v-if="isImage"><dt>{{ t('studio.media.kvSize') }}</dt><dd class="mono">{{ natural.w }} × {{ natural.h }}</dd></template>
             <dt>{{ t('studio.media.kvBytes') }}</dt>
-            <dd class="mono">{{ formatSize(item.size) }}<span v-if="compressible.has(item.name)" class="zip">{{ t('studio.media.compressible') }}</span></dd>
+            <dd class="mono">{{ formatSize(item.size) }}<span v-if="compressible.has(item.name)" class="sr-only">，</span><span v-if="compressible.has(item.name)" class="zip">{{ t('studio.media.compressible') }}</span></dd>
             <dt>{{ t('studio.media.kvFormat') }}</dt><dd>{{ format }}</dd>
             <template v-if="item.compressed">
               <dt>{{ t('studio.media.kvCompress') }}</dt>

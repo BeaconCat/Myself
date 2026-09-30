@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { siteToday } from '../../../utils/date';
 import { useI18n } from 'vue-i18n';
 import type { AboutModule } from '../../../stores/config';
 import type { NowData } from '../../../about/types';
@@ -15,7 +16,7 @@ const KIND_OPTIONS = KINDS.map((k) => ({ value: k, label: k }));
 
 function touch(): void {
   // eslint-disable-next-line vue/no-mutating-props
-  d.value.updatedAt = new Date().toISOString().slice(0, 10);
+  d.value.updatedAt = siteToday();
 }
 </script>
 

@@ -121,7 +121,7 @@ function onDrop(e: DragEvent, target: string): void {
         <Icon :icon="current === r.path ? FolderOpen : Folder" :size="16" />
         <span class="nm" :title="r.path">{{ r.name }}</span>
         <em v-if="r.count">{{ r.count }}</em>
-        <span v-if="editable" class="mm" @click.stop><PopMenu :items="menu(r.path)" /></span>
+        <span v-if="editable" class="mm" @click.stop><PopMenu :items="menu(r.path)" :label="t('studio.a11y.moreOf', { name: r.name })" /></span>
       </div>
     </TransitionGroup>
     <p v-if="!rows.length && editable" class="hint">{{ t('studio.folder.hint') }}</p>

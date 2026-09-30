@@ -23,7 +23,8 @@ const { t } = useI18n();
 const config = useConfigStore();
 const about = computed(() => config.cfg.about);
 const avatar = computed(() => about.value.avatar || config.cfg.site.logo || '/favicon-256.png');
-const handle = computed(() => config.cfg.github.username || 'myself');
+/** 未配置 GitHub 用户名时不显示 @handle */
+const handle = computed(() => config.cfg.github.username.trim());
 const banner = computed(() => (about.value.banner?.show ? about.value.banner.src || '/covers/05.webp' : ''));
 const bannerFocus = computed(() => about.value.banner?.focus || '50% 50%');
 const links = computed(() => cardLinks(about.value.links));
@@ -89,7 +90,7 @@ async function refresh(): Promise<void> {
                 <div class="ab-id">
                   <h1 class="ab-name">{{ about.name }}</h1>
                   <div class="ab-handle">
-                    <span v-if="about.alias?.trim()" class="alias">{{ about.alias.trim() }}</span>@{{ handle }}
+                    <span v-if="about.alias?.trim()" class="alias">{{ about.alias.trim() }}</span><template v-if="handle">@{{ handle }}</template>
                   </div>
                 </div>
                 <nav v-if="links.length" class="ab-links">

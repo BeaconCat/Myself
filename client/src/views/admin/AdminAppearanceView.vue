@@ -284,19 +284,19 @@ onBeforeUnmount(() => {
         <div class="opts">
           <div class="st-opt">
             <div>{{ t('studio.appearance.display') }}<small>{{ t('studio.appearance.displaySub') }}</small></div>
-            <div class="st-stepper">
-              <button type="button" :disabled="cfg.theme.displayCount <= 1" @click="stepDisplay(-1)"><SIcon name="minus" :size="18" /></button>
-              <span>{{ cfg.theme.displayCount }}</span>
-              <button type="button" :disabled="cfg.theme.displayCount >= Math.min(4, presets.length)" @click="stepDisplay(1)"><SIcon name="plus" :size="18" /></button>
+            <div class="st-stepper" role="group" :aria-label="t('studio.appearance.display')">
+              <button type="button" :disabled="cfg.theme.displayCount <= 1" :aria-label="t('studio.a11y.decrease')" @click="stepDisplay(-1)"><SIcon name="minus" :size="18" /></button>
+              <span aria-live="polite">{{ cfg.theme.displayCount }}</span>
+              <button type="button" :disabled="cfg.theme.displayCount >= Math.min(4, presets.length)" :aria-label="t('studio.a11y.increase')" @click="stepDisplay(1)"><SIcon name="plus" :size="18" /></button>
             </div>
           </div>
           <div class="st-opt">
             <div>{{ t('studio.appearance.season') }}<small>{{ t('studio.appearance.seasonSub') }}</small></div>
-            <StSwitch v-model="autoSeason" />
+            <StSwitch v-model="autoSeason" :label="t('studio.appearance.season')" />
           </div>
           <div class="st-opt">
             <div>{{ t('studio.appearance.allowUser') }}<small>{{ t('studio.appearance.allowUserSub') }}</small></div>
-            <StSwitch v-model="cfg.theme.allowUserPalette" />
+            <StSwitch v-model="cfg.theme.allowUserPalette" :label="t('studio.appearance.allowUser')" />
           </div>
         </div>
 
@@ -304,13 +304,13 @@ onBeforeUnmount(() => {
         <div>
         <h2>{{ t('studio.appearance.mode') }}</h2>
         <p class="desc">{{ t('studio.appearance.modeDesc') }}</p>
-        <div class="modes">
-          <button type="button" class="mode-c" :class="{ on: cfg.theme.defaultMode === 'light' }" @click="setMode('light', $event)">
-            <div class="mini light"><i class="a" /><i class="b" /><i class="c" /></div>
+        <div class="modes" role="group" :aria-label="t('studio.appearance.mode')">
+          <button type="button" class="mode-c" :class="{ on: cfg.theme.defaultMode === 'light' }" :aria-pressed="cfg.theme.defaultMode === 'light'" @click="setMode('light', $event)">
+            <div class="mini light" aria-hidden="true"><i class="a" /><i class="b" /><i class="c" /></div>
             <span>{{ t('studio.light') }}</span>
           </button>
-          <button type="button" class="mode-c" :class="{ on: cfg.theme.defaultMode === 'dark' }" @click="setMode('dark', $event)">
-            <div class="mini dark"><i class="a" /><i class="b" /><i class="c" /></div>
+          <button type="button" class="mode-c" :class="{ on: cfg.theme.defaultMode === 'dark' }" :aria-pressed="cfg.theme.defaultMode === 'dark'" @click="setMode('dark', $event)">
+            <div class="mini dark" aria-hidden="true"><i class="a" /><i class="b" /><i class="c" /></div>
             <span>{{ t('studio.dark') }}</span>
           </button>
         </div>
@@ -341,6 +341,7 @@ onBeforeUnmount(() => {
               type="button"
               class="st-chip"
               :class="{ on: radius === rp.v }"
+              :aria-pressed="radius === rp.v"
               @click="radius = rp.v"
             >
               {{ t(`studio.appearance.${rp.key}`) }}<span class="n">{{ rp.v }}</span>
@@ -372,7 +373,7 @@ onBeforeUnmount(() => {
           <div class="opts">
             <div class="st-opt">
               <div>{{ t('theme.allowUserStyle') }}<small>{{ t('theme.allowUserStyleSub') }}</small></div>
-              <StSwitch v-model="cfg.theme.allowUserStyle" />
+              <StSwitch v-model="cfg.theme.allowUserStyle" :label="t('theme.allowUserStyle')" />
             </div>
           </div>
         </div>
@@ -443,7 +444,7 @@ onBeforeUnmount(() => {
       </div>
       <div class="st-opt shock">
         <div>{{ t('studio.appearance.shockwave') }}<small>{{ t('studio.appearance.shockwaveSub') }}</small></div>
-        <StSwitch v-model="cfg.motion.shockwave" />
+        <StSwitch v-model="cfg.motion.shockwave" :label="t('studio.appearance.shockwave')" />
       </div>
     </div>
 
@@ -456,18 +457,18 @@ onBeforeUnmount(() => {
       <div class="rules">
         <div class="rule">
           <small>{{ t('studio.appearance.heroCount') }}</small>
-          <div class="st-stepper">
-            <button type="button" :disabled="cfg.hero.count <= 1" @click="stepCount(-1)"><SIcon name="minus" :size="18" /></button>
-            <span>{{ cfg.hero.count }}</span>
-            <button type="button" :disabled="cfg.hero.count >= 10" @click="stepCount(1)"><SIcon name="plus" :size="18" /></button>
+          <div class="st-stepper" role="group" :aria-label="t('studio.appearance.heroCount')">
+            <button type="button" :disabled="cfg.hero.count <= 1" :aria-label="t('studio.a11y.decrease')" @click="stepCount(-1)"><SIcon name="minus" :size="18" /></button>
+            <span aria-live="polite">{{ cfg.hero.count }}</span>
+            <button type="button" :disabled="cfg.hero.count >= 10" :aria-label="t('studio.a11y.increase')" @click="stepCount(1)"><SIcon name="plus" :size="18" /></button>
           </div>
         </div>
         <div class="rule">
           <small>{{ t('studio.appearance.heroInterval') }}</small>
-          <div class="st-stepper">
-            <button type="button" :disabled="cfg.hero.intervalMs <= 1000" @click="stepInterval(-1)"><SIcon name="minus" :size="18" /></button>
-            <span>{{ intervalSec }}s</span>
-            <button type="button" :disabled="cfg.hero.intervalMs >= 10000" @click="stepInterval(1)"><SIcon name="plus" :size="18" /></button>
+          <div class="st-stepper" role="group" :aria-label="t('studio.appearance.heroInterval')">
+            <button type="button" :disabled="cfg.hero.intervalMs <= 1000" :aria-label="t('studio.a11y.decrease')" @click="stepInterval(-1)"><SIcon name="minus" :size="18" /></button>
+            <span aria-live="polite">{{ intervalSec }}s</span>
+            <button type="button" :disabled="cfg.hero.intervalMs >= 10000" :aria-label="t('studio.a11y.increase')" @click="stepInterval(1)"><SIcon name="plus" :size="18" /></button>
           </div>
         </div>
         <div class="rule">

@@ -31,6 +31,8 @@ const loading = ref(true);
 const roots = computed(() => items.value.filter((c) => !c.parentId));
 const repliesOf = (id: number) => items.value.filter((c) => c.parentId === id);
 const count = computed(() => items.value.filter((c) => !c.pending).length);
+/** 刚提交了一条待审评论（访客看不到自己的待审评论）：不再显示「还没有评论」 */
+const pendingSent = ref(false);
 
 async function load(): Promise<void> {
   if (!on.value) return;
@@ -87,6 +89,7 @@ async function submit(): Promise<void> {
     body.value = '';
     replyTo.value = null;
     notice.value = { ok: true, text: res.pending ? t('comments.pending') : t('comments.posted') };
+    if (res.pending) pendingSent.value = true;
     if (!res.pending && props.engageId && props.target !== 'guestbook') {
       engage.bumpComments(props.target as EngageTarget, props.engageId);
     }
@@ -103,7 +106,10 @@ const registerLink = computed(() => ({ path: '/account/register', query: { next:
 const initial = (name: string) => [...(name || '?')][0];
 
 onMounted(load);
-watch(() => props.commentKey, load);
+watch(() => props.commentKey, () => {
+  pendingSent.value = false;
+  void load();
+});
 </script>
 
 <template>
@@ -147,7 +153,7 @@ watch(() => props.commentKey, load);
     </div>
 
     <!-- 楼层 -->
-    <p v-if="!loading && !items.length" class="empty">{{ t('comments.empty') }}</p>
+    <p v-if="!loading && !items.length && !pendingSent" class="empty">{{ t('comments.empty') }}</p>
     <ol class="cs-list">
       <li v-for="c in roots" :key="c.id" class="c">
         <div class="row">

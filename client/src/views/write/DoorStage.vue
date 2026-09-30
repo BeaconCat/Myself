@@ -17,7 +17,7 @@ const props = defineProps<{
   url: string;
   meta: string;
 }>();
-const emit = defineEmits<{ view: []; close: [] }>();
+const emit = defineEmits<{ view: []; close: []; edit: [] }>();
 const { t } = useI18n();
 
 const phase = ref<'' | 'open' | 'out' | 'fin'>('');
@@ -35,8 +35,9 @@ function clear(): void {
   timers = [];
 }
 
+/** Esc 只收起这一层、回到编辑器（不跳走），与「继续编辑」相同 */
 function onKey(e: KeyboardEvent): void {
-  if (e.key === 'Escape') emit('close');
+  if (e.key === 'Escape') emit('edit');
 }
 
 watch(
@@ -105,6 +106,7 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
           <div class="row">
             <button type="button" class="st-btn p lg" @click="emit('view')">{{ t('studio.write.viewPost') }}</button>
             <button type="button" class="st-btn w lg" @click="emit('close')">{{ t('studio.write.backToday') }}</button>
+            <button type="button" class="st-btn w lg" @click="emit('edit')">{{ t('studio.write.keepEditing') }}</button>
           </div>
         </div>
       </div>

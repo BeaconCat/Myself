@@ -29,6 +29,13 @@ export default {
     empty: '暂无文章',
     searchPlaceholder: '搜索标题、摘要或正文',
   },
+  dialog: { cancel: '取消' },
+  notFound: {
+    title: '这个页面不存在',
+    desc: '地址可能输错了，或者页面已经被移走。',
+    home: '回到首页',
+    articles: '看看文章',
+  },
   article: {
     notFound: '文章不存在或已下线',
     toc: '目录',
@@ -906,6 +913,7 @@ export default {
       copyLink: '复制链接',
       linkCopied: '链接已复制',
       copyCode: '复制代码',
+      codeCopied: '已复制',
       copyFailed: '复制失败，请手动复制',
       fontSize: '字号',
       bigType: '已切换大字号',
@@ -955,5 +963,17 @@ export default {
       moodKinds: '心情',
       moodDist: '心情分布',
     },
+  },
+  /* 可访问名称：只给读屏用、界面上看不到的文案 */
+  a11y: {
+    myAccount: '我的账号',
+    withCount: '{label} · {n}',
+    searchArticles: '搜索文章',
+    siteSearch: '搜索站内内容',
+    prevSlide: '上一张',
+    nextSlide: '下一张',
+    goSlide: '第 {n} 张',
+    viewImage: '查看图片（第 {n} / {total} 张）',
+    viewImageOf: '查看图片：{label}',
   },
 };

@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -320,10 +321,17 @@ func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	// 改站点名称时，仍沿用旧名的启动文案 / 发件人名称跟着改
 	config.FollowSiteTitle(s.Config.Get(), patch)
+	oldName := aboutName(s.Config.Get())
 	merged, err := s.Config.Save(patch)
 	if err != nil {
 		fail(w, err)
 		return
+	}
+	// 身份名字改了：仍沿用旧名字的站长账号昵称跟着改（评论、留言署名一致）；人为改过的不动
+	if newName := aboutName(merged); oldName != "" && newName != "" && newName != oldName {
+		if _, err := s.DB.Exec(`UPDATE users SET name = ? WHERE role = 'admin' AND name = ?`, limitRunes(newName, 40), oldName); err != nil {
+			log.Printf("[settings] follow identity name: %v", err)
+		}
 	}
 	writeJSON(w, http.StatusOK, maskSecrets(merged))
 }
@@ -341,4 +349,10 @@ func publicUsersConfig(t config.Typed) config.Map {
 		"login":     config.Map{"github": t.GitHubLoginReady(), "mailReset": t.Mail.Ready()},
 		"reactions": u.ReactionsOn(),
 	}
+}
+
+// aboutName 配置里的身份名字（about.name，去首尾空白）。
+func aboutName(cfg config.Map) string {
+	about, _ := cfg["about"].(config.Map)
+	return strings.TrimSpace(str(about["name"]))
 }

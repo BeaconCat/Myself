@@ -28,7 +28,8 @@ const { notes, tab, keyword, loading, loadingMore, hasMore, dateFrom, dateTo, lo
 const index = useNotesIndex();
 
 const { avatar, name, alias } = useIdentity();
-const handle = computed(() => config.cfg.github.username || 'myself');
+/** 未配置 GitHub 用户名时不显示 @handle */
+const handle = computed(() => config.cfg.github.username.trim());
 
 const booting = computed(() => !loadedOnce.value);
 const filtered = computed(() => !!(keyword.value.trim() || dateFrom.value || dateTo.value));

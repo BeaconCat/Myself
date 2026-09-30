@@ -41,7 +41,7 @@ function openAt(e: MouseEvent, c: Cell): void {
     <section v-for="g in groups" :key="g.key">
       <div class="mg-h"><b>{{ g.label }}</b><span>{{ t('content.thoughts.mediaCount', { n: g.cells.length }) }}</span></div>
       <div class="mgrid">
-        <button v-for="c in g.cells" :key="c.key" type="button" class="cell" @click="openAt($event, c)">
+        <button v-for="c in g.cells" :key="c.key" type="button" class="cell" :aria-label="t('a11y.viewImageOf', { label: c.label })" @click="openAt($event, c)">
           <CoverArt :src="c.src" :seed="c.key" pool="all" thumb />
           <span class="n">{{ c.label }}</span>
         </button>

@@ -46,28 +46,8 @@ export function toast(text: string, sub = ''): void {
   shell.toast = { text, sub, seq: shell.toast.seq + 1 };
 }
 
-/** 复制文本：优先 Clipboard API，非安全上下文回退 execCommand */
-export async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.setAttribute('readonly', '');
-    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
-    document.body.appendChild(ta);
-    ta.select();
-    let ok = false;
-    try {
-      ok = document.execCommand('copy');
-    } catch {
-      ok = false;
-    }
-    ta.remove();
-    return ok;
-  }
-}
+/** 复制文本：统一走 utils/clipboard（带非安全上下文回退） */
+export { copyText } from '../../utils/clipboard';
 
 /** 阅读时长估算：中文按 400 字/分钟，英文单词按 220 词/分钟 */
 export function readMinutes(md: string): number {

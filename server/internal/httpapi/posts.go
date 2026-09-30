@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"myself/server/internal/store"
 )
@@ -34,7 +35,7 @@ func (s *Server) onePost(r store.PostRow, o store.PostOpts) store.Post {
 	return s.toPosts([]store.PostRow{r}, o)[0]
 }
 
-// GET /posts?page=&pageSize=&tag=&q= 文章列表（分页 + 标签过滤 + 关键词搜索）
+// GET /posts?page=&pageSize=&tag=&q=&pinned=first 文章列表（分页 + 标签过滤 + 关键词搜索）
 func (s *Server) listPosts(w http.ResponseWriter, r *http.Request) {
 	page := queryInt(r, "page", 1, 1, 1<<30)
 	pageSize := queryInt(r, "pageSize", 10, 1, 50)
@@ -60,7 +61,12 @@ func (s *Server) listPosts(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	rows, err := s.DB.QueryPosts(`WHERE `+whereSQL+` ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+	// pinned=first：置顶文章排在最前（文章列表页用）；默认纯按时间（首页、上下篇、统计）
+	order := "created_at DESC"
+	if r.URL.Query().Get("pinned") == "first" {
+		order = "pinned DESC, created_at DESC"
+	}
+	rows, err := s.DB.QueryPosts(`WHERE `+whereSQL+` ORDER BY `+order+` LIMIT ? OFFSET ?`,
 		append(args, pageSize, (page-1)*pageSize)...)
 	if err != nil {
 		fail(w, err)
@@ -145,13 +151,14 @@ func (s *Server) listNotes(w http.ResponseWriter, r *http.Request) {
 	if qs.Get("media") == "1" {
 		where = append(where, "images != '[]'")
 	}
-	if from := qs.Get("from"); dateRe.MatchString(from) {
+	// from / to 是站点时区的日期；created_at 存 UTC，换算成 UTC 边界再比较
+	if from, ok := s.siteDayStartUTC(qs.Get("from"), 0); ok {
 		where = append(where, "created_at >= ?")
 		args = append(args, from)
 	}
-	if to := qs.Get("to"); dateRe.MatchString(to) {
-		where = append(where, "created_at < date(?, '+1 day')")
-		args = append(args, to)
+	if end, ok := s.siteDayStartUTC(qs.Get("to"), 1); ok {
+		where = append(where, "created_at < ?")
+		args = append(args, end)
 	}
 	whereSQL := strings.Join(where, " AND ")
 
@@ -172,6 +179,18 @@ func (s *Server) listNotes(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": items, "page": page, "pageSize": pageSize, "total": total,
 	})
+}
+
+// siteDayStartUTC 把站点时区的日期 YYYY-MM-DD（加 addDays 天）的零点换算为 UTC 的 SQLite 时间文本。
+func (s *Server) siteDayStartUTC(day string, addDays int) (string, bool) {
+	if !dateRe.MatchString(day) {
+		return "", false
+	}
+	t, err := time.ParseInLocation("2006-01-02", day, s.siteLocation())
+	if err != nil {
+		return "", false
+	}
+	return t.AddDate(0, 0, addDays).UTC().Format("2006-01-02 15:04:05"), true
 }
 
 var hexRe = regexp.MustCompile(`^[0-9a-fA-F]{6}$`)

@@ -53,7 +53,7 @@ async function test(): Promise<void> {
 <template>
   <div class="st-opt">
     <div>{{ t('studio.settings.mailOn') }}<small>{{ t('studio.settings.mailOnSub') }}</small></div>
-    <StSwitch v-model="mail.enabled" />
+    <StSwitch v-model="mail.enabled" :label="t('studio.settings.mailOn')" />
   </div>
 
   <div class="fold" :class="{ open: mail.enabled }" :inert="!mail.enabled">
@@ -100,7 +100,7 @@ async function test(): Promise<void> {
       <div class="test">
         <span class="st-flabel">{{ t('studio.settings.mailTest') }}</span>
         <div class="row">
-          <label class="st-field"><SIcon name="mail" :size="16" /><input v-model="testTo" type="email" placeholder="you@example.com" @keydown.enter="test" /></label>
+          <label class="st-field"><SIcon name="mail" :size="16" /><input v-model="testTo" :aria-label="t('studio.settings.mailTest')" type="email" placeholder="you@example.com" @keydown.enter="test" /></label>
           <button type="button" class="st-btn g" :disabled="testing || !testTo.trim()" @click="test">
             <SIcon name="send" :size="16" />{{ testing ? t('studio.settings.mailTesting') : t('studio.settings.mailTestSend') }}
           </button>

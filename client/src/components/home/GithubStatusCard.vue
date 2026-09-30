@@ -59,7 +59,7 @@ const heatmap = computed<HeatDay[]>(() => {
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="siGithub.path" /></svg>
         <h2>GitHub</h2>
       </div>
-      <a class="gh-user" :href="`https://github.com/${config.cfg.github.username}`" target="_blank" rel="noopener">
+      <a v-if="config.cfg.github.username" class="gh-user" :href="`https://github.com/${config.cfg.github.username}`" target="_blank" rel="noopener">
         {{ '@' + config.cfg.github.username }}
       </a>
     </header>

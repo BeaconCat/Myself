@@ -49,7 +49,7 @@ const ghUrl = computed(() => `https://github.com/${config.cfg.github.username}`)
         <q v-if="about.motto">{{ about.motto }}</q>
       </div>
       <div class="soc">
-        <a class="ib" :href="ghUrl" target="_blank" rel="noopener" :aria-label="t('home.github')">
+        <a v-if="config.cfg.github.username" class="ib" :href="ghUrl" target="_blank" rel="noopener" :aria-label="t('home.github')">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="siGithub.path" /></svg>
         </a>
         <a class="ib" href="/feed" target="_blank" rel="noopener" :aria-label="t('home.rss')">

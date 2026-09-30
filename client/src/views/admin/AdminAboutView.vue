@@ -449,7 +449,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
           <button type="button" class="st-ibtn sm" :class="{ on: expanded === mod.id }" :title="t('studio.edit')" @click="toggleExpand(mod)">
             <SIcon name="pen" :size="18" />
           </button>
-          <PopMenu :items="menu(mod)" />
+          <PopMenu :items="menu(mod)" :label="t('studio.a11y.moreOf', { name: titleOf(mod) })" />
           <!-- 展开时最右侧浮出收起按钮，原有按钮随宽度过渡左移 -->
           <span class="fold" :class="{ on: expanded === mod.id }">
             <button type="button" class="st-ibtn sm" :tabindex="expanded === mod.id ? 0 : -1" :title="t('studio.about.collapse')" @click="toggleExpand(mod)">

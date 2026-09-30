@@ -12,6 +12,7 @@ import { refreshCounts, saveBlob } from './studio/state';
 import { useRouter } from 'vue-router';
 import { toast } from './studio/toast';
 import { dateTimeText, formatSize, relTime, sizeParts } from './studio/format';
+import { looksLikeBackup } from '../../utils/zipEntries';
 
 /**
  * 数据备份：立即备份（进度环）、备份记录（下载 / 恢复 / 删除）、自动备份间隔；
@@ -125,9 +126,17 @@ const restoring = ref(false);
 const restorePct = ref<number | null>(null);
 const restoreInput = ref<HTMLInputElement | null>(null);
 
-/** 恢复成功：整站数据（含设置与账号）都变了，直接刷新页面最稳妥 */
-function afterRestore(safety: string): void {
-  toast(t('studio.data.restored', { name: safety }), { icon: 'check' });
+/**
+ * 恢复成功：整站数据（含设置与账号）都变了，直接刷新页面最稳妥。
+ * 会话已随恢复失效、拉不到新列表：先把服务端返回的安全备份插进列表，刷新前就能看到它。
+ */
+function afterRestore(res: { safety: string; backup?: BackupInfo }): void {
+  const b = res.backup;
+  if (b && !backups.value.some((x) => x.name === b.name)) {
+    backups.value = [b, ...backups.value];
+    fresh.value = b.name;
+  }
+  toast(t('studio.data.restored', { name: res.safety }), { icon: 'check' });
   window.setTimeout(() => window.location.reload(), 1600);
 }
 
@@ -147,7 +156,7 @@ async function restoreFrom(b: BackupInfo): Promise<void> {
   if (!ok) return;
   restoring.value = true;
   try {
-    afterRestore((await adminApi.restoreBackup(b.name)).safety);
+    afterRestore(await adminApi.restoreBackup(b.name));
   } catch (err) {
     restoreError(err);
     restoring.value = false;
@@ -159,6 +168,11 @@ async function onRestoreFile(e: Event): Promise<void> {
   const file = input.files?.[0];
   input.value = '';
   if (!file || restoring.value) return;
+  // 先在本地读 zip 目录：不是本站备份包就直接说明，不必先弹「覆盖全部数据」的确认、也不用上传
+  if ((await looksLikeBackup(file)) === false) {
+    toast(t('studio.data.restoreBad'), { icon: 'x' });
+    return;
+  }
   const ok = await dialog.confirm({
     title: t('studio.data.restoreUploadTitle', { name: file.name }),
     message: t('studio.data.restoreBody'),
@@ -169,8 +183,7 @@ async function onRestoreFile(e: Event): Promise<void> {
   restoring.value = true;
   restorePct.value = 0;
   try {
-    const res = await adminApi.restoreUpload(file, (p) => { restorePct.value = p; });
-    afterRestore(res.safety);
+    afterRestore(await adminApi.restoreUpload(file, (p) => { restorePct.value = p; }));
   } catch (err) {
     restoreError(err);
     restoring.value = false;
@@ -311,7 +324,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
         <div class="st-sec-t"><h2>{{ t('studio.data.auto') }}</h2></div>
         <div class="st-opt">
           <div>{{ t('studio.data.autoSwitch') }}<small>{{ t('studio.data.autoSwitchSub') }}</small></div>
-          <StSwitch v-model="autoOn" />
+          <StSwitch v-model="autoOn" :label="t('studio.data.autoSwitch')" />
         </div>
         <div class="st-opt" :class="{ dim: !autoOn }">
           <div>{{ t('studio.data.freq') }}</div>
@@ -353,7 +366,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
         <div class="mc">
           <span class="ic"><SIcon name="markdown" :size="20" /></span>
           <div><b>{{ t('studio.data.export') }}</b><small>{{ t('studio.data.exportSub') }}</small></div>
-          <label class="opt"><StSwitch v-model="exportMedia" />{{ t('studio.data.exportMedia') }}</label>
+          <label class="opt"><StSwitch v-model="exportMedia" :label="t('studio.data.exportMedia')" />{{ t('studio.data.exportMedia') }}</label>
           <div class="acts">
             <button type="button" class="st-btn g sm" :disabled="exporting" @click="exportMd">
               <SIcon name="download" :size="16" />{{ exporting ? t('studio.data.exporting') : t('studio.data.exportBtn') }}
@@ -363,7 +376,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
         <div class="mc">
           <span class="ic"><SIcon name="layers" :size="20" /></span>
           <div><b>{{ t('studio.data.import') }}</b><small>{{ t('studio.data.importSub') }}</small></div>
-          <label class="opt"><StSwitch v-model="importDraft" /><span>{{ t('studio.data.importDraft') }}<em>{{ t('studio.data.importDraftSub') }}</em></span></label>
+          <label class="opt"><StSwitch v-model="importDraft" :label="t('studio.data.importDraft')" /><span>{{ t('studio.data.importDraft') }}<em>{{ t('studio.data.importDraftSub') }}</em></span></label>
           <div class="acts">
             <button type="button" class="st-btn g sm" :disabled="!!importBusy" @click="folderInput?.click()">
               <template v-if="importBusy">{{ importPct < 1 ? `${Math.round(importPct * 100)}%` : importBusy === 'scan' ? t('studio.data.importScanning') : t('studio.data.importing') }}</template>

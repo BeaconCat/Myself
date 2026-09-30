@@ -25,7 +25,8 @@ const auth = useAuthStore();
 
 const about = computed(() => config.cfg.about);
 const { avatar, name, alias, sign } = useIdentity();
-const handle = computed(() => config.cfg.github.username || 'myself');
+/** 未配置 GitHub 用户名时不显示 @handle */
+const handle = computed(() => config.cfg.github.username.trim());
 const days = computed(() => {
   const start = new Date(`${about.value.foundedAt || '2026-01-01'}T00:00:00`).getTime();
   return Math.max(1, Math.floor((Date.now() - start) / 864e5));
@@ -79,7 +80,7 @@ function openGithub(): void {
         <span class="av"><img class="m-avatar" :src="avatar" alt="" draggable="false" /></span>
         <div>
           <b><IdentityName :name="name" :alias="alias" /></b>
-          <small>{{ sign || `@${handle} · ${t('mobile.online')}` }}</small>
+          <small>{{ sign || (handle ? `@${handle} · ${t('mobile.online')}` : t('mobile.online')) }}</small>
         </div>
       </div>
       <p v-if="about.motto" class="motto">{{ about.motto }}</p>
@@ -145,7 +146,7 @@ function openGithub(): void {
         <span class="lic" style="--c: #ff7a1a"><MIcon name="rss" /></span>
         <span>{{ t('mobile.rss') }}</span><small>{{ t('mobile.copy') }}</small>
       </button>
-      <button class="m-li" @click="openGithub">
+      <button v-if="handle" class="m-li" @click="openGithub">
         <span class="lic" style="--c: #24292f"><MIcon name="github" /></span>
         <span>{{ t('mobile.github') }}</span><MIcon name="chev" class="chev" />
       </button>

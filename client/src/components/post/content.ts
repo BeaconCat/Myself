@@ -44,28 +44,8 @@ export function wordCount(md: string): number {
   return Math.max(10, Math.round(plain.length / 10) * 10);
 }
 
-/** 复制文本：优先 Clipboard API，非安全上下文回退 execCommand */
-export async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.setAttribute('readonly', '');
-    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
-    document.body.appendChild(ta);
-    ta.select();
-    let ok = false;
-    try {
-      ok = document.execCommand('copy');
-    } catch {
-      ok = false;
-    }
-    ta.remove();
-    return ok;
-  }
-}
+/** 复制文本：统一走 utils/clipboard（带非安全上下文回退） */
+export { copyText } from '../../utils/clipboard';
 
 /** 元素是否已吸顶（上缘贴到 offset 以内） */
 export function isStuck(el: HTMLElement | null, offset: number): boolean {

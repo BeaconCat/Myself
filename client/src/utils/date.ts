@@ -25,3 +25,13 @@ export function formatDateTime(s: string): string {
     hour12: false,
   }).format(parseUtc(s)).replaceAll('/', '-');
 }
+
+/** 站点时区的今天（YYYY-MM-DD）：替代 toISOString().slice(0, 10)（那是 UTC 日期，东八区零点到八点会差一天） */
+export function siteToday(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: useConfigStore().cfg.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}

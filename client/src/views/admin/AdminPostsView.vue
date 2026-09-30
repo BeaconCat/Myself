@@ -81,6 +81,11 @@ const FILTERS: Filter[] = ['all', 'published', 'draft', 'pinned', 'hidden'];
 /* ---------- 勾选与批量：勾选角标进入选择态，此后点卡片即勾选 ---------- */
 const picked = ref<Set<number>>(new Set());
 const picking = computed(() => picked.value.size > 0);
+/** 所选里有没有可隐藏 / 可取消隐藏的：批量条只给用得上的那个动作（混选时两个都给） */
+const pickedHidden = computed(() => {
+  const sel = posts.value.filter((x) => picked.value.has(x.id));
+  return { any: sel.some((x) => x.hidden), anyShown: sel.some((x) => !x.hidden) };
+});
 watch(filter, () => { picked.value = new Set(); });
 
 function togglePick(p: AdminPost): void {
@@ -221,7 +226,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <span class="sp" />
       <label class="st-field search">
         <SIcon name="search" :size="18" />
-        <input ref="searchEl" v-model="query" :placeholder="t('studio.posts.search')" />
+        <input ref="searchEl" v-model="query" :placeholder="t('studio.posts.search')" :aria-label="t('studio.a11y.searchPosts')" />
         <kbd class="st-kbd">/</kbd>
       </label>
       <StSeg
@@ -236,8 +241,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
     <div v-if="loaded && !list.length" class="st-empty">
       <EmptyArt :icon="FilePen" />
-      <h4>{{ query ? t('studio.posts.emptyQuery', { q: query }) : t('studio.posts.empty') }}</h4>
-      <p>{{ t('studio.posts.emptySub') }}</p>
+      <!-- 三种空态分开说：搜索无结果 / 当前筛选下没有 / 一篇都还没有 -->
+      <h4>{{ query ? t('studio.posts.emptyQuery', { q: query }) : posts.length ? t('studio.posts.emptyFilter') : t('studio.posts.emptyNone') }}</h4>
+      <p>{{ query ? t('studio.posts.emptySub') : posts.length ? t('studio.posts.emptyFilterSub') : t('studio.posts.emptyNoneSub') }}</p>
       <router-link class="st-btn p" :to="{ name: 'admin-write-post' }"><SIcon name="pen" :size="18" />{{ t('studio.posts.writeOne') }}</router-link>
     </div>
 
@@ -251,7 +257,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         @click="open(p)"
       >
         <LightCover class="pcv" :src="p.covers[0] ? thumbOf(p.covers[0]) : ''" :seed="p.slug">
-          <span class="pk" :title="t('studio.batch.pick')" @click.stop="togglePick(p)"><span class="st-ck" :class="{ on: picked.has(p.id) }"><Icon :icon="Check" /></span></span>
+          <span class="pk" role="checkbox" tabindex="0" :aria-checked="picked.has(p.id)" :aria-label="t('studio.a11y.select', { name: p.title || t('studio.untitled') })" :title="t('studio.batch.pick')" @click.stop="togglePick(p)" @keydown.enter.space.prevent.stop="togglePick(p)"><span class="st-ck" :class="{ on: picked.has(p.id) }"><Icon :icon="Check" /></span></span>
           <span v-if="p.pinned" class="pin" :title="t('studio.pinned')"><SIcon name="pin" :size="16" /></span>
         </LightCover>
         <div class="bd">
@@ -262,7 +268,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             <span v-if="p.hidden" class="hid-tag" :title="t('studio.batch.hiddenHint')"><SIcon name="eyeOff" :size="14" />{{ t('studio.batch.hidden') }}</span>
             <span class="mono">{{ dateText(p.createdAt) }}</span>
             <span class="tags"><span v-for="tag in p.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span></span>
-            <span class="more" @click.stop><PopMenu :items="menu(p)" /></span>
+            <span class="more" @click.stop><PopMenu :items="menu(p)" :label="t('studio.a11y.moreOf', { name: p.title || t('studio.untitled') })" /></span>
           </div>
         </div>
       </article>
@@ -287,7 +293,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         @click="open(p)"
       >
         <LightCover class="rcv" :src="p.covers[0] ? thumbOf(p.covers[0]) : ''" :seed="p.slug">
-          <span class="pk" :title="t('studio.batch.pick')" @click.stop="togglePick(p)"><span class="st-ck" :class="{ on: picked.has(p.id) }"><Icon :icon="Check" /></span></span>
+          <span class="pk" role="checkbox" tabindex="0" :aria-checked="picked.has(p.id)" :aria-label="t('studio.a11y.select', { name: p.title || t('studio.untitled') })" :title="t('studio.batch.pick')" @click.stop="togglePick(p)" @keydown.enter.space.prevent.stop="togglePick(p)"><span class="st-ck" :class="{ on: picked.has(p.id) }"><Icon :icon="Check" /></span></span>
         </LightCover>
         <div class="tt">
           <h3><SIcon v-if="p.pinned" name="pin" :size="16" class="pin-i" />{{ p.title || t('studio.untitled') }}</h3>
@@ -300,13 +306,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         </span>
         <span class="num">{{ dateText(p.createdAt) }}</span>
         <span class="num">{{ relTime(p.updatedAt || p.createdAt) }}</span>
-        <span @click.stop><PopMenu :items="menu(p)" /></span>
+        <span @click.stop><PopMenu :items="menu(p)" :label="t('studio.a11y.moreOf', { name: p.title || t('studio.untitled') })" /></span>
       </div>
     </div>
 
     <BatchBar :show="picking" :count="picked.size" :total="list.length" @all="pickAll" @clear="picked = new Set()">
-      <button type="button" class="st-btn sm" @click="batch('hide')"><SIcon name="eyeOff" :size="16" />{{ t('studio.batch.hide') }}</button>
-      <button type="button" class="st-btn sm" @click="batch('show')"><SIcon name="eye" :size="16" />{{ t('studio.batch.show') }}</button>
+      <button v-if="pickedHidden.anyShown" type="button" class="st-btn sm" @click="batch('hide')"><SIcon name="eyeOff" :size="16" />{{ t('studio.batch.hide') }}</button>
+      <button v-if="pickedHidden.any" type="button" class="st-btn sm" @click="batch('show')"><SIcon name="eye" :size="16" />{{ t('studio.batch.show') }}</button>
       <button type="button" class="st-btn sm danger" @click="batch('delete')"><SIcon name="trash" :size="16" />{{ t('studio.delete') }}</button>
     </BatchBar>
   </section>

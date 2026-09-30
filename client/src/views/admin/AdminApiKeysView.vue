@@ -98,13 +98,23 @@ function keyMenu(k: ApiKeyInfo): MenuItem[] {
 /* ===== 快速上手 ===== */
 const lang = ref<'curl' | 'js'>('curl');
 const origin = window.location.origin;
-const sampleKey = computed(() => sessionKeys.value[0]?.key ?? '<YOUR_API_KEY>');
-const code = computed(() =>
-  lang.value === 'curl'
+const sampleKey = computed(() => sessionKeys.value[0]?.key ?? '');
+
+/**
+ * 页面上只显示打码后的 Key（前 8 位 + 圆点）：完整 Key 只在「只会显示这一次」的弹窗里出现，
+ * 关掉后示例代码与提示词都不再明文展示；点「复制」时仍复制带完整 Key 的版本，方便直接粘贴使用。
+ */
+function maskKey(key: string): string {
+  return key ? `${key.slice(0, 8)}••••••••` : '';
+}
+
+function codeFor(key: string): string {
+  const k = key || '<YOUR_API_KEY>';
+  return lang.value === 'curl'
     ? [
       `# ${t('studio.api.codeCurl')}`,
       `curl -X POST ${origin}/api/v1/ext/posts \\`,
-      `  -H "X-Api-Key: ${sampleKey.value}" \\`,
+      `  -H "X-Api-Key: ${k}" \\`,
       '  -H "Content-Type: application/json" \\',
       `  -d '{"slug":"weekly-notes","title":"${t('studio.api.codeTitle')}","contentMd":"## ${t('studio.api.codeBody')}","tags":["API"],"status":"draft"}'`,
     ].join('\n')
@@ -115,8 +125,9 @@ const code = computed(() =>
       `  headers: { "X-Api-Key": process.env.MYSELF_KEY, "Content-Type": "application/json" },`,
       `  body: JSON.stringify({ contentMd: "${t('studio.api.codeNote')}", mood: "AI", images: [] }),`,
       '});',
-    ].join('\n'),
-);
+    ].join('\n');
+}
+const code = computed(() => codeFor(maskKey(sampleKey.value)));
 
 /* ===== 调试台 ===== */
 const openId = ref('');
@@ -172,9 +183,11 @@ async function send(e: Endpoint): Promise<void> {
 }
 
 /* ===== 提示词 ===== */
-const prompt = computed(() => buildAgentPrompt(origin, effectiveKey.value));
+/** 显示用（打码）与复制 / 下载用（完整 Key）两份提示词 */
+const prompt = computed(() => buildAgentPrompt(origin, maskKey(effectiveKey.value)));
+const promptFull = computed(() => buildAgentPrompt(origin, effectiveKey.value));
 function downloadPrompt(): void {
-  saveBlob(new Blob([prompt.value], { type: 'text/plain;charset=utf-8' }), 'Myself Prompt.txt');
+  saveBlob(new Blob([promptFull.value], { type: 'text/plain;charset=utf-8' }), 'Myself Prompt.txt');
 }
 
 /* ===== 调用日志（服务端分页；旧后端没有该接口时显示不可用） ===== */
@@ -310,7 +323,7 @@ onMounted(() => {
           <span class="mono">{{ dateText(k.createdAt) }}</span>
           <small>{{ t('studio.api.createdAt') }}</small>
         </div>
-        <PopMenu :items="keyMenu(k)" />
+        <PopMenu :items="keyMenu(k)" :label="t('studio.a11y.moreOf', { name: k.name })" />
       </div>
     </div>
 
@@ -320,7 +333,7 @@ onMounted(() => {
           <h2>{{ t('studio.api.quick') }}</h2>
           <StSeg v-model="lang" :options="[{ value: 'curl', label: 'cURL' }, { value: 'js', label: 'JavaScript' }]" />
         </div>
-        <pre class="code"><code>{{ code }}</code><button type="button" class="st-ibtn cp" :title="t('studio.copy')" @click="copy(code)"><SIcon name="copy" :size="18" /></button></pre>
+        <pre class="code"><code>{{ code }}</code><button type="button" class="st-ibtn cp" :title="t('studio.copy')" @click="copy(codeFor(sampleKey))"><SIcon name="copy" :size="18" /></button></pre>
       </div>
       <div>
         <div class="st-sec-t"><h2>{{ t('studio.api.endpoints') }}</h2></div>
@@ -340,12 +353,12 @@ onMounted(() => {
       <div class="auth">
         <label class="st-field sel">
           <SIcon name="key" :size="18" />
-          <select v-model="testerKey">
+          <select v-model="testerKey" :aria-label="t('studio.a11y.testerKey')">
             <option value="">{{ t('studio.api.noSessionKey') }}</option>
             <option v-for="s in sessionKeys" :key="s.id" :value="s.key">{{ s.name }}</option>
           </select>
         </label>
-        <label class="st-field mono-in"><input v-model="manualKey" :placeholder="t('studio.api.manualKey')" spellcheck="false" /></label>
+        <label class="st-field mono-in"><input v-model="manualKey" :placeholder="t('studio.api.manualKey')" :aria-label="t('studio.api.manualKey')" spellcheck="false" /></label>
         <small>{{ t('studio.api.testerTip') }}</small>
       </div>
       <div class="eps">
@@ -359,7 +372,7 @@ onMounted(() => {
           </button>
           <div v-if="openId === epId(e)" class="ep-body">
             <label class="st-field mono-in"><span class="suffix">URL</span><input v-model="reqPath" spellcheck="false" /></label>
-            <label v-if="['POST', 'PUT'].includes(e.method)" class="st-field ta mono-in"><textarea v-model="reqBody" rows="6" spellcheck="false" /></label>
+            <label v-if="['POST', 'PUT'].includes(e.method)" class="st-field ta mono-in"><textarea v-model="reqBody" rows="6" :aria-label="t('studio.a11y.reqBody')" spellcheck="false" /></label>
             <div class="send">
               <button type="button" class="st-btn p sm" :disabled="testing" @click="send(e)"><SIcon name="play" :size="16" />{{ testing ? t('studio.api.sending') : t('studio.api.send') }}</button>
               <span v-if="resp" class="status" :class="{ ok: resp.status > 0 && resp.status < 400 }"><i class="st-dot" />HTTP {{ resp.status }} · {{ resp.ms }} ms</span>
@@ -375,7 +388,7 @@ onMounted(() => {
       <div class="st-sec-t">
         <h2>{{ t('studio.api.prompt') }}</h2>
         <span class="acts">
-          <button type="button" class="st-btn g sm" @click="copy(prompt)"><SIcon name="copy" :size="16" />{{ t('studio.copy') }}</button>
+          <button type="button" class="st-btn g sm" @click="copy(promptFull)"><SIcon name="copy" :size="16" />{{ t('studio.copy') }}</button>
           <button type="button" class="st-btn g sm" @click="downloadPrompt"><SIcon name="download" :size="16" />{{ t('studio.api.download') }}</button>
         </span>
       </div>
@@ -459,7 +472,7 @@ onMounted(() => {
         <h3>{{ t('studio.api.newTitle') }}</h3>
         <p>{{ t('studio.api.newDesc') }}</p>
         <div class="st-flabel">{{ t('studio.api.name') }}</div>
-        <label class="st-field"><input v-model="newName" :placeholder="t('studio.api.namePh')" @keydown.enter="create" /></label>
+        <label class="st-field"><input v-model="newName" :placeholder="t('studio.api.namePh')" :aria-label="t('studio.a11y.keyName')" @keydown.enter="create" /></label>
         <div class="st-flabel scope-label">{{ t('studio.api.scopeLabel') }}</div>
         <div class="scope-pick" role="radiogroup">
           <button

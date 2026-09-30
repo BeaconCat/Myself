@@ -155,12 +155,13 @@ export interface SetupPayload {
 }
 
 export const api = {
-  posts: (params: { page?: number; pageSize?: number; tag?: string; q?: string } = {}) => {
+  posts: (params: { page?: number; pageSize?: number; tag?: string; q?: string; pinnedFirst?: boolean } = {}) => {
     const query = new URLSearchParams();
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
     if (params.tag) query.set('tag', params.tag);
     if (params.q) query.set('q', params.q);
+    if (params.pinnedFirst) query.set('pinned', 'first');
     const qs = query.toString();
     return get<PostList>(`/posts${qs ? `?${qs}` : ''}`);
   },
@@ -361,12 +362,12 @@ export const adminApi = {
   backups: () => authed<BackupInfo[]>('/admin/backups'),
   createBackup: () => authed<{ name: string }>('/admin/backups', { method: 'POST' }),
   /** 从已有备份恢复；返回恢复前自动做的安全备份名 */
-  restoreBackup: (name: string) => authed<{ safety: string }>(`/admin/backups/${encodeURIComponent(name)}/restore`, { method: 'POST' }),
+  restoreBackup: (name: string) => authed<{ safety: string; backup?: BackupInfo }>(`/admin/backups/${encodeURIComponent(name)}/restore`, { method: 'POST' }),
   /** 上传备份包并恢复（包会留存在备份列表里） */
   restoreUpload: (file: File, onProgress?: (p: number) => void) => {
     const form = new FormData();
     form.append('file', file);
-    return xhrForm<{ safety: string }>('/admin/backups/restore', form, onProgress);
+    return xhrForm<{ safety: string; backup?: BackupInfo }>('/admin/backups/restore', form, onProgress);
   },
   /** 导出全部文章与随想为 Markdown（zip）；media=true 连同素材 */
   exportMarkdown: async (media: boolean): Promise<Blob> => {

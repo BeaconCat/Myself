@@ -159,19 +159,19 @@ onBeforeUnmount(() => {
           <h2>{{ t('studio.settings.nav.site') }}</h2>
           <div class="st-opt">
             <div>{{ t('studio.settings.siteTitle') }}<small>{{ t('studio.settings.siteTitleSub') }}</small></div>
-            <label class="st-field w320"><input v-model="cfg.site.title" /></label>
+            <label class="st-field w320"><input v-model="cfg.site.title" :aria-label="t('studio.settings.siteTitle')" /></label>
           </div>
           <div class="st-opt">
             <div>{{ t('studio.settings.siteSubtitle') }}<small>{{ t('studio.settings.siteSubtitleSub') }}</small></div>
-            <label class="st-field w320"><input v-model="cfg.site.subtitle" /></label>
+            <label class="st-field w320"><input v-model="cfg.site.subtitle" :aria-label="t('studio.settings.siteSubtitle')" /></label>
           </div>
           <div class="st-opt">
             <div>{{ t('studio.settings.listEnd') }}<small>{{ t('studio.settings.listEndSub') }}</small></div>
-            <label class="st-field w320"><input v-model="cfg.site.listEndText" /></label>
+            <label class="st-field w320"><input v-model="cfg.site.listEndText" :aria-label="t('studio.settings.listEnd')" /></label>
           </div>
           <div class="st-opt">
             <div>{{ t('studio.settings.siteUrl') }}<small>{{ t('studio.settings.siteUrlSub') }}</small></div>
-            <label class="st-field w320"><input v-model.trim="cfg.site.url" placeholder="https://example.com" spellcheck="false" /></label>
+            <label class="st-field w320"><input v-model.trim="cfg.site.url" :aria-label="t('studio.settings.siteUrl')" placeholder="https://example.com" spellcheck="false" /></label>
           </div>
         </section>
 
@@ -179,11 +179,11 @@ onBeforeUnmount(() => {
           <h2>{{ t('studio.settings.nav.loading') }}</h2>
           <div class="st-opt">
             <div>{{ t('studio.settings.bootText') }}<small>{{ t('studio.settings.bootTextSub') }}</small></div>
-            <label class="st-field w320"><input v-model="cfg.loading.bootText" /></label>
+            <label class="st-field w320"><input v-model="cfg.loading.bootText" :aria-label="t('studio.settings.bootText')" /></label>
           </div>
           <div class="st-opt">
             <div>{{ t('studio.settings.routeText') }}<small>{{ t('studio.settings.routeTextSub') }}</small></div>
-            <label class="st-field w320"><input v-model="cfg.loading.routeText" /></label>
+            <label class="st-field w320"><input v-model="cfg.loading.routeText" :aria-label="t('studio.settings.routeText')" /></label>
           </div>
         </section>
 
@@ -191,11 +191,11 @@ onBeforeUnmount(() => {
           <h2>{{ t('studio.settings.nav.content') }}</h2>
           <div class="st-opt">
             <div>{{ t('studio.settings.thoughtsSub') }}<small>{{ t('studio.settings.thoughtsSubSub') }}</small></div>
-            <label class="st-field w420"><input v-model="cfg.thoughts.subtitle" /></label>
+            <label class="st-field w420"><input v-model="cfg.thoughts.subtitle" :aria-label="t('studio.settings.thoughtsSub')" /></label>
           </div>
           <div class="st-opt">
             <div>{{ t('studio.settings.coverMs') }}<small>{{ t('studio.settings.coverMsSub') }}</small></div>
-            <label class="st-field w140"><input v-model="expandSec" type="number" min="1.5" step="0.5" /><span class="suffix">{{ t('studio.settings.seconds') }}</span></label>
+            <label class="st-field w140"><input v-model="expandSec" :aria-label="t('studio.settings.coverMs')" type="number" min="1.5" step="0.5" /><span class="suffix">{{ t('studio.settings.seconds') }}</span></label>
           </div>
         </section>
 
@@ -205,7 +205,7 @@ onBeforeUnmount(() => {
             <div>{{ t('studio.settings.tz') }}<small>{{ t('studio.settings.tzSub') }}</small></div>
             <label class="st-field w260 sel">
               <SIcon name="globe" :size="18" />
-              <select v-model="cfg.timezone"><option v-for="tz in TIMEZONES" :key="tz" :value="tz">{{ tz }}</option></select>
+              <select v-model="cfg.timezone" :aria-label="t('studio.settings.tz')"><option v-for="tz in TIMEZONES" :key="tz" :value="tz">{{ tz }}</option></select>
               <SIcon name="chevronD" :size="16" />
             </label>
           </div>

@@ -3,6 +3,7 @@ import {
   type IconNode,
 } from 'lucide';
 import type { AboutModule } from '../stores/config';
+import { siteToday } from '../utils/date';
 import type { Span } from './types';
 
 /**
@@ -220,7 +221,7 @@ export const MODULE_REGISTRY: ModuleMeta[] = [
     spans: [1, 2],
     defaultSpan: 1,
     chrome: yes,
-    defaultData: () => ({ updatedAt: new Date().toISOString().slice(0, 10), items: [{ kind: '在做', text: '正在做的一件事', note: '' }] }),
+    defaultData: () => ({ updatedAt: siteToday(), items: [{ kind: '在做', text: '正在做的一件事', note: '' }] }),
     summary: (d) => count(d.items, '件事'),
   },
   {

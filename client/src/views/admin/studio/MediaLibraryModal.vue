@@ -72,7 +72,11 @@ const scopedFolders = computed<MediaFolder[]>(() => {
 });
 const unfiled = computed(() => inScope.value.filter((m) => !m.folder).length);
 
-const tabs = computed(() => (props.accept.length > 1 ? (['all', ...props.accept] as const) : []));
+/** 类型标签：只列当前文件夹 / 搜索范围里有内容的类型，只有一种时不显示 */
+const tabs = computed<(MediaKindName | 'all')[]>(() => {
+  const ks = props.accept.filter((k) => counts.value[k]);
+  return ks.length > 1 ? ['all', ...ks] : [];
+});
 
 watch(
   () => props.open,
@@ -109,15 +113,23 @@ const shown = computed(() => {
   });
 });
 
+/** 各类型计数：按当前文件夹与搜索范围统计（不受类型标签本身影响） */
 const counts = computed(() => {
   const out: Record<string, number> = { all: 0 };
-  for (const m of items.value ?? []) {
+  const s = q.value.trim().toLowerCase();
+  for (const m of inScope.value) {
+    if (folder.value !== ALL && (m.folder ?? '') !== folder.value) continue;
+    if (s && !`${m.title ?? ''} ${m.name}`.toLowerCase().includes(s)) continue;
     const k = mediaKind(m);
-    if (!props.accept.includes(k)) continue;
     out.all += 1;
     out[k] = (out[k] ?? 0) + 1;
   }
   return out;
+});
+
+// 换文件夹 / 搜索后所选类型已无内容：回到「全部」
+watch(tabs, (ts) => {
+  if (tab.value !== 'all' && !ts.includes(tab.value)) tab.value = 'all';
 });
 
 function order(m: MediaItem): number {
@@ -189,7 +201,7 @@ function addExternal(): void {
       <h3>{{ title }}</h3>
       <label class="st-field search">
         <Icon :icon="Search" :size="16" />
-        <input v-model="q" :placeholder="t('studio.library.search')" />
+        <input v-model="q" :placeholder="t('studio.library.search')" :aria-label="t('studio.a11y.searchMedia')" />
       </label>
     </div>
     <div class="body" :class="{ solo: !isAdmin }">
@@ -199,7 +211,7 @@ function addExternal(): void {
     <div class="main">
     <div class="tabs">
       <template v-if="tabs.length">
-        <button v-for="k in tabs" :key="k" type="button" class="st-chip" :class="{ on: tab === k }" @click="tab = k">
+        <button v-for="k in tabs" :key="k" type="button" class="st-chip" :class="{ on: tab === k }" :aria-pressed="tab === k" @click="tab = k">
           {{ t(`studio.library.kind.${k}`) }}<span class="n">{{ counts[k] ?? 0 }}</span>
         </button>
       </template>
@@ -250,7 +262,7 @@ function addExternal(): void {
     <div class="ft">
       <label v-if="external" class="st-field ext">
         <Icon :icon="Link" :size="16" />
-        <input v-model="extUrl" :placeholder="t('studio.library.externalPh')" @keydown.enter.prevent="addExternal" />
+        <input v-model="extUrl" :placeholder="t('studio.library.externalPh')" :aria-label="t('studio.library.externalPh')" @keydown.enter.prevent="addExternal" />
         <button type="button" class="st-link" :disabled="!extUrl.trim()" @click="addExternal">{{ t('studio.library.externalAdd') }}</button>
       </label>
       <span class="sp" />

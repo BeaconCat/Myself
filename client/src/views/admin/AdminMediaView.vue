@@ -11,7 +11,7 @@ import EmptyArt from './studio/EmptyArt.vue';
 import { Check, FolderInput, ImagePlus, Search } from 'lucide';
 import FolderTree from './studio/FolderTree.vue';
 import FolderPickModal from './studio/FolderPickModal.vue';
-import { ALL, DRAG_TYPE, useFolders } from './studio/useFolders';
+import { ALL, DRAG_TYPE, relocate, useFolders } from './studio/useFolders';
 import Select from '../../components/ui/Select.vue';
 import Icon from '../../components/ui/Icon.vue';
 import MediaTile from './studio/MediaTile.vue';
@@ -183,12 +183,12 @@ function openRef(r: MediaRef): void {
   else void router.push({ name: 'admin-about' });
 }
 
-/* ---------- 类型筛选：全部 / 图片 / 视频 / 音频 / 压缩包 / 文件（只显示有内容的类型） ---------- */
+/* ---------- 类型筛选：全部 / 图片 / 视频 / 音频 / 压缩包 / 文件（计数只算当前文件夹与搜索范围，只显示有内容的类型） ---------- */
 const KINDS: MediaKindName[] = ['image', 'video', 'audio', 'archive', 'file'];
 const kindFilter = ref<MediaKindName | 'all'>('all');
 const kindCounts = computed(() => {
   const out: Record<string, number> = {};
-  for (const m of items.value) out[mediaKind(m)] = (out[mediaKind(m)] ?? 0) + 1;
+  for (const m of scoped.value) out[mediaKind(m)] = (out[mediaKind(m)] ?? 0) + 1;
   return out;
 });
 const shownKinds = computed(() => KINDS.filter((k) => kindCounts.value[k]));
@@ -219,15 +219,25 @@ const sortOptions = computed(() => [
   { value: 'size', label: t('studio.media.sortSize') },
 ]);
 
-/** 当前可见的素材（文件夹 → 类型 → 搜索 → 排序）；网格、列表、查看器、Shift 连选都按它 */
-const visible = computed(() => {
+/** 当前文件夹 + 搜索范围内的素材（类型 chips 的计数按它） */
+const scoped = computed(() => {
   const s = q.value.trim().toLowerCase();
-  const list = items.value.filter((m) => {
+  return items.value.filter((m) => {
     if (folder.value !== ALL && (m.folder ?? '') !== folder.value) return false;
-    if (kindFilter.value !== 'all' && mediaKind(m) !== kindFilter.value) return false;
     return !s || `${m.title ?? ''} ${m.name}`.toLowerCase().includes(s);
   });
-  if (sort.value === 'name') list.sort((a, b) => (a.title || a.name).localeCompare(b.title || b.name, 'zh'));
+});
+// 换了文件夹 / 搜索后所选类型已不存在：回到「全部」，避免停在一个看不见的筛选上
+watch(shownKinds, (ks) => {
+  if (kindFilter.value !== 'all' && !ks.includes(kindFilter.value)) kindFilter.value = 'all';
+});
+
+/** 当前可见的素材（文件夹 → 搜索 → 类型 → 排序）；网格、列表、查看器、Shift 连选都按它 */
+const visible = computed(() => {
+  const list = scoped.value.filter((m) => kindFilter.value === 'all' || mediaKind(m) === kindFilter.value);
+  // 最新上传：服务端已按时间倒序（同一时刻按文件名兜底），这里再显式排一次，上传 / 改动后顺序也不会跳
+  if (sort.value === 'new') list.sort((a, b) => (a.createdAt === b.createdAt ? b.name.localeCompare(a.name) : b.createdAt.localeCompare(a.createdAt)));
+  else if (sort.value === 'name') list.sort((a, b) => (a.title || a.name).localeCompare(b.title || b.name, 'zh'));
   else if (sort.value === 'size') list.sort((a, b) => b.size - a.size);
   return list;
 });
@@ -423,8 +433,8 @@ onMounted(() => {
             :unfiled="unfiledCount"
             :editable="isAdmin"
             @create="(p) => fo.create(p)"
-            @rename="async (p) => { const n = await fo.rename(p); if (n && folder === p) folder = n; }"
-            @remove="async (p) => { if (await fo.remove(p) && folder.startsWith(p)) folder = ALL; }"
+            @rename="async (p) => { const n = await fo.rename(p); if (n) folder = relocate(folder, p, n); }"
+            @remove="async (p) => { if (await fo.remove(p)) folder = relocate(folder, p, null); }"
             @drop="onDropToFolder"
           />
         </aside>
@@ -433,7 +443,7 @@ onMounted(() => {
           <div class="lib-bar">
             <label class="st-field search">
               <Icon :icon="Search" :size="16" />
-              <input v-model="q" :placeholder="t('studio.library.search')" />
+              <input v-model="q" :placeholder="t('studio.library.search')" :aria-label="t('studio.a11y.searchMedia')" />
             </label>
             <div v-if="shownKinds.length > 1" class="kinds">
               <button type="button" class="st-chip" :class="{ on: kindFilter === 'all' }" @click="kindFilter = 'all'">{{ t('studio.library.kind.all') }}</button>
@@ -468,7 +478,7 @@ onMounted(() => {
               @click="onTile(i, $event)"
             >
               <MediaTile :item="it" :stamp="`${it.size}-${stamp}`" />
-              <span class="pick" :title="t('studio.media.pick')" @click.stop="togglePick(i, $event)">
+              <span class="pick" role="checkbox" :aria-checked="picked.has(it.name)" :aria-label="t('studio.a11y.select', { name: it.title || it.name })" :title="t('studio.media.pick')" @click.stop="togglePick(i, $event)">
                 <span class="st-ck" :class="{ on: picked.has(it.name) }"><Icon :icon="Check" /></span>
               </span>
               <span v-if="compressible.has(it.name)" class="zip">{{ t('studio.media.compressible') }}</span>
@@ -478,7 +488,7 @@ onMounted(() => {
             </button>
           </div>
 
-          <div v-else class="mlist">
+          <div v-else-if="shown.length" class="mlist">
             <div class="lh">
               <span />
               <span />
@@ -500,7 +510,7 @@ onMounted(() => {
               @click="onTile(i, $event)"
               @keydown.enter="onTile(i, $event as unknown as MouseEvent)"
             >
-              <span class="pk" @click.stop="togglePick(i, $event)"><span class="st-ck" :class="{ on: picked.has(it.name) }"><Icon :icon="Check" /></span></span>
+              <span class="pk" role="checkbox" tabindex="0" :aria-checked="picked.has(it.name)" :aria-label="t('studio.a11y.select', { name: it.title || it.name })" @click.stop="togglePick(i, $event)" @keydown.enter.space.prevent.stop="togglePick(i, $event as unknown as MouseEvent)"><span class="st-ck" :class="{ on: picked.has(it.name) }"><Icon :icon="Check" /></span></span>
               <span class="th"><MediaTile :item="it" :stamp="`${it.size}-${stamp}`" /></span>
               <span class="nm"><b>{{ it.title || it.name }}</b><small class="mono">{{ it.name }}</small></span>
               <span class="kd">{{ t(`studio.library.kind.${mediaKind(it)}`) }}</span>
@@ -515,7 +525,7 @@ onMounted(() => {
       <!-- 多选操作条：贴底浮起 -->
       <Transition name="bar">
         <div v-if="picking" class="pickbar">
-          <span class="n">{{ t('studio.media.picked', { n: picked.size }) }}<small class="mono">{{ formatSize(pickedSize) }}</small></span>
+          <span class="n">{{ t('studio.media.picked', { n: picked.size }) }}<span class="sr-only">，</span><small class="mono">{{ formatSize(pickedSize) }}</small></span>
           <button type="button" class="st-btn g sm" @click="pickAll">{{ picked.size >= visible.length ? t('studio.media.selectNone') : t('studio.media.selectAll') }}</button>
           <span class="sp" />
           <button v-if="isAdmin" type="button" class="st-btn sm" @click="moving = true"><Icon :icon="FolderInput" :size="16" />{{ t('studio.folder.moveTo') }}</button>

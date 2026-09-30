@@ -13,6 +13,7 @@ import EmptyArt from './studio/EmptyArt.vue';
 import StSeg from './studio/StSeg.vue';
 import StPager from './studio/StPager.vue';
 import { toast } from './studio/toast';
+import { studio } from './studio/state';
 import { initial, plainText, relTime } from './studio/format';
 
 /**
@@ -59,6 +60,7 @@ async function load(): Promise<void> {
     } else {
       list.value = res.items;
       Object.assign(counts, res.counts);
+      studio.pending = res.counts.pending ?? 0;
     }
   } catch {
     if (seq !== loadSeq) return;
@@ -130,11 +132,12 @@ function move(ids: number[], to: Tab | null): void {
   refill();
 }
 
-async function setStatus(c: AdminComment, status: CommentStatus): Promise<boolean> {
+/** quiet：由调用方给出合并后的提示（如「回复并通过」），这里不再单独弹一条 */
+async function setStatus(c: AdminComment, status: CommentStatus, quiet = false): Promise<boolean> {
   try {
     await adminApi.setCommentStatus(c.id, status);
     move([c.id], status);
-    toast(t(`studio.comments.moved_${status}`), { icon: status === 'spam' ? 'flag' : 'check' });
+    if (!quiet) toast(t(`studio.comments.moved_${status}`), { icon: status === 'spam' ? 'flag' : 'check' });
     return true;
   } catch {
     toast(t('studio.saveFailed'), { icon: 'x' });
@@ -195,11 +198,12 @@ async function sendReply(c: AdminComment): Promise<void> {
   replyBusy.value = true;
   try {
     // 只能回复已公开的评论：待审的先通过
-    if (c.status === 'pending' && !(await setStatus(c, 'approved'))) return;
+    const approving = c.status === 'pending';
+    if (approving && !(await setStatus(c, 'approved', true))) return;
     await accountApi.postComment({ target: c.target, key: c.targetKey, body, parentId: c.id });
     replying.value = null;
     replyText.value = '';
-    toast(t('studio.comments.replied'), { icon: 'reply' });
+    toast(t(approving ? 'studio.comments.repliedApproved' : 'studio.comments.replied'), { icon: 'reply' });
     if (tab.value === 'approved') void load();
   } catch (e) {
     toast((e as Error).message === 'comments_closed' ? t('studio.comments.closed') : t('studio.saveFailed'), { icon: 'x' });
@@ -237,7 +241,7 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
     </div>
 
     <div v-if="list.length" class="bulk">
-      <label class="st-ckrow" @click.prevent="toggleAll">
+      <label class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="allOn" @click.prevent="toggleAll" @keydown.enter.space.prevent="toggleAll">
         <span class="st-ck" :class="{ on: allOn }"><Icon :icon="Check" /></span>{{ t('studio.comments.selectAll') }}
       </label>
       <span v-if="selected.size" class="sel">{{ t('studio.comments.selected', { n: selected.size }) }}</span>
@@ -257,7 +261,7 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
 
     <TransitionGroup tag="div" name="cm" class="cm-list" :class="{ busy: busy && !loading }">
       <div v-for="c in list" :key="c.id" class="cm" :class="{ sel: selected.has(c.id) }">
-        <span class="st-ck" :class="{ on: selected.has(c.id) }" role="checkbox" :aria-checked="selected.has(c.id)" @click="toggle(c.id)"><Icon :icon="Check" /></span>
+        <span class="st-ck" :class="{ on: selected.has(c.id) }" role="checkbox" tabindex="0" :aria-checked="selected.has(c.id)" :aria-label="t('studio.a11y.select', { name: c.author.name })" @click="toggle(c.id)" @keydown.enter.space.prevent="toggle(c.id)"><Icon :icon="Check" /></span>
         <span class="av" :style="{ background: c.author.avatar ? undefined : tint(c.author.name) }">
           <img v-if="c.author.avatar" :src="c.author.avatar" alt="" /><template v-else>{{ initial(c.author.name) }}</template>
         </span>
@@ -280,6 +284,7 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
                   ref="replyEl"
                   v-model="replyText"
                   rows="3"
+                  :aria-label="t('studio.a11y.reply', { name: c.author.name })"
                   maxlength="2000"
                   :placeholder="t('studio.comments.replyPh', { name: c.author.name })"
                   @keydown="onReplyKey($event, c)"

@@ -7,11 +7,12 @@ defineProps<{ title: string; sub?: string; loading?: boolean; to?: string; linkT
 
 <template>
   <header class="sec-h">
-    <h2>
+    <div class="ttl">
+      <!-- 副标题（统计）放在 h2 外：标题的可访问名称只是标题本身 -->
       <small v-if="loading" class="sk sk-line sub-sk" />
       <small v-else-if="sub">{{ sub }}</small>
-      {{ title }}
-    </h2>
+      <h2>{{ title }}</h2>
+    </div>
     <div class="acts">
       <slot />
       <router-link v-if="to && linkText" :to="to" class="link">

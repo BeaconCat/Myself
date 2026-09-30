@@ -90,6 +90,8 @@ const editor = new Editor({
     Markdown.configure({ html: false, linkify: true, breaks: false }),
   ],
   content: props.modelValue,
+  // 编辑区的可访问名称与角色（contenteditable 默认没有名字）
+  editorProps: { attributes: { 'aria-label': t('studio.a11y.editor'), role: 'textbox', 'aria-multiline': 'true' } },
   onUpdate: () => {
     if (applyingExternal) return;
     emit('update:modelValue', currentMarkdown());
@@ -127,11 +129,11 @@ function pickImage(): void {
   });
 }
 
-/** 视频 / 音频 / 压缩包 / 文件：素材库多选，按类型插入媒体节点（图片也可混选，按图片插入） */
+/** 视频 / 音频 / 压缩包 / 文件：素材库多选，按类型插入媒体节点（图片走「插入图片」，这里不列） */
 function pickMedia(): void {
   openLibrary({
     title: t('studio.embed.mediaTitle'),
-    accept: ['video', 'audio', 'archive', 'file', 'image'],
+    accept: ['video', 'audio', 'archive', 'file'],
     multiple: true,
     done: (items) => {
       const nodes = items.map((m) => {
@@ -275,7 +277,7 @@ function insertTable(): void {
 }
 
 /* ===== 自带工具栏（非 bare） ===== */
-type Cmd = { icon: string; title: string; run: () => unknown; active?: () => boolean } | { divider: true };
+type Cmd = { icon: string; title: string; run: () => unknown; active?: () => boolean; disabled?: () => boolean } | { divider: true };
 
 const c = () => editor.chain().focus();
 const TOOLBAR: Cmd[] = [
@@ -296,7 +298,7 @@ const TOOLBAR: Cmd[] = [
 const FULL_EXTRA: Cmd[] = [
   { divider: true },
   { icon: 'codeBlock', title: t('studio.editor.codeBlock'), run: () => c().toggleCodeBlock().run(), active: () => editor.isActive('codeBlock') },
-  { icon: 'table', title: t('studio.editor.table'), run: insertTable, active: () => editor.isActive('table') },
+  { icon: 'table', title: t('studio.editor.table'), run: insertTable, disabled: () => editor.isActive('table') },
   { icon: 'hr', title: t('studio.editor.hr'), run: () => c().setHorizontalRule().run() },
   { icon: 'image', title: t('studio.editor.image'), run: pickImage },
   { icon: 'collage', title: t('studio.editor.collage'), run: pickCollage },
@@ -331,7 +333,8 @@ defineExpose({
           type="button"
           class="tool"
           :class="{ on: item.active?.() }"
-          :title="item.title"
+          :title="item.disabled?.() ? t('studio.write.tool.tableNested') : item.title"
+          :disabled="item.disabled?.()"
           @click="item.run()"
         ><SIcon :name="item.icon" :size="16" /></button>
       </template>
@@ -350,13 +353,13 @@ defineExpose({
 
     <!-- 表格工具条 -->
     <Transition name="rb-pop">
-      <div v-if="tableBar" class="rb table-bar" :style="{ left: `${tableBar.x}px`, top: `${tableBar.y}px` }" @mousedown.prevent>
+      <div v-if="tableBar" class="rb table-bar" role="toolbar" :aria-label="t('studio.a11y.tableBar')" :style="{ left: `${tableBar.x}px`, top: `${tableBar.y}px` }" @mousedown.prevent>
         <template v-for="g in TABLE_GROUPS" :key="g.label">
           <span class="grp-l">{{ g.label }}</span>
-          <button v-for="it in g.items" :key="it.title" type="button" class="txt" :title="it.title" @click="it.run()">{{ it.text }}</button>
+          <button v-for="it in g.items" :key="it.title" type="button" class="txt" :title="it.title" :aria-label="it.title" @click="it.run()">{{ it.text }}</button>
           <span class="sep" />
         </template>
-        <button type="button" class="txt" :class="{ on: headerOn }" :title="t('studio.table.header')" @click="editor.chain().focus().toggleHeaderRow().run()">
+        <button type="button" class="txt" :class="{ on: headerOn }" :title="t('studio.table.header')" :aria-pressed="headerOn" @click="editor.chain().focus().toggleHeaderRow().run()">
           <Icon :icon="PanelTop" :size="14" />{{ t('studio.table.headerShort') }}
         </button>
         <button type="button" class="txt danger" :title="t('studio.table.remove')" @click="editor.chain().focus().deleteTable().run()">
@@ -438,6 +441,7 @@ defineExpose({
 
   &:hover { background: var(--surface); color: var(--text); }
   &.on { background: var(--lift); box-shadow: var(--lift-shadow); color: var(--lift-fg); }
+  &:disabled { opacity: 0.35; cursor: not-allowed; background: none; }
 }
 
 .divider {

@@ -65,7 +65,7 @@ function openAt(e: MouseEvent, i: number): void {
     <div class="main">
       <header class="hd">
         <b><IdentityName :name="name" :alias="alias" /></b>
-        <span class="handle">@{{ handle }}</span>
+        <span v-if="handle" class="handle">@{{ handle }}</span>
         <span class="dotsep" />
         <time :datetime="note.createdAt.replace(' ', 'T')" :title="note.createdAt.slice(0, 16)">{{ when }}</time>
         <span v-if="note.pinned" class="pin"><Icon :icon="Pin" :size="12" :stroke="2" />{{ t('noteDetail.pinned') }}</span>
@@ -80,6 +80,7 @@ function openAt(e: MouseEvent, i: number): void {
           :key="`${i}-${src}`"
           type="button"
           class="cell"
+          :aria-label="t('a11y.viewImage', { n: i + 1, total: note.images.length })"
           @click="openAt($event, i)"
         >
           <CoverArt :src="src" :seed="`${note.id}-${i}`" pool="all" thumb />

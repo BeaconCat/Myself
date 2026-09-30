@@ -38,7 +38,8 @@ watch(loading, (on, was) => { if (was && !on) loadedOnce.value = true; });
 const showSkeleton = computed(() => loading.value || !loadedOnce.value);
 
 const { avatar, name, alias, fullName } = useIdentity();
-const handle = computed(() => config.cfg.github.username || 'myself');
+/** 未配置 GitHub 用户名时不显示 @handle */
+const handle = computed(() => config.cfg.github.username.trim());
 
 const viewDir = ref<'in-r' | 'in-l'>('in-r');
 function switchTab(next: NotesTab): void {
@@ -158,7 +159,7 @@ const mediaCount = computed(() => media.value.length);
             <span class="av"><img class="m-avatar" :src="avatar" alt="" draggable="false" /></span>
             <div class="post-main">
               <header>
-                <b><IdentityName :name="name" :alias="alias" /></b><span>@{{ handle }} · {{ md(n.createdAt) }}</span>
+                <b><IdentityName :name="name" :alias="alias" /></b><span><template v-if="handle">@{{ handle }} · </template>{{ md(n.createdAt) }}</span>
                 <i v-if="n.pinned" class="m-pin">{{ t('noteDetail.pinned') }}</i>
                 <em v-if="n.mood" class="m-mood">{{ n.mood }}</em>
               </header>

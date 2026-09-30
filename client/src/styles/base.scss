@@ -143,3 +143,16 @@ html,
 body {
   overflow-x: clip;
 }
+
+/* 只给读屏的文字（如数值与徽标之间的分隔），视觉上不占位 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

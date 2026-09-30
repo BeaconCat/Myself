@@ -17,6 +17,7 @@ import MediaTile from '../../admin/studio/MediaTile.vue';
 import { mediaKind } from '../../../utils/mediaKind';
 import { cache, loadMedia, shell, toast } from '../../../components/mobile-admin/state';
 import { formatSize } from '../../../components/mobile-admin/format';
+import { copyText as writeClipboard } from '../../../utils/clipboard';
 
 const { t } = useI18n();
 const dialog = useDialogStore();
@@ -256,12 +257,8 @@ function sourceOf(k: number): HTMLElement | null {
 }
 async function copyLink(m: MediaItem): Promise<void> {
   const url = `${window.location.origin}${m.url}`;
-  try {
-    await navigator.clipboard.writeText(url);
-    toast(t('mobileAdmin.media.copied'), m.url);
-  } catch {
-    toast(t('mobileAdmin.media.copyFailed'), '', 'error');
-  }
+  if (await writeClipboard(url)) toast(t('mobileAdmin.media.copied'), m.url);
+  else toast(t('mobileAdmin.media.copyFailed'), '', 'error');
 }
 const viewer = ref<InstanceType<typeof MaViewer> | null>(null);
 async function removeItem(m: MediaItem): Promise<void> {

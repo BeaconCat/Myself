@@ -47,6 +47,21 @@ type qualityItem struct {
 	Compressed *mediaCompression `json:"compressed"`
 }
 
+// worthCompressing 按体积与每像素字节数估算重压是否值得：
+// PNG 转 WebP 收益大，稍大就值得；JPG / WebP 已是有损格式，只有码率明显偏高（每像素 > 0.25 字节）且体积不小才列为可压缩，
+// 避免把已经压过的 WebP（如默认封面，约 0.12 字节/像素）误标为「可压缩」。
+func worthCompressing(ext string, size int64, w, h int) bool {
+	const minLossy = 100 << 10
+	if ext == ".png" {
+		return size > 50<<10
+	}
+	px := int64(w) * int64(h)
+	if px <= 0 || size < minLossy {
+		return false
+	}
+	return float64(size)/float64(px) > 0.25
+}
+
 // GET /admin/quality/scan 扫描可压缩图片
 func (s *Server) qualityScan(w http.ResponseWriter, _ *http.Request) {
 	names, err := s.listUploads(compressibleExt)
@@ -76,7 +91,7 @@ func (s *Server) qualityScan(w http.ResponseWriter, _ *http.Request) {
 			Width:        meta.Width,
 			Height:       meta.Height,
 			HasAlpha:     meta.HasAlpha,
-			Compressible: comp == nil,
+			Compressible: comp == nil && worthCompressing(imaging.Ext(name), stat.Size(), meta.Width, meta.Height),
 		})
 	}
 	sort.SliceStable(items, func(i, j int) bool { return items[i].Size > items[j].Size })

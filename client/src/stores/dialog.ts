@@ -11,6 +11,8 @@ export interface DialogOptions {
   input?: boolean;
   inputValue?: string;
   placeholder?: string;
+  /** prompt 输入框的可访问名称（缺省用 placeholder，再缺省用标题） */
+  label?: string;
   confirmText?: string;
   cancelText?: string;
   /** 危险操作：确认键红色 */

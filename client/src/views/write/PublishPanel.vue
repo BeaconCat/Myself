@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { siteToday } from '../../utils/date';
 import Icon from '../../components/ui/Icon.vue';
 import { Check } from 'lucide';
 import { computed, onBeforeUnmount, watch } from 'vue';
@@ -7,7 +8,6 @@ import '../admin/studio/i18n';
 import SIcon from '../admin/studio/SIcon.vue';
 import StModal from '../admin/studio/StModal.vue';
 import LightCover from '../admin/studio/LightCover.vue';
-import StSeg from '../admin/studio/StSeg.vue';
 
 /** 发布确认：左侧「读者将看到」预览卡，右侧发布选项与发布前检查 */
 const props = defineProps<{
@@ -31,7 +31,7 @@ const announce = defineModel<boolean>('announce', { default: false });
 const emit = defineEmits<{ close: []; confirm: [] }>();
 const { t } = useI18n();
 
-const today = new Date().toISOString().slice(0, 10);
+const today = siteToday();
 const checks = computed(() => [
   { ok: !!props.title.trim(), label: t('studio.write.ckTitle') },
   { ok: !!props.excerpt.trim(), label: t('studio.write.ckExcerpt') },
@@ -73,25 +73,17 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
       <h3>{{ review ? t('studio.write.reviewTitle') : republish ? t('studio.write.pubUpdateTitle') : t('studio.write.pubTitle') }}</h3>
 
       <div class="st-flabel">{{ t('studio.write.when') }}</div>
-      <div class="when">
-        <StSeg
-          :model-value="'now'"
-          :options="[{ value: 'now', label: t('studio.write.now') }, { value: 'later', label: t('studio.write.later') }]"
-          class="st-tip"
-          :data-tip="t('studio.write.laterTip')"
-          @update:model-value="() => undefined"
-        />
-        <span class="mono">{{ t('studio.write.nowText') }}</span>
-      </div>
+      <!-- 尚未支持定时发布：只有「立即」，不摆一个点不动的选项 -->
+      <div class="when"><SIcon name="clock" :size="16" /><span>{{ t('studio.write.nowText') }}</span></div>
 
       <p v-if="review" class="review-note"><SIcon name="clock" :size="16" />{{ t('studio.write.reviewNote') }}</p>
       <div v-if="!author" class="st-flabel">{{ t('studio.write.after') }}</div>
       <div v-if="!author" class="opts">
-        <label class="st-ckrow" @click.prevent="pinned = !pinned">
+        <label class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="pinned" @click.prevent="pinned = !pinned" @keydown.enter.space.prevent="pinned = !pinned">
           <span class="st-ck" :class="{ on: pinned }"><Icon :icon="Check" /></span>
           {{ t('studio.write.optPin') }}
         </label>
-        <label v-if="!republish" class="st-ckrow" @click.prevent="announce = !announce">
+        <label v-if="!republish" class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="announce" @click.prevent="announce = !announce" @keydown.enter.space.prevent="announce = !announce">
           <span class="st-ck" :class="{ on: announce }"><Icon :icon="Check" /></span>
           {{ t('studio.write.optAnnounce') }}
         </label>
@@ -199,11 +191,11 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 
 .when {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   margin-bottom: 22px;
-
-  .mono { font-size: 12.5px; color: var(--st-ink-3); }
+  font-size: 13.5px;
+  color: var(--st-ink-2);
 }
 
 .opts {

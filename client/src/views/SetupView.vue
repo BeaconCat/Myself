@@ -237,7 +237,7 @@ onBeforeUnmount(() => {
             <label><span class="st-flabel">{{ t('setup.change.old') }}</span><span class="st-field"><SIcon name="lock" :size="16" /><input v-model="pw.old" type="password" autocomplete="current-password" required autofocus /></span></label>
             <label><span class="st-flabel">{{ t('setup.password') }}</span><span class="st-field"><SIcon name="key" :size="16" /><input v-model="pw.next" type="password" autocomplete="new-password" required /></span></label>
             <label><span class="st-flabel">{{ t('setup.confirm') }}</span><span class="st-field"><SIcon name="check" :size="16" /><input v-model="pw.confirm" type="password" autocomplete="new-password" required /></span></label>
-            <p class="err" :class="{ on: !!error }">{{ error || '&nbsp;' }}</p>
+            <p class="err" :class="{ on: !!error }" role="alert">{{ error || '&nbsp;' }}</p>
             <button type="submit" class="st-btn p lg go" :disabled="busy">{{ busy ? t('setup.working') : t('setup.change.submit') }}<SIcon name="arrowR" :size="16" /></button>
           </form>
         </template>
@@ -259,7 +259,7 @@ onBeforeUnmount(() => {
                 <span class="st-flabel">{{ t('setup.code.label') }}</span>
                 <span class="st-field mono-in"><SIcon name="terminal" :size="16" /><input v-model="form.code" maxlength="24" autocomplete="one-time-code" spellcheck="false" required autofocus placeholder="A1B2-C3D4-E5F6-A7B8" /></span>
               </label>
-              <p class="err" :class="{ on: !!error }">{{ error || '&nbsp;' }}</p>
+              <p class="err" :class="{ on: !!error }" role="alert">{{ error || '&nbsp;' }}</p>
               <button type="submit" class="st-btn p lg go" :disabled="busy">{{ busy ? t('setup.checking') : t('setup.next') }}<SIcon name="arrowR" :size="16" /></button>
             </form>
 
@@ -278,7 +278,7 @@ onBeforeUnmount(() => {
                 <span class="meter" :data-s="strength"><i /><i /><i /><i /></span>
               </label>
               <label><span class="st-flabel">{{ t('setup.confirm') }}</span><span class="st-field"><SIcon name="check" :size="16" /><input v-model="form.confirm" :type="show ? 'text' : 'password'" autocomplete="new-password" required /></span></label>
-              <p class="err" :class="{ on: !!error }">{{ error || '&nbsp;' }}</p>
+              <p class="err" :class="{ on: !!error }" role="alert">{{ error || '&nbsp;' }}</p>
               <div class="nav">
                 <button type="button" class="st-btn g lg" @click="back"><SIcon name="arrowL" :size="16" />{{ t('setup.back') }}</button>
                 <button type="submit" class="st-btn p lg go">{{ t('setup.next') }}<SIcon name="arrowR" :size="16" /></button>
@@ -299,7 +299,7 @@ onBeforeUnmount(() => {
                 <span class="st-flabel">{{ t('setup.siteUrl') }}<em>{{ t('setup.siteUrlHint') }}</em></span>
                 <span class="st-field mono-in"><SIcon name="globe" :size="16" /><input v-model="form.url" inputmode="url" placeholder="https://example.com" /></span>
               </label>
-              <p class="err" :class="{ on: !!error }">{{ error || '&nbsp;' }}</p>
+              <p class="err" :class="{ on: !!error }" role="alert">{{ error || '&nbsp;' }}</p>
               <div class="nav">
                 <button type="button" class="st-btn g lg" @click="back"><SIcon name="arrowL" :size="16" />{{ t('setup.back') }}</button>
                 <button type="submit" class="st-btn p lg go">{{ t('setup.next') }}<SIcon name="arrowR" :size="16" /></button>
@@ -322,7 +322,7 @@ onBeforeUnmount(() => {
                   <small>{{ t('setup.content.blankSub') }}</small>
                 </button>
               </div>
-              <p class="err" :class="{ on: !!error }">{{ error || '&nbsp;' }}</p>
+              <p class="err" :class="{ on: !!error }" role="alert">{{ error || '&nbsp;' }}</p>
               <div class="nav">
                 <button type="button" class="st-btn g lg" :disabled="busy" @click="back"><SIcon name="arrowL" :size="16" />{{ t('setup.back') }}</button>
                 <button type="submit" class="st-btn p lg go" :disabled="busy">{{ busy ? t('setup.working') : t('setup.finish') }}<SIcon name="check" :size="16" /></button>

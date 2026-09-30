@@ -7,6 +7,8 @@ export const studio = reactive({
   posts: 0,
   drafts: 0,
   notes: 0,
+  /** 待审评论数（侧栏「评论」角标） */
+  pending: 0,
 });
 
 export async function refreshCounts(): Promise<void> {
@@ -16,6 +18,10 @@ export async function refreshCounts(): Promise<void> {
     studio.drafts = posts.filter((p) => p.status === 'draft').length;
     studio.notes = notes.total;
   } catch { /* 计数失败不影响页面 */ }
+  try {
+    const c = await adminApi.commentsPage({ status: 'pending', page: 1, pageSize: 1 });
+    studio.pending = c.counts?.pending ?? 0;
+  } catch { /* 评论未开启或无权限：不显示角标 */ }
 }
 
 /** 主题切换：从触发按钮处圆形扩散，支持连续切换（新蒙版覆盖旧蒙版），不阻塞点击 */
@@ -33,14 +39,8 @@ export function saveBlob(blob: Blob, name: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
+/** 复制文本：统一走 utils/clipboard（带非安全上下文回退） */
+export { copyText } from '../../../utils/clipboard';
 
 /**
  * 未保存检测用的稳定序列化：数字字符串与数字视为相等、undefined 字段忽略，

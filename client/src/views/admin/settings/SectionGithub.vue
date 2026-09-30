@@ -49,7 +49,7 @@ onMounted(loadLog);
   <div class="gh">
     <div class="st-opt">
       <div>{{ t('studio.settings.ghUser') }}<small>{{ t('studio.settings.ghUserSub') }}</small></div>
-      <label class="st-field w260"><span class="suffix">github.com/</span><input v-model="cfg.github.username" spellcheck="false" /></label>
+      <label class="st-field w260"><span class="suffix">github.com/</span><input v-model="cfg.github.username" :aria-label="t('studio.settings.ghUser')" spellcheck="false" /></label>
     </div>
     <div class="st-opt">
       <div>{{ t('studio.settings.ghMode') }}<small>{{ cfg.github.mode === 'api' ? t('studio.settings.ghApiSub') : t('studio.settings.ghManualSub') }}</small></div>
@@ -65,19 +65,19 @@ onMounted(loadLog);
     <template v-if="cfg.github.mode === 'api'">
       <div class="st-opt">
         <div>{{ t('studio.settings.ghToken') }}<small>{{ t('studio.settings.ghTokenSub') }}</small></div>
-        <label class="st-field w260 mono-in"><input v-model="cfg.github.token" type="password" autocomplete="off" placeholder="ghp_…" /></label>
+        <label class="st-field w260 mono-in"><input v-model="cfg.github.token" :aria-label="t('studio.settings.ghToken')" type="password" autocomplete="off" placeholder="ghp_…" /></label>
       </div>
       <div class="st-opt">
         <div>{{ t('studio.settings.ghRefresh') }}</div>
-        <label class="st-field w140"><input v-model.number="cfg.github.refreshMinutes" type="number" min="1" /><span class="suffix">{{ t('studio.settings.minutes') }}</span></label>
+        <label class="st-field w140"><input v-model.number="cfg.github.refreshMinutes" :aria-label="t('studio.settings.ghRefresh')" type="number" min="1" /><span class="suffix">{{ t('studio.settings.minutes') }}</span></label>
       </div>
       <div class="st-opt">
         <div>{{ t('studio.settings.ghProxy') }}<small>{{ t('studio.settings.ghProxySub') }}</small></div>
-        <label class="st-field w260 mono-in"><input v-model="cfg.github.proxy" placeholder="http://127.0.0.1:7890" /></label>
+        <label class="st-field w260 mono-in"><input v-model="cfg.github.proxy" :aria-label="t('studio.settings.ghProxy')" placeholder="http://127.0.0.1:7890" /></label>
       </div>
       <div class="st-opt">
         <div>{{ t('studio.settings.ghInsecure') }}<small>{{ t('studio.settings.ghInsecureSub') }}</small></div>
-        <StSwitch v-model="cfg.github.insecureTls" />
+        <StSwitch v-model="cfg.github.insecureTls" :label="t('studio.settings.ghInsecure')" />
       </div>
 
       <div class="panel">

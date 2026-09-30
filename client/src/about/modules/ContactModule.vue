@@ -7,6 +7,7 @@ import type { ContactData, SocialLink } from '../types';
 import type { ModProps } from './props';
 import KitIcon from '../parts/KitIcon.vue';
 import { toast } from '../toast';
+import { copyText } from '../../utils/clipboard';
 
 /**
  * 联系（contact）：宋体大标题、其他渠道（取 profile 社交入口，不含邮件）、邮箱一键复制（实底主按钮）、
@@ -28,7 +29,7 @@ const external = (url: string) => (/^https?:/.test(url) ? '_blank' : undefined);
 
 async function copy(): Promise<void> {
   if (!d.value.email) return;
-  try { await navigator.clipboard?.writeText(d.value.email); } catch { /* 剪贴板不可用时仍给反馈 */ }
+  await copyText(d.value.email);
   copied.value = true;
   toast(t('aboutKit.contact.copied'));
   window.setTimeout(() => { copied.value = false; }, 1800);

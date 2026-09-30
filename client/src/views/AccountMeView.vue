@@ -171,6 +171,8 @@ async function run(fn: () => Promise<string>): Promise<void> {
   try {
     const msg = await fn();
     editing.value = null;
+    // 成功后清空表单（尤其是密码框），收起的编辑框里不留旧值
+    Object.assign(form, { email: '', emailPw: '', old: '', next: '', confirm: '' });
     notify('account', true, msg);
   } catch (e) {
     notify('account', false, explain(e));
@@ -235,7 +237,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
         <input ref="fileInput" type="file" accept="image/*" hidden @change="onFile" />
         <div class="who">
           <h1>{{ user.name || user.login }}</h1>
-          <p><span class="role" :class="user.role">{{ ROLE }}</span><span class="mono">@{{ user.login }}</span></p>
+          <p><span class="role" :class="user.role">{{ ROLE }}</span><span class="mono">{{ user.login.includes('@') ? user.login : `@${user.login}` }}</span></p>
           <p class="av-line">
             <template v-if="isOwner && user.avatarDefault">{{ t('account.me.usingIdentity') }}</template>
             <button v-else-if="user.avatar && !user.avatarDefault" type="button" class="link" @click="removeAvatar">
@@ -297,7 +299,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
                 <input v-model="form.login" maxlength="24" spellcheck="false" autocomplete="username" />
               </label>
               <p class="warn">{{ t('account.me.loginWarn') }}</p>
-              <div class="ft"><button type="submit" class="btn" :disabled="busy">{{ t('account.me.save') }}</button></div>
+              <div class="ft"><Transition name="nt"><p v-if="notes.account && !notes.account.ok" class="notice in" role="alert">{{ notes.account.text }}</p></Transition><button type="submit" class="btn" :disabled="busy">{{ t('account.me.save') }}</button></div>
             </form>
           </div>
         </div>
@@ -339,7 +341,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
                 {{ t('account.me.emailNoMail') }}
                 <router-link v-if="isOwner" :to="{ name: 'admin-settings' }">{{ t('account.me.goMail') }}</router-link>
               </p>
-              <div class="ft"><button type="submit" class="btn" :disabled="busy || !mailReady || !form.email.trim()">{{ t('account.me.sendConfirm') }}</button></div>
+              <div class="ft"><Transition name="nt"><p v-if="notes.account && !notes.account.ok" class="notice in" role="alert">{{ notes.account.text }}</p></Transition><button type="submit" class="btn" :disabled="busy || !mailReady || !form.email.trim()">{{ t('account.me.sendConfirm') }}</button></div>
             </form>
           </div>
         </div>
@@ -373,7 +375,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
                   <input v-model="form.confirm" type="password" autocomplete="new-password" />
                 </label>
               </div>
-              <div class="ft"><button type="submit" class="btn" :disabled="busy">{{ t('account.me.savePw') }}</button></div>
+              <div class="ft"><Transition name="nt"><p v-if="notes.account && !notes.account.ok" class="notice in" role="alert">{{ notes.account.text }}</p></Transition><button type="submit" class="btn" :disabled="busy">{{ t('account.me.savePw') }}</button></div>
             </form>
           </div>
         </div>
@@ -390,7 +392,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
           <a v-else class="btn ghost sm" :href="linkHref">{{ t('account.me.link') }}</a>
         </div>
 
-        <Transition name="nt"><p v-if="notes.account" class="notice" :class="{ ok: notes.account.ok }">{{ notes.account.text }}</p></Transition>
+        <Transition name="nt"><p v-if="notes.account && (notes.account.ok || !editing)" class="notice" :class="{ ok: notes.account.ok }" role="status">{{ notes.account.text }}</p></Transition>
       </section>
 
       <button type="button" class="logout rise" style="--i: 3" @click="logout"><Icon :icon="LogOut" :size="16" />{{ t('account.me.logout') }}</button>
@@ -606,7 +608,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
   .warn { font-size: 12.5px; line-height: 1.6; color: var(--text-3); }
   .warn.bad { color: color-mix(in oklab, var(--accent-red) 75%, var(--text)); }
   .warn a { margin-left: 6px; color: var(--ink); }
-  .ft { display: flex; justify-content: flex-end; }
+  .ft { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
 }
 
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -614,6 +616,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
 .notice { margin-top: 8px; font-size: 13px; color: var(--accent-red); }
 .notice.ok { color: var(--ink); }
 .notice.top { margin: -6px 0 0; }
+.notice.in { flex: 1; margin: 0; align-self: center; }
 
 .btn {
   display: inline-flex;

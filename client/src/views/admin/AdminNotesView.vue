@@ -62,10 +62,11 @@ const groups = computed<Group[]>(() => {
   const out: Group[] = [];
   for (const note of notes.value) {
     const d = parseTime(note.createdAt) ?? new Date();
-    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    // 置顶的（接口排在最前）单独成组，其余按月；否则置顶的旧随想会把新月份挤到最后
+    const key = note.pinned ? 'pinned' : `${d.getFullYear()}-${d.getMonth()}`;
     let g = out.find((x) => x.key === key);
     if (!g) {
-      g = { key, label: t('studio.notes.month', { y: d.getFullYear(), m: d.getMonth() + 1 }), items: [] };
+      g = { key, label: note.pinned ? t('studio.notes.pinnedGroup') : t('studio.notes.month', { y: d.getFullYear(), m: d.getMonth() + 1 }), items: [] };
       out.push(g);
     }
     g.items.push({ note, day: String(d.getDate()).padStart(2, '0'), week: WEEKDAYS[d.getDay()] });
@@ -153,6 +154,11 @@ async function onPublished(id: number): Promise<void> {
 /* ---------- 勾选与批量：日期下的勾选角标进入选择态，此后点卡片即勾选 ---------- */
 const picked = ref<Set<number>>(new Set());
 const picking = computed(() => picked.value.size > 0);
+/** 所选里有没有可隐藏 / 可取消隐藏的：批量条只给用得上的那个动作（混选时两个都给） */
+const pickedHidden = computed(() => {
+  const sel = notes.value.filter((x) => picked.value.has(x.id));
+  return { any: sel.some((x) => x.hidden), anyShown: sel.some((x) => !x.hidden) };
+});
 
 function togglePick(note: Note): void {
   const next = new Set(picked.value);
@@ -255,7 +261,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <div class="d">
             <b class="mono">{{ it.day }}</b>
             <small>{{ it.week }}</small>
-            <span class="pk" :title="t('studio.batch.pick')" @click.stop="togglePick(it.note)"><span class="st-ck" :class="{ on: picked.has(it.note.id) }"><Icon :icon="Check" /></span></span>
+            <span class="pk" role="checkbox" tabindex="0" :aria-checked="picked.has(it.note.id)" :aria-label="t('studio.a11y.select', { name: it.note.contentMd.slice(0, 20) })" :title="t('studio.batch.pick')" @click.stop="togglePick(it.note)" @keydown.enter.space.prevent.stop="togglePick(it.note)"><span class="st-ck" :class="{ on: picked.has(it.note.id) }"><Icon :icon="Check" /></span></span>
           </div>
           <div class="c" @click="onCard(it.note, $event)">
             <!-- eslint-disable-next-line vue/no-v-html -->
@@ -287,8 +293,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     </div>
 
     <BatchBar :show="picking" :count="picked.size" :total="notes.length" @all="pickAll" @clear="picked = new Set()">
-      <button type="button" class="st-btn sm" @click="batch('hide')"><SIcon name="eyeOff" :size="16" />{{ t('studio.batch.hide') }}</button>
-      <button type="button" class="st-btn sm" @click="batch('show')"><SIcon name="eye" :size="16" />{{ t('studio.batch.show') }}</button>
+      <button v-if="pickedHidden.anyShown" type="button" class="st-btn sm" @click="batch('hide')"><SIcon name="eyeOff" :size="16" />{{ t('studio.batch.hide') }}</button>
+      <button v-if="pickedHidden.any" type="button" class="st-btn sm" @click="batch('show')"><SIcon name="eye" :size="16" />{{ t('studio.batch.show') }}</button>
       <button type="button" class="st-btn sm danger" @click="batch('delete')"><SIcon name="trash" :size="16" />{{ t('studio.delete') }}</button>
     </BatchBar>
     </div>

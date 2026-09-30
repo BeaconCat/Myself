@@ -248,6 +248,7 @@ const avatar = computed(() => config.cfg.about?.avatar || config.cfg.site.logo |
         v-model="text"
         rows="1"
         :placeholder="placeholder || t('studio.composer.placeholder')"
+        :aria-label="placeholder || t('studio.composer.placeholder')"
         @focus="focused = true"
         @keydown="onKey"
       />
@@ -264,6 +265,7 @@ const avatar = computed(() => config.cfg.about?.avatar || config.cfg.site.logo |
               type="button"
               class="mood"
               :class="{ on: mood === m.name }"
+              :aria-pressed="mood === m.name"
               :style="{ '--c': m.c }"
               @click="pickMood(m.name)"
             ><i class="st-dot" />{{ m.name }}</button>
@@ -285,11 +287,11 @@ const avatar = computed(() => config.cfg.about?.avatar || config.cfg.site.logo |
             >
               <img :src="img.preview" alt="" draggable="false" />
               <span v-if="img.busy" class="spin" />
-              <button type="button" class="rm" :aria-label="t('studio.remove')" @click="removeImg(img)">
+              <button type="button" class="rm" :aria-label="t('studio.a11y.removeNth', { n: i + 1 })" @click="removeImg(img)">
                 <SIcon name="x" :size="14" />
               </button>
             </div>
-            <button v-if="imgs.length < MAX" type="button" class="add" @click="fileInput?.click()">
+            <button v-if="imgs.length < MAX" type="button" class="add" :aria-label="t('studio.composer.addImage')" @click="fileInput?.click()">
               <SIcon name="plus" />
             </button>
           </div>
@@ -303,10 +305,10 @@ const avatar = computed(() => config.cfg.about?.avatar || config.cfg.site.logo |
         </div>
 
         <div class="cmp-bar">
-          <button type="button" class="st-ibtn" :title="t('studio.composer.addImage')" @click="fileInput?.click()">
+          <button type="button" class="st-ibtn" :title="t('studio.composer.addImage')" :aria-label="t('studio.composer.addImage')" @click="fileInput?.click()">
             <SIcon name="image" />
           </button>
-          <button type="button" class="st-ibtn" :class="{ on: pinned }" :title="t('studio.pin')" @click="pinned = !pinned">
+          <button type="button" class="st-ibtn" :class="{ on: pinned }" :title="t('studio.pin')" :aria-label="t('studio.pin')" :aria-pressed="pinned" @click="pinned = !pinned">
             <SIcon name="pin" />
           </button>
           <span class="sp" />

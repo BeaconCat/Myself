@@ -17,6 +17,8 @@ import { copyText, dotted, readMinutes, wordCount } from '../components/post/con
 import { useLoadingStore } from '../stores/loading';
 import { renderWithToc, type TocItem } from '../utils/markdown';
 import IdentityName from '../components/common/IdentityName.vue';
+import ImageViewer, { type OriginRect } from '../components/media/ImageViewer.vue';
+import { usePageTitle } from '../composables/usePageTitle';
 
 /**
  * 桌面文章详情：封面带（多封面手风琴 / 光影构成）→ 标签·日期·时长 → 宋体标题 → 导语 → 署名
@@ -29,6 +31,7 @@ const router = useRouter();
 
 const NAV_H = 64;
 const post = ref<Post | null>(null);
+usePageTitle(computed(() => post.value?.title ?? ''));
 const prev = ref<Post | null>(null);
 const next = ref<Post | null>(null);
 const loading = ref(true);
@@ -161,9 +164,25 @@ async function copyLink(): Promise<void> {
 }
 
 /** 正文内锚点平滑滚动；站内链接走路由 */
+/* 正文图片：点击在查看器里打开，可左右切换本文全部图片 */
+const viewer = ref<{ images: string[]; index: number; rect?: OriginRect } | null>(null);
+function openImage(img: HTMLImageElement): void {
+  const all = [...(proseEl.value?.querySelectorAll<HTMLImageElement>('img') ?? [])].filter((el) => el.currentSrc || el.src);
+  const r = img.getBoundingClientRect();
+  viewer.value = {
+    images: all.map((el) => el.currentSrc || el.src),
+    index: Math.max(0, all.indexOf(img)),
+    rect: { left: r.left, top: r.top, width: r.width, height: r.height },
+  };
+}
+
 function onProseClick(e: MouseEvent): void {
-  const a = (e.target as HTMLElement).closest('a');
-  if (!a) return;
+  const target = e.target as HTMLElement;
+  const a = target.closest('a');
+  if (!a) {
+    if (target instanceof HTMLImageElement) openImage(target);
+    return;
+  }
   const href = a.getAttribute('href') ?? '';
   if (href.startsWith('#')) {
     e.preventDefault();
@@ -383,6 +402,7 @@ const C = 2 * Math.PI * 9;
       <router-link to="/articles" class="btn-secondary"><ContentIcon name="arrowL" size="s" />{{ t('content.article.back') }}</router-link>
     </div>
 
+    <ImageViewer v-if="viewer" :images="viewer.images" :start-index="viewer.index" :origin-rect="viewer.rect" @close="viewer = null" />
     <ContentToast />
   </main>
 </template>
@@ -582,6 +602,8 @@ h1 {
 
 /* ---------- 正文排版 ---------- */
 .prose {
+  :deep(img) { cursor: zoom-in; }
+
   padding-top: 26px;
   font-family: var(--font-serif);
   font-size: 17.5px;

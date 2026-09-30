@@ -191,10 +191,11 @@
   .emb-body > * { margin: 0; }
 }
 
+/* 浮动操作条悬在卡片右上方外侧（越过 6px 选中描边），不压住卡片本身的内容与按钮（文件卡只有一行高） */
 .ProseMirror .emb-bar {
   position: absolute;
-  top: -14px;
-  right: 8px;
+  bottom: calc(100% + 10px);
+  right: 0;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -335,6 +336,7 @@ img.md-img.md-img.al-right { display: block; margin-left: auto; margin-right: 0;
   .sep { width: 1px; height: 16px; margin: 0 3px; background: var(--line-2, rgba(128, 128, 128, 0.25)); }
 }
 
-.ProseMirror .emb .abar.emb-align { top: -14px; left: 8px; translate: none; }
+/* 与右侧操作条同一水平线，悬在卡片外侧 */
+.ProseMirror .emb .abar.emb-align { top: auto; bottom: calc(100% + 10px); left: 0; translate: none; }
 
 @keyframes abar-in { from { opacity: 0; transform: translateY(4px); } }

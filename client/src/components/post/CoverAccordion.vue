@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useConfigStore } from '../../stores/config';
 import ImageViewer, { type OriginRect } from '../media/ImageViewer.vue';
 
@@ -14,6 +15,7 @@ import ImageViewer, { type OriginRect } from '../media/ImageViewer.vue';
 const props = defineProps<{ images: string[] }>();
 
 const config = useConfigStore();
+const { t } = useI18n();
 
 const active = ref(0);
 const hovering = ref(false);
@@ -90,6 +92,8 @@ export default {};
       type="button"
       class="seg"
       :class="{ on: i === active }"
+      :aria-label="t('a11y.goSlide', { n: i + 1 })"
+      :aria-current="i === active ? 'true' : undefined"
       :style="segStyle(i)"
       @click.stop.prevent="onSegClick($event, i)"
     >

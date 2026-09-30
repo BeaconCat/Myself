@@ -328,7 +328,7 @@ onBeforeUnmount(() => {
                   </span>
                   <div class="slide">
                     <label class="chk"><input v-model="radiusAuto" type="checkbox" />{{ t('studio.identity.radiusAuto') }}</label>
-                    <input v-model.number="about.portrait.radius" type="range" min="0" max="80" :disabled="radiusAuto" />
+                    <input v-model.number="about.portrait.radius" type="range" min="0" max="80" :disabled="radiusAuto" :aria-label="t('studio.identity.radius')" />
                   </div>
                 </div>
                 <div class="ctl">
@@ -347,7 +347,7 @@ onBeforeUnmount(() => {
         <section class="st-card st-rise" style="--i: 1">
           <div class="st-sec-t bn-t">
             <div><h2>{{ t('studio.identity.banner') }}</h2><span>{{ t('studio.identity.bannerSub') }}</span></div>
-            <StSwitch v-model="about.banner.show" />
+            <StSwitch v-model="about.banner.show" :label="t('studio.identity.banner')" />
           </div>
           <!-- 收起 / 展开：grid 行高 0fr ⇄ 1fr 过渡，内容常驻，高度连续变化不跳 -->
           <div class="bn-fold" :class="{ open: about.banner.show }" :aria-hidden="!about.banner.show" :inert="!about.banner.show">
@@ -425,9 +425,9 @@ onBeforeUnmount(() => {
                   <option v-for="ic in SOCIAL_ICONS" :key="ic" :value="ic">{{ iconLabel(ic) }}</option>
                 </select>
               </label>
-              <span class="st-field nm"><input v-model="l.name" :placeholder="t('studio.identity.linkName')" /></span>
-              <span class="st-field hd"><input v-model="l.handle" :placeholder="t('studio.identity.linkHandle')" /></span>
-              <span class="st-field url mono-in"><SIcon name="link" :size="15" /><input v-model="l.url" placeholder="https://…" /></span>
+              <span class="st-field nm"><input v-model="l.name" :placeholder="t('studio.identity.linkName')" :aria-label="t('studio.identity.linkName')" /></span>
+              <span class="st-field hd"><input v-model="l.handle" :placeholder="t('studio.identity.linkHandle')" :aria-label="t('studio.identity.linkHandle')" /></span>
+              <span class="st-field url mono-in"><SIcon name="link" :size="15" /><input v-model="l.url" placeholder="https://…" :aria-label="t('studio.a11y.linkUrl')" /></span>
               <div class="ops">
                 <span class="chips">
                   <button type="button" class="pri-chip" :class="{ on: l.card }" :title="t('studio.identity.onCardTip')" @click="toggleCard(l)">{{ t('studio.identity.onCard') }}</button>

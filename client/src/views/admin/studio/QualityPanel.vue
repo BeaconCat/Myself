@@ -70,10 +70,12 @@ const summary = computed(() => {
   return { n: ok.length, failed: results.value.length - ok.length, before, after, pct: before ? Math.round((1 - after / before) * 100) : 0 };
 });
 
-async function scan(): Promise<void> {
+/** 扫描：首次进入默认全选可压缩的；压缩 / 回退后重扫只保留原先仍可压缩的勾选，不把其余自动勾回去 */
+async function scan(first = false): Promise<void> {
   try {
     items.value = await adminApi.qualityScan();
-    selected.value = new Set(items.value.filter((i) => i.compressible).map((i) => i.name));
+    const ok = items.value.filter((i) => i.compressible && !i.compressed).map((i) => i.name);
+    selected.value = new Set(first ? ok : ok.filter((n) => selected.value.has(n)));
     emit('count', compressibleCount.value);
   } catch {
     toast(t('studio.loadFailed'), { icon: 'x' });
@@ -124,7 +126,7 @@ async function run(): Promise<void> {
   }
 }
 
-onMounted(scan);
+onMounted(() => scan(true));
 onBeforeUnmount(() => window.clearTimeout(pollTimer));
 </script>
 
@@ -161,7 +163,7 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
     </div>
 
     <div class="list-h">
-      <label class="st-ckrow" @click.prevent="toggleAll">
+      <label class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="allOn" @click.prevent="toggleAll" @keydown.enter.space.prevent="toggleAll">
         <span class="st-ck" :class="{ on: allOn }"><Icon :icon="Check" /></span>
         {{ t('studio.media.qAll') }}
       </label>
@@ -170,7 +172,7 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
         {{ t('studio.media.qCompressedN', { n: compressed.length }) }}
         <button type="button" class="st-link" :disabled="reverting || !!job" @click="revert(compressed.map((i) => i.name))">{{ t('studio.media.revertAll') }}</button>
       </span>
-      <label class="st-ckrow small" @click.prevent="onlyCompressible = !onlyCompressible">
+      <label class="st-ckrow small" role="checkbox" tabindex="0" :aria-checked="onlyCompressible" @click.prevent="onlyCompressible = !onlyCompressible" @keydown.enter.space.prevent="onlyCompressible = !onlyCompressible">
         <span class="st-ck" :class="{ on: onlyCompressible }"><Icon :icon="Check" /></span>
         {{ t('studio.media.qOnly', { n: compressibleCount }) }}
       </label>
@@ -189,7 +191,12 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
         class="row st-rise"
         :class="{ on: selected.has(it.name), done: it.compressed }"
         :style="{ '--i': Math.min(i, 10) }"
+        role="checkbox"
+        tabindex="0"
+        :aria-checked="selected.has(it.name)"
+        :aria-label="t('studio.a11y.select', { name: it.title || it.name })"
         @click="toggle(it.name)"
+        @keydown.enter.space.prevent="toggle(it.name)"
       >
         <span class="st-ck" :class="{ on: selected.has(it.name), off: it.compressed }"><Icon :icon="Check" /></span>
         <img :src="thumbOf(it.url)" alt="" loading="lazy" />

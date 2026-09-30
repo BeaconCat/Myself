@@ -152,7 +152,7 @@ function onClose(): void {
               >
                 <img :src="src(tl.src)" :alt="tl.alt" draggable="false" />
                 <span class="no mono">{{ i + 1 }}</span>
-                <button type="button" class="rm" :title="t('studio.delete')" @click.stop="remove(i)"><Icon :icon="X" :size="14" /></button>
+                <button type="button" class="rm" :title="t('studio.delete')" :aria-label="t('studio.a11y.removeNth', { n: i + 1 })" @click.stop="remove(i)"><Icon :icon="X" :size="14" /></button>
               </div>
             </TransitionGroup>
             <figcaption v-if="caption.trim()">{{ caption }}</figcaption>
@@ -174,8 +174,8 @@ function onClose(): void {
       <aside class="panel">
         <div class="grp">
           <div class="st-flabel">{{ t('studio.gallery.layoutLabel') }}</div>
-          <div class="layouts">
-            <button v-for="l in LAYOUTS" :key="l.v" type="button" :class="{ on: layout === l.v }" @click="layout = l.v">
+          <div class="layouts" role="group" :aria-label="t('studio.gallery.layoutLabel')">
+            <button v-for="l in LAYOUTS" :key="l.v" type="button" :class="{ on: layout === l.v }" :aria-pressed="layout === l.v" @click="layout = l.v">
               <Icon :icon="l.icon" :size="20" />
               <b>{{ t(`studio.gallery.layout.${l.v}`) }}</b>
               <small>{{ t(`studio.gallery.layoutSub.${l.v}`) }}</small>
@@ -185,13 +185,13 @@ function onClose(): void {
 
         <div v-if="layout !== 'row'" class="grp">
           <div class="st-flabel">{{ t('studio.gallery.cols') }}</div>
-          <StSeg v-model="cols" :options="[2, 3, 4, 5].map((n) => ({ value: n, label: String(n) }))" />
+          <StSeg v-model="cols" :label="t('studio.gallery.cols')" :options="[2, 3, 4, 5].map((n) => ({ value: n, label: String(n) }))" />
         </div>
 
         <div v-if="layout !== 'masonry'" class="grp">
           <div class="st-flabel">{{ t('studio.gallery.ratio') }}</div>
-          <div class="chips">
-            <button v-for="r in GALLERY_RATIOS" :key="r" type="button" class="st-chip" :class="{ on: ratio === r }" @click="ratio = r">
+          <div class="chips" role="group" :aria-label="t('studio.gallery.ratio')">
+            <button v-for="r in GALLERY_RATIOS" :key="r" type="button" class="st-chip" :class="{ on: ratio === r }" :aria-pressed="ratio === r" @click="ratio = r">
               {{ r === 'auto' ? t('studio.gallery.ratioAuto') : r }}
             </button>
           </div>
@@ -199,12 +199,12 @@ function onClose(): void {
 
         <div class="grp">
           <div class="st-flabel">{{ t('studio.gallery.gap') }}</div>
-          <StSeg v-model="gap" :options="GALLERY_GAPS.map((g) => ({ value: g, label: t(`studio.gallery.gapOpt.${g}`) }))" />
+          <StSeg v-model="gap" :label="t('studio.gallery.gap')" :options="GALLERY_GAPS.map((g) => ({ value: g, label: t(`studio.gallery.gapOpt.${g}`) }))" />
         </div>
 
         <div class="grp">
           <div class="st-flabel">{{ t('studio.gallery.caption') }}</div>
-          <label class="st-field"><input v-model="caption" maxlength="200" :placeholder="t('studio.gallery.captionPh')" /></label>
+          <label class="st-field"><input v-model="caption" maxlength="200" :placeholder="t('studio.gallery.captionPh')" :aria-label="t('studio.gallery.caption')" /></label>
         </div>
 
         <Transition name="ge-cur">
@@ -212,11 +212,11 @@ function onClose(): void {
             <div class="st-flabel">{{ t('studio.gallery.current', { n: sel + 1 }) }}</div>
             <div class="cur-row">
               <img :src="src(current.src)" alt="" />
-              <label class="st-field"><input v-model="current.alt" maxlength="120" :placeholder="t('studio.gallery.altPh')" /></label>
+              <label class="st-field"><input v-model="current.alt" maxlength="120" :placeholder="t('studio.gallery.altPh')" :aria-label="t('studio.gallery.altPh')" /></label>
             </div>
             <div class="cur-acts">
-              <button type="button" class="st-ibtn sm" :disabled="sel <= 0" :title="t('studio.gallery.left')" @click="move(sel, -1)"><Icon :icon="ArrowLeft" :size="15" /></button>
-              <button type="button" class="st-ibtn sm" :disabled="sel >= tiles.length - 1" :title="t('studio.gallery.right')" @click="move(sel, 1)"><Icon :icon="ArrowRight" :size="15" /></button>
+              <button type="button" class="st-ibtn sm" :disabled="sel <= 0" :title="t('studio.gallery.left')" :aria-label="t('studio.gallery.left')" @click="move(sel, -1)"><Icon :icon="ArrowLeft" :size="15" /></button>
+              <button type="button" class="st-ibtn sm" :disabled="sel >= tiles.length - 1" :title="t('studio.gallery.right')" :aria-label="t('studio.gallery.right')" @click="move(sel, 1)"><Icon :icon="ArrowRight" :size="15" /></button>
               <span class="sp" />
               <button type="button" class="st-btn sm g" @click="lib = 'replace'"><Icon :icon="Replace" :size="15" />{{ t('studio.embed.replace') }}</button>
               <button type="button" class="st-btn sm g" @click="remove(sel)"><Icon :icon="Trash2" :size="15" />{{ t('studio.delete') }}</button>

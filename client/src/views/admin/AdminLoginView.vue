@@ -112,7 +112,7 @@ onBeforeUnmount(() => {
             </button>
           </span>
         </label>
-        <p class="err" :class="{ on: !!error }">{{ error || '&nbsp;' }}</p>
+        <p class="err" :class="{ on: !!error }" role="alert">{{ error || '&nbsp;' }}</p>
         <button type="submit" class="st-btn p lg go" :class="{ passed: verified }" :disabled="busy || verified">
           <template v-if="verified">{{ t('studio.login.verified') }}<SIcon name="check" :size="16" data-live /></template>
           <template v-else>{{ busy ? t('studio.login.busy') : t('studio.login.enter') }}<SIcon name="arrowR" :size="16" /></template>

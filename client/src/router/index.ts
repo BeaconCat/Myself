@@ -68,6 +68,11 @@ export const router = createRouter({
       })),
     },
     { path: '/admin/posts/:id', redirect: (to) => ({ path: '/admin/write/post', query: { id: String(to.params.id) } }) },
+    /* 常见的猜测地址 → 实际页面；其余未知后台地址回后台首页（未登录时由守卫送去登录） */
+    { path: '/admin/backups', redirect: '/admin/data' },
+    { path: '/admin/api', redirect: '/admin/apikeys' },
+    { path: '/admin/:rest(.*)+', redirect: '/admin' },
+    page('/:pathMatch(.*)*', 'not-found', () => import('../views/NotFoundView.vue')),
   ],
   // 后退 / 前进回到原位置（随想列表保活，时间轴停在点进详情前的位置）；其余新页面回顶
   // 恢复前等页面撑到足够高度（保活页重新挂上、遮罩揭幕后），最多等 1.5s，避免被截断在半路

@@ -11,7 +11,8 @@ interface SegOption<V> {
   count?: number | string;
 }
 
-const props = defineProps<{ options: SegOption<T>[]; iconOnly?: boolean }>();
+/** label：整组的可访问名称（如「列数」） */
+const props = defineProps<{ options: SegOption<T>[]; iconOnly?: boolean; label?: string }>();
 const model = defineModel<T>({ required: true });
 
 const root = ref<HTMLElement | null>(null);
@@ -42,7 +43,7 @@ watch([model, () => props.options], () => void nextTick(measure));
 </script>
 
 <template>
-  <span ref="root" class="seg" :class="{ icon: iconOnly }">
+  <span ref="root" class="seg" :class="{ icon: iconOnly }" role="group" :aria-label="label">
     <span class="k" :class="{ ready: knob.ready, 'to-l': knob.toL }" :style="{ left: `${knob.l}px`, right: `${knob.r}px` }" />
     <button
       v-for="o in options"
@@ -50,6 +51,8 @@ watch([model, () => props.options], () => void nextTick(measure));
       type="button"
       :class="{ on: o.value === model }"
       :title="o.title"
+      :aria-label="iconOnly ? o.title : undefined"
+      :aria-pressed="o.value === model"
       @click="model = o.value"
     >
       <SIcon v-if="o.icon" :name="o.icon" :size="16" />

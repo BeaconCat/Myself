@@ -11,6 +11,7 @@ import { useLoadingStore } from '../stores/loading';
 import NoteCard from '../components/thoughts/NoteCard.vue';
 import CommentSection from '../components/engage/CommentSection.vue';
 import ImageViewer, { type OriginRect } from '../components/media/ImageViewer.vue';
+import { usePageTitle } from '../composables/usePageTitle';
 
 /**
  * 随想详情（/thoughts/:id）：正文放大的单条随想 + 互动栏 + 评论区 + 更早 / 更新一条。
@@ -22,9 +23,16 @@ const route = useRoute();
 const router = useRouter();
 const config = useConfigStore();
 const { avatar, name, alias } = useIdentity();
-const handle = computed(() => config.cfg.github.username || 'myself');
+/** 未配置 GitHub 用户名时不显示 @handle */
+const handle = computed(() => config.cfg.github.username.trim());
 
 const note = ref<Note | null>(null);
+/** 标题取正文首行（去掉 Markdown 标记），过长截断 */
+usePageTitle(computed(() => {
+  const line = (note.value?.contentMd ?? '').split('\n').find((l) => l.trim()) ?? '';
+  const plain = line.replace(/[#>*_`~\[\]()!]/g, '').trim();
+  return plain.length > 24 ? `${plain.slice(0, 24)}…` : plain;
+}));
 const older = ref(0);
 const newer = ref(0);
 const missing = ref(false);

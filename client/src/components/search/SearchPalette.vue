@@ -355,6 +355,7 @@ onBeforeUnmount(() => {
               v-model="q"
               type="text"
               :placeholder="t('search.placeholder')"
+              :aria-label="t('a11y.siteSearch')"
               autocomplete="off"
               spellcheck="false"
               role="combobox"

@@ -224,6 +224,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /uploads/thumbs/{name}", s.serveThumb)
 	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", s.uploadsHandler()))
 
+	// 未登记的 /api/ 路径返回 JSON 404，而不是落到 SPA 的 index.html
+	mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
+		writeError(w, http.StatusNotFound, "not_found")
+	})
 	if s.Frontend != nil {
 		mux.Handle("/", s.Frontend)
 	}

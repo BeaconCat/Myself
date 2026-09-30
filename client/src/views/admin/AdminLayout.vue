@@ -54,7 +54,7 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
   {
     label: 'readers',
     items: [
-      { name: 'admin-comments', icon: 'message', key: 'comments' },
+      { name: 'admin-comments', icon: 'message', key: 'comments', count: () => studio.pending },
       { name: 'admin-users', icon: 'users', key: 'users' },
     ],
   },

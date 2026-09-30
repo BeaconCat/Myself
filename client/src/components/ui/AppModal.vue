@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useDialogStore } from '../../stores/dialog';
 
 /** 全局模态宿主：挂在 App 根部，消费 dialog store */
 const dialog = useDialogStore();
+const { t } = useI18n();
 
 const inputValue = ref('');
 const inputEl = ref<HTMLInputElement | null>(null);
@@ -56,8 +58,8 @@ function onKey(e: KeyboardEvent): void {
       @click.self="done(false)"
       @keydown="onKey"
     >
-      <div class="modal" role="dialog" aria-modal="true">
-        <h3 v-if="snapshot.title" class="m-title">{{ snapshot.title }}</h3>
+      <div class="modal" role="dialog" aria-modal="true" :aria-labelledby="snapshot.title ? 'app-modal-title' : undefined">
+        <h3 v-if="snapshot.title" id="app-modal-title" class="m-title">{{ snapshot.title }}</h3>
         <p v-if="snapshot.message" class="m-msg">{{ snapshot.message }}</p>
 
         <input
@@ -67,6 +69,7 @@ function onKey(e: KeyboardEvent): void {
           class="m-input"
           type="text"
           :placeholder="snapshot.placeholder"
+          :aria-label="snapshot.label || snapshot.placeholder || snapshot.title"
         />
 
         <div class="m-actions">
@@ -74,7 +77,7 @@ function onKey(e: KeyboardEvent): void {
             v-if="!snapshot.alertOnly"
             class="m-btn ghost"
             @click="done(false)"
-          >{{ snapshot.cancelText ?? '取消' }}</button>
+          >{{ snapshot.cancelText ?? t('dialog.cancel') }}</button>
           <button
             ref="okEl"
             class="m-btn primary"

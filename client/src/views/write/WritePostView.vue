@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { siteToday } from '../../utils/date';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -54,7 +55,6 @@ const typing = ref(false);
 const source = ref(false);
 const slugTouched = ref(false);
 /** 定时发布：预留界面，保存时忽略 */
-const schedule = reactive({ on: false, date: '', time: '09:00' });
 
 const rich = ref<InstanceType<typeof RichEditor> | null>(null);
 const titleEl = ref<HTMLTextAreaElement | null>(null);
@@ -244,7 +244,7 @@ async function confirmPublish(): Promise<void> {
     title: draft.title,
     cover: draft.covers[0] ? thumbOf(draft.covers[0]) : '',
     url: `${window.location.host}/articles/${draft.slug}`,
-    meta: `${dateText(createdAt.value) || new Date().toISOString().slice(0, 10)} · ${t('studio.write.minutes', { n: minutes.value })}`,
+    meta: `${dateText(createdAt.value) || siteToday()} · ${t('studio.write.minutes', { n: minutes.value })}`,
     open: true,
   });
 }
@@ -285,7 +285,7 @@ const words = computed(() => wordCount(draft.contentMd) + draft.title.trim().len
 const minutes = computed(() => Math.max(1, Math.round(words.value / 400)));
 
 /* ===== 浮动工具条 ===== */
-interface Tool { icon?: string; text?: string; title: string; run: () => unknown; active?: () => boolean }
+interface Tool { icon?: string; text?: string; title: string; run: () => unknown; active?: () => boolean; disabled?: () => boolean }
 const ed = () => rich.value?.editor;
 const chain = () => ed()!.chain().focus();
 const TOOLS: (Tool | 'sep')[] = [
@@ -306,12 +306,17 @@ const TOOLS: (Tool | 'sep')[] = [
   { icon: 'image', title: t('studio.write.tool.image'), run: () => rich.value?.pickImage() },
   { icon: 'collage', title: t('studio.write.tool.collage'), run: () => rich.value?.pickCollage() },
   { icon: 'media', title: t('studio.write.tool.media'), run: () => rich.value?.pickMedia() },
-  { icon: 'table', title: t('studio.write.tool.table'), run: () => rich.value?.insertTable(), active: () => !!ed()?.isActive('table') },
+  // 光标在表格里时禁用：不允许表格套表格
+  { icon: 'table', title: t('studio.write.tool.table'), run: () => rich.value?.insertTable(), disabled: () => !!ed()?.isActive('table') },
 ];
 /** 依赖编辑器事务版本号，保证激活态实时刷新 */
 const activeMap = computed(() => {
   void rich.value?.version;
   return TOOLS.map((tool) => (tool !== 'sep' && tool.active ? tool.active() : false));
+});
+const disabledMap = computed(() => {
+  void rich.value?.version;
+  return TOOLS.map((tool) => (tool !== 'sep' && tool.disabled ? tool.disabled() : false));
 });
 
 /* 打字时收起顶栏，鼠标移动再浮现 */
@@ -393,8 +398,8 @@ onBeforeUnmount(() => {
             type="button"
             class="st-ibtn"
             :class="{ on: activeMap[i], tx: !!tool.text }"
-            :title="tool.title"
-            :disabled="source"
+            :title="disabledMap[i] ? t('studio.write.tool.tableNested') : tool.title"
+            :disabled="source || disabledMap[i]"
             @mousedown.prevent
             @click="tool.run()"
           >
@@ -435,6 +440,7 @@ onBeforeUnmount(() => {
           class="ed-title"
           rows="1"
           :placeholder="t('studio.write.titlePh')"
+          :aria-label="t('studio.a11y.title')"
           @input="onTitle"
           @keydown.enter.prevent="rich?.focus()"
         />
@@ -452,6 +458,7 @@ onBeforeUnmount(() => {
           v-model="draft.contentMd"
           class="md-src"
           spellcheck="false"
+          :aria-label="t('studio.a11y.editor')"
           :placeholder="t('studio.write.bodyPh')"
           @keydown="onTyping"
         />
@@ -477,17 +484,17 @@ onBeforeUnmount(() => {
         <div>
           <div class="st-flabel">{{ t('studio.write.tags') }}</div>
           <div class="tags" @click="($event.currentTarget as HTMLElement).querySelector('input')?.focus()">
-            <span v-for="(tag, i) in draft.tags" :key="tag">{{ tag }}<button type="button" @click.stop="draft.tags.splice(i, 1)"><SIcon name="x" :size="14" /></button></span>
-            <input v-model="tagInput" :placeholder="t('studio.write.tagPh')" @keydown="onTagKey" @blur="addTag" />
+            <span v-for="(tag, i) in draft.tags" :key="tag">{{ tag }}<button type="button" :aria-label="t('studio.a11y.removeTag', { name: tag })" @click.stop="draft.tags.splice(i, 1)"><SIcon name="x" :size="14" /></button></span>
+            <input v-model="tagInput" :placeholder="t('studio.write.tagPh')" :aria-label="t('studio.write.tags')" @keydown="onTagKey" @blur="addTag" />
           </div>
         </div>
         <div>
           <div class="st-flabel"><span>{{ t('studio.write.excerpt') }}</span><span class="mono" :class="{ warn: draft.excerpt.length > 120 }">{{ draft.excerpt.length }} / 120</span></div>
-          <label class="st-field ta"><textarea v-model="draft.excerpt" rows="3" :placeholder="t('studio.write.excerptPh')" /></label>
+          <label class="st-field ta"><textarea v-model="draft.excerpt" rows="3" :placeholder="t('studio.write.excerptPh')" :aria-label="t('studio.write.excerpt')" /></label>
         </div>
         <div>
           <div class="st-flabel">{{ t('studio.write.slug') }}</div>
-          <label class="slug">/articles/<input v-model="draft.slug" spellcheck="false" @input="slugTouched = true" /></label>
+          <label class="slug">/articles/<input v-model="draft.slug" spellcheck="false" :aria-label="t('studio.write.slug')" @input="slugTouched = true" /></label>
         </div>
         <div class="opts">
           <div class="row-opt">
@@ -498,21 +505,6 @@ onBeforeUnmount(() => {
             <div>{{ t('studio.write.status') }}<small>{{ draft.status === 'published' ? t('studio.write.statusPub') : t('studio.write.statusDraft') }}</small></div>
             <button v-if="draft.status === 'published'" type="button" class="st-btn g sm" :disabled="busy" @click="unpublish">{{ t('studio.write.unpublish') }}</button>
             <span v-else class="st-badge st-draft"><i class="st-dot" />{{ t('studio.status.draft') }}</span>
-          </div>
-          <div>
-            <div class="row-opt">
-              <div>{{ t('studio.write.schedule') }}<small>{{ t('studio.write.scheduleSub') }}</small></div>
-              <StSwitch v-model="schedule.on" :label="t('studio.write.schedule')" />
-            </div>
-            <div class="reveal" :class="{ on: schedule.on }">
-              <div>
-                <div class="dt">
-                  <label class="st-field"><SIcon name="calendar" :size="16" /><input v-model="schedule.date" type="date" /></label>
-                  <label class="st-field"><SIcon name="clock" :size="16" /><input v-model="schedule.time" type="time" /></label>
-                </div>
-                <p class="sched-note"><SIcon name="info" :size="14" />{{ t('studio.write.scheduleNote') }}</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -572,6 +564,7 @@ onBeforeUnmount(() => {
       :meta="stage.meta"
       @view="stageView"
       @close="stageClose"
+      @edit="stage.open = false"
     />
   </div>
 </template>
@@ -983,33 +976,4 @@ onBeforeUnmount(() => {
   small { display: block; font-size: 12px; color: var(--st-ink-3); }
 }
 
-.reveal {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows var(--dur) var(--ease-out);
-
-  > div { overflow: hidden; }
-  &.on { grid-template-rows: 1fr; }
-}
-
-.dt {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding-top: 12px;
-
-  input { font-size: 13px; }
-}
-
-.sched-note {
-  display: flex;
-  gap: 6px;
-  align-items: flex-start;
-  margin: 10px 0 0;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--st-ink-3);
-
-  .st-ic { margin-top: 2px; }
-}
 </style>

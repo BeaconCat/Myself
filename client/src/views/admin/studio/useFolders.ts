@@ -55,6 +55,7 @@ export function useFolders(onChanged?: () => void) {
     const parent = i >= 0 ? path.slice(0, i) : '';
     const name = await dialog.prompt({
       title: t('studio.folder.rename'),
+      label: t('studio.a11y.folderName'),
       inputValue: path.slice(i + 1),
       confirmText: t('studio.editor.ok'),
     });
@@ -62,6 +63,7 @@ export function useFolders(onChanged?: () => void) {
     try {
       const res = await adminApi.renameFolder(path, parent ? `${parent}/${name.trim()}` : name.trim());
       await load();
+      toast(t('studio.folder.renamed', { name: res.path }), { icon: 'check' });
       onChanged?.();
       return res.path;
     } catch (e) {
@@ -81,6 +83,7 @@ export function useFolders(onChanged?: () => void) {
     try {
       await adminApi.deleteFolder(path);
       await load();
+      toast(t('studio.folder.deleted', { name: path }), { icon: 'trash' });
       onChanged?.();
       return true;
     } catch (e) {
@@ -104,4 +107,18 @@ export function useFolders(onChanged?: () => void) {
   }
 
   return { folders, load, create, rename, remove, move };
+}
+
+/**
+ * 文件夹改名 / 删除后，当前浏览位置应落到哪里：
+ * 改名 from → to 时，from 本身及其子级换成新前缀；删除 from 时，from 本身回到父级，子级上移一层。
+ * 与 from 无关的位置原样返回。
+ */
+export function relocate(current: string, from: string, to: string | null): string {
+  const parent = from.includes('/') ? from.slice(0, from.lastIndexOf('/')) : '';
+  if (current === from) return to ?? parent;
+  if (!current.startsWith(`${from}/`)) return current;
+  const rest = current.slice(from.length + 1);
+  const base = to ?? parent;
+  return base ? `${base}/${rest}` : rest;
 }

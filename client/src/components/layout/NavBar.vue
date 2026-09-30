@@ -147,7 +147,7 @@ onBeforeUnmount(() => {
       <UiIcon name="gear" class="s" />
     </router-link>
     <!-- 我的账号 / 登录 -->
-    <router-link v-if="auth.loggedIn" to="/account" class="round-btn me-btn" :title="t('account.me.profile')">
+    <router-link v-if="auth.loggedIn" to="/account" class="round-btn me-btn" :title="t('a11y.myAccount')" :aria-label="t('a11y.myAccount')">
       <img v-if="auth.avatar" :src="auth.avatar" alt="" referrerpolicy="no-referrer" />
       <span v-else-if="me">{{ meInitial }}</span>
       <UiIcon v-else name="user" class="s" />
@@ -209,14 +209,20 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 /* ===== 共用：毛玻璃胶囊面（中性描边 + 中性阴影，无主色描边 / 外发光） ===== */
 %glass {
-  background: color-mix(in oklab, var(--bg) 72%, transparent);
+  background: color-mix(in oklab, var(--bg) 82%, transparent);
   backdrop-filter: blur(20px) saturate(170%);
   -webkit-backdrop-filter: blur(20px) saturate(170%);
   box-shadow: inset 0 0 0 0.5px var(--line-2), 0 8px 24px -16px rgb(0 0 0 / 0.5);
 
   :root[data-mode='light'] & {
-    background: color-mix(in oklab, var(--bg) 70%, rgb(255 255 255 / 0.4));
+    background: color-mix(in oklab, var(--bg) 78%, rgb(255 255 255 / 0.5));
     box-shadow: inset 0 0 0 0.5px var(--line-2), 0 1px 2px rgb(16 24 40 / 0.04), 0 10px 28px -18px rgb(16 24 40 / 0.35);
+  }
+
+  /* 不支持或未渲染模糊（无 GPU、省电模式）时退回近实底，保证压在正文上的导航文字可读 */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background: color-mix(in oklab, var(--bg) 96%, transparent);
+    :root[data-mode='light'] & { background: color-mix(in oklab, var(--bg) 94%, #fff); }
   }
 }
 
