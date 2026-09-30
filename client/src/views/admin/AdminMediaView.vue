@@ -446,8 +446,8 @@ onMounted(() => {
               <input v-model="q" :placeholder="t('studio.library.search')" :aria-label="t('studio.a11y.searchMedia')" />
             </label>
             <div v-if="shownKinds.length > 1" class="kinds">
-              <button type="button" class="st-chip" :class="{ on: kindFilter === 'all' }" @click="kindFilter = 'all'">{{ t('studio.library.kind.all') }}</button>
-              <button v-for="k in shownKinds" :key="k" type="button" class="st-chip" :class="{ on: kindFilter === k }" @click="kindFilter = k">
+              <button type="button" class="st-chip" :class="{ on: kindFilter === 'all' }" :aria-pressed="kindFilter === 'all'" @click="kindFilter = 'all'">{{ t('studio.library.kind.all') }}</button>
+              <button v-for="k in shownKinds" :key="k" type="button" class="st-chip" :class="{ on: kindFilter === k }" :aria-pressed="kindFilter === k" @click="kindFilter = k">
                 {{ t(`studio.library.kind.${k}`) }}<span class="n">{{ kindCounts[k] }}</span>
               </button>
             </div>
@@ -466,26 +466,40 @@ onMounted(() => {
           <p v-if="loaded && !shown.length" class="lib-empty">{{ q ? t('studio.media.noMatch', { q }) : t('studio.media.emptyFolder') }}</p>
 
           <div v-if="view === 'grid'" class="masonry">
-            <button
+            <!-- 卡片 = 「查看」按钮 + 并列的勾选框（不把复选框嵌在按钮里，读屏各自读名称） -->
+            <div
               v-for="{ m: it, i } in shown"
               :key="it.name"
-              type="button"
               class="mtile st-rise"
               :class="{ on: picked.has(it.name), picking, file: mediaKind(it) !== 'image' }"
               :style="{ '--i': i % 8 }"
               :draggable="isAdmin"
               @dragstart="onDragStart(it, $event)"
-              @click="onTile(i, $event)"
             >
-              <MediaTile :item="it" :stamp="`${it.size}-${stamp}`" />
-              <span class="pick" role="checkbox" :aria-checked="picked.has(it.name)" :aria-label="t('studio.a11y.select', { name: it.title || it.name })" :title="t('studio.media.pick')" @click.stop="togglePick(i, $event)">
+              <button
+                type="button"
+                class="open"
+                :aria-label="picking ? t('studio.a11y.select', { name: it.title || it.name }) : t('studio.a11y.view', { name: it.title || it.name })"
+                @click="onTile(i, $event)"
+              >
+                <MediaTile :item="it" :stamp="`${it.size}-${stamp}`" />
+                <span v-if="compressible.has(it.name)" class="zip">{{ t('studio.media.compressible') }}</span>
+                <span v-else-if="it.compressed" class="zip cut">{{ t('studio.media.compressedTag') }}</span>
+                <span v-else-if="it.crop" class="zip cut">{{ t('studio.media.croppedTag') }}</span>
+                <span class="cap"><span class="nm">{{ it.title || it.name }}</span><span class="mono">{{ formatSize(it.size) }}</span></span>
+              </button>
+              <button
+                type="button"
+                class="pick"
+                role="checkbox"
+                :aria-checked="picked.has(it.name)"
+                :aria-label="t('studio.a11y.select', { name: it.title || it.name })"
+                :title="t('studio.media.pick')"
+                @click.stop="togglePick(i, $event)"
+              >
                 <span class="st-ck" :class="{ on: picked.has(it.name) }"><Icon :icon="Check" /></span>
-              </span>
-              <span v-if="compressible.has(it.name)" class="zip">{{ t('studio.media.compressible') }}</span>
-              <span v-else-if="it.compressed" class="zip cut">{{ t('studio.media.compressedTag') }}</span>
-              <span v-else-if="it.crop" class="zip cut">{{ t('studio.media.croppedTag') }}</span>
-              <span class="cap"><span class="nm">{{ it.title || it.name }}</span><span class="mono">{{ formatSize(it.size) }}</span></span>
-            </button>
+              </button>
+            </div>
           </div>
 
           <div v-else-if="shown.length" class="mlist">
@@ -498,21 +512,27 @@ onMounted(() => {
               <span>{{ t('studio.media.colFolder') }}</span>
               <span>{{ t('studio.media.colDate') }}</span>
             </div>
+            <!-- 整行可点（鼠标）；键盘与读屏走名称按钮与勾选框两个独立控件 -->
             <div
               v-for="{ m: it, i } in shown"
               :key="it.name"
               class="lr"
               :class="{ on: picked.has(it.name) }"
               :draggable="isAdmin"
-              role="button"
-              tabindex="0"
               @dragstart="onDragStart(it, $event)"
               @click="onTile(i, $event)"
-              @keydown.enter="onTile(i, $event as unknown as MouseEvent)"
             >
               <span class="pk" role="checkbox" tabindex="0" :aria-checked="picked.has(it.name)" :aria-label="t('studio.a11y.select', { name: it.title || it.name })" @click.stop="togglePick(i, $event)" @keydown.enter.space.prevent.stop="togglePick(i, $event as unknown as MouseEvent)"><span class="st-ck" :class="{ on: picked.has(it.name) }"><Icon :icon="Check" /></span></span>
               <span class="th"><MediaTile :item="it" :stamp="`${it.size}-${stamp}`" /></span>
-              <span class="nm"><b>{{ it.title || it.name }}</b><small class="mono">{{ it.name }}</small></span>
+              <span class="nm">
+                <button
+                  type="button"
+                  class="nmb"
+                  :aria-label="picking ? t('studio.a11y.select', { name: it.title || it.name }) : t('studio.a11y.view', { name: it.title || it.name })"
+                  @click.stop="onTile(i, $event)"
+                ><b>{{ it.title || it.name }}</b></button>
+                <small v-if="it.title && it.title !== it.name" class="mono">{{ it.name }}</small>
+              </span>
               <span class="kd">{{ t(`studio.library.kind.${mediaKind(it)}`) }}</span>
               <span class="mono">{{ formatSize(it.size) }}</span>
               <span class="fd">{{ it.folder || t('studio.folder.unfiled') }}</span>
@@ -661,6 +681,8 @@ $lcols: 28px 44px minmax(0, 1fr) 72px 84px 140px 110px;
   .th { width: 44px; height: 44px; border-radius: var(--r-xs); overflow: hidden; }
   .th :deep(.mt img) { height: 44px; }
   .nm { min-width: 0; }
+  .nmb { display: block; max-width: 100%; padding: 0; border: 0; font: inherit; color: inherit; text-align: left; background: none; cursor: pointer; }
+  .nmb:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: var(--r-xs); }
   .nm b { display: block; font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nm small { font-size: 11.5px; color: var(--st-ink-4); }
   .kd, .fd { font-size: 13px; color: var(--st-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -736,6 +758,21 @@ $lcols: 28px 44px minmax(0, 1fr) 72px 84px 140px 110px;
   }
 }
 
+/* 卡片主体按钮：去掉按钮默认外观，焦点环画在卡片内缘 */
+.mtile .open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  background: none;
+  cursor: inherit;
+
+  &:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; border-radius: inherit; }
+}
+
 /* 勾选角标：悬停浮现；进入选择态后常显，点图即勾选 */
 .mtile {
   .pick {
@@ -744,6 +781,9 @@ $lcols: 28px 44px minmax(0, 1fr) 72px 84px 140px 110px;
     top: 8px;
     z-index: 1;
     padding: 4px;
+    border: 0;
+    background: none;
+    cursor: pointer;
     opacity: 0;
     transform: scale(0.85);
     transition: opacity var(--dur-fast), transform var(--dur-fast) var(--ease-out);
@@ -753,7 +793,9 @@ $lcols: 28px 44px minmax(0, 1fr) 72px 84px 140px 110px;
   }
 
   &:hover .pick,
-  &.picking .pick { opacity: 1; transform: none; }
+  &.picking .pick,
+  .pick:focus-visible,
+  &:focus-within .pick { opacity: 1; transform: none; }
 
   &.picking { cursor: pointer; }
 

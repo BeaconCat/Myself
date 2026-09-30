@@ -443,7 +443,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
           <b>{{ titleOf(mod) }}</b>
           <span v-if="mod.hidden" class="hid">{{ t('studio.about.hiddenTag') }}</span>
           <span class="sp" />
-          <button type="button" class="st-ibtn sm" :class="{ on: !mod.hidden }" :title="mod.hidden ? t('studio.about.show') : t('studio.about.hide')" @click="toggleHidden(mod)">
+          <button type="button" class="st-ibtn sm" :class="{ on: !mod.hidden }" :title="mod.hidden ? t('studio.about.show') : t('studio.about.hide')" :aria-label="`${mod.hidden ? t('studio.about.show') : t('studio.about.hide')} · ${titleOf(mod)}`" :aria-pressed="!mod.hidden" @click="toggleHidden(mod)">
             <SIcon :name="mod.hidden ? 'eyeOff' : 'eye'" :size="18" />
           </button>
           <button type="button" class="st-ibtn sm" :class="{ on: expanded === mod.id }" :title="t('studio.edit')" @click="toggleExpand(mod)">

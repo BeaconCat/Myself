@@ -8,6 +8,7 @@ import { useRouter } from 'vue-router';
 import { Pin } from 'lucide';
 import Icon from '../ui/Icon.vue';
 import { ymdOf } from '../post/content';
+import { formatDateTime } from '../../utils/date';
 import { render as renderMarkdown } from '../../utils/markdown';
 import IdentityName from '../common/IdentityName.vue';
 
@@ -43,7 +44,8 @@ const grid = computed(() => {
 /** 一天内口语化，一周内「n 天前」，更早 M月D日（跨年带年份） */
 const when = computed(() => {
   const s = props.note.createdAt;
-  const diff = Date.now() - new Date(s.replace(' ', 'T')).getTime();
+  // created_at 是 UTC（SQLite datetime('now')），补上 Z 再解析，否则会被当成本地时间差出时区
+  const diff = Date.now() - new Date(`${s.replace(' ', 'T')}Z`).getTime();
   const hours = Math.floor(diff / 3.6e6);
   if (hours < 1 && diff >= 0) return t('thoughts.justNow');
   if (hours < 24 && diff >= 0) return t('thoughts.hoursAgo', { n: hours });
@@ -67,7 +69,7 @@ function openAt(e: MouseEvent, i: number): void {
         <b><IdentityName :name="name" :alias="alias" /></b>
         <span v-if="handle" class="handle">@{{ handle }}</span>
         <span class="dotsep" />
-        <time :datetime="note.createdAt.replace(' ', 'T')" :title="note.createdAt.slice(0, 16)">{{ when }}</time>
+        <time :datetime="`${note.createdAt.replace(' ', 'T')}Z`" :title="formatDateTime(note.createdAt)">{{ when }}</time>
         <span v-if="note.pinned" class="pin"><Icon :icon="Pin" :size="12" :stroke="2" />{{ t('noteDetail.pinned') }}</span>
         <button v-if="note.mood" type="button" class="tag" @click="emit('mood', note.mood)">{{ note.mood }}</button>
       </header>

@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, type BackupInfo, type ImportResult } from '../../api';
 import { useDialogStore } from '../../stores/dialog';
+import { useAuthStore } from '../../stores/auth';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
 import StSeg from './studio/StSeg.vue';
@@ -124,11 +125,14 @@ function autoLabel(h: number): string {
 /* ===== 恢复 ===== */
 const restoring = ref(false);
 const restorePct = ref<number | null>(null);
+/** 恢复完成、即将跳转登录：锁定页面 */
+const relogin = ref(false);
 const restoreInput = ref<HTMLInputElement | null>(null);
 
 /**
- * 恢复成功：整站数据（含设置与账号）都变了，直接刷新页面最稳妥。
- * 会话已随恢复失效、拉不到新列表：先把服务端返回的安全备份插进列表，刷新前就能看到它。
+ * 恢复成功：整站数据（含设置与账号）都变了，所有会话已随恢复失效。
+ * 先把服务端返回的安全备份插进列表并提示，随后清掉本地登录标记、送去登录页（登录后回到数据页），
+ * 期间页面锁定，避免在已失效的会话上继续操作。
  */
 function afterRestore(res: { safety: string; backup?: BackupInfo }): void {
   const b = res.backup;
@@ -137,7 +141,9 @@ function afterRestore(res: { safety: string; backup?: BackupInfo }): void {
     fresh.value = b.name;
   }
   toast(t('studio.data.restored', { name: res.safety }), { icon: 'check' });
-  window.setTimeout(() => window.location.reload(), 1600);
+  relogin.value = true;
+  useAuthStore().clear();
+  window.setTimeout(() => window.location.assign('/admin/login?next=/admin/data'), 1600);
 }
 
 function restoreError(err: unknown): void {
@@ -275,7 +281,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
 </script>
 
 <template>
-  <section class="studio view">
+  <section class="studio view" :class="{ relogin }" :inert="relogin">
     <div class="st-vh">
       <div>
         <h1>{{ t('studio.data.title') }}</h1>
@@ -420,6 +426,8 @@ onBeforeUnmount(() => window.clearInterval(timer));
 </template>
 
 <style scoped lang="scss">
+.relogin { opacity: 0.6; pointer-events: none; transition: opacity var(--dur); }
+
 .view {
   max-width: 1280px;
   margin: 0 auto;

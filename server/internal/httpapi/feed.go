@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,6 +18,17 @@ import (
 // RSS 2.0：最新 20 篇已发布文章，正文 Markdown 渲染为 HTML 放入 content:encoded。
 
 var feedMarkdown = goldmark.New(goldmark.WithExtensions(extension.GFM))
+
+// rootRelAttr 匹配站内根相对地址的 src / href（"/x"，不含协议相对的 "//x"）。
+var rootRelAttr = regexp.MustCompile(`(\s(?:src|href)=")/([^/"][^"]*)?"`)
+
+// absolutize 把正文里的站内根相对链接与图片改成带站点地址的绝对地址：阅读器不在本站域名下，相对地址会失效。
+func absolutize(html, base string) string {
+	if base == "" {
+		return html
+	}
+	return rootRelAttr.ReplaceAllString(html, `${1}`+base+`/${2}"`)
+}
 
 type rssDoc struct {
 	XMLName xml.Name   `xml:"rss"`
@@ -122,7 +134,7 @@ func (s *Server) rssFeed(w http.ResponseWriter, r *http.Request) {
 			PubDate:     rfc1123(row.CreatedAt, loc),
 			Description: row.Excerpt,
 			Categories:  store.ParseStrings(row.Tags),
-			Content:     cdata{Text: buf.String()},
+			Content:     cdata{Text: absolutize(buf.String(), base)},
 		})
 	}
 	feed := rssDoc{

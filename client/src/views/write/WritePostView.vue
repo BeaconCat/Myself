@@ -384,7 +384,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="studio editor" :class="{ drawer, typing }" @mousemove="onMove">
-    <div class="ed-top">
+    <div class="ed-top" @pointerdown="typing = false">
       <div class="capsule">
         <button type="button" class="st-ibtn" :title="t('studio.write.back')" @click="back"><SIcon name="arrowL" /></button>
         <div class="ed-status" :class="saveState"><span class="st-dot" />{{ stateText }}</div>
@@ -473,7 +473,7 @@ onBeforeUnmount(() => {
     <aside class="drawer-p" :aria-hidden="!drawer">
       <div class="dr-h">
         <h3>{{ t('studio.write.settings') }}</h3>
-        <button type="button" class="st-ibtn" @click="drawer = false"><SIcon name="x" /></button>
+        <button type="button" class="st-ibtn" :aria-label="t('studio.a11y.closeSettings')" :title="t('studio.a11y.closeSettings')" @click="drawer = false"><SIcon name="x" /></button>
       </div>
       <div class="dr-b">
         <div>
@@ -595,12 +595,13 @@ onBeforeUnmount(() => {
   gap: 12px;
   padding: 0 20px;
   pointer-events: none;
-  transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+  transition: opacity var(--dur) var(--ease-out);
 
   > * { pointer-events: auto; }
 
-  .typing & { opacity: 0; transform: translateY(-8px); }
-  .typing &:hover { opacity: 1; transform: none; }
+  /* 打字时只淡出不位移：按钮位置不变，悬停或直接点击都能一次命中 */
+  .typing & { opacity: 0; }
+  .typing &:hover, .typing &:focus-within { opacity: 1; }
 }
 
 .capsule {

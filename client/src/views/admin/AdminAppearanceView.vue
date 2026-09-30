@@ -362,12 +362,14 @@ onBeforeUnmount(() => {
               class="mode-c"
               :class="{ on: cfg.theme.defaultStyle === s }"
               :aria-pressed="cfg.theme.defaultStyle === s"
+              :aria-label="s === 'cards' ? t('theme.styleCards') : t('theme.styleClean')"
+              :aria-describedby="`style-sub-${s}`"
               @click="setStyle(s, $event)"
             >
               <div class="smini" :class="s" aria-hidden="true">
                 <i class="h" /><i class="k1" /><i class="k2" />
               </div>
-              <span>{{ s === 'cards' ? t('theme.styleCards') : t('theme.styleClean') }}<small>{{ s === 'cards' ? t('theme.styleCardsSub') : t('theme.styleCleanSub') }}</small></span>
+              <span>{{ s === 'cards' ? t('theme.styleCards') : t('theme.styleClean') }}<small :id="`style-sub-${s}`">{{ s === 'cards' ? t('theme.styleCardsSub') : t('theme.styleCleanSub') }}</small></span>
             </button>
           </div>
           <div class="opts">

@@ -229,9 +229,9 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
     <template v-if="user">
       <!-- 头像 + 名字 -->
       <section class="head rise">
-        <button type="button" class="av" :title="t('account.me.changeAvatar')" @click="pick">
+        <button type="button" class="av" :title="t('account.me.changeAvatar')" :aria-label="t('account.me.changeAvatar')" @click="pick">
           <img v-if="auth.avatar" :src="auth.avatar" alt="" referrerpolicy="no-referrer" />
-          <span v-else class="ini">{{ initial }}</span>
+          <span v-else class="ini" aria-hidden="true">{{ initial }}</span>
           <span class="cam"><Icon :icon="Camera" :size="20" /></span>
         </button>
         <input ref="fileInput" type="file" accept="image/*" hidden @change="onFile" />
@@ -291,7 +291,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
             {{ editing === 'login' ? t('account.me.cancel') : t('account.me.edit') }}
           </button>
         </div>
-        <div class="fold" :class="{ open: editing === 'login' }" :inert="editing !== 'login'">
+        <div class="fold" :class="{ open: editing === 'login' }" :inert="editing !== 'login'" :aria-hidden="editing !== 'login'">
           <div class="clip">
             <form class="editor" @submit.prevent="saveLogin">
               <label class="field">
@@ -323,7 +323,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
             {{ editing === 'email' ? t('account.me.cancel') : user.email ? t('account.me.edit') : t('account.me.add') }}
           </button>
         </div>
-        <div class="fold" :class="{ open: editing === 'email' }" :inert="editing !== 'email'">
+        <div class="fold" :class="{ open: editing === 'email' }" :inert="editing !== 'email'" :aria-hidden="editing !== 'email'">
           <div class="clip">
             <form class="editor" @submit.prevent="saveEmail">
               <div class="two">
@@ -358,7 +358,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
             {{ editing === 'password' ? t('account.me.cancel') : user.hasPassword ? t('account.me.edit') : t('account.me.add') }}
           </button>
         </div>
-        <div class="fold" :class="{ open: editing === 'password' }" :inert="editing !== 'password'">
+        <div class="fold" :class="{ open: editing === 'password' }" :inert="editing !== 'password'" :aria-hidden="editing !== 'password'">
           <div class="clip">
             <form class="editor" @submit.prevent="savePassword">
               <label v-if="user.hasPassword" class="field">

@@ -590,6 +590,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
         <div class="st-flabel">{{ t('studio.users.inviteRole') }}</div>
         <StSeg
           v-model="inv.role"
+          :label="t('studio.users.inviteRole')"
           :options="[
             { value: 'author', label: t('studio.users.r_author') },
             { value: 'reader', label: t('studio.users.r_reader') },
@@ -607,9 +608,9 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
             <span class="st-field"><input v-model="inv.note" maxlength="60" /></span>
           </label>
         </div>
-        <label v-if="mailReady" class="st-ckrow send" :class="{ dim: !inv.email.trim() }" role="checkbox" tabindex="0" :aria-checked="inv.send && !!inv.email.trim()" @click.prevent="inv.send = !inv.send" @keydown.enter.space.prevent="inv.send = !inv.send">
+        <div v-if="mailReady" class="st-ckrow send" :class="{ dim: !inv.email.trim() }" role="checkbox" tabindex="0" :aria-checked="inv.send && !!inv.email.trim()" @click.prevent="inv.send = !inv.send" @keydown.enter.space.prevent="inv.send = !inv.send">
           <span class="st-ck" :class="{ on: inv.send && !!inv.email.trim() }"><SIcon name="check" /></span>{{ t('studio.users.inviteSend') }}
-        </label>
+        </div>
         <div class="ft">
           <button type="button" class="st-btn g" @click="inv.open = false">{{ t('studio.cancel') }}</button>
           <button type="button" class="st-btn p" :disabled="inv.busy" @click="createInvite">{{ t('studio.users.inviteCreate') }}</button>

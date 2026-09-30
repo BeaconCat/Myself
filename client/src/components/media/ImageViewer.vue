@@ -233,6 +233,9 @@ onBeforeUnmount(() => {
     <div
       class="viewer"
       :class="{ closing }"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="t('viewer.title', { i: index + 1, n: images.length })"
       @click="onBackdropTap"
       @wheel.prevent="onWheel"
     >

@@ -241,9 +241,9 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
     </div>
 
     <div v-if="list.length" class="bulk">
-      <label class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="allOn" @click.prevent="toggleAll" @keydown.enter.space.prevent="toggleAll">
+      <div class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="allOn" @click.prevent="toggleAll" @keydown.enter.space.prevent="toggleAll">
         <span class="st-ck" :class="{ on: allOn }"><Icon :icon="Check" /></span>{{ t('studio.comments.selectAll') }}
-      </label>
+      </div>
       <span v-if="selected.size" class="sel">{{ t('studio.comments.selected', { n: selected.size }) }}</span>
       <span class="sp" />
       <template v-if="selected.size">
@@ -276,7 +276,7 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
           </div>
           <p>{{ c.body }}</p>
 
-          <div class="reply-fold" :class="{ open: replying === c.id }">
+          <div class="reply-fold" :class="{ open: replying === c.id }" :inert="replying !== c.id" :aria-hidden="replying !== c.id">
             <div class="clip">
               <div class="reply">
                 <textarea

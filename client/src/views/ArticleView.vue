@@ -119,7 +119,11 @@ function onScroll(): void {
     if (node && node.getBoundingClientRect().top <= NAV_H + 80) cur = h.id;
     else break;
   }
-  activeId.value = cur || rendered.value.toc[0]?.id || '';
+  // 滚到页底时最后几节的标题到不了判定线：视为读到最后一节
+  const toc = rendered.value.toc;
+  const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+  if (atBottom && toc.length) cur = toc[toc.length - 1].id;
+  activeId.value = cur || toc[0]?.id || '';
 }
 
 const left = computed(() =>

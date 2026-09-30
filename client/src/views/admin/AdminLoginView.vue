@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi } from '../../api';
-import { staffHome, useAuthStore } from '../../stores/auth';
+import { canEnterAdmin, staffHome, useAuthStore } from '../../stores/auth';
+import type { UserRole } from '../../api';
 import { useConfigStore } from '../../stores/config';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
@@ -18,6 +19,17 @@ import '@fontsource/noto-serif-sc/600.css';
  */
 const { t } = useI18n();
 const router = useRouter();
+const route = useRoute();
+
+/** 登录后去处：?next= 指向本角色可进的后台页（如恢复备份后回到数据页），否则回角色首页 */
+function landing(role: UserRole): string | ReturnType<typeof staffHome> {
+  const next = typeof route.query.next === 'string' ? route.query.next : '';
+  if (next.startsWith('/admin/') && !next.startsWith('//')) {
+    const name = router.resolve(next).name;
+    if (typeof name === 'string' && canEnterAdmin(role, name)) return next;
+  }
+  return staffHome(role);
+}
 const auth = useAuthStore();
 const config = useConfigStore();
 
@@ -45,7 +57,7 @@ async function submit(): Promise<void> {
     auth.markLoggedIn(res.user);
     verified.value = true;
     (document.activeElement as HTMLElement | null)?.blur();
-    void router.push(res.mustChange ? { path: '/setup', query: { change: '1' } } : staffHome(res.user.role));
+    void router.push(res.mustChange ? { path: '/setup', query: { change: '1' } } : landing(res.user.role));
   } catch (e) {
     const code = (e as Error).message;
     error.value = code === 'too_many_attempts' ? t('studio.login.locked') : code === 'not_staff' ? t('studio.login.notStaff') : t('studio.login.failed');
@@ -112,7 +124,7 @@ onBeforeUnmount(() => {
             </button>
           </span>
         </label>
-        <p class="err" :class="{ on: !!error }" role="alert">{{ error || '&nbsp;' }}</p>
+        <p class="err" :class="{ on: !!error }" :role="error ? 'alert' : undefined" :aria-hidden="!error">{{ error || '&nbsp;' }}</p>
         <button type="submit" class="st-btn p lg go" :class="{ passed: verified }" :disabled="busy || verified">
           <template v-if="verified">{{ t('studio.login.verified') }}<SIcon name="check" :size="16" data-live /></template>
           <template v-else>{{ busy ? t('studio.login.busy') : t('studio.login.enter') }}<SIcon name="arrowR" :size="16" /></template>

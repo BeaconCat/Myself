@@ -502,7 +502,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   overflow: hidden;
   border-radius: var(--r-xl);
-  background: color-mix(in oklab, var(--surface) 94%, transparent);
+  background: color-mix(in oklab, var(--surface) 98%, transparent);
   backdrop-filter: blur(30px) saturate(170%);
   -webkit-backdrop-filter: blur(30px) saturate(170%);
   box-shadow: var(--shadow-pop);

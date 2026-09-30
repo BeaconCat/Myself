@@ -219,7 +219,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
     <div class="toolbar">
       <div class="chips">
-        <button v-for="f in FILTERS" :key="f" type="button" class="st-chip" :class="{ on: filter === f }" @click="filter = f">
+        <button v-for="f in FILTERS" :key="f" type="button" class="st-chip" :class="{ on: filter === f }" :aria-pressed="filter === f" @click="filter = f">
           {{ t(`studio.posts.f.${f}`) }}<span class="n">{{ counts[f] }}</span>
         </button>
       </div>

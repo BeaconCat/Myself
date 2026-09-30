@@ -193,6 +193,43 @@ func migrateAboutModules(cfg Map) Map {
 	return cfg
 }
 
+// 旧版出厂配置里的占位账号：读取时视为未填写（新版出厂已不带这些值）。
+const (
+	placeholderGitHub = "your-github"
+	placeholderMail   = "hi@example.com"
+)
+
+// dropPlaceholders 清掉旧版出厂占位：GitHub 用户名与指向占位账号的身份链接，避免前台显示「@your-github」。
+func dropPlaceholders(cfg Map) Map {
+	if gh, _ := cfg["github"].(Map); gh != nil && gh["username"] == placeholderGitHub {
+		gh["username"] = ""
+	}
+	about, _ := cfg["about"].(Map)
+	links, _ := about["links"].([]any)
+	if len(links) == 0 {
+		return cfg
+	}
+	kept := make([]any, 0, len(links))
+	for _, raw := range links {
+		l, _ := raw.(Map)
+		url, _ := l["url"].(string)
+		if strings.HasSuffix(url, "github.com/"+placeholderGitHub) || url == "mailto:"+placeholderMail {
+			continue
+		}
+		kept = append(kept, raw)
+	}
+	if len(kept) != len(links) {
+		// 首个链接是名片主按钮：占位被删后让剩下的第一个接替
+		for i, raw := range kept {
+			if l, ok := raw.(Map); ok {
+				l["primary"] = i == 0
+			}
+		}
+		about["links"] = kept
+	}
+	return cfg
+}
+
 // Service 读写站点配置。
 type Service struct {
 	db *store.DB
@@ -217,7 +254,7 @@ func (s *Service) Get() Map {
 		return Default()
 	}
 	merged, _ := DeepMerge(Default(), stored).(Map)
-	return migrateAboutModules(merged)
+	return dropPlaceholders(migrateAboutModules(merged))
 }
 
 // Save 深合并补丁并持久化，返回合并结果。

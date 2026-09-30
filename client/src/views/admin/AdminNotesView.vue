@@ -15,7 +15,7 @@ import BatchBar from './studio/BatchBar.vue';
 import NoteComposer from './studio/NoteComposer.vue';
 import { refreshCounts } from './studio/state';
 import { toast } from './studio/toast';
-import { WEEKDAYS, parseTime, ymd } from './studio/format';
+import { WEEKDAYS, parseTime, ymd, plainText } from './studio/format';
 
 /** 随想：左栏输入框 + 按月分组的时间线（编辑 / 置顶 / 隐藏 / 删除，勾选后批量）；右栏概览统计条 + 近 6 月柱状图 */
 const { t } = useI18n();
@@ -56,6 +56,12 @@ interface Group {
   key: string;
   label: string;
   items: { note: Note; day: string; week: string }[];
+}
+
+/** 复选框名称：去 Markdown 的纯文本，超过 30 字截断 */
+function shortText(md: string): string {
+  const s = plainText(md);
+  return s.length > 30 ? `${s.slice(0, 30)}…` : s;
 }
 
 const groups = computed<Group[]>(() => {
@@ -261,7 +267,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <div class="d">
             <b class="mono">{{ it.day }}</b>
             <small>{{ it.week }}</small>
-            <span class="pk" role="checkbox" tabindex="0" :aria-checked="picked.has(it.note.id)" :aria-label="t('studio.a11y.select', { name: it.note.contentMd.slice(0, 20) })" :title="t('studio.batch.pick')" @click.stop="togglePick(it.note)" @keydown.enter.space.prevent.stop="togglePick(it.note)"><span class="st-ck" :class="{ on: picked.has(it.note.id) }"><Icon :icon="Check" /></span></span>
+            <span class="pk" role="checkbox" tabindex="0" :aria-checked="picked.has(it.note.id)" :aria-label="t('studio.a11y.select', { name: shortText(it.note.contentMd) })" :title="t('studio.batch.pick')" @click.stop="togglePick(it.note)" @keydown.enter.space.prevent.stop="togglePick(it.note)"><span class="st-ck" :class="{ on: picked.has(it.note.id) }"><Icon :icon="Check" /></span></span>
           </div>
           <div class="c" @click="onCard(it.note, $event)">
             <!-- eslint-disable-next-line vue/no-v-html -->

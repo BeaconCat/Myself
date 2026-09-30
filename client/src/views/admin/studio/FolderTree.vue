@@ -86,13 +86,14 @@ function onDrop(e: DragEvent, target: string): void {
         <Icon :icon="FolderPlus" :size="16" />
       </button>
     </div>
-    <button type="button" class="fr" :class="{ on: current === ALL }" @click="current = ALL">
+    <button type="button" class="fr" :class="{ on: current === ALL }" :aria-current="current === ALL || undefined" @click="current = ALL">
       <Icon :icon="Layers" :size="16" /><span class="nm">{{ t('studio.folder.all') }}</span><em>{{ total }}</em>
     </button>
     <button
       type="button"
       class="fr"
       :class="{ on: current === '', drop: dropOn === '' }"
+      :aria-current="current === '' || undefined"
       @click="current = ''"
       @dragover="onOver($event, '')"
       @dragleave="dropOn = null"
@@ -107,20 +108,29 @@ function onDrop(e: DragEvent, target: string): void {
         class="fr"
         :class="{ on: current === r.path, drop: dropOn === r.path }"
         :style="{ '--d': r.depth }"
-        role="button"
-        tabindex="0"
         @click="current = r.path"
-        @keydown.enter="current = r.path"
         @dragover="onOver($event, r.path)"
         @dragleave="dropOn = null"
         @drop="onDrop($event, r.path)"
       >
-        <span class="tw" :class="{ shut: collapsed.has(r.path), none: !r.hasKids }" @click.stop="r.hasKids && toggle(r.path)">
+        <!-- 行内三个独立控件：展开/收起、选中文件夹、更多操作（不嵌套交互元素） -->
+        <button
+          v-if="r.hasKids"
+          type="button"
+          class="tw"
+          :class="{ shut: collapsed.has(r.path) }"
+          :aria-expanded="!collapsed.has(r.path)"
+          :aria-label="t(collapsed.has(r.path) ? 'studio.a11y.expand' : 'studio.a11y.collapse', { name: r.name })"
+          @click.stop="toggle(r.path)"
+        >
           <Icon :icon="ChevronRight" :size="13" />
-        </span>
-        <Icon :icon="current === r.path ? FolderOpen : Folder" :size="16" />
-        <span class="nm" :title="r.path">{{ r.name }}</span>
-        <em v-if="r.count">{{ r.count }}</em>
+        </button>
+        <span v-else class="tw none" />
+        <button type="button" class="fb" :aria-current="current === r.path || undefined" @click.stop="current = r.path">
+          <Icon :icon="current === r.path ? FolderOpen : Folder" :size="16" />
+          <span class="nm" :title="r.path">{{ r.name }}</span>
+          <em v-if="r.count">{{ r.count }}</em>
+        </button>
         <span v-if="editable" class="mm" @click.stop><PopMenu :items="menu(r.path)" :label="t('studio.a11y.moreOf', { name: r.name })" /></span>
       </div>
     </TransitionGroup>
@@ -173,7 +183,30 @@ function onDrop(e: DragEvent, target: string): void {
   .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   em { font: 500 11.5px var(--font-mono); font-style: normal; color: var(--st-ink-4); }
 
+  .fb {
+    flex: 1;
+    min-width: 0;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    background: none;
+    cursor: pointer;
+
+    &:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; border-radius: var(--r-xs); }
+  }
+
   .tw {
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    align-self: stretch;
     width: 16px;
     display: grid;
     place-items: center;

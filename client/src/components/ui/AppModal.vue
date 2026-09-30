@@ -10,6 +10,7 @@ const { t } = useI18n();
 const inputValue = ref('');
 const inputEl = ref<HTMLInputElement | null>(null);
 const okEl = ref<HTMLButtonElement | null>(null);
+const cancelEl = ref<HTMLButtonElement | null>(null);
 /** 退场动画期间保留渲染 */
 const leaving = ref(false);
 const snapshot = ref(dialog.active);
@@ -22,8 +23,10 @@ watch(
       leaving.value = false;
       inputValue.value = active.inputValue ?? '';
       await nextTick();
-      // 聚焦到输入框或确认键，保证 Enter / Esc 立即可用
+      // 聚焦到输入框或确认键，保证 Enter / Esc 立即可用；
+      // 危险操作（删除、离开丢弃修改）默认聚焦「取消」，误按 Enter 不会执行
       if (active.input) inputEl.value?.focus();
+      else if (active.danger && !active.alertOnly) cancelEl.value?.focus({ preventScroll: true });
       else okEl.value?.focus({ preventScroll: true });
     } else if (snapshot.value) {
       leaving.value = true;
@@ -58,9 +61,16 @@ function onKey(e: KeyboardEvent): void {
       @click.self="done(false)"
       @keydown="onKey"
     >
-      <div class="modal" role="dialog" aria-modal="true" :aria-labelledby="snapshot.title ? 'app-modal-title' : undefined">
+      <!-- 名称取标题；只有正文（如「退出登录？」）时取正文 -->
+      <div
+        class="modal"
+        :role="snapshot.alertOnly ? 'alertdialog' : 'dialog'"
+        aria-modal="true"
+        :aria-labelledby="snapshot.title ? 'app-modal-title' : snapshot.message ? 'app-modal-msg' : undefined"
+        :aria-describedby="snapshot.title && snapshot.message ? 'app-modal-msg' : undefined"
+      >
         <h3 v-if="snapshot.title" id="app-modal-title" class="m-title">{{ snapshot.title }}</h3>
-        <p v-if="snapshot.message" class="m-msg">{{ snapshot.message }}</p>
+        <p v-if="snapshot.message" id="app-modal-msg" class="m-msg">{{ snapshot.message }}</p>
 
         <input
           v-if="snapshot.input"
@@ -75,6 +85,7 @@ function onKey(e: KeyboardEvent): void {
         <div class="m-actions">
           <button
             v-if="!snapshot.alertOnly"
+            ref="cancelEl"
             class="m-btn ghost"
             @click="done(false)"
           >{{ snapshot.cancelText ?? t('dialog.cancel') }}</button>
@@ -83,7 +94,7 @@ function onKey(e: KeyboardEvent): void {
             class="m-btn primary"
             :class="{ danger: snapshot.danger }"
             @click="done(true)"
-          >{{ snapshot.confirmText ?? '确定' }}</button>
+          >{{ snapshot.confirmText ?? t('dialog.ok') }}</button>
         </div>
       </div>
     </div>

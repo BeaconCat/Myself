@@ -1148,6 +1148,11 @@ const studio = {
   a11y: {
     more: '更多操作',
     select: '选择「{name}」',
+    view: '查看「{name}」',
+    viewMode: '显示方式',
+    closeSettings: '关闭设置',
+    expand: '展开「{name}」',
+    collapse: '收起「{name}」',
     userActive: '启用账号「{name}」',
     searchPosts: '搜索文章',
     searchMedia: '搜索素材',

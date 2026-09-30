@@ -79,14 +79,14 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
       <p v-if="review" class="review-note"><SIcon name="clock" :size="16" />{{ t('studio.write.reviewNote') }}</p>
       <div v-if="!author" class="st-flabel">{{ t('studio.write.after') }}</div>
       <div v-if="!author" class="opts">
-        <label class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="pinned" @click.prevent="pinned = !pinned" @keydown.enter.space.prevent="pinned = !pinned">
+        <div class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="pinned" @click.prevent="pinned = !pinned" @keydown.enter.space.prevent="pinned = !pinned">
           <span class="st-ck" :class="{ on: pinned }"><Icon :icon="Check" /></span>
           {{ t('studio.write.optPin') }}
-        </label>
-        <label v-if="!republish" class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="announce" @click.prevent="announce = !announce" @keydown.enter.space.prevent="announce = !announce">
+        </div>
+        <div v-if="!republish" class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="announce" @click.prevent="announce = !announce" @keydown.enter.space.prevent="announce = !announce">
           <span class="st-ck" :class="{ on: announce }"><Icon :icon="Check" /></span>
           {{ t('studio.write.optAnnounce') }}
-        </label>
+        </div>
       </div>
 
       <div class="st-flabel">{{ t('studio.write.checklist') }}</div>

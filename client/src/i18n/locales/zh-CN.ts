@@ -29,7 +29,7 @@ export default {
     empty: '暂无文章',
     searchPlaceholder: '搜索标题、摘要或正文',
   },
-  dialog: { cancel: '取消' },
+  dialog: { cancel: '取消', ok: '确定' },
   notFound: {
     title: '这个页面不存在',
     desc: '地址可能输错了，或者页面已经被移走。',
@@ -41,6 +41,7 @@ export default {
     toc: '目录',
   },
   viewer: {
+    title: '图片查看器 · 第 {i} / {n} 张',
     wheel: '滚轮缩放',
     pinch: '双指缩放',
     drag: '长按图片拖动',
@@ -614,6 +615,10 @@ export default {
     verifying: '正在验证…',
     verified: '邮箱已验证',
     verifiedSub: '账号已激活并自动登录。',
+    joined: '欢迎加入',
+    joinedSub: '你已成为「{site}」的协作作者，可以在写作后台发布和管理自己的文章。',
+    goStudio: '进入写作后台',
+    goHome: '先逛逛首页',
     emailChanged: '邮箱已更新',
     emailChangedSub: '新邮箱已绑定并验证，现在可以用它登录和找回密码。',
     checkMail: '去查收邮件',

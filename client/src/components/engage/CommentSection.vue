@@ -105,6 +105,11 @@ const loginLink = computed(() => ({ path: '/account/login', query: { next: route
 const registerLink = computed(() => ({ path: '/account/register', query: { next: route.fullPath } }));
 const initial = (name: string) => [...(name || '?')][0];
 
+/** 开始写下一条时收起上一条的提交结果提示 */
+watch(body, (v) => {
+  if (v && notice.value?.ok) notice.value = null;
+});
+
 onMounted(load);
 watch(() => props.commentKey, () => {
   pendingSent.value = false;

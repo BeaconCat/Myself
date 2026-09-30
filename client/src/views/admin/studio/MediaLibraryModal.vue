@@ -199,7 +199,7 @@ function addExternal(): void {
   <StModal :open="open" wide panel-class="mlib" @close="emit('close')">
     <div class="hd">
       <h3>{{ title }}</h3>
-      <label class="st-field search">
+      <label v-if="isAdmin" class="st-field search">
         <Icon :icon="Search" :size="16" />
         <input v-model="q" :placeholder="t('studio.library.search')" :aria-label="t('studio.a11y.searchMedia')" />
       </label>
@@ -217,8 +217,10 @@ function addExternal(): void {
       </template>
       <span class="sp" />
       <StSeg
+        v-if="isAdmin"
         v-model="view"
         icon-only
+        :label="t('studio.a11y.viewMode')"
         :options="[
           { value: 'grid', icon: 'grid', title: t('studio.posts.grid') },
           { value: 'list', icon: 'list', title: t('studio.posts.list') },
@@ -244,12 +246,14 @@ function addExternal(): void {
         class="it"
         :class="{ on: order(m) > 0 }"
         :title="m.title || m.name"
+        :aria-label="m.title || m.name"
+        :aria-pressed="order(m) > 0"
         @click="choose(m)"
       >
         <MediaTile :item="m" />
         <span v-if="view === 'list'" class="row-nm"><b>{{ m.title || m.name }}</b><small class="mono">{{ formatSize(m.size) }} · {{ m.folder || t('studio.folder.unfiled') }} · {{ dateText(m.createdAt) }}</small></span>
         <span v-else-if="mediaKind(m) !== 'image'" class="nm">{{ m.title || m.name }}</span>
-        <span v-if="order(m)" class="tick">
+        <span v-if="order(m)" class="tick" aria-hidden="true">
           <template v-if="multiple">{{ order(m) }}</template>
           <Icon v-else :icon="Check" :size="14" />
         </span>

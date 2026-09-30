@@ -163,19 +163,19 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
     </div>
 
     <div class="list-h">
-      <label class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="allOn" @click.prevent="toggleAll" @keydown.enter.space.prevent="toggleAll">
+      <div class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="allOn" @click.prevent="toggleAll" @keydown.enter.space.prevent="toggleAll">
         <span class="st-ck" :class="{ on: allOn }"><Icon :icon="Check" /></span>
         {{ t('studio.media.qAll') }}
-      </label>
+      </div>
       <span class="sp" />
       <span v-if="compressed.length" class="comp-n">
         {{ t('studio.media.qCompressedN', { n: compressed.length }) }}
         <button type="button" class="st-link" :disabled="reverting || !!job" @click="revert(compressed.map((i) => i.name))">{{ t('studio.media.revertAll') }}</button>
       </span>
-      <label class="st-ckrow small" role="checkbox" tabindex="0" :aria-checked="onlyCompressible" @click.prevent="onlyCompressible = !onlyCompressible" @keydown.enter.space.prevent="onlyCompressible = !onlyCompressible">
+      <div class="st-ckrow small" role="checkbox" tabindex="0" :aria-checked="onlyCompressible" @click.prevent="onlyCompressible = !onlyCompressible" @keydown.enter.space.prevent="onlyCompressible = !onlyCompressible">
         <span class="st-ck" :class="{ on: onlyCompressible }"><Icon :icon="Check" /></span>
         {{ t('studio.media.qOnly', { n: compressibleCount }) }}
-      </label>
+      </div>
     </div>
 
     <div v-if="loaded && !shown.length" class="st-empty">
@@ -191,14 +191,19 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
         class="row st-rise"
         :class="{ on: selected.has(it.name), done: it.compressed }"
         :style="{ '--i': Math.min(i, 10) }"
-        role="checkbox"
-        tabindex="0"
-        :aria-checked="selected.has(it.name)"
-        :aria-label="t('studio.a11y.select', { name: it.title || it.name })"
         @click="toggle(it.name)"
-        @keydown.enter.space.prevent="toggle(it.name)"
       >
-        <span class="st-ck" :class="{ on: selected.has(it.name), off: it.compressed }"><Icon :icon="Check" /></span>
+        <!-- 勾选框是独立控件（整行仍可点）；行内「回退」按钮不再嵌在复选框里 -->
+        <span
+          class="st-ck"
+          :class="{ on: selected.has(it.name), off: it.compressed }"
+          role="checkbox"
+          tabindex="0"
+          :aria-checked="selected.has(it.name)"
+          :aria-label="t('studio.a11y.select', { name: it.title || it.name })"
+          @click.stop="toggle(it.name)"
+          @keydown.enter.space.prevent.stop="toggle(it.name)"
+        ><Icon :icon="Check" /></span>
         <img :src="thumbOf(it.url)" alt="" loading="lazy" />
         <div class="nm">
           <b class="mono">{{ it.title || it.name }}</b>
@@ -355,6 +360,8 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
 
   &:hover { background: var(--well); }
   &.on { background: var(--tint); }
+
+  .st-ck:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
   img { width: 64px; height: 44px; object-fit: cover; border-radius: var(--r-xs); background: var(--well-2); display: block; }
 

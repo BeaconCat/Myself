@@ -54,3 +54,22 @@ func TestDefaultThemeStyle(t *testing.T) {
 		t.Fatal("theme.allowUserStyle should default to true")
 	}
 }
+
+func TestDropPlaceholders(t *testing.T) {
+	cfg := Map{
+		"github": Map{"username": "your-github"},
+		"about": Map{"links": []any{
+			Map{"name": "GitHub", "url": "https://github.com/your-github", "primary": true},
+			Map{"name": "邮件", "url": "mailto:hi@example.com"},
+			Map{"name": "RSS", "url": "/feed"},
+		}},
+	}
+	dropPlaceholders(cfg)
+	if u := cfg["github"].(Map)["username"]; u != "" {
+		t.Fatalf("username = %v", u)
+	}
+	links := cfg["about"].(Map)["links"].([]any)
+	if len(links) != 1 || links[0].(Map)["url"] != "/feed" || links[0].(Map)["primary"] != true {
+		t.Fatalf("links = %v", links)
+	}
+}

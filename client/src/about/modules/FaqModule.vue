@@ -92,7 +92,9 @@ const parts = (a: string) => a.split('`').map((text, i) => ({ text, code: i % 2 
 .ans {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--dur-slow) var(--ease-out);
+  /* 收起：高度动画结束后再 visibility:hidden，答案才真正移出无障碍树与页面文本 */
+  visibility: hidden;
+  transition: grid-template-rows var(--dur-slow) var(--ease-out), visibility 0s linear var(--dur-slow);
 
   > div { overflow: hidden; }
 
@@ -107,7 +109,7 @@ const parts = (a: string) => a.split('`').map((text, i) => ({ text, code: i % 2 
   }
 }
 
-.fq li.open .ans { grid-template-rows: 1fr; }
+.fq li.open .ans { grid-template-rows: 1fr; visibility: visible; transition-delay: 0s; }
 .fq li.open .ans p { opacity: 1; transform: none; transition-delay: 0.1s; }
 
 code { padding: 1px 6px; border-radius: var(--r-xs); font: 500 12.5px var(--ak-mono); background: var(--ak-sunken); box-shadow: inset 0 0 0 1px var(--ak-line); }

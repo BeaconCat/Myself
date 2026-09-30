@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { ArrowLeft, Check, Eye, EyeOff, Mail, MailCheck } from 'lucide';
+import { ArrowLeft, Check, Eye, EyeOff, Mail, MailCheck, PenLine } from 'lucide';
 import { siGithub } from 'simple-icons';
 import { accountApi, type SessionUser } from '../api';
 import { useAuthStore } from '../stores/auth';
@@ -44,7 +44,7 @@ const showPw = ref(false);
 const busy = ref(false);
 const error = ref('');
 /** 完成态：注册待验证 / 找回邮件已发 / 验证中 / 验证成功 */
-const done = ref<'' | 'pending' | 'sent' | 'verifying' | 'verified'>('');
+const done = ref<'' | 'pending' | 'sent' | 'verifying' | 'verified' | 'joined'>('');
 const invite = ref<{ role: 'author' | 'reader'; email: string } | null>(null);
 /** 验证链接是一次换绑邮箱（而不是注册验证） */
 const emailChanged = ref(false);
@@ -118,7 +118,11 @@ async function submit(): Promise<void> {
         website: form.website,
       });
       if (res.pending || !res.user) done.value = 'pending';
-      else finish(res.user);
+      else if (res.user.role === 'author') {
+        // 受邀成为协作作者：留在本页说明身份，并给出进入写作后台的入口
+        auth.markLoggedIn(res.user);
+        done.value = 'joined';
+      } else finish(res.user);
     } else if (m === 'forgot') {
       await accountApi.forgot(form.email.trim());
       done.value = 'sent';
@@ -174,6 +178,7 @@ const githubHref = computed(() => accountApi.githubUrl({ mode: 'login', next: ne
 const title = computed(() => {
   if (done.value === 'pending' || done.value === 'sent') return t('account.checkMail');
   if (done.value === 'verified') return emailChanged.value ? t('account.emailChanged') : t('account.verified');
+  if (done.value === 'joined') return t('account.joined');
   if (mode.value === 'join' && invite.value) return t('account.joinTitle', { role: t(`account.role_${invite.value.role}`) });
   return t(`account.title_${mode.value}`);
 });
@@ -182,6 +187,7 @@ const sub = computed(() => {
   if (done.value === 'sent') return t('account.sentSub');
   if (done.value === 'verifying') return t('account.verifying');
   if (done.value === 'verified') return emailChanged.value ? t('account.emailChangedSub') : t('account.verifiedSub');
+  if (done.value === 'joined') return t('account.joinedSub', { site: config.cfg.site.title });
   if (mode.value === 'reset' && resetEmail.value) return t('account.resetSub', { email: resetEmail.value });
   if (mode.value === 'join' && invite.value) return t('account.joinSub', { site: config.cfg.site.title });
   return t(`account.sub_${mode.value}`, { site: config.cfg.site.title });
@@ -209,6 +215,7 @@ const nextQuery = computed(() => (next.value !== '/' ? { next: next.value } : {}
         <div :key="`${mode}-${done}-${!!invite}`" class="pane">
           <span v-if="done === 'pending' || done === 'sent'" class="badge"><Icon :icon="Mail" :size="22" /></span>
           <span v-else-if="done === 'verified'" class="badge ok"><Icon :icon="MailCheck" :size="22" /></span>
+          <span v-else-if="done === 'joined'" class="badge ok"><Icon :icon="PenLine" :size="22" /></span>
           <h1>{{ title }}</h1>
           <p class="sub">{{ sub }}</p>
 
@@ -253,6 +260,7 @@ const nextQuery = computed(() => (next.value !== '/' ? { next: next.value } : {}
                 <span class="pw">
                   <input
                     v-model="form.password"
+                    :aria-label="mode === 'reset' ? t('account.newPassword') : t('account.password')"
                     :type="showPw ? 'text' : 'password'"
                     :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
                     :placeholder="mode === 'login' ? '' : t('account.pwHint')"
@@ -289,6 +297,10 @@ const nextQuery = computed(() => (next.value !== '/' ? { next: next.value } : {}
           <div class="links">
             <template v-if="mode === 'login'">
               <span v-if="signupOpen">{{ t('account.noAccount') }}<router-link :to="{ path: '/account/register', query: nextQuery }">{{ t('account.goRegister') }}</router-link></span>
+            </template>
+            <template v-else-if="done === 'joined'">
+              <router-link class="primary as-link" :to="{ name: 'admin-posts' }"><Icon :icon="PenLine" :size="16" />{{ t('account.goStudio') }}</router-link>
+              <router-link to="/">{{ t('account.goHome') }}</router-link>
             </template>
             <template v-else-if="done === 'verified'">
               <router-link class="primary as-link" :to="next"><Icon :icon="Check" :size="16" />{{ t('account.continue') }}</router-link>

@@ -122,7 +122,7 @@ onBeforeUnmount(() => document.documentElement.classList.remove('ma-lock'));
             </button>
           </label>
         </div>
-        <p class="err" :class="{ on: !!error }" role="alert">{{ error }}</p>
+        <p class="err" :class="{ on: !!error }" :role="error ? 'alert' : undefined" :aria-hidden="!error">{{ error }}</p>
         <button class="go tap" :class="{ passed: success }" type="submit" :disabled="!canSubmit">
           <template v-if="success">
             <span>{{ t('mobileAdmin.login.verified') }}</span>

@@ -359,7 +359,7 @@ onBeforeUnmount(() => {
     content: '';
     position: absolute;
     inset: calc(var(--nav-h) * -1) -9999px 0;
-    background: color-mix(in oklab, var(--bg) 88%, transparent);
+    background: color-mix(in oklab, var(--bg) 95%, transparent);
     backdrop-filter: blur(20px) saturate(170%);
     -webkit-backdrop-filter: blur(20px) saturate(170%);
     box-shadow: inset 0 -0.5px 0 var(--line);

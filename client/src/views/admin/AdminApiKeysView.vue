@@ -276,6 +276,11 @@ onMounted(() => {
   void load();
   void loadLogs();
 });
+
+/** 耗时：不足 1 ms 的请求记为 0，显示成「<1 ms」而不是「0 ms」 */
+function fmtMs(ms: number): string {
+  return ms > 0 ? `${ms} ms` : '<1 ms';
+}
 </script>
 
 <template>
@@ -457,7 +462,7 @@ onMounted(() => {
                 </span>
               </td>
               <td><span class="sc" :class="statusTone(l.status)"><i class="st-dot" />{{ l.status }}</span></td>
-              <td class="mono dim r nw">{{ l.ms }} ms</td>
+              <td class="mono dim r nw">{{ fmtMs(l.ms) }}</td>
               <td class="mono dim ip" :title="l.ua">{{ l.ip }}</td>
             </tr>
           </tbody>
@@ -473,8 +478,8 @@ onMounted(() => {
         <p>{{ t('studio.api.newDesc') }}</p>
         <div class="st-flabel">{{ t('studio.api.name') }}</div>
         <label class="st-field"><input v-model="newName" :placeholder="t('studio.api.namePh')" :aria-label="t('studio.a11y.keyName')" @keydown.enter="create" /></label>
-        <div class="st-flabel scope-label">{{ t('studio.api.scopeLabel') }}</div>
-        <div class="scope-pick" role="radiogroup">
+        <div id="apikey-scope-label" class="st-flabel scope-label">{{ t('studio.api.scopeLabel') }}</div>
+        <div class="scope-pick" role="radiogroup" aria-labelledby="apikey-scope-label">
           <button
             v-for="sc in (['contrib', 'full'] as const)"
             :key="sc"
