@@ -164,6 +164,10 @@ func (s *Server) archiveListing(w http.ResponseWriter, r *http.Request) {
 	}
 	archiveSlots <- struct{}{}
 	defer func() { <-archiveSlots }()
+	if err := checkZipDirectory(path); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "archive_too_large")
+		return
+	}
 	zr, err := zip.OpenReader(path)
 	// 含不安全路径（../、绝对路径）的包仍可列出：这里只展示名字，不落盘
 	if err != nil && !errors.Is(err, zip.ErrInsecurePath) {

@@ -27,6 +27,7 @@ import (
 const (
 	importFileMax  = 64 << 20
 	importTotalMax = 1 << 30
+	importMaxFiles = 20000
 )
 
 // importSkipDir 构建产物、主题、依赖目录：不含文章，跳过
@@ -74,9 +75,16 @@ func readImportFS(r *http.Request) (importFS, error) {
 			return nil, errors.New("too_large")
 		}
 		if strings.HasSuffix(strings.ToLower(name), ".zip") && len(files) == 0 {
-			if err := readImportZip(files, data); err == nil {
+			err := readImportZip(files, data)
+			if err == nil {
 				continue
 			}
+			if msg := err.Error(); msg == "too_large" || msg == "too_many_files" {
+				return nil, err
+			}
+		}
+		if len(files) >= importMaxFiles {
+			return nil, errors.New("too_many_files")
 		}
 		if name != "" && !importSkipDir.MatchString(name) {
 			files[name] = data
@@ -90,6 +98,10 @@ func readImportZip(files importFS, data []byte) error {
 	if err != nil {
 		return err
 	}
+	if len(zr.File) > importMaxFiles {
+		return errors.New("too_many_files")
+	}
+	var total int64
 	for _, f := range zr.File {
 		name := cleanImportPath(f.Name)
 		if f.FileInfo().IsDir() || name == "" || importSkipDir.MatchString(name) || f.UncompressedSize64 > importFileMax {
@@ -101,7 +113,12 @@ func readImportZip(files importFS, data []byte) error {
 		}
 		b, err := io.ReadAll(io.LimitReader(rc, importFileMax+1))
 		rc.Close()
-		if err == nil {
+		// 按实际解压出的字节累计（声明的大小可作假），超出整批上限即中止
+		total += int64(len(b))
+		if total > importTotalMax {
+			return errors.New("too_large")
+		}
+		if err == nil && int64(len(b)) <= importFileMax {
 			files[name] = b
 		}
 	}

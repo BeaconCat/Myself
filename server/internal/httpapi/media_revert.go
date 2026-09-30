@@ -29,7 +29,8 @@ func (s *Server) compressionOf(name string) *mediaCompression {
 	var at *string
 	err := s.DB.QueryRow(`SELECT COALESCE(compressed_from, ''), COALESCE(compressed_before, 0), compressed_at FROM media WHERE name = ?`, name).
 		Scan(&c.From, &c.Before, &at)
-	if err != nil || c.From == "" {
+	// 来自数据库（可能源于被篡改的备份）：不是安全的单段文件名就当作未压缩，绝不拼进路径
+	if err != nil || c.From == "" || safeName(c.From) == "" {
 		return nil
 	}
 	if at != nil {

@@ -117,11 +117,11 @@ func (s *Server) qualityCompress(w http.ResponseWriter, r *http.Request) {
 		}
 		names = append(names, name)
 	}
-	if s.jobs.running() {
+	job, ok := s.jobs.tryCreate(len(names))
+	if !ok {
 		writeError(w, http.StatusConflict, "job_running")
 		return
 	}
-	job := s.jobs.create(len(names))
 	go s.runCompressJob(job.ID, names, quality)
 	writeJSON(w, http.StatusAccepted, map[string]any{"id": job.ID, "total": len(names)})
 }
@@ -159,7 +159,9 @@ func (s *Server) compressNamed(name string, quality int) *compressResult {
 }
 
 func (s *Server) compressOne(name, full, ext string, before int64, quality int) (compressResult, error) {
+	decodeSlots <- struct{}{}
 	img, err := imaging.Decode(full)
+	<-decodeSlots
 	if err != nil {
 		return compressResult{}, err
 	}

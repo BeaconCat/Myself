@@ -27,6 +27,8 @@ type jobRegistry struct {
 	jobs map[string]*compressJob
 	// order 记录创建顺序，用于淘汰旧任务
 	order []string
+	// blockNew 恢复备份期间不接新任务
+	blockNew bool
 }
 
 const maxKeptJobs = 10
@@ -46,6 +48,49 @@ func (r *jobRegistry) running() bool {
 	return false
 }
 
+// tryCreate 没有进行中的任务时才创建（检查与创建在同一把锁内，避免并发请求同时起两个任务）
+func (r *jobRegistry) tryCreate(total int) (*compressJob, bool) {
+	raw := make([]byte, 8)
+	_, _ = rand.Read(raw)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.blockNew {
+		return nil, false
+	}
+	for _, j := range r.jobs {
+		if j.Running {
+			return nil, false
+		}
+	}
+	job := &compressJob{ID: hex.EncodeToString(raw), Total: total, Running: true, Results: []compressResult{}, StartedAt: nowISO()}
+	r.jobs[job.ID] = job
+	r.order = append(r.order, job.ID)
+	for len(r.order) > maxKeptJobs {
+		delete(r.jobs, r.order[0])
+		r.order = r.order[1:]
+	}
+	return job, true
+}
+
+// pause 暂停接新任务；有进行中的任务时失败（恢复备份前调用，完成后 resume）
+func (r *jobRegistry) pause() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, j := range r.jobs {
+		if j.Running {
+			return false
+		}
+	}
+	r.blockNew = true
+	return true
+}
+
+func (r *jobRegistry) resume() {
+	r.mu.Lock()
+	r.blockNew = false
+	r.mu.Unlock()
+}
+
 func (r *jobRegistry) create(total int) *compressJob {
 	raw := make([]byte, 8)
 	_, _ = rand.Read(raw)
@@ -58,6 +103,10 @@ func (r *jobRegistry) create(total int) *compressJob {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.blockNew {
+		job.Running = false
+		return job
+	}
 	r.jobs[job.ID] = job
 	r.order = append(r.order, job.ID)
 	for len(r.order) > maxKeptJobs {

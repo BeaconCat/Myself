@@ -29,9 +29,12 @@ const (
 
 var safeNameRe = regexp.MustCompile(`^[a-zA-Z0-9.-]+$`)
 
+// winReserved Windows 保留设备名（不区分大小写，带扩展名同样生效，如 NUL.png）
+var winReserved = regexp.MustCompile(`(?i)^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)`)
+
 // safeName 防路径穿越；非法返回空串。
 func safeName(name string) string {
-	if safeNameRe.MatchString(name) && !strings.Contains(name, "..") {
+	if safeNameRe.MatchString(name) && !strings.Contains(name, "..") && !winReserved.MatchString(name) {
 		return name
 	}
 	return ""
@@ -296,7 +299,9 @@ func (s *Server) cropMedia(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
+	decodeSlots <- struct{}{}
 	src, err := imaging.Decode(originalPath)
+	<-decodeSlots
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "decode_failed")
 		return

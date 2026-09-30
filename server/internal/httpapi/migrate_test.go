@@ -47,7 +47,9 @@ func TestBackupRestore(t *testing.T) {
 	if !fileExists(e.server.UploadDir + "/" + img.Name) {
 		t.Fatal("media not restored")
 	}
-	// 恢复后会话仍有效（同一站点的备份，密钥与令牌版本不变）
+	// 恢复后签名密钥轮换：旧会话一律失效，需重新登录
+	e.call(http.MethodGet, "/api/v1/admin/posts", nil, nil, http.StatusUnauthorized)
+	e.token = e.sessionFrom(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "admin", "password": testPassword})
 	e.call(http.MethodGet, "/api/v1/admin/posts", nil, nil, http.StatusOK)
 
 	// 上传一个不是备份的 zip：拒绝

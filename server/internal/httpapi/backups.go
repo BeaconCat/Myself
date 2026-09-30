@@ -25,9 +25,16 @@ func backupTimestamp() string {
 
 // createBackup 全站备份：数据库（文章/随想/用户/配置） + 上传素材（含原图备份）。
 func (s *Server) createBackup() (string, error) {
+	return s.createBackupWith(true)
+}
+
+// createBackupWith prune=false 用于恢复前的安全备份：不触发自动清理，免得把正要恢复的旧备份删掉
+func (s *Server) createBackupWith(prune bool) (string, error) {
 	s.backupMu.Lock()
 	defer s.backupMu.Unlock()
-	defer s.pruneBackups(keepBackups)
+	if prune {
+		defer s.pruneBackups(keepBackups)
+	}
 	// 先把 WAL 合并进主库文件，保证 zip 内的 .db 自洽可单独恢复。
 	if _, err := s.DB.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
 		log.Printf("[backup] checkpoint: %v", err)

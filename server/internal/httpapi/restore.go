@@ -19,6 +19,12 @@ import (
 // maxBackupUpload 上传备份包的大小上限
 const maxBackupUpload = 4 << 30
 
+// 恢复时的解压上限：单个条目（大于素材上传上限）与总量，防解压炸弹塞满磁盘
+const (
+	restoreEntryMax = 1 << 30
+	restoreTotalMax = 64 << 30
+)
+
 var errBadBackup = errors.New("invalid_backup")
 
 // restoreBackup 从备份包恢复全站：数据库按表回灌 + 素材目录镜像还原。调用前须持有 backupMu。
@@ -35,7 +41,15 @@ func (s *Server) restoreBackup(zipPath string) error {
 
 	var dbFile *zip.File
 	uploads := map[string]*zip.File{}
+	var total uint64
 	for _, f := range zr.File {
+		if f.UncompressedSize64 > restoreEntryMax {
+			return errBadBackup
+		}
+		total += f.UncompressedSize64
+		if total > restoreTotalMax {
+			return errBadBackup
+		}
 		name := path.Clean(strings.ReplaceAll(f.Name, `\`, "/"))
 		if f.FileInfo().IsDir() || strings.HasPrefix(name, "../") || path.IsAbs(name) {
 			continue
@@ -226,9 +240,13 @@ func extractTo(f *zip.File, dst string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(out, rc); err != nil {
+	// 按实际读出的字节限流（声明的大小可以作假）
+	if n, err := io.Copy(out, io.LimitReader(rc, restoreEntryMax+1)); err != nil || n > restoreEntryMax {
 		out.Close()
 		os.Remove(tmp)
+		if err == nil {
+			err = errBadBackup
+		}
 		return err
 	}
 	if err := out.Close(); err != nil {
@@ -254,7 +272,13 @@ func looksLikeBackup(p string) bool {
 
 // runRestore 恢复前先做一份安全备份（恢复出错可回到此刻），返回安全备份名。
 func (s *Server) runRestore(w http.ResponseWriter, zipPath string) {
-	safety, err := s.createBackup()
+	// 压缩任务会同时读写素材文件：进行中则拒绝，恢复期间也不接新任务
+	if !s.jobs.pause() {
+		writeError(w, http.StatusConflict, "job_running")
+		return
+	}
+	defer s.jobs.resume()
+	safety, err := s.createBackupWith(false)
 	if err != nil {
 		fail(w, err)
 		return
@@ -269,6 +293,10 @@ func (s *Server) runRestore(w http.ResponseWriter, zipPath string) {
 		log.Printf("[restore] %v", err)
 		fail(w, err)
 		return
+	}
+	// 换一把签名密钥：备份里的旧密钥、以及备份之后已吊销的会话都不能再用（所有人需重新登录）
+	if err := s.Auth.RotateSecret(); err != nil {
+		log.Printf("[restore] rotate secret: %v", err)
 	}
 	log.Printf("[restore] restored from %s (safety backup %s)", filepath.Base(zipPath), safety)
 	writeJSON(w, http.StatusOK, map[string]string{"safety": safety})

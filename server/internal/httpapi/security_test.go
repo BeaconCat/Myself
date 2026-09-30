@@ -1,11 +1,15 @@
 package httpapi
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/binary"
 	"hash/crc32"
+	"image/color"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -159,5 +163,54 @@ func TestAvatarDecodeBomb(t *testing.T) {
 	res.Body.Close()
 	if res.StatusCode != http.StatusRequestEntityTooLarge {
 		t.Fatalf("bomb avatar: %d", res.StatusCode)
+	}
+}
+
+// 压缩包目录体量：尾部记录声明百万条目的包在打开前就被拒绝
+func TestZipDirectoryGuard(t *testing.T) {
+	dir := t.TempDir()
+	eocd := make([]byte, 22)
+	binary.LittleEndian.PutUint32(eocd, 0x06054b50)
+	binary.LittleEndian.PutUint16(eocd[8:], 0xffff-1)
+	binary.LittleEndian.PutUint16(eocd[10:], 0xffff-1)
+	binary.LittleEndian.PutUint32(eocd[12:], 64<<20)
+	p := filepath.Join(dir, "bomb.zip")
+	if err := os.WriteFile(p, eocd, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkZipDirectory(p); err != errZipTooBig {
+		t.Fatalf("oversized directory accepted: %v", err)
+	}
+	var ok bytes.Buffer
+	zw := zip.NewWriter(&ok)
+	f, _ := zw.Create("a.txt")
+	f.Write([]byte("x"))
+	zw.Close()
+	os.WriteFile(p, ok.Bytes(), 0o644)
+	if err := checkZipDirectory(p); err != nil {
+		t.Fatalf("normal zip rejected: %v", err)
+	}
+}
+
+func TestSafeNameRejectsReserved(t *testing.T) {
+	for _, n := range []string{"NUL.png", "con", "com1.txt", "lpt9.zip", "../x.png", "a/b.png", ".pending"} {
+		if safeName(n) != "" && n != ".pending" {
+			t.Errorf("safeName(%q) accepted", n)
+		}
+	}
+	if safeName("nullable.png") == "" || safeName("a1b2-c3.webp") == "" {
+		t.Error("normal names rejected")
+	}
+}
+
+// 压缩记录里被篡改的原文件名（如恶意备份写入 ../）不被当成路径使用
+func TestCompressionRecordSanitized(t *testing.T) {
+	e := newEnv(t)
+	img := e.uploadFiles(pngOf(color.RGBA{R: 9, A: 255}))[0]
+	if _, err := e.server.DB.Exec(`UPDATE media SET compressed_from = '../../data/myself.db', compressed_before = 1 WHERE name = ?`, img.Name); err != nil {
+		t.Fatal(err)
+	}
+	if c := e.server.compressionOf(img.Name); c != nil {
+		t.Fatalf("unsafe compressed_from used: %+v", c)
 	}
 }
