@@ -131,7 +131,7 @@ func (db *DB) UserByLogin(identifier string) (*User, error) {
 
 // ListUsers 列出用户（管理员视图），附评论数。
 func (db *DB) ListUsers() ([]User, map[int64]int, error) {
-	rows, err := db.Query(`SELECT ` + userColumns + ` FROM users ORDER BY CASE role WHEN 'admin' THEN 0 WHEN 'author' THEN 1 ELSE 2 END, id`)
+	rows, err := db.Query(`SELECT ` + userColumns + ` FROM users` + userOrder)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -161,11 +161,57 @@ func (db *DB) ListUsers() ([]User, map[int64]int, error) {
 	return out, counts, rows.Err()
 }
 
+// userOrder 管理员视图的用户排序：站长 → 作者 → 读者，同角色按注册先后。
+const userOrder = ` ORDER BY CASE role WHEN 'admin' THEN 0 WHEN 'author' THEN 1 ELSE 2 END, id`
+
+// QueryUsers 按条件（where 以 WHERE 开头或为空）分页列出用户，附这一页用户的评论数。
+func (db *DB) QueryUsers(where string, args []any, limit, offset int) ([]User, map[int64]int, error) {
+	rows, err := db.Query(`SELECT `+userColumns+` FROM users `+where+userOrder+` LIMIT ? OFFSET ?`, append(args, limit, offset)...)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	out := []User{}
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, nil, err
+		}
+		out = append(out, *u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	counts := map[int64]int{}
+	if len(out) == 0 {
+		return out, counts, nil
+	}
+	ids := make([]any, len(out))
+	for i, u := range out {
+		ids[i] = u.ID
+	}
+	ph := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+	crows, err := db.Query(`SELECT user_id, COUNT(*) FROM comments WHERE user_id IN (`+ph+`) GROUP BY user_id`, ids...)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer crows.Close()
+	for crows.Next() {
+		var id int64
+		var n int
+		if err := crows.Scan(&id, &n); err != nil {
+			return nil, nil, err
+		}
+		counts[id] = n
+	}
+	return out, counts, crows.Err()
+}
+
 // NewUser 创建用户的字段。
 type NewUser struct {
 	Login, Email, Name, Avatar, Role, Status, PasswordHash string
-	GitHubID                                                int64
-	EmailVerified                                           bool
+	GitHubID                                               int64
+	EmailVerified                                          bool
 }
 
 // CreateUser 插入用户，返回 id；登录名 / 邮箱 / GitHub 冲突返回 IsUniqueErr 可识别的错误。

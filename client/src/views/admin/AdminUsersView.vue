@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { adminApi, type AdminUser, type InviteInfo, type UserRole, type UserStats } from '../../api';
+import { adminApi, type AdminUser, type InviteInfo, type UserFilter, type UserRole, type UserStats } from '../../api';
 import { useConfigStore, type UsersConfig } from '../../stores/config';
 import { useDialogStore } from '../../stores/dialog';
 import './studio/i18n';
@@ -10,6 +10,7 @@ import StSwitch from './studio/StSwitch.vue';
 import StSeg from './studio/StSeg.vue';
 import StModal from './studio/StModal.vue';
 import PopMenu from './studio/PopMenu.vue';
+import StPager from './studio/StPager.vue';
 import { copyText, saveBlob } from './studio/state';
 import { toast } from './studio/toast';
 import { dateText, initial, relTime } from './studio/format';
@@ -75,40 +76,88 @@ const reactions = bind(() => sw.reactions !== false, (v) => (sw.reactions = v));
 const SIGNUP = computed(() => (['open', 'invite', 'closed'] as const).map((v) => ({ value: v, label: t(`studio.users.signup_${v}`) })));
 const MODERATION = computed(() => (['all', 'first', 'none'] as const).map((v) => ({ value: v, label: t(`studio.users.mod_${v}`) })));
 
-/* ---------- 用户 ---------- */
+/* ---------- 用户（服务端分页：角色分段 + 搜索都在服务端完成） ---------- */
+/** 当前页的用户 */
 const users = ref<AdminUser[]>([]);
 const stats = ref<UserStats | null>(null);
 const loaded = ref(false);
-type Filter = 'all' | UserRole | 'disabled';
+const busy = ref(false);
+type Filter = UserFilter;
 const filter = ref<Filter>('all');
 const q = ref('');
+const page = ref(1);
+const pageSize = ref(20);
+const total = ref(0);
+/** 各分段在当前搜索下的人数 */
+const counts = ref<Record<Filter, number>>({ all: 0, admin: 0, author: 0, reader: 0, disabled: 0 });
+/** 待审头像（不受分页影响） */
+const pendingAvatars = ref<AdminUser[]>([]);
 
 const FILTERS = computed(() =>
   (['all', 'admin', 'author', 'reader', 'disabled'] as const).map((v) => ({
     value: v,
     label: t(`studio.users.f_${v}`),
-    count: v === 'all' ? users.value.length : users.value.filter((u) => (v === 'disabled' ? u.status === 'disabled' : u.role === v)).length || undefined,
+    count: v === 'all' ? counts.value.all : counts.value[v] || undefined,
   })),
 );
 
-const shown = computed(() => {
-  const needle = q.value.trim().toLowerCase();
-  return users.value.filter((u) => {
-    if (filter.value === 'disabled' ? u.status !== 'disabled' : filter.value !== 'all' && u.role !== filter.value) return false;
-    return !needle || `${u.name} ${u.login} ${u.email}`.toLowerCase().includes(needle);
-  });
-});
+const inFilter = (u: AdminUser, f: Filter): boolean => (f === 'disabled' ? u.status === 'disabled' : f === 'all' || u.role === f);
 
+let loadSeq = 0;
 async function loadUsers(): Promise<void> {
+  const seq = ++loadSeq;
+  busy.value = true;
   try {
-    const res = await adminApi.users();
-    users.value = res.items;
+    const needle = q.value.trim();
+    const res = await adminApi.usersPage({
+      page: page.value,
+      pageSize: pageSize.value,
+      role: filter.value === 'all' ? undefined : filter.value,
+      q: needle || undefined,
+    });
+    if (seq !== loadSeq) return;
     stats.value = res.stats;
+    if (typeof res.total === 'number' && res.counts) {
+      users.value = res.items;
+      total.value = res.total;
+      counts.value = res.counts;
+      pendingAvatars.value = res.pendingAvatars ?? [];
+    } else {
+      // 旧后端一次返回全部：在前端筛选、计数、切页
+      const lower = needle.toLowerCase();
+      const match = res.items.filter((u) => !lower || `${u.name} ${u.login} ${u.email}`.toLowerCase().includes(lower));
+      const list = match.filter((u) => inFilter(u, filter.value));
+      counts.value = Object.fromEntries(
+        (['all', 'admin', 'author', 'reader', 'disabled'] as const).map((f) => [f, match.filter((u) => inFilter(u, f)).length]),
+      ) as Record<Filter, number>;
+      total.value = list.length;
+      users.value = list.slice((page.value - 1) * pageSize.value, page.value * pageSize.value);
+      pendingAvatars.value = res.items.filter((u) => u.avatarPending);
+    }
   } catch {
-    toast(t('studio.loadFailed'), { icon: 'x' });
+    if (seq === loadSeq) toast(t('studio.loadFailed'), { icon: 'x' });
+  } finally {
+    if (seq === loadSeq) {
+      busy.value = false;
+      loaded.value = true;
+    }
   }
-  loaded.value = true;
 }
+
+// 换分段 / 搜索回到第 1 页（搜索输入防抖）；翻页 / 换每页条数直接重取
+let searchTimer = 0;
+watch(q, () => {
+  window.clearTimeout(searchTimer);
+  searchTimer = window.setTimeout(() => {
+    if (page.value !== 1) page.value = 1;
+    else void loadUsers();
+  }, 250);
+});
+watch(filter, () => {
+  if (page.value !== 1) page.value = 1;
+  else void loadUsers();
+});
+watch([page, pageSize], () => void loadUsers());
 
 async function loadSwitches(): Promise<void> {
   try {
@@ -159,6 +208,8 @@ async function setActive(u: AdminUser, on: boolean): Promise<void> {
     await adminApi.updateUser(u.id, { status: on ? 'active' : 'disabled' });
     u.status = on ? 'active' : 'disabled';
     toast(on ? t('studio.users.enabledOne', { name: u.name }) : t('studio.users.disabledOne', { name: u.name }), { icon: on ? 'check' : 'lock' });
+    // 「已停用」分段计数随之变化
+    void loadUsers();
   } catch {
     toast(t('studio.saveFailed'), { icon: 'x' });
   }
@@ -216,16 +267,21 @@ async function exportCsv(): Promise<void> {
   }
 }
 
-/* ---------- 头像审核 ---------- */
-const pendingAvatars = computed(() => users.value.filter((u) => u.avatarPending));
+/* ---------- 头像审核（待审列表由服务端单独下发，不受用户表分页影响） ---------- */
 const reviewing = ref(new Set<number>());
 async function review(u: AdminUser, action: 'approve' | 'reject'): Promise<void> {
   if (reviewing.value.has(u.id)) return;
   reviewing.value = new Set(reviewing.value).add(u.id);
   try {
     await adminApi.reviewAvatar(u.id, action);
-    if (action === 'approve') u.avatar = u.avatarPending ?? u.avatar;
-    u.avatarPending = '';
+    // 同步到当前页里的同一用户
+    const row = users.value.find((x) => x.id === u.id);
+    if (action === 'approve') {
+      const next = u.avatarPending || u.avatar;
+      if (row) row.avatar = next;
+    }
+    if (row) row.avatarPending = '';
+    pendingAvatars.value = pendingAvatars.value.filter((x) => x.id !== u.id);
     toast(action === 'approve' ? t('studio.users.avatarApproved', { name: u.name }) : t('studio.users.avatarRejected', { name: u.name }), {
       icon: action === 'approve' ? 'check' : 'x',
     });
@@ -428,7 +484,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
       <label class="st-field search"><SIcon name="search" :size="16" /><input v-model="q" :placeholder="t('studio.users.searchPh')" /></label>
     </div>
 
-    <table class="st-table">
+    <table class="st-table u-table" :class="{ busy }">
       <thead>
         <tr>
           <th>{{ t('studio.users.cUser') }}</th>
@@ -441,7 +497,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
         </tr>
       </thead>
       <TransitionGroup tag="tbody" name="row">
-        <tr v-for="u in shown" :key="u.id">
+        <tr v-for="u in users" :key="u.id">
           <td>
             <div class="u">
               <span class="av" :style="{ background: u.avatar ? undefined : tint(u.name || u.login) }">
@@ -481,7 +537,9 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
         </tr>
       </TransitionGroup>
     </table>
-    <p v-if="loaded && !shown.length" class="empty">{{ q || filter !== 'all' ? t('studio.users.noMatch') : t('studio.users.empty') }}</p>
+    <p v-if="loaded && !users.length" class="empty">{{ q || filter !== 'all' ? t('studio.users.noMatch') : t('studio.users.empty') }}</p>
+    <StPager v-model:page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[20, 50, 100]" :busy="busy" />
+
 
     <!-- 邀请记录 -->
     <section v-if="invites.length" class="st-card inv-card st-rise" style="--i: 3">
@@ -778,6 +836,8 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
   color: color-mix(in oklab, var(--yellow) 55%, var(--st-ink));
 }
 
+.u-table { transition: opacity var(--dur-fast); }
+.u-table.busy { opacity: 0.6; }
 .row-enter-active, .row-leave-active { transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); }
 .row-enter-from, .row-leave-to { opacity: 0; transform: translateY(6px); }
 

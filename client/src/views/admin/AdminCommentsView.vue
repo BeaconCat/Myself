@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Check, MessageSquareDashed } from 'lucide';
 import { accountApi, adminApi, type AdminComment, type CommentStatus } from '../../api';
@@ -11,6 +11,7 @@ import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
 import EmptyArt from './studio/EmptyArt.vue';
 import StSeg from './studio/StSeg.vue';
+import StPager from './studio/StPager.vue';
 import { toast } from './studio/toast';
 import { initial, plainText, relTime } from './studio/format';
 
@@ -26,27 +27,69 @@ const auth = useAuthStore();
 const descKey = computed(() => (auth.isAdmin ? 'studio.comments.desc' : 'studio.comments.descAuthor'));
 
 type Tab = CommentStatus;
+const TAB_KEYS: Tab[] = ['pending', 'approved', 'spam'];
 const tab = ref<Tab>('pending');
-const lists = reactive<Record<Tab, AdminComment[] | null>>({ pending: null, approved: null, spam: null });
-const list = computed(() => lists[tab.value] ?? []);
-const loading = computed(() => lists[tab.value] === null);
+/** 当前栏当前页（服务端分页） */
+const list = ref<AdminComment[]>([]);
+const loading = ref(true);
+const busy = ref(false);
+const page = ref(1);
+const pageSize = ref(20);
+/** 三栏各自总数 */
+const counts = reactive<Record<Tab, number>>({ pending: 0, approved: 0, spam: 0 });
+const total = computed(() => counts[tab.value]);
 const commentsOn = computed(() => !!config.cfg.users?.comments.enabled);
 
-async function load(which: Tab): Promise<void> {
+let loadSeq = 0;
+async function load(): Promise<void> {
+  const seq = ++loadSeq;
+  const which = tab.value;
+  busy.value = true;
   try {
-    lists[which] = await adminApi.comments(which);
+    const res = await adminApi.commentsPage({ status: which, page: page.value, pageSize: pageSize.value });
+    if (seq !== loadSeq) return;
+    if (Array.isArray(res)) {
+      // 旧后端不认分页参数、回数组：前端切页，并补齐另外两栏的计数
+      const all = res as AdminComment[];
+      counts[which] = all.length;
+      list.value = all.slice((page.value - 1) * pageSize.value, page.value * pageSize.value);
+      for (const s of TAB_KEYS) {
+        if (s !== which) void adminApi.comments(s).then((r) => (counts[s] = r.length)).catch(() => undefined);
+      }
+    } else {
+      list.value = res.items;
+      Object.assign(counts, res.counts);
+    }
   } catch {
-    lists[which] = [];
+    if (seq !== loadSeq) return;
+    list.value = [];
     toast(t('studio.loadFailed'), { icon: 'x' });
+  } finally {
+    if (seq === loadSeq) {
+      busy.value = false;
+      loading.value = false;
+    }
   }
 }
-onMounted(() => void Promise.all((['pending', 'approved', 'spam'] as Tab[]).map(load)));
+onMounted(load);
+watch([page, pageSize], () => void load());
+
+/** 操作后补位：等离场动画放完再重取当前页（本页删空则退一页） */
+let refillTimer = 0;
+function refill(): void {
+  window.clearTimeout(refillTimer);
+  refillTimer = window.setTimeout(() => {
+    const pages = Math.max(1, Math.ceil(total.value / pageSize.value));
+    if (page.value > pages) page.value = pages;
+    else void load();
+  }, 420);
+}
 
 const TABS = computed(() =>
-  (['pending', 'approved', 'spam'] as Tab[]).map((v) => ({
+  TAB_KEYS.map((v) => ({
     value: v,
     label: t(`studio.comments.${v}`),
-    count: lists[v]?.length || undefined,
+    count: counts[v] || undefined,
   })),
 );
 
@@ -63,21 +106,28 @@ function toggleAll(): void {
   selected.value = allOn.value ? new Set() : new Set(list.value.map((c) => c.id));
 }
 function setTab(v: Tab): void {
+  if (v === tab.value) return;
   tab.value = v;
   selected.value = new Set();
   replying.value = null;
+  list.value = [];
+  loading.value = true;
+  if (page.value !== 1) page.value = 1;
+  else void load();
 }
 
 /* ---------- 操作 ---------- */
-/** 把若干条评论从当前栏移到目标栏（本地即时更新，失败时重新拉取） */
+/** 把若干条评论移出当前栏（本地即时更新计数，随后重取当前页补位；失败时重新拉取） */
 function move(ids: number[], to: Tab | null): void {
   const from = tab.value;
-  const moved = (lists[from] ?? []).filter((c) => ids.includes(c.id));
-  lists[from] = (lists[from] ?? []).filter((c) => !ids.includes(c.id));
-  if (to && lists[to]) lists[to] = [...moved.map((c) => ({ ...c, status: to })), ...lists[to]!].sort((a, b) => b.id - a.id);
+  const n = list.value.filter((c) => ids.includes(c.id)).length;
+  list.value = list.value.filter((c) => !ids.includes(c.id));
+  counts[from] = Math.max(0, counts[from] - n);
+  if (to) counts[to] += n;
   const s = new Set(selected.value);
   ids.forEach((id) => s.delete(id));
   selected.value = s;
+  refill();
 }
 
 async function setStatus(c: AdminComment, status: CommentStatus): Promise<boolean> {
@@ -122,7 +172,7 @@ async function bulk(action: CommentStatus | 'delete'): Promise<void> {
     toast(t('studio.comments.bulkDone', { n: ids.length }));
   } catch {
     toast(t('studio.saveFailed'), { icon: 'x' });
-    void load(tab.value);
+    void load();
   }
 }
 
@@ -150,7 +200,7 @@ async function sendReply(c: AdminComment): Promise<void> {
     replying.value = null;
     replyText.value = '';
     toast(t('studio.comments.replied'), { icon: 'reply' });
-    void load('approved');
+    if (tab.value === 'approved') void load();
   } catch (e) {
     toast((e as Error).message === 'comments_closed' ? t('studio.comments.closed') : t('studio.saveFailed'), { icon: 'x' });
   } finally {
@@ -205,7 +255,7 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
       <p>{{ t(`studio.comments.empty_${tab}Sub`) }}</p>
     </div>
 
-    <TransitionGroup tag="div" name="cm" class="cm-list">
+    <TransitionGroup tag="div" name="cm" class="cm-list" :class="{ busy: busy && !loading }">
       <div v-for="c in list" :key="c.id" class="cm" :class="{ sel: selected.has(c.id) }">
         <span class="st-ck" :class="{ on: selected.has(c.id) }" role="checkbox" :aria-checked="selected.has(c.id)" @click="toggle(c.id)"><Icon :icon="Check" /></span>
         <span class="av" :style="{ background: c.author.avatar ? undefined : tint(c.author.name) }">
@@ -255,6 +305,7 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
         </div>
       </div>
     </TransitionGroup>
+    <StPager v-model:page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[20, 50, 100]" :busy="busy" />
   </section>
 </template>
 
@@ -283,7 +334,8 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
   .danger { color: var(--red); }
 }
 
-.cm-list { position: relative; display: flex; flex-direction: column; }
+.cm-list { position: relative; display: flex; flex-direction: column; transition: opacity var(--dur-fast); }
+.cm-list.busy { opacity: 0.6; }
 
 .cm {
   display: grid;

@@ -158,6 +158,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+p+"/admin/apikeys", admin(s.listAPIKeys))
 	mux.HandleFunc("POST "+p+"/admin/apikeys", admin(s.createAPIKey))
 	mux.HandleFunc("DELETE "+p+"/admin/apikeys/{id}", admin(s.deleteAPIKey))
+	mux.HandleFunc("GET "+p+"/admin/api-logs", admin(s.adminListAPILogs))
 	mux.HandleFunc("GET "+p+"/admin/media", admin(s.listMedia))
 	mux.HandleFunc("POST "+p+"/admin/media", staff(s.uploadMedia))
 	mux.HandleFunc("POST "+p+"/admin/media/lookup", staff(s.lookupMedia))

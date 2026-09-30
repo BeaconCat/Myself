@@ -86,6 +86,9 @@ CREATE TABLE IF NOT EXISTS media (
 	if _, err := db.Exec(usersSchema); err != nil {
 		return err
 	}
+	if _, err := db.Exec(apiLogsSchema); err != nil {
+		return err
+	}
 	// 旧库缺列时补齐（列已存在则忽略报错）。
 	for _, stmt := range []string{
 		`ALTER TABLE notes ADD COLUMN images TEXT NOT NULL DEFAULT '[]'`,

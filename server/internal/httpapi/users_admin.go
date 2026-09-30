@@ -30,22 +30,78 @@ type adminUser struct {
 	Self          bool   `json:"self"`
 }
 
-// GET /admin/users 用户列表 + 顶部统计
+// userFilters 用户表的角色分段（disabled 按状态筛）。
+var userFilters = map[string]string{
+	"admin":    "role = 'admin'",
+	"author":   "role = 'author'",
+	"reader":   "role = 'reader'",
+	"disabled": "status = 'disabled'",
+}
+
+// GET /admin/users?page=&pageSize=&role=all|admin|author|reader|disabled&q=
+// → {items, stats, page, pageSize, total, counts, pendingAvatars}。
+// 不带 page 时返回全部（兼容旧调用）；counts 为各分段在当前搜索下的人数，pendingAvatars 为全部待审头像（不受分页影响）。
 func (s *Server) adminListUsers(w http.ResponseWriter, r *http.Request) {
-	users, counts, err := s.DB.ListUsers()
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	var search []string
+	var args []any
+	if q != "" {
+		search = append(search, `(name LIKE ? ESCAPE '\' OR login LIKE ? ESCAPE '\' OR COALESCE(email, '') LIKE ? ESCAPE '\')`)
+		like := likeArg(q)
+		args = append(args, like, like, like)
+	}
+	whereOf := func(extra string) string {
+		conds := search
+		if extra != "" {
+			conds = append(append([]string{}, search...), extra)
+		}
+		if len(conds) == 0 {
+			return ""
+		}
+		return "WHERE " + strings.Join(conds, " AND ")
+	}
+	counts := map[string]int{}
+	for _, f := range []string{"all", "admin", "author", "reader", "disabled"} {
+		var n int
+		if err := s.DB.QueryRow(`SELECT COUNT(*) FROM users `+whereOf(userFilters[f]), args...).Scan(&n); err != nil {
+			fail(w, err)
+			return
+		}
+		counts[f] = n
+	}
+	filter := r.URL.Query().Get("role")
+	if _, ok := userFilters[filter]; !ok {
+		filter = "all"
+	}
+	total := counts[filter]
+	page, pageSize, limit := 1, total, -1
+	if r.URL.Query().Has("page") {
+		page = queryInt(r, "page", 1, 1, 1<<30)
+		pageSize = queryInt(r, "pageSize", 20, 1, 100)
+		limit = pageSize
+	}
+	users, commentCounts, err := s.DB.QueryUsers(whereOf(userFilters[filter]), args, limit, (page-1)*max(pageSize, 0))
 	if err != nil {
 		fail(w, err)
 		return
 	}
 	me := userOf(r)
-	out := make([]adminUser, 0, len(users))
-	for _, u := range users {
-		out = append(out, adminUser{
-			ID: u.ID, Login: u.Login, Email: u.Email, Name: u.Name, Avatar: s.avatarOf(u.Role, u.Avatar), AvatarPending: u.AvatarPending,
-			Role: u.Role, Status: u.Status,
-			GitHub: u.GitHubID != 0, HasPassword: u.PasswordHash != "", EmailVerified: u.EmailVerified,
-			CreatedAt: u.CreatedAt, LastActiveAt: u.LastActiveAt, Comments: counts[u.ID], Self: u.ID == me.ID,
-		})
+	toAdmin := func(users []store.User, counts map[int64]int) []adminUser {
+		out := make([]adminUser, 0, len(users))
+		for _, u := range users {
+			out = append(out, adminUser{
+				ID: u.ID, Login: u.Login, Email: u.Email, Name: u.Name, Avatar: s.avatarOf(u.Role, u.Avatar), AvatarPending: u.AvatarPending,
+				Role: u.Role, Status: u.Status,
+				GitHub: u.GitHubID != 0, HasPassword: u.PasswordHash != "", EmailVerified: u.EmailVerified,
+				CreatedAt: u.CreatedAt, LastActiveAt: u.LastActiveAt, Comments: counts[u.ID], Self: u.ID == me.ID,
+			})
+		}
+		return out
+	}
+	pending, pendingCounts, err := s.DB.QueryUsers(`WHERE avatar_pending != ''`, nil, 100, 0)
+	if err != nil {
+		fail(w, err)
+		return
 	}
 	stat := func(q string) int {
 		var n int
@@ -53,9 +109,14 @@ func (s *Server) adminListUsers(w http.ResponseWriter, r *http.Request) {
 		return n
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items": out,
+		"items":          toAdmin(users, commentCounts),
+		"page":           page,
+		"pageSize":       pageSize,
+		"total":          total,
+		"counts":         counts,
+		"pendingAvatars": toAdmin(pending, pendingCounts),
 		"stats": map[string]int{
-			"total":         len(users),
+			"total":         stat(`SELECT COUNT(*) FROM users`),
 			"newMonth":      stat(`SELECT COUNT(*) FROM users WHERE created_at >= datetime('now', '-30 days')`),
 			"activeMonth":   stat(`SELECT COUNT(*) FROM users WHERE last_active_at >= datetime('now', '-30 days')`),
 			"authors":       stat(`SELECT COUNT(*) FROM users WHERE role = 'author'`),

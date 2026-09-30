@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { adminApi, type ApiKeyInfo, type ApiKeyScope } from '../../api';
+import { adminApi, type ApiKeyInfo, type ApiKeyScope, type ApiLogEntry } from '../../api';
 import { useDialogStore } from '../../stores/dialog';
 import { API_CATALOG, buildAgentPrompt, type Endpoint } from './apiCatalog';
 import './studio/i18n';
@@ -10,10 +10,11 @@ import StSeg from './studio/StSeg.vue';
 import StModal from './studio/StModal.vue';
 import PopMenu from './studio/PopMenu.vue';
 import EmptyArt from './studio/EmptyArt.vue';
-import { KeyRound } from 'lucide';
+import StPager from './studio/StPager.vue';
+import { KeyRound, ScrollText } from 'lucide';
 import { copyText, saveBlob } from './studio/state';
 import { toast } from './studio/toast';
-import { dateText, relTime } from './studio/format';
+import { dateText, parseTime, relTime } from './studio/format';
 import type { MenuItem } from './studio/types';
 
 /** API 中心：Key 管理（明文只显示一次）、快速上手、接口目录与调试台、Agent 提示词、调用日志 */
@@ -176,15 +177,92 @@ function downloadPrompt(): void {
   saveBlob(new Blob([prompt.value], { type: 'text/plain;charset=utf-8' }), 'Myself Prompt.txt');
 }
 
-/* ===== 调用日志（预留：示例数据） ===== */
-const LOG_SAMPLE = [
-  { at: '09-23 15:42', key: 'Claude 写作助手', m: 'POST', p: '/api/v1/ext/posts', s: 201, ms: 84 },
-  { at: '09-23 15:41', key: 'Claude 写作助手', m: 'GET', p: '/api/v1/ext/posts?status=all', s: 200, ms: 22 },
-  { at: '09-22 09:00', key: '周报机器人', m: 'POST', p: '/api/v1/ext/notes', s: 201, ms: 41 },
-  { at: '09-20 21:13', key: '旧的测试 Key', m: 'PUT', p: '/api/v1/ext/posts/7', s: 401, ms: 6 },
-];
+/* ===== 调用日志（服务端分页；旧后端没有该接口时显示不可用） ===== */
+type LogStatus = 'all' | 'ok' | 'error';
+const logs = ref<ApiLogEntry[]>([]);
+const logPage = ref(1);
+const logSize = ref(20);
+const logTotal = ref(0);
+const logCounts = ref({ all: 0, ok: 0, error: 0 });
+/** 0 = 全部 Key */
+const logKey = ref(0);
+const logStatus = ref<LogStatus>('all');
+const logState = ref<'loading' | 'ready' | 'unavailable'>('loading');
+const logBusy = ref(false);
+const logSec = ref<HTMLElement | null>(null);
+let logSeq = 0;
 
-onMounted(load);
+async function loadLogs(): Promise<void> {
+  const seq = ++logSeq;
+  logBusy.value = true;
+  try {
+    const res = await adminApi.apiLogs({
+      page: logPage.value,
+      pageSize: logSize.value,
+      key: logKey.value || undefined,
+      status: logStatus.value === 'all' ? undefined : logStatus.value,
+    });
+    if (seq !== logSeq) return;
+    logs.value = res.items ?? [];
+    logTotal.value = res.total ?? 0;
+    logCounts.value = res.counts ?? { all: 0, ok: 0, error: 0 };
+    logState.value = 'ready';
+  } catch {
+    if (seq !== logSeq) return;
+    if (logState.value === 'ready') toast(t('studio.loadFailed'), { icon: 'x' });
+    else logState.value = 'unavailable';
+  } finally {
+    if (seq === logSeq) logBusy.value = false;
+  }
+}
+
+// 换筛选回到第 1 页；翻页 / 换每页条数直接重取
+watch([logKey, logStatus, logPage, logSize], (n, o) => {
+  if ((n[0] !== o[0] || n[1] !== o[1]) && logPage.value !== 1) {
+    logPage.value = 1;
+    return;
+  }
+  void loadLogs();
+});
+
+const LOG_STATUS = computed(() =>
+  (['all', 'ok', 'error'] as const).map((v) => ({
+    value: v,
+    label: t(`studio.api.${{ all: 'lAll', ok: 'lOk', error: 'lErr' }[v]}`),
+    count: logState.value === 'ready' ? logCounts.value[v] || undefined : undefined,
+  })),
+);
+
+/** 从 Key 卡片跳到它的调用记录 */
+function showKeyLogs(k: ApiKeyInfo): void {
+  logKey.value = k.id;
+  logStatus.value = 'all';
+  logSec.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+/** 日志时间：本地 MM-DD HH:mm:ss（非今年带年份） */
+function logTime(s: string): string {
+  const d = parseTime(s);
+  if (!d) return s;
+  const md = `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const day = d.getFullYear() === new Date().getFullYear() ? md : `${d.getFullYear()}-${md}`;
+  return `${day} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+/** 状态码配色：2xx/3xx 绿；认证失败与 5xx 红；其余 4xx（参数、未找到、冲突）黄 */
+function statusTone(code: number): string {
+  if (code < 400) return '';
+  return code >= 500 || code === 401 || code === 403 ? 'bad' : 'warn';
+}
+
+/** 仍存在的 Key：日志里其余的 Key 标为已吊销 */
+const liveKeys = computed(() => new Set(keys.value.map((k) => k.id)));
+
+onMounted(() => {
+  void load();
+  void loadLogs();
+});
 </script>
 
 <template>
@@ -224,6 +302,9 @@ onMounted(load);
         <div class="lu">
           {{ k.lastUsedAt ? relTime(k.lastUsedAt) : t('studio.api.never') }}
           <small>{{ t('studio.api.lastUsed') }}</small>
+          <button v-if="k.calls" type="button" class="calls" @click="showKeyLogs(k)">
+            {{ t('studio.api.calls', { n: k.calls }) }}<span v-if="k.errors" class="bad"> · {{ t('studio.api.callsErr', { n: k.errors }) }}</span>
+          </button>
         </div>
         <div class="lu">
           <span class="mono">{{ dateText(k.createdAt) }}</span>
@@ -302,22 +383,74 @@ onMounted(load);
       <pre class="prompt"><code>{{ prompt }}</code></pre>
     </div>
 
-    <!-- 调用日志（预留） -->
-    <div class="log-sec">
-      <div class="st-sec-t"><h2>{{ t('studio.api.logs') }}</h2></div>
-      <div class="st-note-bar"><SIcon name="info" />{{ t('studio.api.logsNote') }}</div>
-      <table class="st-table sample">
-        <thead><tr><th>{{ t('studio.api.lTime') }}</th><th>Key</th><th>{{ t('studio.api.lReq') }}</th><th>{{ t('studio.api.lStatus') }}</th><th>{{ t('studio.api.lMs') }}</th></tr></thead>
-        <tbody>
-          <tr v-for="(l, i) in LOG_SAMPLE" :key="i">
-            <td class="mono">{{ l.at }}</td>
-            <td>{{ l.key }}</td>
-            <td><span class="m" :class="l.m.toLowerCase()">{{ l.m }}</span><span class="mono p">{{ l.p }}</span></td>
-            <td><span class="sc" :class="{ bad: l.s >= 400 }">{{ l.s }}</span></td>
-            <td class="mono">{{ l.ms }} ms</td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- 调用日志 -->
+    <div ref="logSec" class="log-sec">
+      <div class="st-sec-t">
+        <h2>{{ t('studio.api.logs') }}</h2>
+        <span v-if="logState !== 'unavailable'" class="log-tools">
+          <label class="st-field sel key-pick">
+            <SIcon name="key" :size="16" />
+            <select v-model.number="logKey" :aria-label="t('studio.api.lAllKeys')">
+              <option :value="0">{{ t('studio.api.lAllKeys') }}</option>
+              <option v-for="k in keys" :key="k.id" :value="k.id">{{ k.name }}</option>
+            </select>
+            <SIcon name="chevronD" :size="14" class="chev" />
+          </label>
+          <StSeg v-model="logStatus" :options="LOG_STATUS" />
+          <button type="button" class="st-ibtn" :class="{ spin: logBusy }" :title="t('studio.api.lRefresh')" :aria-label="t('studio.api.lRefresh')" @click="loadLogs">
+            <SIcon name="refresh" :size="17" />
+          </button>
+        </span>
+      </div>
+      <p class="note log-sub">{{ t('studio.api.logsSub') }}</p>
+
+      <div v-if="logState === 'unavailable'" class="st-empty">
+        <EmptyArt :icon="ScrollText" />
+        <h4>{{ t('studio.api.lUnavailable') }}</h4>
+        <p>{{ t('studio.api.lUnavailableSub') }}</p>
+      </div>
+      <div v-else-if="logState === 'ready' && !logs.length" class="st-empty">
+        <EmptyArt :icon="ScrollText" />
+        <h4>{{ logKey || logStatus !== 'all' ? t('studio.api.lNoMatch') : t('studio.api.lEmpty') }}</h4>
+        <p>{{ logKey || logStatus !== 'all' ? t('studio.api.lNoMatchSub') : t('studio.api.lEmptySub') }}</p>
+      </div>
+      <template v-else-if="logState === 'ready'">
+        <table class="st-table logs" :class="{ busy: logBusy }">
+          <thead>
+            <tr>
+              <th>{{ t('studio.api.lTime') }}</th>
+              <th>Key</th>
+              <th>{{ t('studio.api.lReq') }}</th>
+              <th>{{ t('studio.api.lStatus') }}</th>
+              <th class="r">{{ t('studio.api.lMs') }}</th>
+              <th>{{ t('studio.api.lFrom') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(l, i) in logs" :key="l.id" :style="{ '--i': i }">
+              <td class="mono dim nw">{{ logTime(l.at) }}</td>
+              <td class="kc">
+                <template v-if="l.keyId !== null">
+                  <b>{{ l.keyName }}</b>
+                  <span v-if="!liveKeys.has(l.keyId)" class="tag">{{ t('studio.api.lRevoked') }}</span>
+                </template>
+                <span v-else class="tag warn">{{ l.keyPrefix ? t('studio.api.lInvalid') : t('studio.api.lMissing') }}</span>
+                <small v-if="l.keyPrefix" class="mono">{{ l.keyPrefix }}…</small>
+              </td>
+              <td>
+                <span class="req">
+                  <em :class="l.method.toLowerCase()">{{ l.method }}</em>
+                  <span class="mono p" :title="l.path">{{ l.path }}</span>
+                </span>
+              </td>
+              <td><span class="sc" :class="statusTone(l.status)"><i class="st-dot" />{{ l.status }}</span></td>
+              <td class="mono dim r nw">{{ l.ms }} ms</td>
+              <td class="mono dim ip" :title="l.ua">{{ l.ip }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <StPager v-model:page="logPage" v-model:page-size="logSize" :total="logTotal" :page-sizes="[20, 50, 100]" :busy="logBusy" />
+      </template>
     </div>
 
     <StModal :open="createOpen" @close="createOpen = false">
@@ -578,16 +711,103 @@ em {
   code { font: inherit; background: none; padding: 0; }
 }
 
-.log-sec .st-note-bar { margin: 0 0 18px; }
+/* ----- 调用日志 ----- */
+.log-sec { scroll-margin-top: 24px; }
+.log-sub { margin: -4px 0 14px; }
 
-.sample {
-  opacity: 0.72;
+.log-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 
-  .m { font: 600 10.5px var(--font-mono); margin-right: 8px; color: var(--st-ink-3); }
-  .p { font-size: 12px; color: var(--st-ink-2); }
-  .sc { font: 500 12px var(--font-mono); color: color-mix(in oklab, var(--green) 70%, var(--st-ink)); }
-  .sc.bad { color: var(--red); }
-  td.mono { font-size: 12px; color: var(--st-ink-3); }
+  .key-pick {
+    position: relative;
+    width: 200px;
+    min-height: 36px;
+
+    select { flex: 1; min-width: 0; padding-right: 18px; background: none; border: 0; }
+    .chev { position: absolute; right: 10px; pointer-events: none; color: var(--st-ink-4); }
+  }
+
+  .spin :deep(svg) { animation: log-spin 0.8s linear infinite; }
+}
+
+@keyframes log-spin { to { transform: rotate(360deg); } }
+
+.logs {
+  table-layout: fixed;
+  transition: opacity var(--dur-fast);
+
+  &.busy { opacity: 0.6; }
+
+  th:nth-child(1) { width: 146px; }
+  th:nth-child(2) { width: 22%; }
+  th:nth-child(4) { width: 80px; }
+  th:nth-child(5) { width: 84px; }
+  th:nth-child(6) { width: 128px; }
+  .r { text-align: right; }
+  .nw { white-space: nowrap; }
+  td.dim { font-size: 12.5px; color: var(--st-ink-3); }
+  td.ip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  tbody tr { animation: log-row-in var(--dur) var(--ease-out) both; animation-delay: calc(var(--i, 0) * 14ms); }
+
+  .kc {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    b { font-weight: 500; color: var(--st-ink); margin-right: 6px; }
+    small { display: block; font-size: 11.5px; color: var(--st-ink-4); margin-top: 1px; }
+  }
+
+  .tag {
+    font-size: 11.5px;
+    padding: 1px 7px;
+    border-radius: var(--r-xs);
+    background: var(--well-2);
+    color: var(--st-ink-3);
+
+    &.warn { background: color-mix(in oklab, var(--red) 10%, var(--paper)); color: color-mix(in oklab, var(--red) 70%, var(--st-ink)); }
+  }
+
+  .req {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+
+    .p { flex: 1; min-width: 0; font-size: 12.5px; color: var(--st-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  }
+
+  .sc {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 500 12.5px var(--font-mono);
+    color: color-mix(in oklab, var(--green) 70%, var(--st-ink));
+
+    .st-dot { --c: var(--green); }
+    &.bad { color: var(--red); .st-dot { --c: var(--red); } }
+    &.warn { color: color-mix(in oklab, var(--yellow) 55%, var(--st-ink)); .st-dot { --c: var(--yellow); } }
+  }
+}
+
+@keyframes log-row-in { from { opacity: 0; transform: translateY(4px); } }
+
+.key .lu .calls {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--ink);
+  text-align: left;
+
+  &:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .bad { color: var(--red); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logs tbody tr, .log-tools .spin :deep(svg) { animation: none; }
 }
 
 .newkey {

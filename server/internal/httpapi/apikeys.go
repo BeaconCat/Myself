@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"strings"
+	"time"
 
 	"myself/server/internal/store"
 )
@@ -36,29 +37,43 @@ func keyOf(r *http.Request) apiKeyCtx {
 	return k
 }
 
-// requireAPIKey X-Api-Key 认证中间件（外部 AI 发文通道）。
+// requireAPIKey X-Api-Key 认证中间件（外部 AI 发文通道）；每次请求（含 Key 缺失 / 无效）写一条调用日志。
 func (s *Server) requireAPIKey(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rec := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		entry := store.APILog{}
+		defer func() {
+			if p := recover(); p != nil {
+				s.logAPICall(r, entry, http.StatusInternalServerError, start)
+				panic(p)
+			}
+			s.logAPICall(r, entry, rec.status, start)
+		}()
+
 		key := r.Header.Get("X-Api-Key")
 		if key == "" {
-			writeError(w, http.StatusUnauthorized, "missing_api_key")
+			writeError(rec, http.StatusUnauthorized, "missing_api_key")
 			return
 		}
 		var k apiKeyCtx
-		err := s.DB.QueryRow(`SELECT id, scope FROM api_keys WHERE key_hash = ?`, hashKey(key)).Scan(&k.ID, &k.Scope)
+		var name, prefix string
+		err := s.DB.QueryRow(`SELECT id, scope, name, prefix FROM api_keys WHERE key_hash = ?`, hashKey(key)).Scan(&k.ID, &k.Scope, &name, &prefix)
 		if err == sql.ErrNoRows {
-			writeError(w, http.StatusUnauthorized, "invalid_api_key")
+			entry.KeyPrefix = keyPrefixOf(key)
+			writeError(rec, http.StatusUnauthorized, "invalid_api_key")
 			return
 		}
 		if err != nil {
-			fail(w, err)
+			fail(rec, err)
 			return
 		}
+		entry.KeyID, entry.KeyName, entry.KeyPrefix = &k.ID, name, prefix
 		if _, err := s.DB.Exec(`UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?`, k.ID); err != nil {
-			fail(w, err)
+			fail(rec, err)
 			return
 		}
-		next(w, r.WithContext(context.WithValue(r.Context(), keyCtxKey{}, k)))
+		next(rec, r.WithContext(context.WithValue(r.Context(), keyCtxKey{}, k)))
 	}
 }
 
@@ -70,6 +85,9 @@ type apiKeyInfo struct {
 	LastUsedAt *string `json:"lastUsedAt"`
 	CreatedAt  string  `json:"createdAt"`
 	Key        string  `json:"key,omitempty"`
+	// Calls / Errors 调用日志保留窗口内的调用数与失败数（状态码 >= 400）
+	Calls  int `json:"calls"`
+	Errors int `json:"errors"`
 }
 
 // GET /admin/apikeys
@@ -80,6 +98,11 @@ func (s *Server) listAPIKeys(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	defer rows.Close()
+	usage, err := s.DB.APILogUsage()
+	if err != nil {
+		fail(w, err)
+		return
+	}
 	out := []apiKeyInfo{}
 	for rows.Next() {
 		var k apiKeyInfo
@@ -91,6 +114,7 @@ func (s *Server) listAPIKeys(w http.ResponseWriter, _ *http.Request) {
 		if last.Valid {
 			k.LastUsedAt = &last.String
 		}
+		k.Calls, k.Errors = usage[k.ID].Calls, usage[k.ID].Errors
 		out = append(out, k)
 	}
 	writeJSON(w, http.StatusOK, out)

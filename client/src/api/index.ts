@@ -187,6 +187,8 @@ export const api = {
     return data as EngageSummary;
   },
   githubStatus: <T>() => get<T>('/github-status'),
+  /** 压缩包目录（公开）；非 zip 415、损坏 422 */
+  archive: (name: string) => get<ArchiveListing>(`/archive/${encodeURIComponent(name)}`),
   notes: (params: {
     page?: number; pageSize?: number; q?: string; media?: boolean;
     from?: string; to?: string;
@@ -256,12 +258,16 @@ export const adminApi = {
     }),
   deleteApiKey: (id: number) =>
     authed<{ ok: boolean }>(`/admin/apikeys/${id}`, { method: 'DELETE' }),
+  /** 外部通道调用日志（分页；key 为 Key id，status 按成功 / 失败筛） */
+  apiLogs: (p: { page: number; pageSize: number; key?: number; status?: 'ok' | 'error' }) =>
+    authed<ApiLogPage>(`/admin/api-logs?${pageQuery(p)}`),
   media: () => authed<MediaItem[]>('/admin/media'),
   /**
    * 上传素材（带查重）：浏览器先算每个文件的 SHA-256 问服务端，已存在的直接复用（duplicate = true）、不再上传；
    * 其余正常上传（服务端写入时还会再查一次）。返回顺序与传入一致。
    */
-  uploadMedia: async (files: File[]): Promise<MediaItem[]> => {
+  /** 上传素材（先按哈希查重）；onProgress 给出 0–1 的上传进度（大文件用） */
+  uploadMedia: async (files: File[], onProgress?: (p: number) => void): Promise<MediaItem[]> => {
     const hashes = await Promise.all(files.map(sha256Hex));
     let known: Record<string, MediaItem> = {};
     const asked = hashes.filter((h): h is string => !!h);
@@ -274,18 +280,27 @@ export const adminApi = {
     if (fresh.length) {
       const form = new FormData();
       for (const f of fresh) form.append('files', f);
-      const res = await fetch(`${BASE}/admin/media`, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: ADMIN_HEADERS,
-        body: form,
+      // XHR 才有上传进度；fetch 的请求体进度浏览器尚未普遍支持
+      const { status, body } = await new Promise<{ status: number; body: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${BASE}/admin/media`);
+        xhr.withCredentials = true;
+        for (const [k, v] of Object.entries(ADMIN_HEADERS)) xhr.setRequestHeader(k, v);
+        xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(e.loaded / e.total); };
+        xhr.onload = () => resolve({ status: xhr.status, body: xhr.responseText });
+        xhr.onerror = () => reject(new Error('network'));
+        xhr.send(form);
       });
-      if (res.status === 401) {
+      if (status === 401) {
         kickToLogin();
         throw new Error('unauthorized');
       }
-      if (!res.ok) throw new Error(`api_error_${res.status}`);
-      uploaded = (await res.json()) as MediaItem[];
+      if (status < 200 || status >= 300) {
+        let code = '';
+        try { code = (JSON.parse(body) as { error?: string }).error ?? ''; } catch { /* 非 JSON */ }
+        throw new Error(code || `api_error_${status}`);
+      }
+      uploaded = JSON.parse(body) as MediaItem[];
     }
     const out: MediaItem[] = [];
     for (let i = 0; i < files.length; i += 1) {
@@ -371,6 +386,9 @@ export const adminApi = {
 
   /* ----- 用户 / 邀请 / 评论审核 / 发信 ----- */
   users: () => authed<{ items: AdminUser[]; stats: UserStats }>('/admin/users'),
+  /** 用户分页：role 分段 + 搜索（名字 / 账号 / 邮箱）在服务端完成 */
+  usersPage: (p: { page: number; pageSize: number; role?: UserFilter; q?: string }) =>
+    authed<UserPage>(`/admin/users?${pageQuery(p)}`),
   updateUser: (id: number, patch: { role?: UserRole; status?: 'active' | 'disabled'; name?: string }) =>
     authed<{ ok: boolean }>(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(patch) }),
   deleteUser: (id: number) => authed<{ ok: boolean }>(`/admin/users/${id}`, { method: 'DELETE' }),
@@ -389,6 +407,9 @@ export const adminApi = {
   reviewAvatar: (id: number, action: 'approve' | 'reject') =>
     authed<{ ok: boolean }>(`/admin/users/${id}/avatar`, { method: 'PUT', body: JSON.stringify({ action }) }),
   comments: (status: CommentStatus) => authed<AdminComment[]>(`/admin/comments?status=${status}`),
+  /** 评论分页：counts 为三栏各自总数 */
+  commentsPage: (p: { status: CommentStatus; page: number; pageSize: number }) =>
+    authed<Paged<AdminComment> & { counts: Record<CommentStatus, number> }>(`/admin/comments?${pageQuery(p)}`),
   setCommentStatus: (id: number, status: CommentStatus) =>
     authed<{ ok: boolean }>(`/admin/comments/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
   deleteComment: (id: number) => authed<{ ok: boolean }>(`/admin/comments/${id}`, { method: 'DELETE' }),
@@ -560,7 +581,8 @@ export const accountApi = {
 
 /** 文件内容的 SHA-256（十六进制）；非安全上下文（http 且非 localhost）没有 crypto.subtle 时返回 null */
 async function sha256Hex(file: Blob): Promise<string | null> {
-  if (!globalThis.crypto?.subtle) return null;
+  // 大文件（视频等）不在浏览器里整读算哈希，交给服务端查重
+  if (!globalThis.crypto?.subtle || file.size > 64 << 20) return null;
   try {
     const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
     return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -569,7 +591,24 @@ async function sha256Hex(file: Blob): Promise<string | null> {
   }
 }
 
+/** 素材类型：图片 / 视频 / 音频 / 压缩包 / 其他文件 */
+export type MediaKindName = 'image' | 'video' | 'audio' | 'archive' | 'file';
+
+/** 压缩包目录（在线预览）：只读中央目录，最多 5000 条 */
+export interface ArchiveListing {
+  name: string;
+  title: string;
+  size: number;
+  entries: { name: string; size: number; compressed: number; dir: boolean; modified: string }[];
+  total: number;
+  truncated: boolean;
+}
+
 export interface MediaItem {
+  /** 类型（旧后端缺省时由扩展名推断，见 utils/mediaKind.ts） */
+  kind?: MediaKindName;
+  ext?: string;
+  mime?: string;
   name: string;
   /** 显示名：上传时的原文件名或重命名后的名字；为空时显示 name */
   title?: string;
@@ -641,6 +680,52 @@ export interface ApiKeyInfo {
   scope: ApiKeyScope;
   lastUsedAt: string | null;
   createdAt: string;
+  /** 调用日志保留窗口内的调用数 / 失败数（旧后端没有） */
+  calls?: number;
+  errors?: number;
+}
+
+/** 通用分页响应 */
+export interface Paged<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+/** 分页 / 筛选参数 → 查询串（跳过空值） */
+function pageQuery(p: Record<string, string | number | undefined>): string {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '') q.set(k, String(v));
+  return q.toString();
+}
+
+/** 一条 API 调用记录；keyId 为空 = Key 缺失或无效 */
+export interface ApiLogEntry {
+  id: number;
+  at: string;
+  keyId: number | null;
+  keyName: string;
+  keyPrefix: string;
+  method: string;
+  path: string;
+  status: number;
+  ms: number;
+  ip: string;
+  ua: string;
+}
+
+export interface ApiLogPage extends Paged<ApiLogEntry> {
+  counts: { all: number; ok: number; error: number };
+}
+
+export type UserFilter = 'all' | UserRole | 'disabled';
+
+export interface UserPage extends Paged<AdminUser> {
+  stats: UserStats;
+  counts: Record<UserFilter, number>;
+  /** 全部待审头像（不受分页影响） */
+  pendingAvatars: AdminUser[];
 }
 
 /** 站内素材 URL → 缩略图 URL；非站内素材（占位图/外链）原样返回 */

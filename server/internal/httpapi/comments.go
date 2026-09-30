@@ -294,13 +294,20 @@ func (s *Server) ownsComments(r *http.Request, ids []int64) (bool, error) {
 	return n == len(ids), nil
 }
 
-// GET /admin/comments?status=pending|approved|spam（协作作者只看自己文章下的）
+// GET /admin/comments?status=pending|approved|spam[&page=&pageSize=]（协作作者只看自己文章下的）
+// 带 page 时回 {items, page, pageSize, total, counts:{pending, approved, spam}}；不带时回最近 200 条数组（兼容旧调用）。
 func (s *Server) adminListComments(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	if status != "approved" && status != "spam" {
 		status = "pending"
 	}
 	scope, scopeArgs := commentScope(r)
+	paged := r.URL.Query().Has("page")
+	page, pageSize := 1, 200
+	if paged {
+		page = queryInt(r, "page", 1, 1, 1<<30)
+		pageSize = queryInt(r, "pageSize", 20, 1, 100)
+	}
 	rows, err := s.DB.Query(`SELECT c.id, COALESCE(c.parent_id, 0), c.body, c.created_at, c.status, COALESCE(c.user_id, 0), c.guest_name,
 		COALESCE(u.name, ''), COALESCE(u.avatar, ''), COALESCE(u.role, ''),
 		c.target, c.target_id, COALESCE(p.title, ''), COALESCE(p.slug, ''), COALESCE(substr(n.content_md, 1, 40), ''), c.ip_hash
@@ -308,7 +315,7 @@ func (s *Server) adminListComments(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN users u ON u.id = c.user_id
 		LEFT JOIN posts p ON c.target = 'post' AND p.id = c.target_id
 		LEFT JOIN notes n ON c.target = 'note' AND n.id = c.target_id
-		WHERE c.status = ?`+scope+` ORDER BY c.id DESC LIMIT 200`, append([]any{status}, scopeArgs...)...)
+		WHERE c.status = ?`+scope+` ORDER BY c.id DESC LIMIT ? OFFSET ?`, append(append([]any{status}, scopeArgs...), pageSize, (page-1)*pageSize)...)
 	if err != nil {
 		fail(w, err)
 		return
@@ -346,7 +353,33 @@ func (s *Server) adminListComments(w http.ResponseWriter, r *http.Request) {
 		it.Author.Avatar = s.avatarOf(it.Author.Role, it.Author.Avatar)
 		out = append(out, it)
 	}
-	writeJSON(w, http.StatusOK, out)
+	if err := rows.Err(); err != nil {
+		fail(w, err)
+		return
+	}
+	if !paged {
+		writeJSON(w, http.StatusOK, out)
+		return
+	}
+	counts := map[string]int{"pending": 0, "approved": 0, "spam": 0}
+	crows, err := s.DB.Query(`SELECT c.status, COUNT(*) FROM comments c WHERE 1 = 1`+scope+` GROUP BY c.status`, scopeArgs...)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	defer crows.Close()
+	for crows.Next() {
+		var st string
+		var n int
+		if err := crows.Scan(&st, &n); err != nil {
+			fail(w, err)
+			return
+		}
+		counts[st] = n
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": out, "page": page, "pageSize": pageSize, "total": counts[status], "counts": counts,
+	})
 }
 
 var errBadStatus = errors.New("invalid status")
