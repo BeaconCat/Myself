@@ -227,10 +227,11 @@ export const adminApi = {
   setup: (payload: SetupPayload) => publicPost<{ ok: boolean; user: SessionUser }>('/setup', payload),
   verifySetupCode: (code: string) => publicPost<{ ok: boolean }>('/setup/verify', { code }),
   /** 改密：其它会话全部失效，当前会话由服务端换发新 Cookie */
-  changePassword: (oldPassword: string, newPassword: string) =>
+  /** changeCode：仍在用历史默认口令时，服务端启动日志里打印的改密码 */
+  changePassword: (oldPassword: string, newPassword: string, changeCode = '') =>
     authed<{ ok: boolean }>('/auth/password', {
       method: 'PUT',
-      body: JSON.stringify({ oldPassword, newPassword }),
+      body: JSON.stringify({ oldPassword, newPassword, changeCode }),
     }),
   posts: () => authed<AdminPost[]>('/admin/posts'),
   post: (id: number) => authed<AdminPost>(`/admin/posts/${id}`),

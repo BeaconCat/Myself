@@ -132,7 +132,7 @@ function createRenderer(): MarkdownIt {
     const style = sizeStyle(sized);
     if (style) token.attrSet('style', style);
     if (sized.align) token.attrJoin('class', `md-img al-${sized.align}`);
-    const local = /^\/(?!\/)/.test(src) || src.startsWith('data:image/');
+    const local = /^\/(?![/\\])/.test(src) || src.startsWith('data:image/');
     if (!local && !/^https:\/\//i.test(src)) return '';
     if (!local) token.attrSet('referrerpolicy', 'no-referrer');
     token.attrSet('loading', 'lazy');

@@ -63,7 +63,7 @@ const strength = computed(() => {
 });
 
 function validate(s: Step): string {
-  if (s === 'code' && !/^[0-9a-fA-F]{8}$/.test(form.code.trim())) return t('setup.err.code');
+  if (s === 'code' && !/^[0-9a-fA-F]{16}$/.test(form.code.replace(/[\s-]/g, ''))) return t('setup.err.code');
   if (s === 'admin') {
     if (!/^[A-Za-z0-9_.-]{3,32}$/.test(form.username.trim())) return t('setup.err.username');
     if (form.password.length < 8) return t('setup.err.short');
@@ -123,6 +123,7 @@ const ERRORS: Record<string, string> = {
   weak_password: 'setup.err.short',
   invalid_site_url: 'setup.err.url',
   bad_credentials: 'setup.err.oldWrong',
+  change_code_required: 'setup.err.changeCode',
 };
 
 function explain(e: unknown): string {
@@ -158,7 +159,7 @@ async function finish(): Promise<void> {
 }
 
 /* ---------- 改密模式 ---------- */
-const pw = reactive({ old: '', next: '', confirm: '' });
+const pw = reactive({ old: '', next: '', confirm: '', code: '' });
 
 async function changePassword(): Promise<void> {
   if (busy.value) return;
@@ -172,7 +173,7 @@ async function changePassword(): Promise<void> {
   }
   busy.value = true;
   try {
-    await adminApi.changePassword(pw.old, pw.next);
+    await adminApi.changePassword(pw.old, pw.next, pw.code.trim());
     auth.markLoggedIn();
     void router.replace({ name: 'admin-today' });
   } catch (e) {
@@ -232,6 +233,7 @@ onBeforeUnmount(() => {
             <span class="kicker">{{ t('setup.change.kicker') }}</span>
             <h1>{{ t('setup.change.title') }}</h1>
             <p class="sub">{{ t('setup.change.sub') }}</p>
+            <label><span class="st-flabel">{{ t('setup.change.code') }}<em>{{ t('setup.change.codeHint') }}</em></span><span class="st-field mono-in"><SIcon name="terminal" :size="16" /><input v-model="pw.code" maxlength="24" autocomplete="one-time-code" spellcheck="false" required placeholder="A1B2-C3D4-E5F6-A7B8" /></span></label>
             <label><span class="st-flabel">{{ t('setup.change.old') }}</span><span class="st-field"><SIcon name="lock" :size="16" /><input v-model="pw.old" type="password" autocomplete="current-password" required autofocus /></span></label>
             <label><span class="st-flabel">{{ t('setup.password') }}</span><span class="st-field"><SIcon name="key" :size="16" /><input v-model="pw.next" type="password" autocomplete="new-password" required /></span></label>
             <label><span class="st-flabel">{{ t('setup.confirm') }}</span><span class="st-field"><SIcon name="check" :size="16" /><input v-model="pw.confirm" type="password" autocomplete="new-password" required /></span></label>
@@ -255,7 +257,7 @@ onBeforeUnmount(() => {
               <pre class="log"><span>[myself-server]</span> {{ t('setup.code.logLine') }} <b>A1B2C3D4</b></pre>
               <label>
                 <span class="st-flabel">{{ t('setup.code.label') }}</span>
-                <span class="st-field mono-in"><SIcon name="terminal" :size="16" /><input v-model="form.code" maxlength="8" autocomplete="one-time-code" spellcheck="false" required autofocus placeholder="A1B2C3D4" /></span>
+                <span class="st-field mono-in"><SIcon name="terminal" :size="16" /><input v-model="form.code" maxlength="24" autocomplete="one-time-code" spellcheck="false" required autofocus placeholder="A1B2-C3D4-E5F6-A7B8" /></span>
               </label>
               <p class="err" :class="{ on: !!error }">{{ error || '&nbsp;' }}</p>
               <button type="submit" class="st-btn p lg go" :disabled="busy">{{ busy ? t('setup.checking') : t('setup.next') }}<SIcon name="arrowR" :size="16" /></button>

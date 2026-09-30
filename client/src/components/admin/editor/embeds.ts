@@ -4,7 +4,7 @@ import { joinSize, splitSize, type MediaAlign } from '../../../utils/mediaSize';
 import ImageView from './ImageView.vue';
 import type MarkdownIt from 'markdown-it';
 import {
-  defaultGallery, embedsPlugin, galleryToMarkdown, mediaToMarkdown,
+  defaultGallery, embedsPlugin, galleryToMarkdown, mediaToMarkdown, sanitizeGallery, safeMediaSrc, MEDIA_KINDS,
   type GalleryData, type MediaData, type MediaKind,
 } from '../../../utils/embeds';
 import MediaEmbedView from './MediaEmbedView.vue';
@@ -90,8 +90,15 @@ export const MediaEmbed = Node.create<EmbedHooks>({
 
   addAttributes() {
     return {
-      kind: { default: 'file', parseHTML: (el) => el.getAttribute('data-kind') ?? 'file' },
-      src: { default: '', parseHTML: (el) => splitSize(el.getAttribute('data-src') ?? '').src },
+      // 属性可能来自粘贴的外部 HTML：类型取枚举、地址须安全，否则置空
+      kind: { default: 'file', parseHTML: (el) => ((MEDIA_KINDS as string[]).includes(el.getAttribute('data-kind') ?? '') ? el.getAttribute('data-kind') : 'file') },
+      src: {
+        default: '',
+        parseHTML: (el) => {
+          const src = splitSize(el.getAttribute('data-src') ?? '').src;
+          return safeMediaSrc(src) ? src : '';
+        },
+      },
       title: { default: '', parseHTML: (el) => el.getAttribute('data-title') ?? '' },
       ...sizeAttrs('data-src'),
     };
@@ -142,7 +149,7 @@ export const Gallery = Node.create<EmbedHooks>({
         default: defaultGallery(),
         parseHTML: (el) => {
           try {
-            return { ...defaultGallery(), ...(JSON.parse(el.getAttribute('data-json') ?? '{}') as Partial<GalleryData>) };
+            return sanitizeGallery(JSON.parse(el.getAttribute('data-json') ?? '{}'));
           } catch {
             return defaultGallery();
           }

@@ -68,6 +68,8 @@ const ERR: Record<string, string> = {
   invalid_image: 'account.me.badImage',
   file_too_large: 'account.me.tooLarge',
   mail_unavailable: 'account.me.emailNoMail',
+  site_url_required: 'account.me.emailNoSiteUrl',
+  image_too_large: 'account.me.tooLarge',
   mail_failed: 'account.me.mailFailed',
 };
 const explain = (e: unknown): string => t(ERR[(e as Error).message] ?? 'account.err.generic');

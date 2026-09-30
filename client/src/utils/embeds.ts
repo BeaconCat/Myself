@@ -54,7 +54,35 @@ export function defaultGallery(images: GalleryImage[] = []): GalleryData {
 /** 站内路径或 https 外链才可用 */
 export function safeMediaSrc(src: string): boolean {
   const s = src.trim();
-  return /^\/(?!\/)/.test(s) || /^https:\/\//i.test(s);
+  // 站内路径：单个 / 开头，且第二个字符不是 / 或 \（浏览器会把 /\host 当成 //host）
+  return /^\/(?![/\\])/.test(s) || /^https:\/\//i.test(s);
+}
+
+/** 媒体数据白名单化：类型只取枚举值，地址须安全，标题转成字符串（来自粘贴的 HTML 时不可信） */
+export function sanitizeMedia(raw: Partial<Record<keyof MediaData, unknown>>): MediaData {
+  const kind = (MEDIA_KINDS as string[]).includes(String(raw.kind)) ? (raw.kind as MediaKind) : 'file';
+  const src = typeof raw.src === 'string' && safeMediaSrc(raw.src) ? raw.src.trim() : '';
+  return { kind, src, title: typeof raw.title === 'string' ? raw.title.slice(0, 200) : '' };
+}
+
+/** 拼图数据白名单化：布局 / 比例 / 间距取枚举值，列数取 1–6 的整数，图片地址须安全 */
+export function sanitizeGallery(raw: unknown): GalleryData {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const images = (Array.isArray(r.images) ? r.images : [])
+    .map((im) => (im && typeof im === 'object' ? im : {}) as Record<string, unknown>)
+    .filter((im) => typeof im.src === 'string' && safeMediaSrc(im.src))
+    .slice(0, 60)
+    .map((im) => ({ src: String(im.src).trim(), alt: typeof im.alt === 'string' ? im.alt.slice(0, 200) : '' }));
+  const pick = <T extends string>(v: unknown, list: readonly T[], def: T): T => ((list as readonly string[]).includes(String(v)) ? (v as T) : def);
+  const cols = Math.round(Number(r.cols));
+  return {
+    images,
+    layout: pick(r.layout, GALLERY_LAYOUTS, 'grid'),
+    cols: Number.isFinite(cols) ? Math.min(6, Math.max(1, cols)) : 3,
+    ratio: pick(r.ratio, GALLERY_RATIOS, '4:3'),
+    gap: pick(r.gap, GALLERY_GAPS, 'm'),
+    caption: typeof r.caption === 'string' ? r.caption.slice(0, 300) : '',
+  };
 }
 
 function esc(s: string): string {
@@ -122,7 +150,9 @@ function nameOf(src: string): string {
 
 export interface EmbedLabels { download: string; preview: string; open: string }
 
-export function renderMediaHtml(raw: MediaData, labels: EmbedLabels): string {
+export function renderMediaHtml(input: MediaData, labels: EmbedLabels): string {
+  const raw = sanitizeMedia(input);
+  if (!raw.src) return '';
   // 尺寸 / 对齐写在地址片段里：视频按宽高比缩放，音频只定宽，文件卡片整行
   const sz = splitSize(raw.src);
   const d = { ...raw, src: sz.src };
@@ -146,10 +176,11 @@ export function renderMediaHtml(raw: MediaData, labels: EmbedLabels): string {
   const preview = d.kind === 'archive' && !external && ext === 'zip'
     ? `<button type="button" class="md-file-act" data-archive="${src}" data-title="${name}">${svg(SquareArrowOutUpRight, 'md-i sm')}${esc(labels.preview)}</button>`
     : '';
-  return `<div class="md-media md-file" data-kind="${d.kind}"><span class="ic">${icon}${ext ? `<em>${esc(ext)}</em>` : ''}</span><div class="bd"><b>${name}</b><small>${esc(ext.toUpperCase())}</small></div>${preview}<a class="md-file-act" href="${src}" download${external ? ' target="_blank" rel="noopener noreferrer nofollow"' : ''}>${svg(Download, 'md-i sm')}${esc(labels.download)}</a></div>`;
+  return `<div class="md-media md-file" data-kind="${esc(d.kind)}"><span class="ic">${icon}${ext ? `<em>${esc(ext)}</em>` : ''}</span><div class="bd"><b>${name}</b><small>${esc(ext.toUpperCase())}</small></div>${preview}<a class="md-file-act" href="${src}" download${external ? ' target="_blank" rel="noopener noreferrer nofollow"' : ''}>${svg(Download, 'md-i sm')}${esc(labels.download)}</a></div>`;
 }
 
-export function renderGalleryHtml(d: GalleryData): string {
+export function renderGalleryHtml(input: GalleryData): string {
+  const d = sanitizeGallery(input);
   const n = d.images.length;
   if (!n) return '';
   const ratio = d.ratio === 'auto' ? 'auto' : d.ratio.replace(':', ' / ');
@@ -217,7 +248,7 @@ export function embedsPlugin(md: MarkdownIt, opts: EmbedPluginOptions): void {
   md.renderer.rules.embed_media = (tokens, idx) => {
     const d = tokens[idx].meta as MediaData;
     if (opts.mode === 'editor') {
-      return `<div data-embed="media" data-kind="${d.kind}" data-src="${esc(d.src)}" data-title="${esc(d.title)}"></div>\n`;
+      return `<div data-embed="media" data-kind="${esc(d.kind)}" data-src="${esc(d.src)}" data-title="${esc(d.title)}"></div>\n`;
     }
     return `${renderMediaHtml(d, opts.labels?.() ?? { download: 'Download', preview: 'Preview', open: 'Open' })}\n`;
   };
