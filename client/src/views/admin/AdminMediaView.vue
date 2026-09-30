@@ -10,6 +10,9 @@ import StSeg from './studio/StSeg.vue';
 import EmptyArt from './studio/EmptyArt.vue';
 import { Check, ImagePlus } from 'lucide';
 import Icon from '../../components/ui/Icon.vue';
+import MediaTile from './studio/MediaTile.vue';
+import { mediaKind } from '../../utils/mediaKind';
+import type { MediaKindName } from '../../api';
 import { useDialogStore } from '../../stores/dialog';
 import MediaViewer from './studio/MediaViewer.vue';
 import QualityPanel from './studio/QualityPanel.vue';
@@ -116,7 +119,7 @@ const stats = computed(() => {
 });
 
 async function upload(files: File[]): Promise<void> {
-  const list = files.filter((f) => f.type.startsWith('image/'));
+  const list = files;
   if (!list.length || uploading.value) return;
   uploading.value = true;
   try {
@@ -128,8 +131,9 @@ async function upload(files: File[]): Promise<void> {
     );
     await load();
     void loadQuality();
-  } catch {
-    toast(t('studio.composer.uploadFailed'), { icon: 'x' });
+  } catch (err) {
+    const code = (err as Error).message;
+    toast(t(['unsupported_type', 'file_too_large', 'image_too_large'].includes(code) ? `studio.library.err_${code}` : 'studio.composer.uploadFailed'), { icon: 'x' });
   } finally {
     uploading.value = false;
   }
@@ -168,6 +172,18 @@ function openRef(r: MediaRef): void {
   else if (r.kind === 'identity') void router.push({ name: 'admin-identity' });
   else void router.push({ name: 'admin-about' });
 }
+
+/* ---------- 类型筛选：全部 / 图片 / 视频 / 音频 / 压缩包 / 文件（只显示有内容的类型） ---------- */
+const KINDS: MediaKindName[] = ['image', 'video', 'audio', 'archive', 'file'];
+const kindFilter = ref<MediaKindName | 'all'>('all');
+const kindCounts = computed(() => {
+  const out: Record<string, number> = {};
+  for (const m of items.value) out[mediaKind(m)] = (out[mediaKind(m)] ?? 0) + 1;
+  return out;
+});
+const shownKinds = computed(() => KINDS.filter((k) => kindCounts.value[k]));
+/** 网格里显示的条目（保留原下标，查看器按全量列表翻页） */
+const shown = computed(() => items.value.map((m, i) => ({ m, i })).filter(({ m }) => kindFilter.value === 'all' || mediaKind(m) === kindFilter.value));
 
 /* ---------- 多选：勾选角标进入选择态，此后点图即勾选；Shift 连选；底部操作条打包下载 / 删除 ---------- */
 const dialog = useDialogStore();
@@ -328,17 +344,26 @@ onMounted(() => {
         <button type="button" class="st-btn p" @click="fileInput?.click()"><SIcon name="upload" :size="18" />{{ t('studio.media.upload') }}</button>
       </div>
 
+      <div v-if="shownKinds.length > 1" class="kinds">
+        <button type="button" class="st-chip" :class="{ on: kindFilter === 'all' }" @click="kindFilter = 'all'">
+          {{ t('studio.library.kind.all') }}<span class="n">{{ items.length }}</span>
+        </button>
+        <button v-for="k in shownKinds" :key="k" type="button" class="st-chip" :class="{ on: kindFilter === k }" @click="kindFilter = k">
+          {{ t(`studio.library.kind.${k}`) }}<span class="n">{{ kindCounts[k] }}</span>
+        </button>
+      </div>
+
       <div class="masonry">
         <button
-          v-for="(it, i) in items"
+          v-for="{ m: it, i } in shown"
           :key="it.name"
           type="button"
           class="mtile st-rise"
-          :class="{ on: picked.has(it.name), picking }"
+          :class="{ on: picked.has(it.name), picking, file: mediaKind(it) !== 'image' }"
           :style="{ '--i': i % 8 }"
           @click="onTile(i, $event)"
         >
-          <img :src="`${it.thumb}?v=${it.size}-${stamp}`" alt="" loading="lazy" />
+          <MediaTile :item="it" :stamp="`${it.size}-${stamp}`" />
           <span class="pick" :title="t('studio.media.pick')" @click.stop="togglePick(i, $event)">
             <span class="st-ck" :class="{ on: picked.has(it.name) }"><Icon :icon="Check" /></span>
           </span>
@@ -373,7 +398,7 @@ onMounted(() => {
     </Transition>
 
     <MediaViewer v-model:index="viewing" :items="items" :refs="refs" :compressible="compressible" @changed="onChanged" @open="openRef" />
-    <input ref="fileInput" type="file" accept=".png,.jpg,.jpeg,.webp,.gif" multiple hidden @change="onPick" />
+    <input ref="fileInput" type="file" multiple hidden @change="onPick" />
   </section>
 </template>
 
@@ -410,6 +435,8 @@ onMounted(() => {
   }
 }
 
+.kinds { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+
 .masonry {
   columns: 5 180px;
   column-gap: 12px;
@@ -427,7 +454,11 @@ onMounted(() => {
   background: var(--well-2);
   transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur);
 
-  img { display: block; width: 100%; height: auto; min-height: 80px; }
+  :deep(.mt img) { display: block; width: 100%; height: auto; min-height: 80px; }
+
+  /* 非图片：统一 4:3 块，名称常显 */
+  &.file :deep(.mt) { aspect-ratio: 4 / 3; }
+  &.file .cap { opacity: 1; transform: none; color: var(--st-ink); background: linear-gradient(transparent, color-mix(in oklab, var(--paper) 92%, transparent) 55%); }
 
   &:hover { transform: translateY(-3px) scale(1.01); box-shadow: var(--sh-card-hover); }
 

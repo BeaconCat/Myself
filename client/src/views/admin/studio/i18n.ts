@@ -424,7 +424,7 @@ const studio = {
     uploading: '上传中…',
     uploaded: '已上传 {n} 张图片',
     uploadedDup: '新增 {n} 张；{d} 张素材库里已有，直接复用了已有的那张',
-    statCount: '张图片',
+    statCount: '个素材',
     statSize: '占用空间',
     lgPosts: '文章封面 {size}',
     lgNotes: '随想配图 {size}',

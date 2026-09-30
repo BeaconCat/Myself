@@ -9,6 +9,8 @@ import SIcon from './SIcon.vue';
 import { toast } from './toast';
 import type { MediaRef } from './types';
 import { dateTimeText, formatSize } from './format';
+import { mediaKind } from '../../../utils/mediaKind';
+import { renderMediaHtml } from '../../../utils/embeds';
 
 /**
  * 素材大图查看器 + 裁切：始终基于原图与上次裁切框。
@@ -28,6 +30,17 @@ const isAdmin = computed(() => useAuthStore().isAdmin);
 const dialog = useDialogStore();
 
 const item = computed(() => props.items[index.value] ?? null);
+/** 非图片（视频 / 音频 / 压缩包 / 文件）：舞台直接播放或显示文件卡片，没有裁切 */
+const kind = computed(() => (item.value ? mediaKind(item.value) : 'image'));
+const isImage = computed(() => kind.value === 'image');
+const fileHtml = computed(() => {
+  const it = item.value;
+  if (!it || kind.value === 'image' || kind.value === 'video') return '';
+  const k = kind.value === 'audio' ? 'audio' : kind.value === 'archive' && it.ext === 'zip' ? 'archive' : 'file';
+  return renderMediaHtml({ kind: k, src: it.url, title: it.title || it.name }, {
+    download: t('studio.media.download'), preview: t('content.embed.preview'), open: t('content.embed.open'),
+  });
+});
 const open = computed(() => index.value >= 0 && !!item.value);
 const itemRefs = computed(() => (item.value ? props.refs[item.value.url] ?? [] : []));
 
@@ -62,6 +75,11 @@ let blobUrl = '';
 async function loadOriginal(): Promise<void> {
   const it = item.value;
   if (!it) return;
+  if (mediaKind(it) !== 'image') {
+    loadingImg.value = false;
+    ratio.value = null;
+    return;
+  }
   loadingImg.value = true;
   ratio.value = null;
   try {
@@ -321,7 +339,12 @@ onBeforeUnmount(() => {
           </div>
           <button type="button" class="nav prev" :title="t('studio.media.prev')" @click="step(-1)"><SIcon name="arrowL" /></button>
           <button type="button" class="nav next" :title="t('studio.media.next')" @click="step(1)"><SIcon name="arrowR" /></button>
-          <div class="v-img" :class="{ ready: !loadingImg }">
+          <div v-if="kind === 'video'" class="v-media">
+            <video :key="item.url" :src="item.url" controls playsinline preload="metadata" />
+          </div>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div v-else-if="!isImage" class="v-file" v-html="fileHtml" />
+          <div v-else class="v-img" :class="{ ready: !loadingImg }">
             <img ref="imgEl" :src="src || thumbOf(item.url)" alt="" draggable="false" @load="onImgLoad" />
             <div
               v-if="!loadingImg && ratio !== null"
@@ -368,7 +391,7 @@ onBeforeUnmount(() => {
           </div>
           <dl class="kv">
             <dt>{{ t('studio.media.kvFile') }}</dt><dd class="mono file">{{ item.name }}</dd>
-            <dt>{{ t('studio.media.kvSize') }}</dt><dd class="mono">{{ natural.w }} × {{ natural.h }}</dd>
+            <template v-if="isImage"><dt>{{ t('studio.media.kvSize') }}</dt><dd class="mono">{{ natural.w }} × {{ natural.h }}</dd></template>
             <dt>{{ t('studio.media.kvBytes') }}</dt>
             <dd class="mono">{{ formatSize(item.size) }}<span v-if="compressible.has(item.name)" class="zip">{{ t('studio.media.compressible') }}</span></dd>
             <dt>{{ t('studio.media.kvFormat') }}</dt><dd>{{ format }}</dd>
@@ -379,10 +402,12 @@ onBeforeUnmount(() => {
                 <button v-if="isAdmin" type="button" class="st-link" :disabled="busy" @click="revert">{{ t('studio.media.revert') }}</button>
               </dd>
             </template>
-            <dt>{{ t('studio.media.kvCrop') }}</dt>
-            <dd>{{ item.crop ? t('studio.media.cropYes', { w: item.crop.width, h: item.crop.height }) : t('studio.media.cropNo') }}</dd>
+            <template v-if="isImage">
+              <dt>{{ t('studio.media.kvCrop') }}</dt>
+              <dd>{{ item.crop ? t('studio.media.cropYes', { w: item.crop.width, h: item.crop.height }) : t('studio.media.cropNo') }}</dd>
+            </template>
           </dl>
-          <div v-if="isAdmin">
+          <div v-if="isAdmin && isImage">
             <div class="st-flabel"><span>{{ t('studio.media.ratio') }}</span><button type="button" class="st-link" @click="resetFull">{{ t('studio.media.full') }}</button></div>
             <div class="ratios">
               <button v-for="r in RATIOS" :key="r.label" type="button" :class="{ on: ratio === r.v }" @click="setRatio(r.v)">
@@ -399,7 +424,7 @@ onBeforeUnmount(() => {
             <p v-if="!itemRefs.length">{{ t('studio.media.unused') }}</p>
           </div>
           <div class="acts">
-            <button v-if="isAdmin" type="button" class="st-btn p" :disabled="busy || loadingImg || ratio === null" @click="applyCrop"><SIcon name="crop" :size="16" />{{ t('studio.media.applyCrop') }}</button>
+            <button v-if="isAdmin && isImage" type="button" class="st-btn p" :disabled="busy || loadingImg || ratio === null" @click="applyCrop"><SIcon name="crop" :size="16" />{{ t('studio.media.applyCrop') }}</button>
             <a class="st-ibtn ring" :href="item.url" :download="item.title || item.name" :title="t('studio.media.download')"><SIcon name="download" /></a>
             <button v-if="isAdmin" type="button" class="st-ibtn ring" :disabled="busy" :title="t('studio.delete')" @click="remove"><SIcon name="trash" /></button>
           </div>
@@ -582,6 +607,15 @@ onBeforeUnmount(() => {
   }
   .sub { font-size: 12.5px; color: var(--st-ink-3); margin-top: 4px; }
 }
+
+/* 非图片的舞台：视频限高居中，其余用正文同款文件卡片 */
+.v-media {
+  width: min(100%, 1100px);
+
+  video { display: block; width: 100%; max-height: 80vh; border-radius: var(--r-md); background: #000; }
+}
+
+.v-file { width: min(100%, 560px); }
 
 .kv .comp { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 
