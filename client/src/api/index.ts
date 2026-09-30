@@ -268,7 +268,7 @@ export const adminApi = {
    * 其余正常上传（服务端写入时还会再查一次）。返回顺序与传入一致。
    */
   /** 上传素材（先按哈希查重）；onProgress 给出 0–1 的上传进度（大文件用） */
-  uploadMedia: async (files: File[], onProgress?: (p: number) => void): Promise<MediaItem[]> => {
+  uploadMedia: async (files: File[], onProgress?: (p: number) => void, folder = ''): Promise<MediaItem[]> => {
     const hashes = await Promise.all(files.map(sha256Hex));
     let known: Record<string, MediaItem> = {};
     const asked = hashes.filter((h): h is string => !!h);
@@ -280,6 +280,8 @@ export const adminApi = {
     let uploaded: MediaItem[] = [];
     if (fresh.length) {
       const form = new FormData();
+      // 目标文件夹须排在文件之前（服务端流式读取）
+      if (folder) form.append('folder', folder);
       for (const f of fresh) form.append('files', f);
       // XHR 才有上传进度；fetch 的请求体进度浏览器尚未普遍支持
       const { status, body } = await new Promise<{ status: number; body: string }>((resolve, reject) => {
@@ -337,6 +339,12 @@ export const adminApi = {
   /** 回退压缩：恢复压缩前的文件（PNG 转 WebP 的改回原名，站内引用同步） */
   revertMedia: (names: string[]) =>
     authed<{ items: MediaItem[]; failed: number }>('/admin/media/revert', { method: 'POST', body: JSON.stringify({ names }) }),
+  /** 素材文件夹（虚拟路径，如「封面/2026」） */
+  mediaFolders: () => authed<MediaFolder[]>('/admin/media/folders'),
+  createFolder: (path: string) => authed<{ path: string }>('/admin/media/folders', { method: 'POST', body: JSON.stringify({ path }) }),
+  renameFolder: (from: string, to: string) => authed<{ path: string }>('/admin/media/folders', { method: 'PUT', body: JSON.stringify({ from, to }) }),
+  deleteFolder: (path: string) => authed<{ ok: boolean }>(`/admin/media/folders?path=${encodeURIComponent(path)}`, { method: 'DELETE' }),
+  moveMedia: (names: string[], folder: string) => authed<{ moved: number }>('/admin/media/move', { method: 'POST', body: JSON.stringify({ names, folder }) }),
   deleteMediaBatch: (names: string[]) =>
     authed<{ deleted: number }>('/admin/media/delete', { method: 'POST', body: JSON.stringify({ names }) }),
   /** 打包下载：返回 zip（按显示名命名） */
@@ -653,6 +661,12 @@ async function sha256Hex(file: Blob): Promise<string | null> {
   }
 }
 
+/** 素材文件夹：路径与直接包含的素材数 */
+export interface MediaFolder {
+  path: string;
+  count: number;
+}
+
 /** 素材类型：图片 / 视频 / 音频 / 压缩包 / 其他文件 */
 export type MediaKindName = 'image' | 'video' | 'audio' | 'archive' | 'file';
 
@@ -669,6 +683,8 @@ export interface ArchiveListing {
 export interface MediaItem {
   /** 类型（旧后端缺省时由扩展名推断，见 utils/mediaKind.ts） */
   kind?: MediaKindName;
+  /** 所在文件夹（空 = 未归类） */
+  folder?: string;
   ext?: string;
   mime?: string;
   name: string;

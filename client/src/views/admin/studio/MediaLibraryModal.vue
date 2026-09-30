@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Check, Link, Search } from 'lucide';
-import { adminApi, type MediaItem, type MediaKindName } from '../../../api';
+import { adminApi, type MediaFolder, type MediaItem, type MediaKindName } from '../../../api';
 import Icon from '../../../components/ui/Icon.vue';
 import { acceptFor, extOf, kindOfExt, mediaKind } from '../../../utils/mediaKind';
 import { safeMediaSrc } from '../../../utils/embeds';
@@ -10,10 +10,15 @@ import './i18n';
 import SIcon from './SIcon.vue';
 import StModal from './StModal.vue';
 import MediaTile from './MediaTile.vue';
+import FolderTree from './FolderTree.vue';
+import StSeg from './StSeg.vue';
+import { ALL } from './useFolders';
+import { dateText, formatSize } from './format';
 import { toast } from './toast';
 
 /**
- * 素材库模态框：按类型筛选 + 搜索 + 就地上传（带进度，走查重）+ 外链地址。
+ * 素材库模态框：左侧文件夹 + 按类型筛选 + 搜索 + 网格 / 列表 + 就地上传进当前文件夹（带进度，走查重）+ 外链地址。
+ * 只显示 accept 范围内的类型（选图片时只出现图片），文件夹计数也只数这些类型。
  * - 单选：点一项即选中并关闭；多选：点选排序号，底部「插入」确认（拼图编辑器、正文插图共用）。
  * - accept 限定可选类型（默认只看图片）。外链项以 name = '' 的伪条目返回，url 即外链地址。
  */
@@ -38,6 +43,32 @@ const progress = ref<number | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const extUrl = ref('');
 
+const folder = ref<string>(ALL);
+const allFolders = ref<MediaFolder[]>([]);
+const VIEW_KEY = 'myself.studio.libraryView';
+const view = ref<'grid' | 'list'>((() => {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid';
+  } catch {
+    return 'grid';
+  }
+})());
+watch(view, (v) => {
+  try {
+    localStorage.setItem(VIEW_KEY, v);
+  } catch { /* 忽略 */ }
+});
+
+/** 可选范围内的素材（类型不在 accept 里的一律不出现） */
+const inScope = computed(() => (items.value ?? []).filter((m) => props.accept.includes(mediaKind(m))));
+/** 文件夹计数只数可选范围内的素材；没有这类素材的空文件夹也列出，方便上传进去 */
+const scopedFolders = computed<MediaFolder[]>(() => {
+  const count = new Map<string, number>();
+  for (const m of inScope.value) if (m.folder) count.set(m.folder, (count.get(m.folder) ?? 0) + 1);
+  return allFolders.value.map((f) => ({ path: f.path, count: count.get(f.path) ?? 0 }));
+});
+const unfiled = computed(() => inScope.value.filter((m) => !m.folder).length);
+
 const tabs = computed(() => (props.accept.length > 1 ? (['all', ...props.accept] as const) : []));
 
 watch(
@@ -48,6 +79,8 @@ watch(
     q.value = '';
     extUrl.value = '';
     tab.value = 'all';
+    folder.value = ALL;
+    void adminApi.mediaFolders().then((f) => { allFolders.value = f; }).catch(() => { allFolders.value = []; });
     try {
       items.value = await adminApi.media();
     } catch {
@@ -60,9 +93,9 @@ watch(
 
 const shown = computed(() => {
   const s = q.value.trim().toLowerCase();
-  return (items.value ?? []).filter((m) => {
+  return inScope.value.filter((m) => {
     const k = mediaKind(m);
-    if (!props.accept.includes(k)) return false;
+    if (folder.value !== ALL && (m.folder ?? '') !== folder.value) return false;
     if (tab.value !== 'all' && k !== tab.value) return false;
     return !s || `${m.title ?? ''} ${m.name}`.toLowerCase().includes(s);
   });
@@ -108,7 +141,8 @@ async function onFiles(e: Event): Promise<void> {
   if (!files.length || progress.value !== null) return;
   progress.value = 0;
   try {
-    const ups = await adminApi.uploadMedia(files, (p) => { progress.value = p; });
+    // 当前在某个文件夹里：上传直接放进去
+    const ups = await adminApi.uploadMedia(files, (p) => { progress.value = p; }, folder.value === ALL ? '' : folder.value);
     const dup = ups.filter((m) => m.duplicate).length;
     if (dup) toast(t('studio.picker.reused'), { icon: 'copy' });
     items.value = [...ups.filter((u) => !(items.value ?? []).some((m) => m.name === u.name)), ...(items.value ?? [])];
@@ -150,17 +184,33 @@ function addExternal(): void {
         <input v-model="q" :placeholder="t('studio.library.search')" />
       </label>
     </div>
-    <div v-if="tabs.length" class="tabs">
-      <button v-for="k in tabs" :key="k" type="button" class="st-chip" :class="{ on: tab === k }" @click="tab = k">
-        {{ t(`studio.library.kind.${k}`) }}<span class="n">{{ counts[k] ?? 0 }}</span>
-      </button>
+    <div class="body">
+    <aside class="side">
+      <FolderTree v-model="folder" compact :folders="scopedFolders" :total="inScope.length" :unfiled="unfiled" />
+    </aside>
+    <div class="main">
+    <div class="tabs">
+      <template v-if="tabs.length">
+        <button v-for="k in tabs" :key="k" type="button" class="st-chip" :class="{ on: tab === k }" @click="tab = k">
+          {{ t(`studio.library.kind.${k}`) }}<span class="n">{{ counts[k] ?? 0 }}</span>
+        </button>
+      </template>
+      <span class="sp" />
+      <StSeg
+        v-model="view"
+        icon-only
+        :options="[
+          { value: 'grid', icon: 'grid', title: t('studio.posts.grid') },
+          { value: 'list', icon: 'list', title: t('studio.posts.list') },
+        ]"
+      />
     </div>
 
-    <div class="grid">
+    <div class="grid" :class="{ list: view === 'list' }">
       <button type="button" class="up" :disabled="progress !== null" @click="fileInput?.click()">
         <template v-if="progress === null">
           <SIcon name="upload" :size="20" />
-          <span>{{ t('studio.picker.upload') }}</span>
+          <span>{{ t('studio.library.upload') }}</span>
         </template>
         <template v-else>
           <span class="bar"><i :style="{ width: `${Math.round(progress * 100)}%` }" /></span>
@@ -177,7 +227,8 @@ function addExternal(): void {
         @click="choose(m)"
       >
         <MediaTile :item="m" />
-        <span v-if="mediaKind(m) !== 'image'" class="nm">{{ m.title || m.name }}</span>
+        <span v-if="view === 'list'" class="row-nm"><b>{{ m.title || m.name }}</b><small class="mono">{{ formatSize(m.size) }} · {{ m.folder || t('studio.folder.unfiled') }} · {{ dateText(m.createdAt) }}</small></span>
+        <span v-else-if="mediaKind(m) !== 'image'" class="nm">{{ m.title || m.name }}</span>
         <span v-if="order(m)" class="tick">
           <template v-if="multiple">{{ order(m) }}</template>
           <Icon v-else :icon="Check" :size="14" />
@@ -185,6 +236,8 @@ function addExternal(): void {
       </button>
     </div>
     <p v-if="items && !shown.length" class="empty">{{ t('studio.library.empty') }}</p>
+    </div>
+    </div>
 
     <div class="ft">
       <label v-if="external" class="st-field ext">
@@ -216,7 +269,58 @@ function addExternal(): void {
   .search { width: 260px; }
 }
 
-.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.side {
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 4px;
+  border-radius: var(--r-md);
+  background: var(--well);
+}
+
+.main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+.tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.tabs .sp { flex: 1; }
+
+/* 列表视图：一行一项，缩略图 + 名称 + 大小 / 文件夹 / 日期 */
+.grid.list {
+  grid-template-columns: 1fr;
+  gap: 4px;
+
+  .it, .up {
+    aspect-ratio: auto;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 10px 6px 6px;
+    text-align: left;
+    background: none;
+
+    &:hover { transform: none; background: var(--hover); }
+    :deep(.mt) { width: 44px; height: 44px; flex: none; border-radius: var(--r-xs); overflow: hidden; }
+  }
+
+  .up { justify-content: flex-start; flex-direction: row; }
+  .it.on { box-shadow: none; background: var(--tint); }
+  .tick { position: static; margin-left: auto; }
+  .row-nm { min-width: 0; display: flex; flex-direction: column; }
+  .row-nm b { font-size: 14px; font-weight: 500; color: var(--st-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row-nm small { font-size: 11.5px; color: var(--st-ink-3); }
+}
+
+@media (max-width: 760px) {
+  .body { grid-template-columns: 1fr; }
+  .side { max-height: 140px; }
+}
 
 .grid {
   flex: 1;

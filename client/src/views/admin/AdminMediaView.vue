@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi, api, type AdminPost, type MediaItem, type Note } from '../../api';
@@ -8,7 +8,11 @@ import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
 import StSeg from './studio/StSeg.vue';
 import EmptyArt from './studio/EmptyArt.vue';
-import { Check, ImagePlus } from 'lucide';
+import { Check, FolderInput, ImagePlus, Search } from 'lucide';
+import FolderTree from './studio/FolderTree.vue';
+import FolderPickModal from './studio/FolderPickModal.vue';
+import { ALL, DRAG_TYPE, useFolders } from './studio/useFolders';
+import Select from '../../components/ui/Select.vue';
 import Icon from '../../components/ui/Icon.vue';
 import MediaTile from './studio/MediaTile.vue';
 import { mediaKind } from '../../utils/mediaKind';
@@ -18,10 +22,13 @@ import MediaViewer from './studio/MediaViewer.vue';
 import QualityPanel from './studio/QualityPanel.vue';
 import { toast } from './studio/toast';
 import { useAuthStore } from '../../stores/auth';
-import { formatSize, sizeParts } from './studio/format';
+import { dateText, formatSize, sizeParts } from './studio/format';
 import type { MediaRef } from './studio/types';
 
-/** 素材：瀑布流 + 拖放上传 + 大图查看/裁切；「图片优化」标签页负责扫描与后台压缩 */
+/**
+ * 素材：左侧文件夹树 + 右侧网格 / 列表（搜索、类型、排序），拖放上传进当前文件夹，拖动素材到文件夹即移动；
+ * 大图查看 / 裁切；「图片优化」标签页负责扫描与后台压缩。
+ */
 const { t } = useI18n();
 const isAdmin = computed(() => useAuthStore().isAdmin);
 const route = useRoute();
@@ -123,7 +130,10 @@ async function upload(files: File[]): Promise<void> {
   if (!list.length || uploading.value) return;
   uploading.value = true;
   try {
-    const res = await adminApi.uploadMedia(list);
+    // 在某个文件夹里上传：直接放进这个文件夹
+    const target = folder.value === ALL ? '' : folder.value;
+    const res = await adminApi.uploadMedia(list, undefined, target);
+    void fo.load();
     const dup = res.filter((m) => m.duplicate).length;
     toast(
       dup ? t('studio.media.uploadedDup', { n: res.length - dup, d: dup }) : t('studio.media.uploaded', { n: res.length }),
@@ -182,8 +192,67 @@ const kindCounts = computed(() => {
   return out;
 });
 const shownKinds = computed(() => KINDS.filter((k) => kindCounts.value[k]));
-/** 网格里显示的条目（保留原下标，查看器按全量列表翻页） */
-const shown = computed(() => items.value.map((m, i) => ({ m, i })).filter(({ m }) => kindFilter.value === 'all' || mediaKind(m) === kindFilter.value));
+
+/* ---------- 文件夹 / 搜索 / 排序 / 视图 ---------- */
+const fo = useFolders(() => void load());
+const folder = ref<string>(ALL);
+const q = ref('');
+type Sort = 'new' | 'name' | 'size';
+const sort = ref<Sort>('new');
+const VIEW_KEY = 'myself.studio.mediaView';
+const view = ref<'grid' | 'list'>((() => {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid';
+  } catch {
+    return 'grid';
+  }
+})());
+watch(view, (v) => {
+  try {
+    localStorage.setItem(VIEW_KEY, v);
+  } catch { /* 忽略 */ }
+});
+const unfiledCount = computed(() => items.value.filter((m) => !m.folder).length);
+const sortOptions = computed(() => [
+  { value: 'new', label: t('studio.media.sortNew') },
+  { value: 'name', label: t('studio.media.sortName') },
+  { value: 'size', label: t('studio.media.sortSize') },
+]);
+
+/** 当前可见的素材（文件夹 → 类型 → 搜索 → 排序）；网格、列表、查看器、Shift 连选都按它 */
+const visible = computed(() => {
+  const s = q.value.trim().toLowerCase();
+  const list = items.value.filter((m) => {
+    if (folder.value !== ALL && (m.folder ?? '') !== folder.value) return false;
+    if (kindFilter.value !== 'all' && mediaKind(m) !== kindFilter.value) return false;
+    return !s || `${m.title ?? ''} ${m.name}`.toLowerCase().includes(s);
+  });
+  if (sort.value === 'name') list.sort((a, b) => (a.title || a.name).localeCompare(b.title || b.name, 'zh'));
+  else if (sort.value === 'size') list.sort((a, b) => b.size - a.size);
+  return list;
+});
+const shown = computed(() => visible.value.map((m, i) => ({ m, i })));
+
+/** 拖动素材：已勾选时整批一起拖，否则拖这一个 */
+function onDragStart(m: MediaItem, e: DragEvent): void {
+  const names = picked.value.has(m.name) ? [...picked.value] : [m.name];
+  e.dataTransfer?.setData(DRAG_TYPE, JSON.stringify(names));
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+}
+
+async function onDropToFolder(names: string[], target: string): Promise<void> {
+  if (await fo.move(names, target)) clearPick();
+}
+
+const moving = ref(false);
+async function onMovePick(target: string): Promise<void> {
+  moving.value = false;
+  if (await fo.move([...picked.value], target)) clearPick();
+}
+async function onMoveCreate(): Promise<void> {
+  const path = await fo.create(folder.value === ALL ? '' : folder.value);
+  if (path) await onMovePick(path);
+}
 
 /* ---------- 多选：勾选角标进入选择态，此后点图即勾选；Shift 连选；底部操作条打包下载 / 删除 ---------- */
 const dialog = useDialogStore();
@@ -194,15 +263,15 @@ const picking = computed(() => picked.value.size > 0);
 const pickedSize = computed(() => items.value.filter((m) => picked.value.has(m.name)).reduce((s, m) => s + m.size, 0));
 
 function togglePick(i: number, e?: MouseEvent): void {
-  const name = items.value[i]?.name;
+  const name = visible.value[i]?.name;
   if (!name) return;
   const next = new Set(picked.value);
   if (e?.shiftKey && lastPick.value >= 0) {
     const on = !next.has(name);
     const [a, b] = [Math.min(lastPick.value, i), Math.max(lastPick.value, i)];
     for (let k = a; k <= b; k++) {
-      if (on) next.add(items.value[k].name);
-      else next.delete(items.value[k].name);
+      if (on) next.add(visible.value[k].name);
+      else next.delete(visible.value[k].name);
     }
   } else if (next.has(name)) next.delete(name);
   else next.add(name);
@@ -216,7 +285,7 @@ function onTile(i: number, e: MouseEvent): void {
 }
 
 function pickAll(): void {
-  picked.value = picked.value.size === items.value.length ? new Set() : new Set(items.value.map((m) => m.name));
+  picked.value = picked.value.size >= visible.value.length ? new Set() : new Set(visible.value.map((m) => m.name));
 }
 
 function clearPick(): void {
@@ -282,6 +351,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 onMounted(() => {
   document.addEventListener('keydown', onKey);
   void load();
+  void fo.load();
   void loadRefs();
   void loadQuality();
 });
@@ -344,42 +414,111 @@ onMounted(() => {
         <button type="button" class="st-btn p" @click="fileInput?.click()"><SIcon name="upload" :size="18" />{{ t('studio.media.upload') }}</button>
       </div>
 
-      <div v-if="shownKinds.length > 1" class="kinds">
-        <button type="button" class="st-chip" :class="{ on: kindFilter === 'all' }" @click="kindFilter = 'all'">
-          {{ t('studio.library.kind.all') }}<span class="n">{{ items.length }}</span>
-        </button>
-        <button v-for="k in shownKinds" :key="k" type="button" class="st-chip" :class="{ on: kindFilter === k }" @click="kindFilter = k">
-          {{ t(`studio.library.kind.${k}`) }}<span class="n">{{ kindCounts[k] }}</span>
-        </button>
-      </div>
+      <div v-else class="lib">
+        <aside class="lib-side">
+          <FolderTree
+            v-model="folder"
+            :folders="fo.folders.value"
+            :total="items.length"
+            :unfiled="unfiledCount"
+            :editable="isAdmin"
+            @create="(p) => fo.create(p)"
+            @rename="async (p) => { const n = await fo.rename(p); if (n && folder === p) folder = n; }"
+            @remove="async (p) => { if (await fo.remove(p) && folder.startsWith(p)) folder = ALL; }"
+            @drop="onDropToFolder"
+          />
+        </aside>
 
-      <div class="masonry">
-        <button
-          v-for="{ m: it, i } in shown"
-          :key="it.name"
-          type="button"
-          class="mtile st-rise"
-          :class="{ on: picked.has(it.name), picking, file: mediaKind(it) !== 'image' }"
-          :style="{ '--i': i % 8 }"
-          @click="onTile(i, $event)"
-        >
-          <MediaTile :item="it" :stamp="`${it.size}-${stamp}`" />
-          <span class="pick" :title="t('studio.media.pick')" @click.stop="togglePick(i, $event)">
-            <span class="st-ck" :class="{ on: picked.has(it.name) }"><Icon :icon="Check" /></span>
-          </span>
-          <span v-if="compressible.has(it.name)" class="zip">{{ t('studio.media.compressible') }}</span>
-          <span v-else-if="it.compressed" class="zip cut">{{ t('studio.media.compressedTag') }}</span>
-          <span v-else-if="it.crop" class="zip cut">{{ t('studio.media.croppedTag') }}</span>
-          <span class="cap"><span class="nm">{{ it.title || it.name }}</span><span class="mono">{{ formatSize(it.size) }}</span></span>
-        </button>
+        <div class="lib-main">
+          <div class="lib-bar">
+            <label class="st-field search">
+              <Icon :icon="Search" :size="16" />
+              <input v-model="q" :placeholder="t('studio.library.search')" />
+            </label>
+            <div v-if="shownKinds.length > 1" class="kinds">
+              <button type="button" class="st-chip" :class="{ on: kindFilter === 'all' }" @click="kindFilter = 'all'">{{ t('studio.library.kind.all') }}</button>
+              <button v-for="k in shownKinds" :key="k" type="button" class="st-chip" :class="{ on: kindFilter === k }" @click="kindFilter = k">
+                {{ t(`studio.library.kind.${k}`) }}<span class="n">{{ kindCounts[k] }}</span>
+              </button>
+            </div>
+            <span class="sp" />
+            <div class="sortw"><Select v-model="sort" :options="sortOptions" :min-width="120" :aria-label="t('studio.media.sort')" /></div>
+            <StSeg
+              v-model="view"
+              icon-only
+              :options="[
+                { value: 'grid', icon: 'grid', title: t('studio.posts.grid') },
+                { value: 'list', icon: 'list', title: t('studio.posts.list') },
+              ]"
+            />
+          </div>
+
+          <p v-if="loaded && !shown.length" class="lib-empty">{{ q ? t('studio.media.noMatch', { q }) : t('studio.media.emptyFolder') }}</p>
+
+          <div v-if="view === 'grid'" class="masonry">
+            <button
+              v-for="{ m: it, i } in shown"
+              :key="it.name"
+              type="button"
+              class="mtile st-rise"
+              :class="{ on: picked.has(it.name), picking, file: mediaKind(it) !== 'image' }"
+              :style="{ '--i': i % 8 }"
+              :draggable="isAdmin"
+              @dragstart="onDragStart(it, $event)"
+              @click="onTile(i, $event)"
+            >
+              <MediaTile :item="it" :stamp="`${it.size}-${stamp}`" />
+              <span class="pick" :title="t('studio.media.pick')" @click.stop="togglePick(i, $event)">
+                <span class="st-ck" :class="{ on: picked.has(it.name) }"><Icon :icon="Check" /></span>
+              </span>
+              <span v-if="compressible.has(it.name)" class="zip">{{ t('studio.media.compressible') }}</span>
+              <span v-else-if="it.compressed" class="zip cut">{{ t('studio.media.compressedTag') }}</span>
+              <span v-else-if="it.crop" class="zip cut">{{ t('studio.media.croppedTag') }}</span>
+              <span class="cap"><span class="nm">{{ it.title || it.name }}</span><span class="mono">{{ formatSize(it.size) }}</span></span>
+            </button>
+          </div>
+
+          <div v-else class="mlist">
+            <div class="lh">
+              <span />
+              <span />
+              <span>{{ t('studio.media.colName') }}</span>
+              <span>{{ t('studio.media.colKind') }}</span>
+              <span>{{ t('studio.media.colSize') }}</span>
+              <span>{{ t('studio.media.colFolder') }}</span>
+              <span>{{ t('studio.media.colDate') }}</span>
+            </div>
+            <div
+              v-for="{ m: it, i } in shown"
+              :key="it.name"
+              class="lr"
+              :class="{ on: picked.has(it.name) }"
+              :draggable="isAdmin"
+              role="button"
+              tabindex="0"
+              @dragstart="onDragStart(it, $event)"
+              @click="onTile(i, $event)"
+              @keydown.enter="onTile(i, $event as unknown as MouseEvent)"
+            >
+              <span class="pk" @click.stop="togglePick(i, $event)"><span class="st-ck" :class="{ on: picked.has(it.name) }"><Icon :icon="Check" /></span></span>
+              <span class="th"><MediaTile :item="it" :stamp="`${it.size}-${stamp}`" /></span>
+              <span class="nm"><b>{{ it.title || it.name }}</b><small class="mono">{{ it.name }}</small></span>
+              <span class="kd">{{ t(`studio.library.kind.${mediaKind(it)}`) }}</span>
+              <span class="mono">{{ formatSize(it.size) }}</span>
+              <span class="fd">{{ it.folder || t('studio.folder.unfiled') }}</span>
+              <span class="mono">{{ dateText(it.createdAt) }}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 多选操作条：贴底浮起 -->
       <Transition name="bar">
         <div v-if="picking" class="pickbar">
           <span class="n">{{ t('studio.media.picked', { n: picked.size }) }}<small class="mono">{{ formatSize(pickedSize) }}</small></span>
-          <button type="button" class="st-btn g sm" @click="pickAll">{{ picked.size === items.length ? t('studio.media.selectNone') : t('studio.media.selectAll') }}</button>
+          <button type="button" class="st-btn g sm" @click="pickAll">{{ picked.size >= visible.length ? t('studio.media.selectNone') : t('studio.media.selectAll') }}</button>
           <span class="sp" />
+          <button v-if="isAdmin" type="button" class="st-btn sm" @click="moving = true"><Icon :icon="FolderInput" :size="16" />{{ t('studio.folder.moveTo') }}</button>
           <button type="button" class="st-btn sm" :disabled="batchBusy" @click="zipPicked">
             <SIcon name="download" :size="16" />{{ batchBusy ? t('studio.media.zipping') : t('studio.media.zip') }}
           </button>
@@ -397,7 +536,16 @@ onMounted(() => {
       <div v-if="dragover" class="veil"><SIcon name="upload" :size="28" /><span>{{ t('studio.media.dropVeil') }}</span></div>
     </Transition>
 
-    <MediaViewer v-model:index="viewing" :items="items" :refs="refs" :compressible="compressible" @changed="onChanged" @open="openRef" />
+    <FolderPickModal
+      :open="moving"
+      :folders="fo.folders.value"
+      :count="picked.size"
+      :current="folder === ALL ? undefined : folder"
+      @pick="onMovePick"
+      @create="onMoveCreate"
+      @close="moving = false"
+    />
+    <MediaViewer v-model:index="viewing" :items="visible" :refs="refs" :compressible="compressible" @changed="onChanged" @open="openRef" />
     <input ref="fileInput" type="file" multiple hidden @change="onPick" />
   </section>
 </template>
@@ -435,7 +583,84 @@ onMounted(() => {
   }
 }
 
-.kinds { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+/* 左栏文件夹树 + 右侧内容 */
+.lib {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.lib-side {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 12px 8px;
+  border-radius: var(--r-lg);
+  background: var(--well);
+}
+
+.lib-main { min-width: 0; }
+
+.lib-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+
+  .search { width: 220px; }
+  .sp { flex: 1; }
+  .sortw { width: 140px; flex: none; }
+}
+
+.lib-empty { margin: 40px 0; text-align: center; font-size: 14px; color: var(--st-ink-3); }
+
+.kinds { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* 列表视图 */
+$lcols: 28px 44px minmax(0, 1fr) 72px 84px 140px 110px;
+
+.mlist { display: flex; flex-direction: column; }
+
+.lh, .lr {
+  display: grid;
+  grid-template-columns: $lcols;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 10px;
+}
+
+.lh {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--st-ink-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.lr {
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast);
+
+  &:hover { background: var(--well); }
+  &.on { background: var(--tint); }
+
+  .pk { display: grid; place-items: center; }
+  .th { width: 44px; height: 44px; border-radius: var(--r-xs); overflow: hidden; }
+  .th :deep(.mt img) { height: 44px; }
+  .nm { min-width: 0; }
+  .nm b { display: block; font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nm small { font-size: 11.5px; color: var(--st-ink-4); }
+  .kd, .fd { font-size: 13px; color: var(--st-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mono { font: 500 12px var(--font-mono); color: var(--st-ink-3); }
+}
+
+@media (max-width: 1180px) {
+  .lib { grid-template-columns: 1fr; }
+  .lib-side { position: static; max-height: none; }
+}
 
 .masonry {
   columns: 5 180px;
