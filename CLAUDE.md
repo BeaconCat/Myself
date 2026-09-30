@@ -40,7 +40,7 @@
 ## 后端规范
 - RESTful API，前缀 `/api/v1`
 - 会话：HttpOnly Cookie `myself_session`（JWT，`sub` 用户 id + `tv` 令牌版本），写操作要带 `X-Requested-With: myself` 且 Origin 与 Host 一致（开发代理保持浏览器 Host）；中间件 `requireRole(admin|author|reader)`
-- 用户系统（`users.*` 配置）：总开关 `enabled` → 读者（注册 open/invite/closed、邮箱验证）/ 协作作者（直接发布）/ 评论（审核 all/first/none、匿名）各自独立；访客回应 `reactions` 不受总开关约束；登录：密码 / GitHub OAuth / 站长生成重置链接，发信走 `mail.*` SMTP；前端路由守卫按角色预判（`stores/auth.ts` 的 `canEnterAdmin`），作者只进文章 / 写作 / 素材
+- 用户系统（`users.*` 配置）：总开关 `enabled` → 读者（注册 open/invite/closed、邮箱验证）/ 协作作者（直接发布）/ 评论（审核 all/first/none、匿名）各自独立；访客回应 `reactions` 不受总开关约束；登录：密码 / GitHub OAuth / 站长生成重置链接，发信走 `mail.*` SMTP；前端路由守卫按角色预判（`stores/auth.ts` 的 `canEnterAdmin`），作者只进文章 / 写作 / 评论（写作时可用素材库选取与上传，素材页的管理操作只给站长）
 - 互动：回应（喜欢 / 灵感 / 会心 / 共鸣，访客 Cookie 去重）与评论（post / note / guestbook）；前端 `stores/engage.ts` 批量取摘要，`components/engage/`（EngageBar、CommentSection）
 - API 中心：APIKey 认证（`X-Api-Key`），供外部 AI 发文
 - SQLite 存储（modernc.org/sqlite），文章正文为 Markdown

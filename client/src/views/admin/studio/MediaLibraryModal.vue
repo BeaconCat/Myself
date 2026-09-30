@@ -15,6 +15,7 @@ import StSeg from './StSeg.vue';
 import { ALL } from './useFolders';
 import { dateText, formatSize } from './format';
 import { toast } from './toast';
+import { useAuthStore } from '../../../stores/auth';
 
 /**
  * 素材库模态框：左侧文件夹 + 按类型筛选 + 搜索 + 网格 / 列表 + 就地上传进当前文件夹（带进度，走查重）+ 外链地址。
@@ -36,6 +37,8 @@ const emit = defineEmits<{ pick: [items: MediaItem[]]; close: [] }>();
 const { t } = useI18n();
 
 const items = ref<MediaItem[] | null>(null);
+/** 协作作者不能浏览整个素材库：只能上传新素材或用外链，本次上传的会列在这里 */
+const isAdmin = computed(() => useAuthStore().isAdmin);
 const tab = ref<MediaKindName | 'all'>('all');
 const q = ref('');
 const picked = ref<MediaItem[]>([]);
@@ -80,6 +83,11 @@ watch(
     extUrl.value = '';
     tab.value = 'all';
     folder.value = ALL;
+    if (!isAdmin.value) {
+      items.value = [];
+      allFolders.value = [];
+      return;
+    }
     void adminApi.mediaFolders().then((f) => { allFolders.value = f; }).catch(() => { allFolders.value = []; });
     try {
       items.value = await adminApi.media();
@@ -184,8 +192,8 @@ function addExternal(): void {
         <input v-model="q" :placeholder="t('studio.library.search')" />
       </label>
     </div>
-    <div class="body">
-    <aside class="side">
+    <div class="body" :class="{ solo: !isAdmin }">
+    <aside v-if="isAdmin" class="side">
       <FolderTree v-model="folder" compact :folders="scopedFolders" :total="inScope.length" :unfiled="unfiled" />
     </aside>
     <div class="main">
@@ -235,7 +243,7 @@ function addExternal(): void {
         </span>
       </button>
     </div>
-    <p v-if="items && !shown.length" class="empty">{{ t('studio.library.empty') }}</p>
+    <p v-if="items && !shown.length" class="empty">{{ t(isAdmin ? 'studio.library.empty' : 'studio.library.authorHint') }}</p>
     </div>
     </div>
 
@@ -276,6 +284,8 @@ function addExternal(): void {
   grid-template-columns: 190px minmax(0, 1fr);
   gap: 16px;
 }
+
+.body.solo { grid-template-columns: minmax(0, 1fr); }
 
 .side {
   min-height: 0;
