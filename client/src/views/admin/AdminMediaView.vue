@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi, api, type AdminPost, type MediaItem, type Note } from '../../api';
@@ -8,7 +8,9 @@ import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
 import StSeg from './studio/StSeg.vue';
 import EmptyArt from './studio/EmptyArt.vue';
-import { ImagePlus } from 'lucide';
+import { Check, ImagePlus } from 'lucide';
+import Icon from '../../components/ui/Icon.vue';
+import { useDialogStore } from '../../stores/dialog';
 import MediaViewer from './studio/MediaViewer.vue';
 import QualityPanel from './studio/QualityPanel.vue';
 import { toast } from './studio/toast';
@@ -167,12 +169,102 @@ function openRef(r: MediaRef): void {
   else void router.push({ name: 'admin-about' });
 }
 
+/* ---------- 多选：勾选角标进入选择态，此后点图即勾选；Shift 连选；底部操作条打包下载 / 删除 ---------- */
+const dialog = useDialogStore();
+const picked = ref<Set<string>>(new Set());
+const lastPick = ref(-1);
+const batchBusy = ref(false);
+const picking = computed(() => picked.value.size > 0);
+const pickedSize = computed(() => items.value.filter((m) => picked.value.has(m.name)).reduce((s, m) => s + m.size, 0));
+
+function togglePick(i: number, e?: MouseEvent): void {
+  const name = items.value[i]?.name;
+  if (!name) return;
+  const next = new Set(picked.value);
+  if (e?.shiftKey && lastPick.value >= 0) {
+    const on = !next.has(name);
+    const [a, b] = [Math.min(lastPick.value, i), Math.max(lastPick.value, i)];
+    for (let k = a; k <= b; k++) {
+      if (on) next.add(items.value[k].name);
+      else next.delete(items.value[k].name);
+    }
+  } else if (next.has(name)) next.delete(name);
+  else next.add(name);
+  picked.value = next;
+  lastPick.value = i;
+}
+
+function onTile(i: number, e: MouseEvent): void {
+  if (picking.value) togglePick(i, e);
+  else viewing.value = i;
+}
+
+function pickAll(): void {
+  picked.value = picked.value.size === items.value.length ? new Set() : new Set(items.value.map((m) => m.name));
+}
+
+function clearPick(): void {
+  picked.value = new Set();
+  lastPick.value = -1;
+}
+
+async function zipPicked(): Promise<void> {
+  if (batchBusy.value) return;
+  batchBusy.value = true;
+  try {
+    const blob = await adminApi.zipMedia([...picked.value]);
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = t('studio.media.zipName', { d: stamp });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  } catch {
+    toast(t('studio.media.zipFailed'), { icon: 'x' });
+  } finally {
+    batchBusy.value = false;
+  }
+}
+
+async function deletePicked(): Promise<void> {
+  const list = items.value.filter((m) => picked.value.has(m.name));
+  if (!list.length || batchBusy.value) return;
+  const r = list.filter((m) => (refs.value[m.url] ?? []).length).length;
+  const ok = await dialog.confirm({
+    title: t('studio.media.batchDeleteTitle', { n: list.length }),
+    message: r ? t('studio.media.batchDeleteBodyRef', { r }) : t('studio.media.batchDeleteBody'),
+    confirmText: t('studio.delete'),
+    danger: true,
+  });
+  if (!ok) return;
+  batchBusy.value = true;
+  try {
+    const res = await adminApi.deleteMediaBatch(list.map((m) => m.name));
+    toast(t('studio.media.batchDeleted', { n: res.deleted }), { icon: 'trash' });
+    clearPick();
+    onChanged();
+  } catch {
+    toast(t('studio.saveFailed'), { icon: 'x' });
+  } finally {
+    batchBusy.value = false;
+  }
+}
+
+function onKey(e: KeyboardEvent): void {
+  if (e.key === 'Escape' && picking.value && viewing.value < 0) clearPick();
+}
+
 function setTab(v: Tab): void {
   tab.value = v;
   void router.replace({ query: v === 'optimize' ? { tab: v } : {} });
 }
 
+onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
+
 onMounted(() => {
+  document.addEventListener('keydown', onKey);
   void load();
   void loadRefs();
   void loadQuality();
@@ -242,15 +334,35 @@ onMounted(() => {
           :key="it.name"
           type="button"
           class="mtile st-rise"
+          :class="{ on: picked.has(it.name), picking }"
           :style="{ '--i': i % 8 }"
-          @click="viewing = i"
+          @click="onTile(i, $event)"
         >
           <img :src="`${it.thumb}?v=${it.size}-${stamp}`" alt="" loading="lazy" />
+          <span class="pick" :title="t('studio.media.pick')" @click.stop="togglePick(i, $event)">
+            <span class="st-ck" :class="{ on: picked.has(it.name) }"><Icon :icon="Check" /></span>
+          </span>
           <span v-if="compressible.has(it.name)" class="zip">{{ t('studio.media.compressible') }}</span>
           <span v-else-if="it.crop" class="zip cut">{{ t('studio.media.croppedTag') }}</span>
-          <span class="cap"><span class="nm">{{ it.name }}</span><span class="mono">{{ formatSize(it.size) }}</span></span>
+          <span class="cap"><span class="nm">{{ it.title || it.name }}</span><span class="mono">{{ formatSize(it.size) }}</span></span>
         </button>
       </div>
+
+      <!-- 多选操作条：贴底浮起 -->
+      <Transition name="bar">
+        <div v-if="picking" class="pickbar">
+          <span class="n">{{ t('studio.media.picked', { n: picked.size }) }}<small class="mono">{{ formatSize(pickedSize) }}</small></span>
+          <button type="button" class="st-btn g sm" @click="pickAll">{{ picked.size === items.length ? t('studio.media.selectNone') : t('studio.media.selectAll') }}</button>
+          <span class="sp" />
+          <button type="button" class="st-btn sm" :disabled="batchBusy" @click="zipPicked">
+            <SIcon name="download" :size="16" />{{ batchBusy ? t('studio.media.zipping') : t('studio.media.zip') }}
+          </button>
+          <button v-if="isAdmin" type="button" class="st-btn sm danger" :disabled="batchBusy" @click="deletePicked">
+            <SIcon name="trash" :size="16" />{{ t('studio.delete') }}
+          </button>
+          <button type="button" class="st-ibtn sm" :title="t('studio.media.clearPick')" @click="clearPick"><SIcon name="x" :size="16" /></button>
+        </div>
+      </Transition>
     </template>
 
     <QualityPanel v-else @done="onChanged" @count="compressCount = $event" />
@@ -356,6 +468,59 @@ onMounted(() => {
     &.cut { background: rgba(255, 255, 255, 0.88); }
   }
 }
+
+/* 勾选角标：悬停浮现；进入选择态后常显，点图即勾选 */
+.mtile {
+  .pick {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    z-index: 1;
+    padding: 4px;
+    opacity: 0;
+    transform: scale(0.85);
+    transition: opacity var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+
+    .st-ck { width: 20px; height: 20px; background: rgba(0, 0, 0, 0.18); box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.92) inset, 0 1px 4px rgba(0, 0, 0, 0.25); }
+    .st-ck.on { background: var(--solid); box-shadow: 0 0 0 1.5px var(--solid) inset; }
+  }
+
+  &:hover .pick,
+  &.picking .pick { opacity: 1; transform: none; }
+
+  &.picking { cursor: pointer; }
+
+  img { transition: transform var(--dur) var(--ease-out), border-radius var(--dur); }
+
+  &.on {
+    box-shadow: 0 0 0 2.5px var(--ink);
+
+    img { transform: scale(0.94); border-radius: var(--r-sm); }
+  }
+}
+
+.pickbar {
+  position: sticky;
+  bottom: 20px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  min-width: min(560px, 100%);
+  margin: 12px auto 0;
+  padding: 8px 8px 8px 18px;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--line-2), var(--shadow-pop);
+
+  .n { font-weight: 600; font-size: 14px; white-space: nowrap; }
+  .n small { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--st-ink-3); }
+  .sp { flex: 1; }
+}
+
+.bar-enter-active, .bar-leave-active { transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-spring); }
+.bar-enter-from, .bar-leave-to { opacity: 0; transform: translateY(16px) scale(0.97); }
 
 .veil {
   position: fixed;

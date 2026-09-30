@@ -249,6 +249,36 @@ async function remove(): Promise<void> {
   }
 }
 
+/* ---------- 重命名（只改显示名） ---------- */
+const titleDraft = ref('');
+watch(item, (it) => { titleDraft.value = it ? it.title || it.name : ''; }, { immediate: true });
+
+function blurTarget(e: KeyboardEvent): void {
+  (e.target as HTMLInputElement).blur();
+}
+
+function cancelTitle(e: KeyboardEvent): void {
+  titleDraft.value = item.value ? item.value.title || item.value.name : '';
+  (e.target as HTMLInputElement).blur();
+}
+
+async function saveTitle(): Promise<void> {
+  const it = item.value;
+  if (!it) return;
+  const next = titleDraft.value.trim();
+  if (next === (it.title || it.name)) return;
+  try {
+    // 改回文件名或清空：清掉显示名
+    const res = await adminApi.renameMedia(it.name, next === it.name ? '' : next);
+    it.title = res.title;
+    titleDraft.value = res.title || res.name;
+    toast(t('studio.media.renamed'), { icon: 'check' });
+  } catch {
+    titleDraft.value = it.title || it.name;
+    toast(t('studio.saveFailed'), { icon: 'x' });
+  }
+}
+
 onBeforeUnmount(() => {
   if (blobUrl) URL.revokeObjectURL(blobUrl);
   document.removeEventListener('keydown', onKey);
@@ -297,10 +327,23 @@ onBeforeUnmount(() => {
 
         <aside class="v-panel">
           <div>
-            <h3>{{ item.name }}</h3>
+            <!-- 显示名：站长点击即可改名（回车 / 失焦保存，Esc 放弃）；文件地址不变 -->
+            <input
+              v-if="isAdmin"
+              v-model="titleDraft"
+              class="title-in"
+              :placeholder="item.name"
+              :title="t('studio.media.renameHint')"
+              maxlength="120"
+              @keydown.enter.prevent="blurTarget"
+              @keydown.esc.stop.prevent="cancelTitle"
+              @blur="saveTitle"
+            />
+            <h3 v-else>{{ item.title || item.name }}</h3>
             <div class="sub">{{ t('studio.media.uploadedAt', { when: dateTimeText(item.createdAt) }) }}</div>
           </div>
           <dl class="kv">
+            <dt>{{ t('studio.media.kvFile') }}</dt><dd class="mono file">{{ item.name }}</dd>
             <dt>{{ t('studio.media.kvSize') }}</dt><dd class="mono">{{ natural.w }} × {{ natural.h }}</dd>
             <dt>{{ t('studio.media.kvBytes') }}</dt>
             <dd class="mono">{{ formatSize(item.size) }}<span v-if="compressible.has(item.name)" class="zip">{{ t('studio.media.compressible') }}</span></dd>
@@ -326,7 +369,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="acts">
             <button v-if="isAdmin" type="button" class="st-btn p" :disabled="busy || loadingImg || ratio === null" @click="applyCrop"><SIcon name="crop" :size="16" />{{ t('studio.media.applyCrop') }}</button>
-            <a class="st-ibtn ring" :href="item.url" :download="item.name" :title="t('studio.media.download')"><SIcon name="download" /></a>
+            <a class="st-ibtn ring" :href="item.url" :download="item.title || item.name" :title="t('studio.media.download')"><SIcon name="download" /></a>
             <button v-if="isAdmin" type="button" class="st-ibtn ring" :disabled="busy" :title="t('studio.delete')" @click="remove"><SIcon name="trash" /></button>
           </div>
         </aside>
@@ -490,8 +533,26 @@ onBeforeUnmount(() => {
   color: var(--st-ink);
 
   h3 { font: 600 18px/1.4 var(--font-serif); margin: 0; word-break: break-all; }
+
+  .title-in {
+    width: calc(100% + 8px);
+    margin: -4px 0 -4px -8px;
+    padding: 4px 8px;
+    border: 0;
+    border-radius: var(--r-xs);
+    font: 600 18px/1.4 var(--font-serif);
+    color: var(--st-ink);
+    background: transparent;
+    outline: none;
+    transition: background var(--dur-fast), box-shadow var(--dur-fast);
+
+    &:hover { background: var(--hover); }
+    &:focus { background: var(--well); box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--ink) 55%, transparent) inset; }
+  }
   .sub { font-size: 12.5px; color: var(--st-ink-3); margin-top: 4px; }
 }
+
+.kv .file { word-break: break-all; font-size: 12px; color: var(--st-ink-3); }
 
 .kv {
   display: grid;

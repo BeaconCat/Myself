@@ -103,6 +103,8 @@ CREATE TABLE IF NOT EXISTS media (
 		`ALTER TABLE users ADD COLUMN login_changed_at TEXT`,
 		// 素材查重：原始上传内容的 SHA-256
 		`ALTER TABLE media ADD COLUMN sha256 TEXT`,
+		// 素材显示名：上传时的原文件名，可在后台重命名（磁盘文件名不变）
+		`ALTER TABLE media ADD COLUMN title TEXT NOT NULL DEFAULT ''`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return err

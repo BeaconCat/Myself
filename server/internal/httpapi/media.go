@@ -39,7 +39,9 @@ func safeName(name string) string {
 }
 
 type mediaItem struct {
-	Name        string        `json:"name"`
+	Name string `json:"name"`
+	// Title 显示名（上传时的原文件名或重命名后的名字）；为空时前端显示 Name
+	Title       string        `json:"title"`
 	URL         string        `json:"url"`
 	Thumb       string        `json:"thumb"`
 	Size        int64         `json:"size"`
@@ -66,10 +68,11 @@ func (s *Server) fileInfo(name string) (mediaItem, error) {
 		item.HasOriginal = true
 	}
 	var cropJSON sql.NullString
-	var createdAt string
-	err = s.DB.QueryRow(`SELECT crop_json, created_at FROM media WHERE name = ?`, name).Scan(&cropJSON, &createdAt)
+	var createdAt, title string
+	err = s.DB.QueryRow(`SELECT crop_json, created_at, COALESCE(title, '') FROM media WHERE name = ?`, name).Scan(&cropJSON, &createdAt, &title)
 	if err == nil {
 		item.CreatedAt = createdAt
+		item.Title = title
 		if cropJSON.Valid && cropJSON.String != "" {
 			var rect imaging.Rect
 			if json.Unmarshal([]byte(cropJSON.String), &rect) == nil {
@@ -185,15 +188,18 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 			fail(w, err)
 			return
 		}
+		title := cleanMediaTitle(part.FileName())
 		if existing := s.mediaByHash(sum, name); existing != "" {
 			os.Remove(filepath.Join(s.UploadDir, name))
 			_, _ = s.DB.Exec(`DELETE FROM media WHERE name = ?`, name)
+			// 已有的那张还没有显示名时，补上这次上传的原文件名
+			_, _ = s.DB.Exec(`UPDATE media SET title = ? WHERE name = ? AND COALESCE(title, '') = ''`, title, existing)
 			saved = append(saved, existing)
 			dups[existing] = true
 			continue
 		}
-		if _, err := s.DB.Exec(`INSERT INTO media (name, sha256) VALUES (?, ?)
-			ON CONFLICT(name) DO UPDATE SET sha256 = excluded.sha256`, name, sum); err != nil {
+		if _, err := s.DB.Exec(`INSERT INTO media (name, sha256, title) VALUES (?, ?, ?)
+			ON CONFLICT(name) DO UPDATE SET sha256 = excluded.sha256, title = excluded.title`, name, sum, title); err != nil {
 			fail(w, err)
 			return
 		}
@@ -309,15 +315,17 @@ func (s *Server) mediaOriginal(w http.ResponseWriter, r *http.Request) {
 // DELETE /admin/media/{name} 删除（连同原图与裁切记录）
 func (s *Server) deleteMedia(w http.ResponseWriter, r *http.Request) {
 	name := safeName(r.PathValue("name"))
-	if name == "" || !fileExists(filepath.Join(s.UploadDir, name)) {
+	if name == "" {
 		writeError(w, http.StatusNotFound, "not_found")
 		return
 	}
-	os.Remove(filepath.Join(s.UploadDir, name))
-	os.Remove(filepath.Join(s.originalsDir, name))
-	s.removeThumb(name)
-	if _, err := s.DB.Exec(`DELETE FROM media WHERE name = ?`, name); err != nil {
+	done, err := s.removeMedia(name)
+	if err != nil {
 		fail(w, err)
+		return
+	}
+	if !done {
+		writeError(w, http.StatusNotFound, "not_found")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})

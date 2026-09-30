@@ -157,7 +157,7 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
         <span class="st-ck" :class="{ on: selected.has(it.name) }"><Icon :icon="Check" /></span>
         <img :src="thumbOf(it.url)" alt="" loading="lazy" />
         <div class="nm">
-          <b class="mono">{{ it.name }}</b>
+          <b class="mono">{{ it.title || it.name }}</b>
           <small>{{ it.width }} × {{ it.height }}</small>
         </div>
         <span class="fmt">{{ it.format.toUpperCase() }}<i v-if="it.hasAlpha">alpha</i></span>

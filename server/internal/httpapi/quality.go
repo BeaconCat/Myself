@@ -35,6 +35,7 @@ func (s *Server) replaceURLRefs(oldURL, newURL string) error {
 
 type qualityItem struct {
 	Name         string `json:"name"`
+	Title        string `json:"title"`
 	URL          string `json:"url"`
 	Size         int64  `json:"size"`
 	Format       string `json:"format"`
@@ -64,6 +65,7 @@ func (s *Server) qualityScan(w http.ResponseWriter, _ *http.Request) {
 		}
 		items = append(items, qualityItem{
 			Name:         name,
+			Title:        s.mediaTitle(name),
 			URL:          "/uploads/" + name,
 			Size:         stat.Size(),
 			Format:       strings.TrimPrefix(imaging.Ext(name), "."),

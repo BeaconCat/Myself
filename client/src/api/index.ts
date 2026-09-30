@@ -301,6 +301,22 @@ export const adminApi = {
     }),
   deleteMedia: (name: string) =>
     authed<{ ok: boolean }>(`/admin/media/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  /** 重命名：只改显示名，文件与引用地址不变；空串恢复为文件名 */
+  renameMedia: (name: string, title: string) =>
+    authed<MediaItem>(`/admin/media/${encodeURIComponent(name)}`, { method: 'PUT', body: JSON.stringify({ title }) }),
+  deleteMediaBatch: (names: string[]) =>
+    authed<{ deleted: number }>('/admin/media/delete', { method: 'POST', body: JSON.stringify({ names }) }),
+  /** 打包下载：返回 zip（按显示名命名） */
+  zipMedia: async (names: string[]): Promise<Blob> => {
+    const res = await fetch(`${BASE}/admin/media/zip`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { ...ADMIN_HEADERS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ names }),
+    });
+    if (!res.ok) throw new Error(`zip ${res.status}`);
+    return res.blob();
+  },
   backups: () => authed<BackupInfo[]>('/admin/backups'),
   createBackup: () => authed<{ name: string }>('/admin/backups', { method: 'POST' }),
   deleteBackup: (name: string) =>
@@ -538,6 +554,8 @@ async function sha256Hex(file: Blob): Promise<string | null> {
 
 export interface MediaItem {
   name: string;
+  /** 显示名：上传时的原文件名或重命名后的名字；为空时显示 name */
+  title?: string;
   url: string;
   /** 最长边 480px 的 webp 缩略图，按需生成 */
   thumb: string;
@@ -557,6 +575,7 @@ export interface BackupInfo {
 
 export interface QualityItem {
   name: string;
+  title?: string;
   url: string;
   size: number;
   format: string;
