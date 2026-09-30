@@ -103,6 +103,13 @@ const studio = {
   table: {
     row: '行',
     col: '列',
+    above: '上方插入',
+    below: '下方插入',
+    left: '左侧插入',
+    right: '右侧插入',
+    del: '删除',
+    headerShort: '表头',
+    removeShort: '删表格',
     rowBefore: '在上方插入行',
     rowAfter: '在下方插入行',
     rowDelete: '删除当前行',
@@ -531,7 +538,7 @@ const studio = {
   },
   picker: {
     desc: '点一张即选用。也可以直接上传新图，素材库里已有的同一张图会被自动识别、不会重复保存。',
-    upload: '上传新图',
+    upload: '上传新素材',
     empty: '素材库还是空的，先上传一张吧。',
     reused: '这张图素材库里已经有了，直接用了已有的那张',
   },

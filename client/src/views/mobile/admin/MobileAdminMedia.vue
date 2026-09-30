@@ -13,6 +13,8 @@ import MaIcon from '../../../components/mobile-admin/MaIcon.vue';
 import MaRing from '../../../components/mobile-admin/MaRing.vue';
 import MaSkeleton from '../../../components/mobile-admin/MaSkeleton.vue';
 import MaViewer from '../../../components/mobile-admin/MaViewer.vue';
+import MediaTile from '../../admin/studio/MediaTile.vue';
+import { mediaKind } from '../../../utils/mediaKind';
 import { cache, loadMedia, shell, toast } from '../../../components/mobile-admin/state';
 import { formatSize } from '../../../components/mobile-admin/format';
 
@@ -89,7 +91,7 @@ function onPick(e: Event): void {
 
 async function start(files: File[]): Promise<void> {
   const batch: UpTile[] = files.map((f) =>
-    reactive({ key: ++tileKey, preview: URL.createObjectURL(f), name: '', phase: 'upload', progress: 0, label: t('mobileAdmin.media.uploading') }),
+    reactive({ key: ++tileKey, preview: f.type.startsWith('image/') ? URL.createObjectURL(f) : '', name: '', phase: 'upload', progress: 0, label: t('mobileAdmin.media.uploading') }),
   );
   tiles.value = [...batch, ...tiles.value];
   let items: MediaItem[];
@@ -187,7 +189,7 @@ function finish(batch: UpTile[], stat: { before: number; after: number; n: numbe
 
 function dropTiles(batch: UpTile[]): void {
   const keys = new Set(batch.map((b) => b.key));
-  batch.forEach((b) => URL.revokeObjectURL(b.preview));
+  batch.forEach((b) => { if (b.preview) URL.revokeObjectURL(b.preview); });
   tiles.value = tiles.value.filter((x) => !keys.has(x.key));
 }
 
@@ -196,6 +198,8 @@ const gridItems = computed(() => {
   const pending = new Set(tiles.value.map((x) => x.name).filter(Boolean));
   return (cache.media ?? []).filter((m) => !pending.has(m.name));
 });
+/** 看图器只放图片；视频 / 音频 / 文件点开时在新标签页播放或下载 */
+const imageItems = computed(() => gridItems.value.filter((m) => mediaKind(m) === 'image'));
 
 /* ---------- 一键压缩存量 ---------- */
 const bulk = ref<{ done: number; total: number } | null>(null);
@@ -236,11 +240,19 @@ const viewerOpen = ref(false);
 const viewerIndex = ref(0);
 const gridEl = ref<HTMLElement | null>(null);
 function openAt(k: number): void {
-  viewerIndex.value = k;
+  const m = gridItems.value[k];
+  if (!m) return;
+  if (mediaKind(m) !== 'image') {
+    window.open(m.url, '_blank', 'noopener');
+    return;
+  }
+  viewerIndex.value = imageItems.value.indexOf(m);
   viewerOpen.value = true;
 }
 function sourceOf(k: number): HTMLElement | null {
-  return gridEl.value?.querySelector<HTMLElement>(`[data-k="${k}"] img`) ?? null;
+  const m = imageItems.value[k];
+  const at = m ? gridItems.value.indexOf(m) : -1;
+  return gridEl.value?.querySelector<HTMLElement>(`[data-k="${at}"] img`) ?? null;
 }
 async function copyLink(m: MediaItem): Promise<void> {
   const url = `${window.location.origin}${m.url}`;
@@ -279,7 +291,7 @@ async function removeItem(m: MediaItem): Promise<void> {
     <template #right>
       <label class="icbtn tap" :aria-label="t('mobileAdmin.create.upload')">
         <MaIcon name="upload" :size="20" />
-        <input type="file" accept="image/*" multiple hidden @change="onPick" />
+        <input type="file" multiple hidden @change="onPick" />
       </label>
     </template>
 
@@ -309,7 +321,7 @@ async function removeItem(m: MediaItem): Promise<void> {
 
       <div ref="gridEl" class="mgrid">
         <div v-for="u in tiles" :key="`u${u.key}`" class="m up" :class="u.phase">
-          <img :src="u.preview" alt="" />
+          <img v-if="u.preview" :src="u.preview" alt="" />
           <div class="prog">
             <MaRing :value="u.progress" :indeterminate="u.phase === 'upload'" :size="34" />
             <MaIcon v-if="u.phase === 'done'" name="check" :size="16" class="ok" />
@@ -324,21 +336,21 @@ async function removeItem(m: MediaItem): Promise<void> {
           :style="{ '--k': Math.min(k, 24) }"
           @click="openAt(k)"
         >
-          <img :src="m.thumb" alt="" loading="lazy" draggable="false" />
+          <MediaTile :item="m" />
           <small>{{ formatSize(m.size) }}</small>
         </button>
       </div>
       <div v-if="!gridItems.length && !tiles.length" class="empty">
         <span class="ring"><MaIcon name="image" /></span>
         <b>{{ t('mobileAdmin.media.empty') }}</b>
-        <label class="pill-btn tap">{{ t('mobileAdmin.create.upload') }}<input type="file" accept="image/*" multiple hidden @change="onPick" /></label>
+        <label class="pill-btn tap">{{ t('mobileAdmin.create.upload') }}<input type="file" multiple hidden @change="onPick" /></label>
       </div>
     </template>
 
     <MaViewer
       ref="viewer"
       v-model:index="viewerIndex"
-      :items="gridItems"
+      :items="imageItems"
       :open="viewerOpen"
       :source="sourceOf"
       @close="viewerOpen = false"

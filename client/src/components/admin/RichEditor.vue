@@ -7,10 +7,7 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
-import {
-  BetweenHorizontalEnd, BetweenHorizontalStart, BetweenVerticalEnd, BetweenVerticalStart,
-  ExternalLink, Grid2x2X, Minus, PanelTop, Pencil, Unlink,
-} from 'lucide';
+import { ExternalLink, Grid2x2X, PanelTop, Pencil, Unlink } from 'lucide';
 import type { MediaItem, MediaKindName } from '../../api';
 import { useI18n } from 'vue-i18n';
 import '../../views/admin/studio/i18n';
@@ -244,18 +241,32 @@ const tableBar = computed(() => {
   return { x: r.x, y: r.y - 44 };
 });
 
-const TABLE_TOOLS = computed(() => [
-  { icon: BetweenHorizontalStart, title: t('studio.table.rowBefore'), run: () => editor.chain().focus().addRowBefore().run() },
-  { icon: BetweenHorizontalEnd, title: t('studio.table.rowAfter'), run: () => editor.chain().focus().addRowAfter().run() },
-  { icon: Minus, title: t('studio.table.rowDelete'), label: t('studio.table.row'), run: () => editor.chain().focus().deleteRow().run() },
-  'sep' as const,
-  { icon: BetweenVerticalStart, title: t('studio.table.colBefore'), run: () => editor.chain().focus().addColumnBefore().run() },
-  { icon: BetweenVerticalEnd, title: t('studio.table.colAfter'), run: () => editor.chain().focus().addColumnAfter().run() },
-  { icon: Minus, title: t('studio.table.colDelete'), label: t('studio.table.col'), run: () => editor.chain().focus().deleteColumn().run() },
-  'sep' as const,
-  { icon: PanelTop, title: t('studio.table.header'), run: () => editor.chain().focus().toggleHeaderRow().run() },
-  { icon: Grid2x2X, title: t('studio.table.remove'), danger: true, run: () => editor.chain().focus().deleteTable().run() },
+/**
+ * 表格工具条：按「行 / 列」分组，每个按钮直接写明动作（纯方向图标难以理解）；
+ * 表头是开关，删除表格单列并标危险色。
+ */
+const TABLE_GROUPS = computed(() => [
+  {
+    label: t('studio.table.row'),
+    items: [
+      { text: t('studio.table.above'), title: t('studio.table.rowBefore'), run: () => editor.chain().focus().addRowBefore().run() },
+      { text: t('studio.table.below'), title: t('studio.table.rowAfter'), run: () => editor.chain().focus().addRowAfter().run() },
+      { text: t('studio.table.del'), title: t('studio.table.rowDelete'), run: () => editor.chain().focus().deleteRow().run() },
+    ],
+  },
+  {
+    label: t('studio.table.col'),
+    items: [
+      { text: t('studio.table.left'), title: t('studio.table.colBefore'), run: () => editor.chain().focus().addColumnBefore().run() },
+      { text: t('studio.table.right'), title: t('studio.table.colAfter'), run: () => editor.chain().focus().addColumnAfter().run() },
+      { text: t('studio.table.del'), title: t('studio.table.colDelete'), run: () => editor.chain().focus().deleteColumn().run() },
+    ],
+  },
 ]);
+const headerOn = computed(() => {
+  void version.value;
+  return editor.isActive('tableHeader');
+});
 
 /** 插入表格：光标已在表格里时不插（不允许表格套表格） */
 function insertTable(): void {
@@ -340,12 +351,17 @@ defineExpose({
     <!-- 表格工具条 -->
     <Transition name="rb-pop">
       <div v-if="tableBar" class="rb table-bar" :style="{ left: `${tableBar.x}px`, top: `${tableBar.y}px` }" @mousedown.prevent>
-        <template v-for="(tool, i) in TABLE_TOOLS" :key="i">
-          <span v-if="tool === 'sep'" class="sep" />
-          <button v-else type="button" :class="{ danger: tool.danger }" :title="tool.title" @click="tool.run()">
-            <Icon :icon="tool.icon" :size="15" /><small v-if="tool.label">{{ tool.label }}</small>
-          </button>
+        <template v-for="g in TABLE_GROUPS" :key="g.label">
+          <span class="grp-l">{{ g.label }}</span>
+          <button v-for="it in g.items" :key="it.title" type="button" class="txt" :title="it.title" @click="it.run()">{{ it.text }}</button>
+          <span class="sep" />
         </template>
+        <button type="button" class="txt" :class="{ on: headerOn }" :title="t('studio.table.header')" @click="editor.chain().focus().toggleHeaderRow().run()">
+          <Icon :icon="PanelTop" :size="14" />{{ t('studio.table.headerShort') }}
+        </button>
+        <button type="button" class="txt danger" :title="t('studio.table.remove')" @click="editor.chain().focus().deleteTable().run()">
+          <Icon :icon="Grid2x2X" :size="14" />{{ t('studio.table.removeShort') }}
+        </button>
       </div>
     </Transition>
 
@@ -635,11 +651,23 @@ defineExpose({
     background: none;
 
     small { font-size: 11.5px; }
+
+    /* 表格工具条：文字按钮 */
+    &.txt { padding: 0 8px; font: 500 12.5px var(--font-sans); white-space: nowrap; }
+    &.on { color: var(--ink, var(--primary)); background: var(--tint, var(--surface-2)); }
     &:hover { color: var(--st-ink, var(--text)); background: var(--hover, var(--surface-2)); }
     &.danger:hover { color: #fff; background: color-mix(in oklab, var(--red, #ff0032) 85%, black); }
   }
 
   .sep { width: 1px; height: 18px; margin: 0 3px; background: var(--line-2, var(--border)); }
+
+  .grp-l {
+    padding: 0 4px 0 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--st-ink-4, var(--text-2));
+    letter-spacing: 0.08em;
+  }
 }
 
 .link-bubble .href {

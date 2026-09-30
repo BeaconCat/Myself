@@ -12,6 +12,11 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* 移动端外壳由内部容器滚动、页面本身不滚：不预留槽位，否则右侧凭空多出一条 */
+@media (max-width: 767px) {
+  html { scrollbar-gutter: auto; }
+}
+
 /* 原生控件（滚动条/输入清除钮/日期选择器）随模式走，避免深色下冒出亮色系统 UI */
 :root[data-mode='light'] { color-scheme: light; }
 :root[data-mode='dark'] { color-scheme: dark; }

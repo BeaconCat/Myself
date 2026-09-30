@@ -580,6 +580,8 @@ onBeforeUnmount(() => {
 .editor {
   position: relative;
   height: 100%;
+  /* 收起的设置抽屉平移在屏幕外：裁掉，不能被横向滚动露出来（clip 不建滚动容器） */
+  overflow: clip;
   display: flex;
   flex-direction: column;
   background: var(--paper);
@@ -804,11 +806,13 @@ onBeforeUnmount(() => {
   background: var(--paper);
   box-shadow: var(--sh-pop);
   transform: translateX(calc(100% + 30px));
-  transition: transform var(--dur-slow) var(--ease-spring);
+  /* 收起：滑出后再隐藏（visibility 延迟切换），读屏与 Tab 也不会进到里面 */
+  visibility: hidden;
+  transition: transform var(--dur-slow) var(--ease-spring), visibility 0s linear var(--dur-slow);
   display: flex;
   flex-direction: column;
 
-  .drawer & { transform: none; }
+  .drawer & { transform: none; visibility: visible; transition: transform var(--dur-slow) var(--ease-spring), visibility 0s; }
 }
 
 :root[data-mode='dark'] .drawer-p { background: var(--well); }
