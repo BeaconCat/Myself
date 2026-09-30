@@ -182,7 +182,7 @@ onBeforeUnmount(() => {
   gap: 16px;
   padding: 44px 40px 32px;
 
-  .logo { width: 40px; height: 40px; border-radius: var(--r-sm); box-shadow: 0 6px 14px -6px rgba(10, 20, 40, 0.5); }
+  .logo { width: 40px; height: 40px; object-fit: cover; border-radius: var(--r-md); box-shadow: 0 6px 14px -6px rgba(10, 20, 40, 0.5); }
 
   h1 { font: 600 26px/1.3 var(--font-serif); margin: 6px 0 0; }
   .sub { margin: -8px 0 8px; font-size: 13.5px; color: var(--st-ink-3); }

@@ -351,7 +351,8 @@ onBeforeUnmount(() => {
   img {
     width: 30px;
     height: 30px;
-    border-radius: var(--r-xs);
+    object-fit: cover;
+    border-radius: var(--r-md);
     box-shadow: 0 4px 10px -4px rgba(10, 20, 40, 0.5);
   }
 

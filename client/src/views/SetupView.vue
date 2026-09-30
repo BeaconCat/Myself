@@ -412,7 +412,7 @@ onBeforeUnmount(() => {
   z-index: 1;
   color: #fff;
 
-  .logo { width: 36px; height: 36px; margin-bottom: 16px; border-radius: 9px; box-shadow: 0 8px 18px -8px rgb(0 0 0 / 0.6); }
+  .logo { width: 36px; height: 36px; margin-bottom: 16px; object-fit: cover; border-radius: var(--r-md); box-shadow: 0 8px 18px -8px rgb(0 0 0 / 0.6); }
   p { margin: 0 0 8px; font: 600 21px/1.5 var(--font-serif); letter-spacing: 0.03em; }
   small { font-size: 12px; letter-spacing: 0.08em; color: rgb(255 255 255 / 0.62); }
 }

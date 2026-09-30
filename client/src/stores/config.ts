@@ -231,7 +231,7 @@ export const useConfigStore = defineStore('config', {
       this.loaded = true;
       markLoaded();
       document.title = this.cfg.site.title;
-      applyFavicon(this.cfg.site.logo ?? '');
+      applyFavicon(this.cfg.site.logo ?? '', this.cfg.theme.radius ?? 10);
     },
   },
 });

@@ -334,7 +334,7 @@ const nextQuery = computed(() => (next.value !== '/' ? { next: next.value } : {}
   color: var(--text-2);
   font-size: 14px;
 
-  img { width: 30px; height: 30px; border-radius: var(--r-sm); object-fit: cover; }
+  img { width: 30px; height: 30px; border-radius: var(--r-md); object-fit: cover; }
   &:hover { color: var(--text); }
 }
 
