@@ -332,7 +332,8 @@ a.st-stat, button.st-stat {
     border-radius: var(--r-xs);
     overflow: hidden;
     transform-origin: bottom;
-    animation: st-bar-up 0.9s var(--ease-spring) both;
+    /* 用 ease-out 平稳长到位；回弹缓动会让 scaleY 先超过 1 再落回，像上下弹一下 */
+    animation: st-bar-up 0.9s var(--ease-out) both;
     animation-delay: calc(var(--i, 0) * 50ms + 0.25s);
 
     i { display: block; min-height: 0; }

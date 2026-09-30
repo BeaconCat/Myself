@@ -6,6 +6,7 @@ import type { StatusData } from '../types';
 import type { ModProps } from './props';
 import ModHead from '../parts/ModHead.vue';
 import { ago, pad2, useClock, zoned } from '../useClock';
+import { useIdentity } from '../useIdentity';
 
 /** 在线状态（status）：头像 + 状态环、当前活动（均衡器动效）、最后活跃与本地时间 */
 const props = defineProps<ModProps>();
@@ -17,8 +18,8 @@ const config = useConfigStore();
 const COLORS: Record<string, string> = { online: '#00c853', focus: '#ffb300', away: '#8390a6' };
 const color = computed(() => COLORS[d.value.state] ?? COLORS.online);
 
-/** 头像：站点身份的头像，其次形象图，最后回落 logo；时区取身份状态 */
-const avatar = computed(() => config.cfg.about.avatar || config.cfg.about.portrait?.src || config.cfg.site.logo || '/favicon-256.png');
+/** 头像：站点身份头像（未上传时回落站点 logo，与全站一致）；时区取身份状态 */
+const { avatar } = useIdentity();
 const tz = computed(() => Number(config.cfg.about.status?.tz ?? 8));
 const clock = computed(() => zoned(now.value, tz.value));
 const last = computed(() => ago(d.value.lastActive, t, now.value) || t('aboutKit.status.justNow'));

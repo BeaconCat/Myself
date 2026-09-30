@@ -38,10 +38,19 @@ const (
 // loginRe 登录名：字母开头，3–24 位字母、数字、下划线或短横线。
 var loginRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{2,23}$`)
 
-// ownerAvatar 站点身份头像（站长未单独设置头像时使用）。
+// builtinLogo 内置 logo（与前端 BUILTIN_LOGO 一致）。
+const builtinLogo = "/favicon-256.png"
+
+// ownerAvatar 站长未单独设置头像时展示的头像：身份头像 → 站点 logo → 内置 logo（与前台身份展示同一条回退链）。
 func (s *Server) ownerAvatar() string {
-	v, _ := config.Sub(s.Config.Get(), "about")["avatar"].(string)
-	return v
+	cfg := s.Config.Get()
+	if v, _ := config.Sub(cfg, "about")["avatar"].(string); v != "" {
+		return v
+	}
+	if v, _ := config.Sub(cfg, "site")["logo"].(string); v != "" {
+		return v
+	}
+	return builtinLogo
 }
 
 // avatarOf 用户对外展示的头像：站长没有自己的头像时用身份头像。

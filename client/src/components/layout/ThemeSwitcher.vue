@@ -30,14 +30,14 @@ function persistAsDefault(patch: Record<string, string>): void {
 
 function onPalette(e: MouseEvent, id: string): void {
   if (id === theme.paletteId) return;
-  circularReveal(origin(e), () => theme.setPalette(id, auth.loggedIn), 'expand');
+  circularReveal(origin(e), () => theme.setPalette(id, auth.loggedIn), 'expand', { edge: true });
   persistAsDefault({ defaultPaletteId: id });
 }
 
 /** 界面风格：卡片 ⇄ 简洁，圆形揭幕与深浅切换同一套过渡 */
 function onStyle(e: MouseEvent, style: UiStyle): void {
   if (style === theme.style) return;
-  circularReveal(origin(e), () => theme.setStyle(style, auth.loggedIn), style === 'clean' ? 'expand' : 'contract');
+  circularReveal(origin(e), () => theme.setStyle(style, auth.loggedIn), style === 'clean' ? 'expand' : 'contract', { edge: true });
   persistAsDefault({ defaultStyle: style });
 }
 
@@ -125,7 +125,7 @@ function onMode(e: MouseEvent): void {
   }
 }
 
-/* 色盘圆点：实色 + 中性内描边 / 顶光；选中 = 外圈细环（文字色），无同色投影 */
+/* 色盘圆点：实色 + 中性内描边 / 顶光；选中 = 本色外圈细环，无投影 */
 .dot {
   position: relative;
   width: 26px;
@@ -150,7 +150,8 @@ function onMode(e: MouseEvent): void {
     position: absolute;
     inset: 2px;
     border-radius: 50%;
-    box-shadow: 0 0 0 1.5px var(--text);
+    /* 选中：本色细环（不用深色大圈） */
+    box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--c) 75%, transparent);
     opacity: 0;
     transform: scale(0.8);
     transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-spring);
@@ -160,7 +161,7 @@ function onMode(e: MouseEvent): void {
   &:active { transform: scale(0.9); }
 
   &.active::after {
-    opacity: 0.85;
+    opacity: 1;
     transform: none;
   }
 

@@ -60,6 +60,10 @@ export default {
   },
   /* 关于页组件库（about-kit v2）：前台模块 + 后台模块编辑器 */
   aboutKit: {
+    yearPerMonth: '每月{metric}',
+    yearPerMonthPlain: '每月数量',
+    yearTotal: '全年 {n}',
+    yearPeak: '峰值 {m} 月 {n}',
     kicker: '关于 · 第 {n} 天',
     doing: '正在做',
     city: '所在城市',

@@ -35,7 +35,7 @@ const links = [
 <template>
   <footer class="site-footer">
     <div class="in">
-      <router-link to="/" class="who">
+      <router-link to="/about" class="who">
         <img class="logo" :class="{ face: hasAvatar }" :src="avatar" alt="" width="40" height="40" />
         <span>
           <b><IdentityName :name="name" :alias="alias" /></b>

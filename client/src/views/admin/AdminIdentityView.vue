@@ -296,7 +296,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="pt-block">
-              <figure class="pt-thumb" :class="[`fade-${about.portrait.fade}`, { logo: !about.portrait.src, busy: uploading === 'portrait' }]" :style="{ '--fw': `${fadeW}%` }" @click="portraitInput?.click()">
+              <figure class="pt-thumb" :class="[`fade-${about.portrait.fade}`, { logo: !about.portrait.src && !site.logo, busy: uploading === 'portrait' }]" :style="{ '--fw': `${fadeW}%` }" @click="portraitInput?.click()">
                 <span class="pt-frame" :style="{ borderRadius: radiusAuto ? 'var(--r-lg)' : `${Math.round((about.portrait.radius ?? 24) * 0.5)}px` }">
                   <img :src="about.portrait.src || site.logo || '/logo-1024.webp'" alt="" draggable="false" :style="{ objectPosition: about.portrait.focus || '50% 40%' }" />
                 </span>
@@ -672,7 +672,6 @@ onBeforeUnmount(() => {
   position: relative;
   align-self: start;
   margin: 0;
-  aspect-ratio: 4 / 5;
   cursor: pointer;
   border-radius: var(--r-md);
   overflow: hidden;
@@ -680,12 +679,13 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 1px var(--line) inset;
 }
 
+/* 按原图比例完整显示（与关于页一致），过高的图限高 */
 .pt-frame {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  display: block;
   overflow: hidden;
 
-  img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  img { width: 100%; height: auto; max-height: 280px; object-fit: contain; display: block; }
 }
 
 /* 未上传形象图：logo 原图自带圆角底，缩略图去掉纸面底与描边，按方形显示 */

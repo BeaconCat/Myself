@@ -6,7 +6,10 @@ import type { ModProps } from './props';
 import CountUp from '../parts/CountUp.vue';
 import ModHead from '../parts/ModHead.vue';
 
-/** 年度回顾（year）：按年切换 —— 大号年份 + 统计条 + 撑满宽度的 12 个月柱状图（峰值实色、未来月虚线、黄点标大事）+ 高光 */
+/**
+ * 年度回顾（year）：按年切换 —— 大号年份 + 统计条 + 撑满宽度的 12 个月柱状图（峰值实色、未来月虚线、黄点标大事）+ 高光。
+ * 图表上方一行说明柱子口径（「每月提交」）与全年合计 / 峰值，数字的含义一眼可读。
+ */
 const props = defineProps<ModProps>();
 const d = computed(() => props.mod.data as YearData);
 const { t } = useI18n();
@@ -27,6 +30,23 @@ const bars = computed(() => {
     pin: (Y.value?.pins ?? []).includes(i),
   }));
 });
+
+/** 图表说明行：全年合计与峰值月（只算已有数据的月份） */
+const summary = computed(() => {
+  const months = Y.value?.months ?? [];
+  let total = 0;
+  let peak = -1;
+  let peakAt = -1;
+  months.forEach((v, i) => {
+    if (v == null) return;
+    total += v;
+    if (v > peak) {
+      peak = v;
+      peakAt = i;
+    }
+  });
+  return { total, peak: Math.max(0, peak), month: peakAt + 1 };
+});
 </script>
 
 <template>
@@ -34,7 +54,6 @@ const bars = computed(() => {
     <div v-if="years.length > 1" class="ak-seg">
       <button v-for="y in years" :key="y" :class="{ on: y === year }" @click="picked = y">{{ y }}</button>
     </div>
-    <template v-else>{{ d.metric }}</template>
   </ModHead>
   <div v-if="Y" :key="year" class="yr">
     <div class="yr-top">
@@ -42,6 +61,12 @@ const bars = computed(() => {
       <div class="ak-statbar yr-nums" :style="{ '--n': Y.nums.length || 4 }">
         <div v-for="([k, v], i) in Y.nums" :key="i" class="ak-stat"><b><CountUp :value="Number(v) || 0" /></b><span>{{ k }}</span></div>
       </div>
+    </div>
+    <div class="yr-cap">
+      <span class="k"><i />{{ d.metric ? t('aboutKit.yearPerMonth', { metric: d.metric }) : t('aboutKit.yearPerMonthPlain') }}</span>
+      <span v-if="summary.month > 0" class="s">
+        {{ t('aboutKit.yearTotal', { n: summary.total }) }}<em>·</em>{{ t('aboutKit.yearPeak', { m: summary.month, n: summary.peak }) }}
+      </span>
     </div>
     <div class="yr-chart" :data-metric="d.metric">
       <div v-for="(b, i) in bars" :key="i" class="c">
@@ -73,6 +98,30 @@ const bars = computed(() => {
 
 .yr-nums { width: 100%; max-width: 640px; justify-self: end; }
 
+/* 图表说明行：左侧口径（小方块同柱色），右侧全年合计 · 峰值 */
+.yr-cap {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 26px;
+  font-size: 13px;
+  color: var(--ak-text-3);
+
+  .k {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--text-2);
+    font-weight: 500;
+
+    i { width: 9px; height: 9px; border-radius: 2px; background: color-mix(in oklab, var(--ak-ink) 45%, transparent); }
+  }
+
+  .s { font-family: var(--ak-mono); font-size: 12.5px; white-space: nowrap; }
+  em { margin: 0 6px; font-style: normal; opacity: 0.6; }
+}
+
 /* 柱状图撑满模块宽度：柱子随列宽放大（不设上限），数值 12px 等宽 */
 .yr-chart {
   position: relative;
@@ -81,7 +130,7 @@ const bars = computed(() => {
   gap: 10px;
   align-items: end;
   height: 190px;
-  padding-top: 26px;
+  padding-top: 22px;
   border-bottom: 1px solid var(--ak-line-2);
 
   .c { position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }

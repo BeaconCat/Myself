@@ -24,7 +24,8 @@ const about = computed(() => config.cfg.about);
 <style scoped lang="scss">
 .about-page {
   position: relative;
-  padding: 8px 0 32px;
+  /* 桌面：让出悬浮胶囊导航的高度，身份区（尤其右侧形象图）不与导航重叠 */
+  padding: 56px 0 32px;
   overflow-x: clip;
 }
 

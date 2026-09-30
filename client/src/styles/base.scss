@@ -75,6 +75,38 @@ html:not(.vt-contract)::view-transition-new(root) {
 .vt-contract::view-transition-old(root) { z-index: 2; }
 .vt-contract::view-transition-new(root) { z-index: 1; }
 
+/* 揭幕冲击波：独立成层浮在两张快照之上；宿主铺满视口不动，渐变粗环在里面扩散 / 收拢 */
+.vt-ring-host {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  view-transition-name: vt-ring;
+}
+
+.vt-ring {
+  --rw: 36px;
+
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  /* 冲击波：纯渐变，无实线——向外缘逐渐加深（最深约 55%），向内 --rw 的距离里渐渐透明（径向渐变随圆大小实时计算） */
+  background: radial-gradient(
+    closest-side,
+    transparent calc(100% - var(--rw)),
+    color-mix(in oklab, var(--primary) 8%, transparent) calc(100% - var(--rw) * 0.65),
+    color-mix(in oklab, var(--primary) 26%, transparent) calc(100% - var(--rw) * 0.3),
+    color-mix(in oklab, var(--primary) 55%, transparent) calc(100% - 1px),
+    transparent 100%
+  );
+}
+
+::view-transition-group(vt-ring) { z-index: 4; animation: none; }
+::view-transition-old(vt-ring) { display: none; }
+::view-transition-new(vt-ring) { animation: none; }
+
 /*
  * 顶栏风格切换（简洁 / 卡片）单独成层、浮在两张整页快照之上，始终显示新画面的实时渲染：
  * 否则 contract 方向时旧快照一直盖着它直到收拢，选中块的滑动看不见、最后一下跳过去。
