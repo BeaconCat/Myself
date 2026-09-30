@@ -47,6 +47,15 @@ func (o *oauthStates) put(key string, st oauthState) {
 			delete(o.m, k)
 		}
 	}
+	// 未登录也能发起：设总量上限，防止匿名请求把表撑爆
+	if len(o.m) >= 10000 {
+		for k := range o.m {
+			delete(o.m, k)
+			if len(o.m) < 9000 {
+				break
+			}
+		}
+	}
 	o.m[key] = st
 }
 
@@ -219,6 +228,10 @@ func (s *Server) createGitHubUser(cfg config.Typed, st oauthState, p ghProfile, 
 		t, err := s.Auth.PeekToken("invite", st.invite)
 		if err != nil || !roleOn(cfg, t.Role) {
 			return nil, oauthErr("invalid_invite")
+		}
+		// 邀请绑定了邮箱时，GitHub 已验证的主邮箱必须一致（与注册流程相同）
+		if t.Email != "" && !strings.EqualFold(t.Email, email) {
+			return nil, oauthErr("invite_email_mismatch")
 		}
 		invite, role = t, t.Role
 	} else if !cfg.Users.ReadersOn() || cfg.Users.Readers.Signup != "open" {

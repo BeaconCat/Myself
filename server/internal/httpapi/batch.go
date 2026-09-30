@@ -68,6 +68,11 @@ func (s *Server) adminBatchPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	scope, args := authorScope(r)
+	// 作者可以自己隐藏 / 删除，但不能把站长隐藏（下架）的文章重新放出来
+	if scope != "" && b.Action == "show" {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
 	s.runBatch(w, "posts", b, scope, args)
 }
 

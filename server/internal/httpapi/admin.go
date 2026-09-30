@@ -269,9 +269,40 @@ func (s *Server) siteConfig(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
-// GET /admin/settings 完整配置
+// secretMask 设置里密钥类字段回显用的占位：浏览器拿不到明文（后台万一被 XSS 也偷不走）；
+// 保存时收到原样的占位视为「不修改」，清空才是删除
+const secretMask = "••••••••"
+
+// secretFields 只写不读的配置字段（段 → 子段… → 字段）
+var secretFields = [][]string{{"mail", "password"}, {"oauth", "github", "clientSecret"}, {"github", "token"}}
+
+// walkSecret 找到密钥字段所在的父对象（不存在时返回 nil）
+func walkSecret(m config.Map, path []string) config.Map {
+	for _, k := range path[:len(path)-1] {
+		next, ok := m[k].(config.Map)
+		if !ok {
+			return nil
+		}
+		m = next
+	}
+	return m
+}
+
+// maskSecrets 就地把已设置的密钥字段替换为占位
+func maskSecrets(cfg config.Map) config.Map {
+	for _, p := range secretFields {
+		if parent := walkSecret(cfg, p); parent != nil {
+			if v, _ := parent[p[len(p)-1]].(string); v != "" {
+				parent[p[len(p)-1]] = secretMask
+			}
+		}
+	}
+	return cfg
+}
+
+// GET /admin/settings 完整配置（密钥字段打码）
 func (s *Server) adminGetSettings(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, s.Config.Get())
+	writeJSON(w, http.StatusOK, maskSecrets(s.Config.Get()))
 }
 
 // PUT /admin/settings 部分更新（深合并）
@@ -281,6 +312,12 @@ func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_config")
 		return
 	}
+	// 密钥字段回传的仍是打码占位：去掉，保留原值
+	for _, sp := range secretFields {
+		if parent := walkSecret(patch, sp); parent != nil && parent[sp[len(sp)-1]] == secretMask {
+			delete(parent, sp[len(sp)-1])
+		}
+	}
 	// 改站点名称时，仍沿用旧名的启动文案 / 发件人名称跟着改
 	config.FollowSiteTitle(s.Config.Get(), patch)
 	merged, err := s.Config.Save(patch)
@@ -288,7 +325,7 @@ func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, merged)
+	writeJSON(w, http.StatusOK, maskSecrets(merged))
 }
 
 // publicUsersConfig 公开下发的用户系统开关（不含任何发信 / OAuth 密钥）。

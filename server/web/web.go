@@ -36,6 +36,8 @@ func ContentSecurityPolicy(index []byte) string {
 		"script-src " + strings.Join(scripts, " "),
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data: blob: https:",
+		// 正文可嵌入 https 外链视频 / 音频（@[video](https://…)）
+		"media-src 'self' blob: https:",
 		"font-src 'self' data:",
 		"connect-src 'self'",
 		"object-src 'none'",

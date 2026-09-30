@@ -214,3 +214,24 @@ func TestCompressionRecordSanitized(t *testing.T) {
 		t.Fatalf("unsafe compressed_from used: %+v", c)
 	}
 }
+
+// 后台设置里的密钥只写不读：读取得到占位；回传占位不改原值；清空才删除
+func TestSettingsSecretsMasked(t *testing.T) {
+	e := newEnv(t)
+	e.call(http.MethodPut, "/api/v1/admin/settings", map[string]any{"mail": map[string]any{"password": "s3cret"}}, nil, http.StatusOK)
+	var got struct {
+		Mail struct{ Password string }
+	}
+	e.call(http.MethodGet, "/api/v1/admin/settings", nil, &got, http.StatusOK)
+	if got.Mail.Password != secretMask {
+		t.Fatalf("password not masked: %q", got.Mail.Password)
+	}
+	e.call(http.MethodPut, "/api/v1/admin/settings", map[string]any{"mail": map[string]any{"password": secretMask, "host": "smtp.x"}}, &got, http.StatusOK)
+	if got.Mail.Password != secretMask || e.server.Config.Typed().Mail.Password != "s3cret" {
+		t.Fatalf("mask overwrote secret: %q", e.server.Config.Typed().Mail.Password)
+	}
+	e.call(http.MethodPut, "/api/v1/admin/settings", map[string]any{"mail": map[string]any{"password": ""}}, nil, http.StatusOK)
+	if e.server.Config.Typed().Mail.Password != "" {
+		t.Fatal("clearing secret failed")
+	}
+}

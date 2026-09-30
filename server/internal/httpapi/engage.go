@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"crypto/hmac"
 	"net/http"
 	"strconv"
 	"strings"
@@ -63,8 +64,11 @@ func (s *Server) voterOf(w http.ResponseWriter, r *http.Request, create bool) st
 	if u, _ := s.currentUser(r); u != nil {
 		return "u:" + strconv.FormatInt(u.ID, 10)
 	}
-	if c, err := r.Cookie(visitorCookie); err == nil && len(c.Value) == 32 {
-		return "v:" + c.Value
+	// 访客标识 = 随机 id + 服务端签名：不能随手伪造任意 id 来刷回应（未签名的旧 Cookie 视为无效，重新签发）
+	if c, err := r.Cookie(visitorCookie); err == nil {
+		if id, sig, ok := strings.Cut(c.Value, "."); ok && len(id) == 32 && hmac.Equal([]byte(sig), []byte(s.keyed("visitor", id)[:32])) {
+			return "v:" + id
+		}
 	}
 	if !create {
 		return ""
@@ -74,7 +78,7 @@ func (s *Server) voterOf(w http.ResponseWriter, r *http.Request, create bool) st
 		return ""
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name: visitorCookie, Value: id, Path: "/api/", MaxAge: 365 * 24 * 3600,
+		Name: visitorCookie, Value: id + "." + s.keyed("visitor", id)[:32], Path: "/api/", MaxAge: 365 * 24 * 3600,
 		HttpOnly: true, Secure: secureRequest(r), SameSite: http.SameSiteLaxMode,
 	})
 	return "v:" + id
@@ -154,12 +158,45 @@ func (s *Server) engage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_target")
 		return
 	}
-	out, err := s.summaries(target, parseIDs(r.URL.Query().Get("ids"), 100), s.voterOf(w, r, false))
+	ids := parseIDs(r.URL.Query().Get("ids"), 100)
+	// 只给公开内容的统计（草稿 / 隐藏的回应数与评论数不外泄，也不能借此探测 id 是否存在）；站长不受限
+	if !s.isAdminReq(r) {
+		ids = s.publicIDs(target, ids)
+	}
+	out, err := s.summaries(target, ids, s.voterOf(w, r, false))
 	if err != nil {
 		fail(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// publicIDs 过滤出公开的文章 / 随想 id
+func (s *Server) publicIDs(target string, ids []int64) []int64 {
+	if len(ids) == 0 {
+		return ids
+	}
+	q := `SELECT id FROM notes WHERE hidden = 0 AND id IN (`
+	if target == "post" {
+		q = `SELECT id FROM posts WHERE ` + store.PublicPost + ` AND id IN (`
+	}
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	rows, err := s.DB.Query(q+strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")+`)`, args...)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []int64
+	for rows.Next() {
+		var id int64
+		if rows.Scan(&id) == nil {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // reactionTargets 可回应的对象 → 存在性校验（只能回应已公开的内容）。

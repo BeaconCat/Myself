@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"myself/server/internal/auth"
 	"myself/server/internal/store"
 )
 
@@ -246,7 +245,7 @@ func (s *Server) createComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res, err := s.DB.Exec(`INSERT INTO comments (target, target_id, parent_id, user_id, guest_name, body, status, ip_hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, target, targetID, parent, uid, guest, text, status, auth.HashToken(ip)[:16])
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, target, targetID, parent, uid, guest, text, status, s.keyed("ip", ip)[:16])
 	if err != nil {
 		fail(w, err)
 		return
@@ -266,7 +265,7 @@ type adminComment struct {
 	// TargetKey 发表评论用的 key（文章 slug / 随想 id / 留言墙为空），后台回复时原样带回
 	TargetKey string `json:"targetKey"`
 	HasLink   bool   `json:"hasLink"`
-	IPHash    string `json:"ipHash"`
+	IPHash    string `json:"ipHash,omitempty"`
 }
 
 // commentScope 后台评论的可见范围：协作作者只能管理自己文章下的评论。
@@ -336,6 +335,10 @@ func (s *Server) adminListComments(w http.ResponseWriter, r *http.Request) {
 			&it.Target, &targetID, &ptitle, &pslug, &nbody, &it.IPHash); err != nil {
 			fail(w, err)
 			return
+		}
+		// 来源标识只给站长（用于识别刷评论），协作作者看不到
+		if u := userOf(r); u == nil || u.Role != store.RoleAdmin {
+			it.IPHash = ""
 		}
 		if uid > 0 && uname != "" {
 			it.Author = commentAuthor{ID: uid, Name: uname, Avatar: uavatar, Role: urole}
