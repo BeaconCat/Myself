@@ -39,7 +39,7 @@ async function load(): Promise<void> {
   from.setDate(from.getDate() - 15);
   const [p, n, nt] = await Promise.all([
     adminApi.posts().catch(() => [] as AdminPost[]),
-    api.notes({ pageSize: 50, from: ymd(from) }).then((r) => r.items).catch(() => [] as Note[]),
+    api.notes({ pageSize: 50, from: ymd(from), all: true }).then((r) => r.items).catch(() => [] as Note[]),
     api.notes({ pageSize: 1 }).then((r) => r.total).catch(() => 0),
   ]);
   posts.value = p;

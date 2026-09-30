@@ -56,7 +56,7 @@ async function loadRefs(): Promise<void> {
     posts.forEach((p) => p.covers.forEach((u) => add(u, { kind: 'post', id: p.id, title: p.title })));
     const notes: Note[] = [];
     for (let page = 1; page <= 10; page += 1) {
-      const res = await api.notes({ page, pageSize: 50 });
+      const res = await api.notes({ page, pageSize: 50, all: true });
       notes.push(...res.items);
       if (page * 50 >= res.total) break;
     }
