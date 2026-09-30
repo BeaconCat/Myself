@@ -145,6 +145,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT "+p+"/me", member(s.updateMe))
 	mux.HandleFunc("POST "+p+"/me/avatar", member(s.uploadAvatar))
 	mux.HandleFunc("DELETE "+p+"/me/avatar", member(s.deleteAvatar))
+	mux.HandleFunc("GET "+p+"/avatar-pending/{name}", member(s.servePendingAvatar))
 	mux.HandleFunc("PUT "+p+"/me/login", member(s.changeLogin))
 	mux.HandleFunc("PUT "+p+"/me/email", member(s.changeEmail))
 	mux.HandleFunc("DELETE "+p+"/me/email/pending", member(s.cancelEmailChange))

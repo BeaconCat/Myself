@@ -60,7 +60,20 @@ func TestAvatarReview(t *testing.T) {
 	if pending == "" || userField(out, "avatar") != "" {
 		t.Fatalf("reader avatar should be pending: %v", out)
 	}
-	file := filepath.Join(e.root, "uploads", strings.TrimPrefix(pending, "/uploads/"))
+	// 待审头像不在公开目录：公开地址 404，匿名访问待审地址被拒，站长能看
+	if !strings.HasPrefix(pending, pendingAvatarURL) {
+		t.Fatalf("pending avatar should not be public: %s", pending)
+	}
+	pname := strings.TrimPrefix(pending, pendingAvatarURL)
+	for path, want := range map[string]int{"/uploads/" + pname: http.StatusNotFound, pending: http.StatusUnauthorized} {
+		res := e.do(http.MethodGet, path, nil, map[string]string{})
+		res.Body.Close()
+		if res.StatusCode != want {
+			t.Fatalf("GET %s: %d, want %d", path, res.StatusCode, want)
+		}
+	}
+	e.call(http.MethodGet, pending, nil, nil, http.StatusOK)
+	file := filepath.Join(e.root, "uploads", ".pending", pname)
 	cfg, _, err := func() (image.Config, string, error) {
 		f, err := os.Open(file)
 		if err != nil {
@@ -106,7 +119,7 @@ func TestAvatarReview(t *testing.T) {
 	}
 	e.call(http.MethodPut, "/api/v1/admin/users/"+itoa(id)+"/avatar", map[string]string{"action": "approve"}, nil, http.StatusOK)
 	_, me := e.as(tok, http.MethodGet, "/api/v1/auth/session", nil)
-	if userField(me, "avatar") != pending || userField(me, "avatarPending") != "" {
+	if userField(me, "avatar") != "/uploads/"+pname || userField(me, "avatarPending") != "" || !fileExists(filepath.Join(e.root, "uploads", pname)) {
 		t.Fatalf("after approve: %v", me)
 	}
 
@@ -114,28 +127,28 @@ func TestAvatarReview(t *testing.T) {
 	_, out = e.uploadAvatarAs(tok, 64, 64)
 	second := userField(out, "avatarPending")
 	e.call(http.MethodPut, "/api/v1/admin/users/"+itoa(id)+"/avatar", map[string]string{"action": "reject"}, nil, http.StatusOK)
-	if _, err := os.Stat(filepath.Join(e.root, "uploads", strings.TrimPrefix(second, "/uploads/"))); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(e.root, "uploads", ".pending", strings.TrimPrefix(second, pendingAvatarURL))); !os.IsNotExist(err) {
 		t.Fatal("rejected avatar file should be removed")
 	}
 	_, me = e.as(tok, http.MethodGet, "/api/v1/auth/session", nil)
-	if userField(me, "avatar") != pending {
+	if userField(me, "avatar") != "/uploads/"+pname {
 		t.Fatalf("reject changed avatar: %v", me)
 	}
 
 	// 撤回待审：只清待审那张，当前头像不变
 	_, out = e.uploadAvatarAs(tok, 64, 64)
 	third := userField(out, "avatarPending")
-	if c, out := e.as(tok, http.MethodDelete, "/api/v1/me/avatar?pending=1", nil); c != http.StatusOK || userField(out, "avatarPending") != "" || userField(out, "avatar") != pending {
+	if c, out := e.as(tok, http.MethodDelete, "/api/v1/me/avatar?pending=1", nil); c != http.StatusOK || userField(out, "avatarPending") != "" || userField(out, "avatar") != "/uploads/"+pname {
 		t.Fatalf("withdraw pending: %d %v", c, out)
 	}
-	if _, err := os.Stat(filepath.Join(e.root, "uploads", strings.TrimPrefix(third, "/uploads/"))); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(e.root, "uploads", ".pending", strings.TrimPrefix(third, pendingAvatarURL))); !os.IsNotExist(err) {
 		t.Fatal("withdrawn avatar file should be removed")
 	}
 
 	// PUT /me 不再接受外链头像
 	e.as(tok, http.MethodPut, "/api/v1/me", map[string]string{"name": "读者", "avatar": "https://evil.example/x.png"})
 	_, me = e.as(tok, http.MethodGet, "/api/v1/auth/session", nil)
-	if userField(me, "avatar") != pending {
+	if userField(me, "avatar") != "/uploads/"+pname {
 		t.Fatal("PUT /me must not set the avatar")
 	}
 }

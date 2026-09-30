@@ -1,6 +1,10 @@
 package httpapi
 
 import (
+	"bytes"
+	"encoding/binary"
+	"hash/crc32"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"testing"
@@ -117,5 +121,43 @@ func TestLoginCSRFAndAccountLockout(t *testing.T) {
 	res.Body.Close()
 	if res.StatusCode != http.StatusTooManyRequests {
 		t.Fatalf("account lockout not applied: %d", res.StatusCode)
+	}
+}
+
+// bombPNG 只有文件头、声明巨大尺寸的 PNG（解码时会一次性分配数 GB）
+func bombPNG(w, h uint32) []byte {
+	var buf bytes.Buffer
+	buf.Write([]byte("\x89PNG\r\n\x1a\n"))
+	chunk := func(typ string, data []byte) {
+		_ = binary.Write(&buf, binary.BigEndian, uint32(len(data)))
+		buf.WriteString(typ)
+		buf.Write(data)
+		c := crc32.NewIEEE()
+		c.Write([]byte(typ))
+		c.Write(data)
+		_ = binary.Write(&buf, binary.BigEndian, c.Sum32())
+	}
+	ihdr := make([]byte, 13)
+	binary.BigEndian.PutUint32(ihdr[0:], w)
+	binary.BigEndian.PutUint32(ihdr[4:], h)
+	ihdr[8], ihdr[9] = 8, 6 // 8 位 RGBA
+	chunk("IHDR", ihdr)
+	chunk("IDAT", nil)
+	chunk("IEND", nil)
+	return buf.Bytes()
+}
+
+// 头像解压炸弹：解码前按文件头拒绝，不分配巨量内存
+func TestAvatarDecodeBomb(t *testing.T) {
+	e := newEnv(t)
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	part, _ := mw.CreateFormFile("file", "a.png")
+	part.Write(bombPNG(20000, 20000))
+	mw.Close()
+	res := e.do(http.MethodPost, "/api/v1/me/avatar", &body, map[string]string{"Content-Type": mw.FormDataContentType(), "Authorization": "Bearer " + e.token})
+	res.Body.Close()
+	if res.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Fatalf("bomb avatar: %d", res.StatusCode)
 	}
 }

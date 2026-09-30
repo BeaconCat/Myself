@@ -79,13 +79,46 @@ func (s *Server) publicUser(u *store.User) map[string]any {
 	}
 }
 
-// removeAvatarFile 删除本站生成的头像文件（外链头像、身份头像不动）。
+// pendingAvatarURL 待审头像不放公开目录：存在 uploads/.pending/，只经这个需登录的地址给本人与站长看
+const pendingAvatarURL = "/api/v1/avatar-pending/"
+
+// avatarMaxSide 头像原图的边长上限（解码前按文件头校验，防解压炸弹）
+const avatarMaxSide = 4096
+
+func (s *Server) pendingDir() string { return filepath.Join(s.UploadDir, ".pending") }
+
+// removeAvatarFile 删除本站生成的头像文件（公开的或待审的；外链头像、身份头像不动）。
 func (s *Server) removeAvatarFile(url string) {
-	name := strings.TrimPrefix(url, "/uploads/")
-	if name == url || !strings.HasPrefix(name, avatarPrefix) || safeName(name) == "" {
+	dir := s.UploadDir
+	name, ok := strings.CutPrefix(url, "/uploads/")
+	if !ok {
+		if name, ok = strings.CutPrefix(url, pendingAvatarURL); !ok {
+			return
+		}
+		dir = s.pendingDir()
+	}
+	if !strings.HasPrefix(name, avatarPrefix) || safeName(name) == "" {
 		return
 	}
-	_ = os.Remove(filepath.Join(s.UploadDir, name))
+	_ = os.Remove(filepath.Join(dir, name))
+}
+
+// GET /avatar-pending/{name} 待审头像：只给上传者本人与站长看
+func (s *Server) servePendingAvatar(w http.ResponseWriter, r *http.Request) {
+	name := safeName(r.PathValue("name"))
+	u := userOf(r)
+	if name == "" || !strings.HasPrefix(name, avatarPrefix) ||
+		(u.Role != store.RoleAdmin && u.AvatarPending != pendingAvatarURL+name) {
+		writeError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	p := filepath.Join(s.pendingDir(), name)
+	if !fileExists(p) {
+		writeError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	w.Header().Set("Content-Type", "image/webp")
+	http.ServeFile(w, r, p)
 }
 
 // POST /me/avatar（multipart: file）上传头像：站长直接生效，其他人进入待审。
@@ -103,7 +136,19 @@ func (s *Server) uploadAvatar(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusRequestEntityTooLarge, "file_too_large")
 		return
 	}
+	// 先只读文件头：尺寸超限直接拒绝（小文件声明巨大尺寸的解压炸弹会在解码时耗尽内存）
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(raw))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_image")
+		return
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width > avatarMaxSide || cfg.Height > avatarMaxSide {
+		writeError(w, http.StatusRequestEntityTooLarge, "image_too_large")
+		return
+	}
+	decodeSlots <- struct{}{}
 	img, _, err := image.Decode(bytes.NewReader(raw))
+	<-decodeSlots
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_image")
 		return
@@ -119,11 +164,19 @@ func (s *Server) uploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := avatarPrefix + randomFilename(".webp")
-	if err := os.WriteFile(filepath.Join(s.UploadDir, name), data, 0o644); err != nil {
+	// 站长直接生效（公开目录）；其他人先放待审目录，审核通过才公开
+	dir, url := s.UploadDir, "/uploads/"+name
+	if u.Role != store.RoleAdmin {
+		dir, url = s.pendingDir(), pendingAvatarURL+name
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			fail(w, err)
+			return
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
 		fail(w, err)
 		return
 	}
-	url := "/uploads/" + name
 	if u.Role == store.RoleAdmin {
 		_, err = s.DB.Exec(`UPDATE users SET avatar = ?, avatar_pending = '' WHERE id = ?`, url, u.ID)
 		s.removeAvatarFile(u.Avatar)
@@ -324,7 +377,16 @@ func (s *Server) adminReviewAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 	switch b.strOr("action") {
 	case "approve":
-		if _, err := s.DB.Exec(`UPDATE users SET avatar = avatar_pending, avatar_pending = '' WHERE id = ?`, u.ID); err != nil {
+		// 待审文件移到公开目录后才生效
+		approved := u.AvatarPending
+		if name, ok := strings.CutPrefix(u.AvatarPending, pendingAvatarURL); ok && safeName(name) != "" {
+			if err := os.Rename(filepath.Join(s.pendingDir(), name), filepath.Join(s.UploadDir, name)); err != nil {
+				fail(w, err)
+				return
+			}
+			approved = "/uploads/" + name
+		}
+		if _, err := s.DB.Exec(`UPDATE users SET avatar = ?, avatar_pending = '' WHERE id = ?`, approved, u.ID); err != nil {
 			fail(w, err)
 			return
 		}
