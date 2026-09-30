@@ -44,6 +44,8 @@ type mediaItem struct {
 	Name string `json:"name"`
 	// Title 显示名（上传时的原文件名或重命名后的名字）；为空时前端显示 Name
 	Title string `json:"title"`
+	// Folder 所在文件夹（空 = 未归类）
+	Folder string `json:"folder"`
 	// Kind 类别：image / video / audio / archive / file
 	Kind string `json:"kind"`
 	// Ext 小写扩展名（不带点）
@@ -87,10 +89,12 @@ func (s *Server) fileInfo(name string) (mediaItem, error) {
 	item.Compressed = s.compressionOf(name)
 	var cropJSON sql.NullString
 	var createdAt, title string
-	err = s.DB.QueryRow(`SELECT crop_json, created_at, COALESCE(title, '') FROM media WHERE name = ?`, name).Scan(&cropJSON, &createdAt, &title)
+	var folder string
+	err = s.DB.QueryRow(`SELECT crop_json, created_at, COALESCE(title, ''), COALESCE(folder, '') FROM media WHERE name = ?`, name).Scan(&cropJSON, &createdAt, &title, &folder)
 	if err == nil {
 		item.CreatedAt = createdAt
 		item.Title = title
+		item.Folder = folder
 		if cropJSON.Valid && cropJSON.String != "" {
 			var rect imaging.Rect
 			if json.Unmarshal([]byte(cropJSON.String), &rect) == nil {
@@ -164,6 +168,8 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 	var saved []string
 	dups := map[string]bool{}
 	rejected := 0
+	// 目标文件夹：表单字段 folder（须排在文件之前）
+	folder := ""
 	for len(saved) < maxUploadFiles {
 		part, err := reader.NextPart()
 		if err == io.EOF {
@@ -172,6 +178,20 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "invalid_multipart")
 			return
+		}
+		if part.FormName() == "folder" && part.FileName() == "" {
+			raw, _ := io.ReadAll(io.LimitReader(part, 512))
+			f, ok := cleanFolder(string(raw))
+			if !ok {
+				writeError(w, http.StatusBadRequest, "invalid_folder")
+				return
+			}
+			if err := s.ensureFolder(f); err != nil {
+				fail(w, err)
+				return
+			}
+			folder = f
+			continue
 		}
 		if part.FormName() != "files" || part.FileName() == "" {
 			continue
@@ -230,8 +250,8 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 			dups[existing] = true
 			continue
 		}
-		if _, err := s.DB.Exec(`INSERT INTO media (name, sha256, title) VALUES (?, ?, ?)
-			ON CONFLICT(name) DO UPDATE SET sha256 = excluded.sha256, title = excluded.title`, name, sum, title); err != nil {
+		if _, err := s.DB.Exec(`INSERT INTO media (name, sha256, title, folder) VALUES (?, ?, ?, ?)
+			ON CONFLICT(name) DO UPDATE SET sha256 = excluded.sha256, title = excluded.title, folder = excluded.folder`, name, sum, title, folder); err != nil {
 			fail(w, err)
 			return
 		}

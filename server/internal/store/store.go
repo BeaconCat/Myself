@@ -115,6 +115,9 @@ CREATE TABLE IF NOT EXISTS media (
 		// 隐藏：前台不可见（列表、详情、RSS、标签、互动一律排除），后台照常管理
 		`ALTER TABLE posts ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE notes ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`,
+		// 素材文件夹（虚拟路径，如「封面/2026」）；空文件夹记在 media_folders
+		`ALTER TABLE media ADD COLUMN folder TEXT NOT NULL DEFAULT ''`,
+		`CREATE TABLE IF NOT EXISTS media_folders (path TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return err
