@@ -31,12 +31,11 @@ const group = computed(() => d.value.groups[Math.min(tab.value, d.value.groups.l
 <style scoped lang="scss">
 .fv-tabs { align-self: flex-start; margin-bottom: 12px; }
 
+/* 条目按正常间距自上而下排列，不撑满模块高度（撑满会在少量条目时拉得很散） */
 .fv-list {
   list-style: none;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  flex: 1;
 
   li {
     display: grid;

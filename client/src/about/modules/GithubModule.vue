@@ -57,13 +57,18 @@ const grid = computed(() => {
   const cells: { key: string; level: number; tip: string; future: boolean; week: number }[] = [];
   const months: { label: string; week: number }[] = [];
   let lastMonth = -1;
+  let lastLabeled = -1;
   for (let i = 0; i < WEEKS * 7; i++) {
     const dt = new Date(start);
     dt.setDate(start.getDate() + i);
     const week = Math.floor(i / 7);
     if (i % 7 === 0) {
       const m = dt.getMonth();
-      months.push({ label: m !== lastMonth && week < WEEKS - 2 ? t('aboutKit.github.month', { m: m + 1 }) : '', week });
+      const label = m !== lastMonth && week < WEEKS - 2 ? t('aboutKit.github.month', { m: m + 1 }) : '';
+      // 相邻两个月份标签不足 3 列（如首列只露出上个月的末几天）会叠在一起：去掉前一个
+      if (label && lastLabeled >= 0 && week - lastLabeled < 3) months[lastLabeled].label = '';
+      if (label) lastLabeled = week;
+      months.push({ label, week });
       lastMonth = m;
     }
     const key = iso(dt);
