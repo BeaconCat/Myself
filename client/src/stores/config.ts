@@ -56,7 +56,8 @@ export interface SiteConfig {
     radius: number;
   };
   /** 全站动画：route = 切页动效档位 */
-  motion?: { route: RouteMotion };
+  /** shockwave：色盘 / 界面风格切换时扩散圆上的冲击波强调边（默认关闭） */
+  motion?: { route: RouteMotion; shockwave?: boolean };
   hero: {
     intervalMs: number;
     count: number;
@@ -136,7 +137,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
       { id: 'winter', name: '冬 · 霜蓝', primary: '#0078ff', primaryDeep: '#005fd6' },
     ],
   },
-  motion: { route: 'standard' },
+  motion: { route: 'standard', shockwave: false },
   hero: { intervalMs: 3000, count: 4, pinnedRule: 'pinned-first', textAnim: 'lightscan', cardAnim: 'hinge', rotateAnim: 'lift' },
   thoughts: { subtitle: '碎片化的想法、心情与瞬间，短到装不下一篇文章。' },
   covers: { expandMs: 10000 },

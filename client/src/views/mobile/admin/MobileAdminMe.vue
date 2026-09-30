@@ -64,7 +64,7 @@ function setMode(e: MouseEvent, mode: 'light' | 'dark'): void {
 }
 function setPalette(e: MouseEvent, id: string, label: string): void {
   if (theme.paletteId === id) return;
-  circularReveal(origin(e), () => theme.setPalette(id, true), 'expand', { edge: true });
+  circularReveal(origin(e), () => theme.setPalette(id, true), 'expand', { edge: !!config.cfg.motion?.shockwave });
   window.setTimeout(() => toast(label, theme.mode === 'dark' ? t('mobileAdmin.me.dark') : t('mobileAdmin.me.light')), 380);
 }
 

@@ -49,12 +49,12 @@ function setMode(mode: Mode, e: MouseEvent): void {
 
 function setStyle(style: UiStyle, e: MouseEvent): void {
   if (theme.style === style) return;
-  circularReveal(origin(e), () => theme.setStyle(style), style === 'clean' ? 'expand' : 'contract', { edge: true });
+  circularReveal(origin(e), () => theme.setStyle(style), 'expand', { edge: !!config.cfg.motion?.shockwave });
 }
 
 function setPalette(id: string, e: MouseEvent): void {
   if (theme.paletteId === id) return;
-  circularReveal(origin(e), () => theme.setPalette(id), 'expand', { edge: true });
+  circularReveal(origin(e), () => theme.setPalette(id), 'expand', { edge: !!config.cfg.motion?.shockwave });
 }
 
 function go(path: string | { path: string; query?: Record<string, string> }): void {

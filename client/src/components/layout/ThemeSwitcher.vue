@@ -6,10 +6,12 @@ import { useAuthStore } from '../../stores/auth';
 import { adminApi } from '../../api';
 import { circularReveal } from '../../utils/circularReveal';
 import UiIcon from '../ui/UiIcon.vue';
+import { useConfigStore } from '../../stores/config';
 
 const { t } = useI18n();
 const theme = useThemeStore();
 const auth = useAuthStore();
+const config = useConfigStore();
 
 /** 关闭访客换肤只影响访客：管理员永远保留色盘条 */
 const showPalettes = computed(() => theme.allowUserPalette || auth.loggedIn);
@@ -28,16 +30,22 @@ function persistAsDefault(patch: Record<string, string>): void {
   adminApi.saveSettings({ theme: patch }).catch(() => undefined);
 }
 
+/** 冲击波强调边：后台「外观 · 全站动画」里的开关，默认关闭 */
+const shockwave = (): boolean => !!config.cfg.motion?.shockwave;
+
 function onPalette(e: MouseEvent, id: string): void {
   if (id === theme.paletteId) return;
-  circularReveal(origin(e), () => theme.setPalette(id, auth.loggedIn), 'expand', { edge: true });
+  circularReveal(origin(e), () => theme.setPalette(id, auth.loggedIn), 'expand', { edge: shockwave() });
   persistAsDefault({ defaultPaletteId: id });
 }
 
-/** 界面风格：卡片 ⇄ 简洁，圆形揭幕与深浅切换同一套过渡 */
+/**
+ * 界面风格：卡片 ⇄ 简洁。两个方向都从按钮处向外扩散（圆心就在切换按钮上，按钮最先换成新状态，
+ * 选中块在新画面里实时滑动；按钮随颜色扩散一起变，不单独成层）。
+ */
 function onStyle(e: MouseEvent, style: UiStyle): void {
   if (style === theme.style) return;
-  circularReveal(origin(e), () => theme.setStyle(style, auth.loggedIn), style === 'clean' ? 'expand' : 'contract', { edge: true });
+  circularReveal(origin(e), () => theme.setStyle(style, auth.loggedIn), 'expand', { edge: shockwave() });
   persistAsDefault({ defaultStyle: style });
 }
 

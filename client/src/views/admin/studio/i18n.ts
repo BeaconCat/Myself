@@ -486,6 +486,8 @@ const studio = {
     motion: '全站动画',
     motionDesc: '页面切换时的过渡方式。首次打开站点的全屏揭幕在三个档位下都会保留。',
     motionDefault: '默认',
+    shockwave: '切换主题时的冲击波',
+    shockwaveSub: '切换色盘或界面风格时，扩散的圆周上带一圈主题色渐变波纹（深浅切换不带）',
     motion_rich: '丰富',
     motion_richSub: '每次切换页面都播放全屏过渡遮罩，仪式感最强。',
     motion_standard: '标准',

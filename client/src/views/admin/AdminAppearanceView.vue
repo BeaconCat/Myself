@@ -28,11 +28,11 @@ const config = useConfigStore();
 const theme = useThemeStore();
 const dialog = useDialogStore();
 
-type Pick2 = Pick<SiteConfig, 'theme' | 'hero'> & { motion: { route: RouteMotion } };
+type Pick2 = Pick<SiteConfig, 'theme' | 'hero'> & { motion: { route: RouteMotion; shockwave: boolean } };
 const cfg = reactive<Pick2>(JSON.parse(JSON.stringify({
   theme: config.cfg.theme,
   hero: config.cfg.hero,
-  motion: { route: config.cfg.motion?.route ?? 'standard' },
+  motion: { route: config.cfg.motion?.route ?? 'standard', shockwave: !!config.cfg.motion?.shockwave },
 })));
 
 /** 全站动画档位 */
@@ -52,7 +52,7 @@ async function load(): Promise<void> {
     const remote = (await adminApi.settings()) as unknown as SiteConfig;
     cfg.theme = JSON.parse(JSON.stringify(remote.theme ?? FALLBACK_CONFIG.theme));
     cfg.hero = { ...FALLBACK_CONFIG.hero, ...(remote.hero ?? {}) };
-    cfg.motion = { route: 'standard', ...(remote.motion ?? {}) };
+    cfg.motion = { route: 'standard', shockwave: false, ...(remote.motion ?? {}) };
     cfg.theme.radius = clampRadius(cfg.theme.radius ?? FALLBACK_CONFIG.theme.radius ?? 10);
   } catch {
     toast(t('studio.loadFailed'), { icon: 'x' });
@@ -440,6 +440,10 @@ onBeforeUnmount(() => {
           <b>{{ t(`studio.appearance.motion_${m.id}`) }}<em v-if="m.id === 'standard'">{{ t('studio.appearance.motionDefault') }}</em></b>
           <small>{{ t(`studio.appearance.motion_${m.id}Sub`) }}</small>
         </button>
+      </div>
+      <div class="st-opt shock">
+        <div>{{ t('studio.appearance.shockwave') }}<small>{{ t('studio.appearance.shockwaveSub') }}</small></div>
+        <StSwitch v-model="cfg.motion.shockwave" />
       </div>
     </div>
 
@@ -994,6 +998,8 @@ h2 { font: 700 22px/1.3 var(--font-serif); margin: 0 0 4px; }
   .ap { grid-template-columns: 1fr; }
   .pv-wrap { position: static; }
 }
+
+.motion-sec .shock { margin-top: 16px; }
 
 /* ---------- 全站动画 ---------- */
 .motion-sec {

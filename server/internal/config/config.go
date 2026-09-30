@@ -132,7 +132,7 @@ const defaultJSON = `{
     "login": { "github": false },
     "reactions": true
   },
-  "motion": { "route": "standard" },
+  "motion": { "route": "standard", "shockwave": false },
   "session": { "duration": "7d" },
   "mail": { "enabled": false, "host": "", "port": 587, "username": "", "password": "", "from": "", "security": "starttls" },
   "oauth": { "github": { "clientId": "", "clientSecret": "" } }
