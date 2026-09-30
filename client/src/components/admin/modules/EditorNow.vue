@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n';
 import type { AboutModule } from '../../../stores/config';
 import type { NowData } from '../../../about/types';
+import Combobox from '../../ui/Combobox.vue';
 import EdList from './EdList.vue';
 import { useModuleData } from './useModuleData';
 
@@ -10,6 +11,7 @@ const props = defineProps<{ mod: AboutModule }>();
 const d = useModuleData<NowData>(() => props.mod);
 const { t } = useI18n();
 const KINDS = ['在做', '在学', '在读', '在玩', '在听', '在写'];
+const KIND_OPTIONS = KINDS.map((k) => ({ value: k, label: k }));
 
 function touch(): void {
   // eslint-disable-next-line vue/no-mutating-props
@@ -23,10 +25,9 @@ function touch(): void {
       <label class="flex-in"><span>{{ t('aboutKit.ed.updatedAt') }}</span><input v-model="d.updatedAt" class="a-input" type="date" /></label>
       <button type="button" class="a-btn ghost sm today" @click="touch">{{ t('aboutKit.ed.today') }}</button>
     </div>
-    <datalist id="ak-now-kinds"><option v-for="k in KINDS" :key="k" :value="k" /></datalist>
     <EdList v-slot="{ item }" :items="d.items" :make="() => ({ kind: '在做', text: '', note: '' })">
       <div class="line">
-        <input v-model="item.kind" class="a-input w-num" type="text" list="ak-now-kinds" />
+        <Combobox v-model="item.kind" :options="KIND_OPTIONS" :min-width="140" :aria-label="t('aboutKit.ed.state')" />
         <input v-model="item.text" class="a-input flex-in" type="text" :placeholder="t('aboutKit.ed.text')" />
       </div>
       <div class="line">
@@ -50,4 +51,5 @@ function touch(): void {
 
 .line { align-items: flex-end; }
 .today { margin-bottom: 1px; }
+.line > :deep(.ui-cb) { flex: none; width: 104px; }
 </style>

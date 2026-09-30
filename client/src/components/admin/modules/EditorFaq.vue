@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n';
 import type { AboutModule } from '../../../stores/config';
 import type { FaqData } from '../../../about/types';
+import Switch from '../../ui/Switch.vue';
 import EdList from './EdList.vue';
 import { useModuleData } from './useModuleData';
 
@@ -13,7 +14,7 @@ const { t } = useI18n();
 
 <template>
   <div class="ed">
-    <label class="check"><input v-model="d.single" type="checkbox" />{{ t('aboutKit.ed.single') }}</label>
+    <Switch v-model="d.single">{{ t('aboutKit.ed.single') }}</Switch>
     <EdList v-slot="{ item }" :items="d.items" :make="() => ({ q: '', a: '' })">
       <input v-model="item.q" class="a-input q" type="text" :placeholder="t('aboutKit.ed.question')" />
       <textarea v-model="item.a" class="a-input" rows="2" :placeholder="t('aboutKit.ed.answer')" />

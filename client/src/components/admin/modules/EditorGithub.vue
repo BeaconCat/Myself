@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n';
 import type { AboutModule } from '../../../stores/config';
 import type { GithubData } from '../../../about/types';
+import Switch from '../../ui/Switch.vue';
 import { useModuleData } from './useModuleData';
 
 /** GitHub：数据来自「设置 · GitHub」；这里只配置是否显示最近动态与条数 */
@@ -14,7 +15,7 @@ const { t } = useI18n();
   <div class="ed">
     <p class="hint">{{ t('aboutKit.ed.githubHint') }}</p>
     <div class="line">
-      <label class="check"><input v-model="d.showCommits" type="checkbox" />{{ t('aboutKit.ed.showCommits') }}</label>
+      <Switch v-model="d.showCommits">{{ t('aboutKit.ed.showCommits') }}</Switch>
       <label class="line"><span>{{ t('aboutKit.ed.commitCount') }}</span><input v-model.number="d.commitCount" class="a-input w-num" type="number" min="1" max="8" :disabled="!d.showCommits" /></label>
     </div>
   </div>

@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n';
 import type { AboutModule } from '../../../stores/config';
 import type { MilestonesData } from '../../../about/types';
+import Switch from '../../ui/Switch.vue';
 import EdList from './EdList.vue';
 import { useModuleData } from './useModuleData';
 
@@ -18,7 +19,7 @@ const { t } = useI18n();
       <div class="line">
         <input v-model="item.date" class="a-input w-narrow" type="text" placeholder="2026.07" />
         <input v-model="item.title" class="a-input flex-in" type="text" :placeholder="t('aboutKit.ed.title')" />
-        <label class="check"><input v-model="item.now" type="checkbox" />{{ t('aboutKit.ed.lit') }}</label>
+        <Switch v-model="item.now">{{ t('aboutKit.ed.lit') }}</Switch>
       </div>
       <input v-model="item.text" class="a-input" type="text" :placeholder="t('aboutKit.ed.note')" />
     </EdList>

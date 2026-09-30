@@ -2,7 +2,8 @@
 import { useI18n } from 'vue-i18n';
 import type { AboutModule } from '../../../stores/config';
 import type { ListeningData } from '../../../about/types';
-import { SCENES, SCENE_LABELS } from '../../../about/icons';
+import EdSceneSelect from './EdSceneSelect.vue';
+import Switch from '../../ui/Switch.vue';
 import EdList from './EdList.vue';
 import { useModuleData } from './useModuleData';
 
@@ -20,7 +21,7 @@ const { t } = useI18n();
       <label><span>{{ t('aboutKit.ed.album') }}</span><input v-model="d.now.album" class="a-input" type="text" /></label>
       <label><span>{{ t('aboutKit.ed.duration') }}</span><input v-model.number="d.now.duration" class="a-input" type="number" min="1" /></label>
       <label><span>{{ t('aboutKit.ed.position') }}</span><input v-model.number="d.now.position" class="a-input" type="number" min="0" /></label>
-      <label class="check pl"><input v-model="d.playing" type="checkbox" />{{ t('aboutKit.ed.playing') }}</label>
+      <Switch v-model="d.playing" class="pl">{{ t('aboutKit.ed.playing') }}</Switch>
     </div>
     <div class="sub-title">{{ t('aboutKit.ed.recent') }}</div>
     <EdList v-slot="{ item }" :items="d.recent" :make="() => ({ title: '', artist: '', at: '', scene: '01' })" :max="6" compact>
@@ -28,9 +29,7 @@ const { t } = useI18n();
         <input v-model="item.title" class="a-input" type="text" :placeholder="t('aboutKit.ed.track')" />
         <input v-model="item.artist" class="a-input" type="text" :placeholder="t('aboutKit.ed.artist')" />
         <input v-model="item.at" class="a-input" type="text" :placeholder="t('aboutKit.ed.when')" />
-        <select v-model="item.scene" class="a-input">
-          <option v-for="s in SCENES" :key="s" :value="s">{{ SCENE_LABELS[s] }}</option>
-        </select>
+        <EdSceneSelect v-model="item.scene" />
       </div>
     </EdList>
   </div>
@@ -39,5 +38,5 @@ const { t } = useI18n();
 <style scoped lang="scss">
 @use './module-editor';
 
-.pl { align-self: end; padding-bottom: 10px; }
+.pl { align-self: end; }
 </style>

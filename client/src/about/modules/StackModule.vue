@@ -5,8 +5,13 @@ import { useI18n } from 'vue-i18n';
 import type { StackData } from '../types';
 import type { ModProps } from './props';
 import ModHead from '../parts/ModHead.vue';
+import TechIcon from '../parts/TechIcon.vue';
+import { TECH, techInk } from '../tech';
 
-/** 技术栈（stack）：等宽字母徽标 + 名称 + 角色；品牌色只作 13% 淡底，不抢主色 */
+/**
+ * 技术栈（stack）：官方品牌图标（simple-icons，按品牌色着色）或等宽字母徽标 + 名称 + 角色。
+ * 徽标底与描边保持中性；近黑 / 近白的品牌色改用正文色，保证明暗两种主题都可读。
+ */
 const props = defineProps<ModProps>();
 const d = computed(() => props.mod.data as StackData);
 const { t } = useI18n();
@@ -24,7 +29,10 @@ const { t } = useI18n();
       :rel="s.url ? 'noopener' : undefined"
       class="it"
     >
-      <span class="g" :style="{ '--c': s.color || 'var(--primary)' }">{{ s.glyph || s.name.slice(0, 2) }}</span>
+      <span class="g" :class="{ ic: TECH[s.icon ?? ''] }" :style="{ '--c': techInk(s.color) || 'var(--primary)' }">
+        <TechIcon v-if="TECH[s.icon ?? '']" :name="s.icon" :size="20" />
+        <template v-else>{{ s.glyph || s.name.slice(0, 2) }}</template>
+      </span>
       <span class="tx"><b>{{ s.name }}</b><span>{{ s.role }}</span></span>
     </component>
   </div>
@@ -57,6 +65,8 @@ const { t } = useI18n();
   /* 字形保留一点品牌色相，底与描边中性 */
   color: color-mix(in oklab, var(--c) 60%, var(--text));
   background: var(--fill);
+
+  &.ic { color: var(--c); }
 }
 
 .tx {

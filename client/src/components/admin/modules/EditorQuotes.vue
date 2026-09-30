@@ -15,9 +15,9 @@ const { t } = useI18n();
   <div class="ed">
     <label class="line"><span>{{ t('aboutKit.ed.interval') }}</span><input v-model.number="d.interval" class="a-input w-num" type="number" min="2" max="30" /></label>
     <EdList v-slot="{ item }" :items="d.items" :make="() => ({ text: '', from: '' })" compact>
-      <div class="line">
-        <input v-model="item.text" class="a-input flex-in" type="text" :placeholder="t('aboutKit.ed.quote')" />
-        <input v-model="item.from" class="a-input w-narrow" type="text" :placeholder="t('aboutKit.ed.from')" />
+      <div class="q-row">
+        <input v-model="item.text" class="a-input" type="text" :placeholder="t('aboutKit.ed.quote')" :aria-label="t('aboutKit.ed.quote')" />
+        <input v-model="item.from" class="a-input" type="text" :placeholder="t('aboutKit.ed.from')" :aria-label="t('aboutKit.ed.from')" />
       </div>
     </EdList>
   </div>
@@ -27,4 +27,9 @@ const { t } = useI18n();
 @use './module-editor';
 
 label.line { flex-direction: row; align-items: center; }
+
+/* 语句 : 出处 = 2 : 1；编辑区很窄时上下排 */
+.q-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 8px; }
+
+@container ed (max-width: 520px) { .q-row { grid-template-columns: minmax(0, 1fr); } }
 </style>

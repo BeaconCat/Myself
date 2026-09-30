@@ -42,12 +42,15 @@ export interface Brand {
   mono: boolean;
 }
 
-const b = (label: string, icon: SimpleIcon): Brand => {
+/** simple-icons 图标 → Brand（技术栈注册表 tech.ts 共用） */
+export const brandOf = (label: string, icon: SimpleIcon): Brand => {
   const hex = `#${icon.hex}`;
   const n = parseInt(icon.hex, 16);
   const lum = 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
   return { label, path: icon.path, hex, mono: lum < 48 };
 };
+
+const b = brandOf;
 
 export const BRANDS: Record<string, Brand> = {
   github: b('GitHub', siGithub),

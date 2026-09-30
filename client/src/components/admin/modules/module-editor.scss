@@ -5,6 +5,8 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  /* 各编辑器的行布局按编辑区自身宽度折行（关于页展开时满宽，窄屏 / 半宽时收紧） */
+  container: ed / inline-size;
 }
 
 .hint { font-size: 13px; line-height: 1.6; color: var(--text-2); }
@@ -36,6 +38,59 @@ label, .fld {
 
 .a-input { width: 100%; min-width: 0; }
 
+/* 单行输入统一 36px 高，与 Select / Combobox / ColorSwatch / Switch 对齐 */
+input.a-input { height: 36px; padding: 0 12px; }
+textarea.a-input { padding: 8px 12px; line-height: 1.6; }
+input.a-input[type='number'] { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* 前后缀输入：井底框里左侧弱化小字 / 图标 + 无边输入（经纬度、Stars、进度等） */
+.affix {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  background: var(--well);
+  box-shadow: 0 0 0 1px var(--line) inset;
+  transition: box-shadow var(--dur-fast), background-color var(--dur-fast);
+
+  > span:first-child, > .aff {
+    flex: none;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-2);
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: none;
+    color: var(--text);
+    font: 14px var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &:focus-within {
+    background: var(--paper);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--ink) 70%, transparent) inset, 0 0 0 3px color-mix(in oklab, var(--ink) 18%, transparent);
+  }
+}
+
+/* 行内字段标签（小号，位于字段上方）：用于卡片式条目 */
+.cap {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+}
+
 .line {
   display: flex;
   align-items: center;
@@ -47,7 +102,48 @@ label, .fld {
 .w-narrow { width: 120px; flex-shrink: 0; }
 .w-num { width: 76px; flex-shrink: 0; }
 
-.range { flex: 1; min-width: 60px; accent-color: var(--solid); }
+/* 滑杆：细轨 + 实心圆钮（--solid），与开关同一套强调色 */
+.range {
+  flex: 1;
+  min-width: 60px;
+  height: 18px;
+  margin: 0;
+  background: none;
+  cursor: pointer;
+  appearance: none;
+
+  &::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: var(--r-pill);
+    background: var(--fill-3, var(--line-2));
+  }
+  &::-moz-range-track { height: 4px; border-radius: var(--r-pill); background: var(--fill-3, var(--line-2)); }
+  &::-moz-range-progress { height: 4px; border-radius: var(--r-pill); background: var(--solid); }
+
+  &::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--solid);
+    box-shadow: 0 0 0 3px var(--paper), 0 1px 3px 3px rgb(0 0 0 / 0.12);
+    appearance: none;
+    transition: transform var(--dur-fast) var(--ease-spring);
+  }
+  &::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--solid);
+    box-shadow: 0 0 0 3px var(--paper);
+  }
+
+  &:active::-webkit-slider-thumb { transform: scale(1.15); }
+  &:focus-visible { outline: none; }
+  &:focus-visible::-webkit-slider-thumb { box-shadow: var(--focus); }
+}
 
 .color-in {
   width: 36px;
@@ -117,6 +213,9 @@ label, .fld {
 
   &::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 }
+
+/* 开关单独成行时不拉伸 */
+.ed > .ui-sw-t { align-self: flex-start; }
 
 .a-btn.sm { align-self: flex-start; padding: 8px 14px; height: auto; font-size: 13px; }
 

@@ -153,7 +153,15 @@ export interface FavoritesData { groups: { title: string; items: FavoriteItem[] 
 
 export interface SkillsData { groups: { title: string; items: string[]; star?: string }[] }
 
-export interface StackItem { name: string; role: string; glyph?: string; color?: string; url?: string }
+export interface StackItem {
+  name: string;
+  role: string;
+  /** 品牌图标键（about/tech.ts）；空 = 用 glyph 文字徽标。旧数据无此字段时按名称猜测补上 */
+  icon?: string;
+  glyph?: string;
+  color?: string;
+  url?: string;
+}
 export interface StackData { items: StackItem[] }
 
 export interface UsesItem { name: string; desc?: string; icon?: string; tag?: string; url?: string }

@@ -1,4 +1,5 @@
 import type { AboutModule, SiteConfig } from '../stores/config';
+import { guessTech } from './tech';
 
 /**
  * 关于页模块数据迁移：旧 schema → about-kit v2 schema。
@@ -10,7 +11,7 @@ import type { AboutModule, SiteConfig } from '../stores/config';
  * - gallery          → images: string[] → { src }
  * - favorites        → groups[].items: string → { name }
  * - skills           → 补 star
- * - stack            → 补 glyph（取名称前两个字母）
+ * - stack            → 补 glyph（取名称前两个字母）；无 icon 字段时按名称猜品牌图标（tech.ts，猜不到记空串）
  * - socials         → icon 'twitter' → 'x'
  * - profile / motto  → 内容已移至站点身份（identity.ts），模块只保留展示选项
  * - stats            → data {} → 默认四项
@@ -142,7 +143,7 @@ const DATA: Record<string, (d: Any) => Any> = {
     items: arr(d.items).map((x) => {
       const it = obj(x);
       const name = str(it.name);
-      return { ...it, name, role: str(it.role ?? it.desc), glyph: str(it.glyph) || glyphOf(name) };
+      return { ...it, name, role: str(it.role ?? it.desc), icon: it.icon == null ? guessTech(name) : str(it.icon), glyph: str(it.glyph) || glyphOf(name) };
     }),
   }),
   uses: (d) => ({

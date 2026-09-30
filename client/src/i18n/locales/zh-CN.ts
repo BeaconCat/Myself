@@ -136,6 +136,18 @@ export default {
       guestbookGo: '去「评论」页管理留言',
       guestName: '昵称', reply: '站长回复（可空）',
       langColorHint: '配色自动取主题主色的单色阶梯（按占比从深到浅）。',
+      link: '链接', stars: 'Stars', langName: '语言', color: '颜色', sceneShort: '光影',
+      cover: '封面', upload: '上传', library: '素材库', removeCover: '移除图片', uploading: '上传中…', uploadFailed: '上传失败',
+      pickCover: '从素材库选封面', pickPhoto: '从素材库选照片', uploadPhotos: '上传照片', photoCount: '{n} / {max} 张照片',
+      coverHint: '点击上传，或拖入图片', sceneHint: '无图时显示所选光影',
+      bookStatus: { reading: '在读', done: '读完', want: '想读' },
+      searchCity: '输入城市名筛选', cityFree: '不在常用城市里，直接输入名称并手动填写经纬度',
+      usesIcon: {
+        laptop: '笔记本', monitor: '显示器', keyboard: '键盘', camera: '相机', headphones: '耳机', phone: '手机', code: '代码 / 编辑器',
+        terminal: '终端', figma: 'Figma', command: '效率工具', cloud: '云服务', pen: '笔 / 绘图', book: '书籍', music: '音乐', link: '链接',
+      },
+      techIcon: '图标', noIcon: '文字徽标', searchTech: '搜索技术，如 vue、pg、k8s', noMatch: '没有匹配项', searchIcon: '搜索图标',
+      glyphHint: '无图标时显示的 1–3 个字母',
     },
   },
   common: {
@@ -868,6 +880,7 @@ export default {
   },
   /* 桌面内容线：文章列表 / 详情 / 随想（round 3） */
   content: {
+    embed: { download: '下载', preview: '预览内容', open: '打开', archiveTitle: '压缩包内容', archiveCount: '{n} 个文件 · {dirs} 个文件夹', archiveTruncated: '条目太多，只列出前 {n} 项', archiveFailed: '读取压缩包失败', archiveBad: '压缩包已损坏，无法读取目录', empty: '压缩包是空的' },
     articles: {
       sub: '{n} 篇 · 最近更新于 {m} 月 {d} 日',
       subEmpty: '还没有文章',

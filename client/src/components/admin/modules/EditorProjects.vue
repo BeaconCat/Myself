@@ -1,21 +1,26 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
+import { Star } from 'lucide';
 import type { AboutModule } from '../../../stores/config';
 import type { Project, ProjectsData } from '../../../about/types';
-import { SCENES, SCENE_LABELS } from '../../../about/icons';
-import CoverUploader from '../CoverUploader.vue';
+import Icon from '../../ui/Icon.vue';
+import ColorSwatch from '../../ui/ColorSwatch.vue';
+import Switch from '../../ui/Switch.vue';
+import EdCover from './EdCover.vue';
+import EdSceneSelect from './EdSceneSelect.vue';
 import EdList from './EdList.vue';
 import { useModuleData } from './useModuleData';
 
-/** 作品：名称 / 链接 / 描述 / 封面（图片或光影构图）/ 语言与颜色 / Stars / 精选 */
+/**
+ * 作品：左侧封面位（上传 / 素材库 / 无图时显示所选光影），右侧 名称 · 链接 / 描述 /
+ * 光影 · 语言与颜色 · Stars · 精选（全组唯一，打开即取消其他项）。
+ */
 const props = defineProps<{ mod: AboutModule }>();
 const d = useModuleData<ProjectsData>(() => props.mod);
 const { t } = useI18n();
 
-const coverOf = (p: Project) => (p.cover ? [p.cover] : []);
-function setCover(p: Project, v: string[]): void { p.cover = v[0] ?? ''; }
-function feature(p: Project): void {
-  for (const x of d.value.items) x.featured = x === p;
+function setFeatured(p: Project, on: boolean): void {
+  for (const x of d.value.items) x.featured = on && x === p;
 }
 </script>
 
@@ -27,26 +32,26 @@ function feature(p: Project): void {
       :make="() => ({ name: '', desc: '', url: '', cover: '', scene: '05', lang: '', color: '#0078ff', stars: 0 })"
       :max="6"
     >
-      <div class="grid3">
-        <input v-model="item.name" class="a-input" type="text" :placeholder="t('aboutKit.ed.itemName')" />
-        <input v-model="item.url" class="a-input span2" type="text" placeholder="https://…" />
-      </div>
-      <textarea v-model="item.desc" class="a-input" rows="2" :placeholder="t('aboutKit.ed.desc')" />
-      <div class="proj">
-        <CoverUploader :model-value="coverOf(item)" :max="1" @update:model-value="(v: string[]) => setCover(item, v)" />
-        <div class="grid2 flex-in">
-          <label>
-            <span>{{ t('aboutKit.ed.scene') }}</span>
-            <select v-model="item.scene" class="a-input" :disabled="!!item.cover">
-              <option v-for="s in SCENES" :key="s" :value="s">{{ SCENE_LABELS[s] }}</option>
-            </select>
-          </label>
-          <label><span>Stars</span><input v-model.number="item.stars" class="a-input" type="number" min="0" /></label>
-          <label>
-            <span>{{ t('aboutKit.ed.lang') }}</span>
-            <div class="line"><input v-model="item.lang" class="a-input flex-in" type="text" /><input v-model="item.color" class="color-in" type="color" /></div>
-          </label>
-          <label class="check feat"><input type="radio" :checked="!!item.featured" @change="feature(item)" />{{ t('aboutKit.ed.featured') }}</label>
+      <div class="pj">
+        <EdCover v-model:src="item.cover" class="pj-cov" :scene="item.scene" :pick-title="t('aboutKit.ed.pickCover')" />
+        <div class="pj-main">
+          <div class="pj-r1">
+            <input v-model="item.name" class="a-input nm" type="text" :placeholder="t('aboutKit.ed.itemName')" :aria-label="t('aboutKit.ed.itemName')" />
+            <input v-model="item.url" class="a-input" type="text" placeholder="https://…" :aria-label="t('aboutKit.ed.link')" />
+          </div>
+          <textarea v-model="item.desc" class="a-input" rows="2" :placeholder="t('aboutKit.ed.desc')" :aria-label="t('aboutKit.ed.desc')" />
+          <div class="pj-r3">
+            <EdSceneSelect v-model="item.scene" :disabled="!!item.cover" />
+            <div class="lang">
+              <input v-model="item.lang" class="a-input" type="text" :placeholder="t('aboutKit.ed.langName')" :aria-label="t('aboutKit.ed.langName')" />
+              <ColorSwatch v-model="item.color" :label="t('aboutKit.ed.color')" />
+            </div>
+            <label class="affix" :title="t('aboutKit.ed.stars')">
+              <Icon class="aff" :icon="Star" :size="15" />
+              <input v-model.number="item.stars" type="number" min="0" :aria-label="t('aboutKit.ed.stars')" />
+            </label>
+            <Switch :model-value="!!item.featured" @update:model-value="setFeatured(item, $event)">{{ t('aboutKit.ed.featured') }}</Switch>
+          </div>
         </div>
       </div>
     </EdList>
@@ -56,8 +61,31 @@ function feature(p: Project): void {
 <style scoped lang="scss">
 @use './module-editor';
 
-.proj { display: flex; gap: 14px; align-items: flex-start; }
-.feat { align-self: end; padding-bottom: 8px; }
+.pj { display: flex; gap: 14px; align-items: stretch; }
 
-@media (max-width: 720px) { .proj { flex-direction: column; } }
+.pj-cov { flex: none; width: 200px; aspect-ratio: 4 / 3; align-self: flex-start; }
+
+.pj-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.pj-r1 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 8px; }
+.nm { font-weight: 600; }
+
+.pj-r3 {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(150px, 1.2fr) minmax(90px, 0.6fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.lang { display: flex; gap: 6px; min-width: 0; }
+
+@container ed (max-width: 820px) {
+  .pj-r3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
+@container ed (max-width: 600px) {
+  .pj { flex-direction: column; }
+  .pj-cov { width: 100%; max-width: 320px; }
+  .pj-r1, .pj-r3 { grid-template-columns: minmax(0, 1fr); }
+}
 </style>
