@@ -343,6 +343,7 @@ onMounted(() => {
             <span class="st-ck" :class="{ on: picked.has(it.name) }"><Icon :icon="Check" /></span>
           </span>
           <span v-if="compressible.has(it.name)" class="zip">{{ t('studio.media.compressible') }}</span>
+          <span v-else-if="it.compressed" class="zip cut">{{ t('studio.media.compressedTag') }}</span>
           <span v-else-if="it.crop" class="zip cut">{{ t('studio.media.croppedTag') }}</span>
           <span class="cap"><span class="nm">{{ it.title || it.name }}</span><span class="mono">{{ formatSize(it.size) }}</span></span>
         </button>

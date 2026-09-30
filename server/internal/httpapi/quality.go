@@ -43,6 +43,8 @@ type qualityItem struct {
 	Height       int    `json:"height"`
 	HasAlpha     bool   `json:"hasAlpha"`
 	Compressible bool   `json:"compressible"`
+	// Compressed 已压缩（可回退）：不再列为可压缩
+	Compressed *mediaCompression `json:"compressed"`
 }
 
 // GET /admin/quality/scan 扫描可压缩图片
@@ -63,7 +65,9 @@ func (s *Server) qualityScan(w http.ResponseWriter, _ *http.Request) {
 		if err != nil {
 			continue
 		}
+		comp := s.compressionOf(name)
 		items = append(items, qualityItem{
+			Compressed:   comp,
 			Name:         name,
 			Title:        s.mediaTitle(name),
 			URL:          "/uploads/" + name,
@@ -72,7 +76,7 @@ func (s *Server) qualityScan(w http.ResponseWriter, _ *http.Request) {
 			Width:        meta.Width,
 			Height:       meta.Height,
 			HasAlpha:     meta.HasAlpha,
-			Compressible: true,
+			Compressible: comp == nil,
 		})
 	}
 	sort.SliceStable(items, func(i, j int) bool { return items[i].Size > items[j].Size })
@@ -132,8 +136,23 @@ func (s *Server) compressNamed(name string, quality int) *compressResult {
 	if err := copyIfMissing(full, filepath.Join(s.originalsDir, name)); err != nil {
 		return &compressResult{Name: name, Error: err.Error()}
 	}
+	// 压缩前的文件另存一份用于回退；已压缩过的保留最早那份
+	from, before := name, stat.Size()
+	if c := s.compressionOf(name); c != nil {
+		from, before = c.From, c.Before
+	} else if err := copyIfMissing(full, filepath.Join(s.precompressDir, name)); err != nil {
+		return &compressResult{Name: name, Error: err.Error()}
+	}
 	res, err := s.compressOne(name, full, imaging.Ext(name), stat.Size(), quality)
 	if err != nil {
+		return &compressResult{Name: name, Error: err.Error()}
+	}
+	if res.NewName == name && res.After == res.Before && from == name {
+		// 没有变小、原样保留：不算压缩，也不需要备份
+		os.Remove(filepath.Join(s.precompressDir, name))
+		return &res
+	}
+	if err := s.markCompressed(res.NewName, from, before); err != nil {
 		return &compressResult{Name: name, Error: err.Error()}
 	}
 	return &res
@@ -155,13 +174,8 @@ func (s *Server) compressOne(name, full, ext string, before int64, quality int) 
 		}
 		os.Remove(full)
 		s.removeThumb(name)
-		if _, err := s.DB.Exec(`INSERT INTO media (name) VALUES (?) ON CONFLICT(name) DO NOTHING`, newName); err != nil {
-			return compressResult{}, err
-		}
-		if _, err := s.DB.Exec(`DELETE FROM media WHERE name = ?`, name); err != nil {
-			return compressResult{}, err
-		}
-		if err := s.replaceURLRefs("/uploads/"+name, "/uploads/"+newName); err != nil {
+		// 记录整行改名（显示名、哈希、裁切保留），文章 / 随想 / 站点配置里的引用同步替换
+		if err := s.renameMediaRecord(name, newName); err != nil {
 			return compressResult{}, err
 		}
 		return compressResult{Name: name, NewName: newName, Before: before, After: int64(len(data))}, nil

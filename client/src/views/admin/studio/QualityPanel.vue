@@ -26,10 +26,42 @@ const job = ref<CompressJob | null>(null);
 const results = ref<CompressResult[]>([]);
 let pollTimer = 0;
 
+const compressed = computed(() => items.value.filter((i) => i.compressed));
+const reverting = ref(false);
+
+/** 回退：单张或全部已压缩的图片 */
+async function revert(names: string[]): Promise<void> {
+  if (!names.length || reverting.value || job.value) return;
+  const all = names.length > 1;
+  const one = items.value.find((i) => i.name === names[0]);
+  const ok = await dialog.confirm({
+    title: all ? t('studio.media.revertAllTitle', { n: names.length }) : t('studio.media.revertTitle'),
+    message: all ? t('studio.media.revertAllBody') : t('studio.media.revertBody', { size: formatSize(one?.compressed?.before ?? 0) }),
+    confirmText: all ? t('studio.media.revertAll') : t('studio.media.revert'),
+  });
+  if (!ok) return;
+  reverting.value = true;
+  try {
+    const res = await adminApi.revertMedia(names);
+    const n = names.length - res.failed;
+    if (n) toast(t('studio.media.reverted', { n }), { icon: 'check' });
+    if (res.failed) toast(t('studio.media.revertFailed', { n: res.failed }), { icon: 'x' });
+    await scan();
+    emit('done');
+  } catch {
+    toast(t('studio.saveFailed'), { icon: 'x' });
+  } finally {
+    reverting.value = false;
+  }
+}
+
 const shown = computed(() => (onlyCompressible.value ? items.value.filter((i) => i.compressible) : items.value));
 const compressibleCount = computed(() => items.value.filter((i) => i.compressible).length);
 const selectedSize = computed(() => items.value.filter((i) => selected.value.has(i.name)).reduce((s, i) => s + i.size, 0));
-const allOn = computed(() => shown.value.length > 0 && shown.value.every((i) => selected.value.has(i.name)));
+const allOn = computed(() => {
+  const list = shown.value.filter((i) => !i.compressed);
+  return list.length > 0 && list.every((i) => selected.value.has(i.name));
+});
 const percent = computed(() => (job.value && job.value.total ? Math.round((job.value.done / job.value.total) * 100) : 0));
 const summary = computed(() => {
   const ok = results.value.filter((r) => !r.error);
@@ -50,6 +82,7 @@ async function scan(): Promise<void> {
 }
 
 function toggle(name: string): void {
+  if (items.value.find((i) => i.name === name)?.compressed) return;
   const next = new Set(selected.value);
   if (next.has(name)) next.delete(name);
   else next.add(name);
@@ -57,7 +90,7 @@ function toggle(name: string): void {
 }
 
 function toggleAll(): void {
-  selected.value = allOn.value ? new Set() : new Set(shown.value.map((i) => i.name));
+  selected.value = allOn.value ? new Set() : new Set(shown.value.filter((i) => !i.compressed).map((i) => i.name));
 }
 
 async function run(): Promise<void> {
@@ -133,6 +166,10 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
         {{ t('studio.media.qAll') }}
       </label>
       <span class="sp" />
+      <span v-if="compressed.length" class="comp-n">
+        {{ t('studio.media.qCompressedN', { n: compressed.length }) }}
+        <button type="button" class="st-link" :disabled="reverting || !!job" @click="revert(compressed.map((i) => i.name))">{{ t('studio.media.revertAll') }}</button>
+      </span>
       <label class="st-ckrow small" @click.prevent="onlyCompressible = !onlyCompressible">
         <span class="st-ck" :class="{ on: onlyCompressible }"><Icon :icon="Check" /></span>
         {{ t('studio.media.qOnly', { n: compressibleCount }) }}
@@ -150,25 +187,49 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
         v-for="(it, i) in shown"
         :key="it.name"
         class="row st-rise"
-        :class="{ on: selected.has(it.name) }"
+        :class="{ on: selected.has(it.name), done: it.compressed }"
         :style="{ '--i': Math.min(i, 10) }"
         @click="toggle(it.name)"
       >
-        <span class="st-ck" :class="{ on: selected.has(it.name) }"><Icon :icon="Check" /></span>
+        <span class="st-ck" :class="{ on: selected.has(it.name), off: it.compressed }"><Icon :icon="Check" /></span>
         <img :src="thumbOf(it.url)" alt="" loading="lazy" />
         <div class="nm">
           <b class="mono">{{ it.title || it.name }}</b>
           <small>{{ it.width }} × {{ it.height }}</small>
         </div>
         <span class="fmt">{{ it.format.toUpperCase() }}<i v-if="it.hasAlpha">alpha</i></span>
-        <span class="mono size">{{ formatSize(it.size) }}</span>
-        <span class="flag" :class="{ yes: it.compressible }">{{ it.compressible ? t('studio.media.compressible') : t('studio.media.optimal') }}</span>
+        <span class="mono size">
+          <s v-if="it.compressed" class="was">{{ formatSize(it.compressed.before) }}</s>{{ formatSize(it.size) }}
+        </span>
+        <button v-if="it.compressed" type="button" class="flag revert" :disabled="reverting || !!job" @click.stop="revert([it.name])">
+          <SIcon name="undo" :size="14" />{{ t('studio.media.revert') }}
+        </button>
+        <span v-else class="flag" :class="{ yes: it.compressible }">{{ it.compressible ? t('studio.media.compressible') : t('studio.media.optimal') }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped lang="scss">
+/* 已压缩：不可再勾选压缩，行尾给「回退」 */
+.row.done { cursor: default; }
+.st-ck.off { opacity: 0.35; }
+.size .was { margin-right: 8px; color: var(--st-ink-4); }
+.comp-n { display: inline-flex; align-items: center; gap: 10px; margin-right: 16px; font-size: 13px; color: var(--st-ink-3); }
+
+.flag.revert {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  cursor: pointer;
+  color: var(--st-ink-2);
+  background: var(--well-2);
+  transition: background var(--dur-fast), color var(--dur-fast);
+
+  &:hover:not(:disabled) { color: var(--ink); background: var(--tint); }
+}
+
 .ctl {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;

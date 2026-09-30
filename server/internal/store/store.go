@@ -105,6 +105,10 @@ CREATE TABLE IF NOT EXISTS media (
 		`ALTER TABLE media ADD COLUMN sha256 TEXT`,
 		// 素材显示名：上传时的原文件名，可在后台重命名（磁盘文件名不变）
 		`ALTER TABLE media ADD COLUMN title TEXT NOT NULL DEFAULT ''`,
+		// 图片压缩记录：压缩前文件名（备份在 .precompress）、压缩前体积与时间，用于回退
+		`ALTER TABLE media ADD COLUMN compressed_from TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE media ADD COLUMN compressed_before INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE media ADD COLUMN compressed_at TEXT`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return err

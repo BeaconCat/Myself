@@ -40,6 +40,8 @@ type Deps struct {
 type Server struct {
 	Deps
 	originalsDir string
+	// precompressDir 压缩前的文件（回退用）
+	precompressDir string
 
 	ghMu      sync.Mutex
 	ghCache   githubCache
@@ -67,14 +69,15 @@ type Server struct {
 // New 构造 Server 并准备目录。
 func New(d Deps) *Server {
 	s := &Server{
-		Deps:          d,
-		originalsDir:  filepath.Join(d.UploadDir, ".originals"),
-		thumbsDir:     filepath.Join(d.UploadDir, "thumbs"),
-		jobs:          newJobRegistry(),
-		limiter:       newAttemptLimiter(),
-		signupLimiter: newAttemptLimiter(),
+		Deps:           d,
+		originalsDir:   filepath.Join(d.UploadDir, ".originals"),
+		precompressDir: filepath.Join(d.UploadDir, ".precompress"),
+		thumbsDir:      filepath.Join(d.UploadDir, "thumbs"),
+		jobs:           newJobRegistry(),
+		limiter:        newAttemptLimiter(),
+		signupLimiter:  newAttemptLimiter(),
 	}
-	for _, dir := range []string{s.originalsDir, s.thumbsDir} {
+	for _, dir := range []string{s.originalsDir, s.precompressDir, s.thumbsDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			log.Fatalf("[myself-server] mkdir %s: %v", dir, err)
 		}
@@ -161,6 +164,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT "+p+"/admin/media/{name}", admin(s.updateMedia))
 	mux.HandleFunc("POST "+p+"/admin/media/delete", admin(s.deleteMediaBatch))
 	mux.HandleFunc("POST "+p+"/admin/media/zip", admin(s.zipMedia))
+	mux.HandleFunc("POST "+p+"/admin/media/revert", admin(s.revertMedia))
 	mux.HandleFunc("GET "+p+"/admin/backups", admin(s.listBackups))
 	mux.HandleFunc("POST "+p+"/admin/backups", admin(s.createBackupNow))
 	mux.HandleFunc("GET "+p+"/admin/backups/{name}", admin(s.downloadBackup))

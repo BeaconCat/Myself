@@ -249,6 +249,30 @@ async function remove(): Promise<void> {
   }
 }
 
+/* ---------- 回退压缩：恢复压缩前的原图（可能改回原文件名），交给父级刷新列表 ---------- */
+async function revert(): Promise<void> {
+  const it = item.value;
+  if (!it?.compressed || busy.value) return;
+  const ok = await dialog.confirm({
+    title: t('studio.media.revertTitle'),
+    message: t('studio.media.revertBody', { size: formatSize(it.compressed.before) }),
+    confirmText: t('studio.media.revert'),
+  });
+  if (!ok) return;
+  busy.value = true;
+  try {
+    const res = await adminApi.revertMedia([it.name]);
+    if (res.failed) throw new Error('revert');
+    toast(t('studio.media.reverted', { n: 1 }), { icon: 'check' });
+    close();
+    emit('changed');
+  } catch {
+    toast(t('studio.media.revertFailed', { n: 1 }), { icon: 'x' });
+  } finally {
+    busy.value = false;
+  }
+}
+
 /* ---------- 重命名（只改显示名） ---------- */
 const titleDraft = ref('');
 watch(item, (it) => { titleDraft.value = it ? it.title || it.name : ''; }, { immediate: true });
@@ -348,6 +372,13 @@ onBeforeUnmount(() => {
             <dt>{{ t('studio.media.kvBytes') }}</dt>
             <dd class="mono">{{ formatSize(item.size) }}<span v-if="compressible.has(item.name)" class="zip">{{ t('studio.media.compressible') }}</span></dd>
             <dt>{{ t('studio.media.kvFormat') }}</dt><dd>{{ format }}</dd>
+            <template v-if="item.compressed">
+              <dt>{{ t('studio.media.kvCompress') }}</dt>
+              <dd class="comp">
+                <span class="mono">{{ t('studio.media.compressedFrom', { size: formatSize(item.compressed.before) }) }} → {{ formatSize(item.size) }}</span>
+                <button v-if="isAdmin" type="button" class="st-link" :disabled="busy" @click="revert">{{ t('studio.media.revert') }}</button>
+              </dd>
+            </template>
             <dt>{{ t('studio.media.kvCrop') }}</dt>
             <dd>{{ item.crop ? t('studio.media.cropYes', { w: item.crop.width, h: item.crop.height }) : t('studio.media.cropNo') }}</dd>
           </dl>
@@ -551,6 +582,8 @@ onBeforeUnmount(() => {
   }
   .sub { font-size: 12.5px; color: var(--st-ink-3); margin-top: 4px; }
 }
+
+.kv .comp { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 
 .kv .file { word-break: break-all; font-size: 12px; color: var(--st-ink-3); }
 

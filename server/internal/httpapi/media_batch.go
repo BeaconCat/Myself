@@ -79,6 +79,7 @@ func (s *Server) removeMedia(name string) (bool, error) {
 	}
 	os.Remove(filepath.Join(s.UploadDir, name))
 	os.Remove(filepath.Join(s.originalsDir, name))
+	s.clearCompression(name)
 	s.removeThumb(name)
 	_, err := s.DB.Exec(`DELETE FROM media WHERE name = ?`, name)
 	return true, err

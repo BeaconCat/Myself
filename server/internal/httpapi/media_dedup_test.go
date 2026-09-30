@@ -142,3 +142,39 @@ func TestMediaTitleZipBatchDelete(t *testing.T) {
 		t.Fatalf("file still exists")
 	}
 }
+
+// 压缩可回退：PNG 转 WebP 后显示名保留、站点配置里的引用同步；回退后恢复原文件、原名与引用。
+func TestCompressRevert(t *testing.T) {
+	e := newEnv(t)
+	items := e.uploadFiles(pngOf(color.RGBA{R: 30, G: 140, B: 200, A: 255}))
+	name := items[0].Name
+	if _, err := e.server.Config.Save(map[string]any{"about": map[string]any{"avatar": "/uploads/" + name}}); err != nil {
+		t.Fatal(err)
+	}
+	res := e.server.compressNamed(name, 70)
+	if res == nil || res.Error != "" || !strings.HasSuffix(res.NewName, ".webp") {
+		t.Fatalf("compress: %+v", res)
+	}
+	info, _ := e.server.fileInfo(res.NewName)
+	if info.Title != "f0.png" || info.Compressed == nil || info.Compressed.From != name {
+		t.Fatalf("after compress: %+v", info)
+	}
+	if got, _ := e.server.Config.Get()["about"].(map[string]any)["avatar"].(string); got != "/uploads/"+res.NewName {
+		t.Fatalf("config ref not updated: %q", got)
+	}
+
+	var out struct {
+		Items  []mediaItem `json:"items"`
+		Failed int         `json:"failed"`
+	}
+	e.call(http.MethodPost, "/api/v1/admin/media/revert", map[string]any{"names": []string{res.NewName}}, &out, http.StatusOK)
+	if out.Failed != 0 || len(out.Items) != 1 || out.Items[0].Name != name || out.Items[0].Compressed != nil || out.Items[0].Title != "f0.png" {
+		t.Fatalf("revert: %+v", out)
+	}
+	if fileExists(filepath.Join(e.server.UploadDir, res.NewName)) || !fileExists(filepath.Join(e.server.UploadDir, name)) {
+		t.Fatal("files not restored")
+	}
+	if got, _ := e.server.Config.Get()["about"].(map[string]any)["avatar"].(string); got != "/uploads/"+name {
+		t.Fatalf("config ref not restored: %q", got)
+	}
+}

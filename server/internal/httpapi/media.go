@@ -48,6 +48,8 @@ type mediaItem struct {
 	HasOriginal bool          `json:"hasOriginal"`
 	Crop        *imaging.Rect `json:"crop"`
 	CreatedAt   string        `json:"createdAt"`
+	// Compressed 压缩记录（可回退）；未压缩为 nil
+	Compressed *mediaCompression `json:"compressed"`
 	// Duplicate 与已有素材内容相同：没有新存一份，返回的是已有的那张
 	Duplicate bool `json:"duplicate,omitempty"`
 }
@@ -67,6 +69,7 @@ func (s *Server) fileInfo(name string) (mediaItem, error) {
 	if _, err := os.Stat(filepath.Join(s.originalsDir, name)); err == nil {
 		item.HasOriginal = true
 	}
+	item.Compressed = s.compressionOf(name)
 	var cropJSON sql.NullString
 	var createdAt, title string
 	err = s.DB.QueryRow(`SELECT crop_json, created_at, COALESCE(title, '') FROM media WHERE name = ?`, name).Scan(&cropJSON, &createdAt, &title)
@@ -281,6 +284,7 @@ func (s *Server) cropMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cropJSON, _ := json.Marshal(rect)
+	s.clearCompression(name)
 	if _, err := s.DB.Exec(`INSERT INTO media (name, crop_json) VALUES (?, ?)
 		ON CONFLICT(name) DO UPDATE SET crop_json = excluded.crop_json`, name, string(cropJSON)); err != nil {
 		fail(w, err)

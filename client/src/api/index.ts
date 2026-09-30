@@ -304,6 +304,9 @@ export const adminApi = {
   /** 重命名：只改显示名，文件与引用地址不变；空串恢复为文件名 */
   renameMedia: (name: string, title: string) =>
     authed<MediaItem>(`/admin/media/${encodeURIComponent(name)}`, { method: 'PUT', body: JSON.stringify({ title }) }),
+  /** 回退压缩：恢复压缩前的文件（PNG 转 WebP 的改回原名，站内引用同步） */
+  revertMedia: (names: string[]) =>
+    authed<{ items: MediaItem[]; failed: number }>('/admin/media/revert', { method: 'POST', body: JSON.stringify({ names }) }),
   deleteMediaBatch: (names: string[]) =>
     authed<{ deleted: number }>('/admin/media/delete', { method: 'POST', body: JSON.stringify({ names }) }),
   /** 打包下载：返回 zip（按显示名命名） */
@@ -565,6 +568,8 @@ export interface MediaItem {
   createdAt: string;
   /** 与已有素材内容相同：没有新存，返回的是已有的那张 */
   duplicate?: boolean;
+  /** 压缩记录（可回退）；未压缩为 null */
+  compressed?: MediaCompression | null;
 }
 
 export interface BackupInfo {
@@ -573,9 +578,17 @@ export interface BackupInfo {
   createdAt: string;
 }
 
+/** 压缩记录：压缩前的文件名（PNG 转 WebP 时不同）与体积 */
+export interface MediaCompression {
+  from: string;
+  before: number;
+  at: string;
+}
+
 export interface QualityItem {
   name: string;
   title?: string;
+  compressed?: MediaCompression | null;
   url: string;
   size: number;
   format: string;
