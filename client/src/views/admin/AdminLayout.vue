@@ -386,8 +386,9 @@ onBeforeUnmount(() => {
   overflow: auto;
   flex: 1;
   min-height: 0;
-  margin: 0 -4px;
-  padding: 0 4px;
+  /* 滚动容器四周留 4px（外边距抵消，不改变排版）：首项 / 末项的抬升描边与阴影不被裁切 */
+  margin: -4px;
+  padding: 4px;
 
   a {
     position: relative;
