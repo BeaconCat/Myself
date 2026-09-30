@@ -8,6 +8,8 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -110,8 +112,8 @@ func TestImportPosts(t *testing.T) {
 	e := newEnv(t)
 	png := pngOf(color.RGBA{R: 200, G: 20, B: 90, A: 255})
 	hexo := map[string][]byte{
-		"blog/_config.yml": []byte("title: x\n"),
-		"blog/source/_posts/hello-world.md": []byte("---\ntitle: 你好世界\ndate: 2021-03-04 05:06:07\ntags:\n  - go\n  - 随笔\ncategories: [技术]\ncover: /images/c.png\n---\n摘要\n<!-- more -->\n正文 ![图](hello-world/a.png) 和 {% asset_img a.png 说明 %}\n"),
+		"blog/_config.yml":                     []byte("title: x\n"),
+		"blog/source/_posts/hello-world.md":    []byte("---\ntitle: 你好世界\ndate: 2021-03-04 05:06:07\ntags:\n  - go\n  - 随笔\ncategories: [技术]\ncover: /images/c.png\n---\n摘要\n<!-- more -->\n正文 ![图](hello-world/a.png) 和 {% asset_img a.png 说明 %}\n"),
 		"blog/source/_posts/hello-world/a.png": png,
 		"blog/source/images/c.png":             png,
 		"blog/source/_drafts/wip.md":           []byte("title: 未完成\n---\n草稿\n"),
@@ -191,5 +193,26 @@ func TestBackupIsComplete(t *testing.T) {
 		if !has[want] {
 			t.Fatalf("backup missing %s: %v", want, has)
 		}
+	}
+}
+
+// 恢复失败时素材目录互换可完整撤销
+func TestUploadSwapUndo(t *testing.T) {
+	e := newEnv(t)
+	up := e.server.UploadDir
+	os.WriteFile(filepath.Join(up, "keep-me.png"), []byte("old"), 0o644)
+	staging := filepath.Join(up, ".restore-new")
+	os.MkdirAll(staging, 0o755)
+	os.WriteFile(filepath.Join(staging, "new.png"), []byte("new"), 0o644)
+	sw, err := e.server.swapUploads(staging)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fileExists(filepath.Join(up, "new.png")) || fileExists(filepath.Join(up, "keep-me.png")) {
+		t.Fatal("swap did not happen")
+	}
+	sw.undo()
+	if b, _ := os.ReadFile(filepath.Join(up, "keep-me.png")); string(b) != "old" || fileExists(filepath.Join(up, "new.png")) || !fileExists(filepath.Join(staging, "new.png")) {
+		t.Fatal("undo did not restore the original uploads")
 	}
 }

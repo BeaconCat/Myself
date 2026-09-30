@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"myself/server/internal/config"
 )
@@ -200,8 +201,10 @@ func TestChangeLoginAndEmail(t *testing.T) {
 		"enabled": true, "host": "smtp.example.com", "port": 465, "security": "tls", "from": "Myself <a@example.com>",
 	}}, nil, http.StatusOK)
 	var sentTo, sentText string
+	mails := make(chan [2]string, 16)
 	e.server.mailer = func(_ config.Mail, to, _, text, _ string) error {
 		sentTo, sentText = to, text
+		mails <- [2]string{to, text}
 		return nil
 	}
 	// 邮件链接只用配置的站点地址
@@ -229,6 +232,21 @@ func TestChangeLoginAndEmail(t *testing.T) {
 	}
 	if c, _ := e.as("", http.MethodPost, "/api/v1/auth/verify", map[string]string{"token": token}); c != http.StatusBadRequest {
 		t.Fatalf("token reused: %d", c)
+	}
+	// 旧邮箱收到更换通知（新地址打码）
+	deadline := time.After(3 * time.Second)
+	for notified := false; !notified; {
+		select {
+		case m := <-mails:
+			if m[0] == "a@example.com" {
+				if !strings.Contains(m[1], "n*w@example.com") {
+					t.Fatalf("notice text: %s", m[1])
+				}
+				notified = true
+			}
+		case <-deadline:
+			t.Fatal("old address not notified")
+		}
 	}
 	for _, id := range []string{"jia", "new@example.com"} {
 		if c, _ := e.as("", http.MethodPost, "/api/v1/auth/login", map[string]string{"username": id, "password": "password123"}); c != http.StatusOK {

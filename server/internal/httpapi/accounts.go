@@ -384,6 +384,42 @@ func (s *Server) sendVerifyMail(r *http.Request, u *store.User) error {
 	}, base)
 }
 
+// notifyEmailChanged 邮箱换绑完成后通知旧邮箱（异步；新地址只露首尾，站点地址未配置时不发）
+func (s *Server) notifyEmailChanged(r *http.Request, u store.User, newEmail string) {
+	base := s.linkBase(r, false)
+	if base == "" || !s.Config.Typed().Mail.Ready() {
+		return
+	}
+	site := s.Config.Typed().Site.Title
+	go func() {
+		err := s.sendLetter(u.Email, letter{
+			Subject:   "你在「" + site + "」的邮箱已更换",
+			Preheader: "账号邮箱刚刚被更换；如果不是你本人操作，请立即处理。",
+			Title:     "账号邮箱已更换",
+			Greeting:  u.Name + "，你好：",
+			Lines:     []string{"你在「" + site + "」的账号邮箱刚刚从这个邮箱更换为 " + maskEmail(newEmail) + "。之后登录、找回密码都将使用新邮箱。"},
+			Action:    &mailAction{Label: "前往账号设置", URL: base + "/account"},
+			Note:      "如果这不是你本人的操作，请立即用「忘记密码」重置密码，并联系站长。",
+		}, base)
+		if err != nil {
+			s.logMail(err)
+		}
+	}()
+}
+
+// maskEmail 邮箱打码：保留用户名首尾各一个字符与域名
+func maskEmail(e string) string {
+	name, domain, ok := strings.Cut(e, "@")
+	if !ok || name == "" {
+		return e
+	}
+	r := []rune(name)
+	if len(r) <= 2 {
+		return string(r[:1]) + "*@" + domain
+	}
+	return string(r[0]) + strings.Repeat("*", min(len(r)-2, 6)) + string(r[len(r)-1]) + "@" + domain
+}
+
 // POST /auth/verify {token} 验证邮箱并登录
 func (s *Server) verifyEmail(w http.ResponseWriter, r *http.Request) {
 	var b body
@@ -405,6 +441,7 @@ func (s *Server) verifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if t.Kind == "email" {
+		before, _ := s.DB.UserByID(t.UserID)
 		if _, err := s.DB.Exec(`UPDATE users SET email = ?, email_verified = 1 WHERE id = ?`, t.Email, t.UserID); err != nil {
 			if store.IsUniqueErr(err) {
 				writeError(w, http.StatusConflict, "email_taken")
@@ -412,6 +449,11 @@ func (s *Server) verifyEmail(w http.ResponseWriter, r *http.Request) {
 			}
 			fail(w, err)
 			return
+		}
+		// 发往旧邮箱的重置链接作废；并通知旧邮箱（不是本人操作时能及时发现）
+		_ = s.Auth.RevokeTokens(t.UserID, "reset")
+		if before != nil && before.Email != "" && !strings.EqualFold(before.Email, t.Email) {
+			s.notifyEmailChanged(r, *before, t.Email)
 		}
 	} else if _, err := s.DB.Exec(`UPDATE users SET email_verified = 1, status = CASE status WHEN 'pending' THEN 'active' ELSE status END WHERE id = ?`, t.UserID); err != nil {
 		fail(w, err)

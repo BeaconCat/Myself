@@ -27,11 +27,14 @@ const (
 
 var errBadBackup = errors.New("invalid_backup")
 
-// restoreBackup 从备份包恢复全站：数据库按表回灌 + 素材目录镜像还原。调用前须持有 backupMu。
+// restoreBackup 从备份包恢复全站：数据库按表回灌 + 素材目录整体替换。调用前须持有 backupMu。
 //
 // 不替换正在使用的数据库文件（连接池一直开着），而是把包里的 myself.db 解到临时目录后 ATTACH，
 // 在一个事务里逐表「清空 → 按两边共有的列拷回」：旧版本备份缺的新列取默认值，新增的表清空，
-// 恢复后的库结构始终是当前版本。素材：包里有的写回，包里没有的删除；缩略图目录清空按需重建。
+// 恢复后的库结构始终是当前版本。
+//
+// 尽量做到全有或全无：素材先完整解到暂存目录 → 数据库回灌（事务未提交）→ 暂存目录与现有素材逐项
+// 重命名互换（同一磁盘上每步都是原子的，并记下以便撤销）→ 提交事务。任一步失败都回滚到恢复前的状态。
 func (s *Server) restoreBackup(zipPath string) error {
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
@@ -77,14 +80,36 @@ func (s *Server) restoreBackup(zipPath string) error {
 	if err := extractTo(dbFile, tmpDB); err != nil {
 		return err
 	}
-	if err := s.restoreDB(tmpDB); err != nil {
+	// 1. 素材解到暂存目录（与上传目录同盘，之后才能原子地重命名）
+	staging := filepath.Join(s.UploadDir, ".restore-new")
+	os.RemoveAll(staging)
+	defer os.RemoveAll(staging)
+	if err := stageUploads(uploads, staging); err != nil {
 		return err
 	}
-	return s.restoreUploads(uploads)
+	// 2. 数据库回灌；提交前互换素材目录，互换失败则事务回滚、目录还原
+	var swap *uploadSwap
+	err = s.restoreDB(tmpDB, func() error {
+		var err error
+		swap, err = s.swapUploads(staging)
+		return err
+	})
+	if err != nil {
+		if swap != nil {
+			swap.undo()
+		}
+		return err
+	}
+	// 3. 已提交：丢弃旧素材，补齐运行时目录
+	swap.discard()
+	for _, dir := range []string{s.thumbsDir, s.originalsDir, s.precompressDir} {
+		_ = os.MkdirAll(dir, 0o755)
+	}
+	return nil
 }
 
-// restoreDB 逐表回灌（见 restoreBackup）。
-func (s *Server) restoreDB(src string) error {
+// restoreDB 逐表回灌（见 restoreBackup）。beforeCommit 在事务提交前执行，返回错误则整体回滚。
+func (s *Server) restoreDB(src string, beforeCommit func() error) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	conn, err := s.DB.Conn(ctx)
@@ -156,6 +181,9 @@ func (s *Server) restoreDB(src string) error {
 			return fmt.Errorf("restore %s: %w", t, err)
 		}
 	}
+	if err := beforeCommit(); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -197,15 +225,18 @@ func columnNames(ctx context.Context, q queryer, schema, table string) ([]string
 	return out, rows.Err()
 }
 
-// restoreUploads 素材目录镜像为备份时的状态（原图备份 / 压缩前备份一并还原，缩略图清空按需重建）。
-func (s *Server) restoreUploads(files map[string]*zip.File) error {
-	keep := map[string]bool{}
+// stageUploads 把包里的素材解到暂存目录（缩略图不要，按需重建）
+func stageUploads(files map[string]*zip.File, staging string) error {
+	root := filepath.Clean(staging) + string(os.PathSeparator)
+	if err := os.MkdirAll(staging, 0o755); err != nil {
+		return err
+	}
 	for rel, f := range files {
 		if strings.HasPrefix(rel, "thumbs/") {
 			continue
 		}
-		dst := filepath.Join(s.UploadDir, filepath.FromSlash(rel))
-		if !strings.HasPrefix(dst, filepath.Clean(s.UploadDir)+string(os.PathSeparator)) {
+		dst := filepath.Join(staging, filepath.FromSlash(rel))
+		if !strings.HasPrefix(dst, root) {
 			continue
 		}
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
@@ -214,19 +245,67 @@ func (s *Server) restoreUploads(files map[string]*zip.File) error {
 		if err := extractTo(f, dst); err != nil {
 			return err
 		}
-		keep[filepath.Clean(dst)] = true
 	}
-	os.RemoveAll(s.thumbsDir)
-	_ = os.MkdirAll(s.thumbsDir, 0o755)
-	return filepath.WalkDir(s.UploadDir, func(p string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
+	return nil
+}
+
+// uploadSwap 素材目录互换的操作记录：失败时逆序撤销，成功后清理旧素材
+type uploadSwap struct {
+	old   string
+	moves [][2]string // 已完成的重命名（from → to）
+}
+
+// swapUploads 现有素材（顶层逐项）移入 .restore-old，再把暂存目录里的逐项移入上传目录
+func (s *Server) swapUploads(staging string) (*uploadSwap, error) {
+	sw := &uploadSwap{old: filepath.Join(s.UploadDir, ".restore-old")}
+	os.RemoveAll(sw.old)
+	if err := os.MkdirAll(sw.old, 0o755); err != nil {
+		return sw, err
+	}
+	move := func(from, to string) error {
+		if err := os.Rename(from, to); err != nil {
+			return err
 		}
-		if !keep[filepath.Clean(p)] {
-			os.Remove(p)
-		}
+		sw.moves = append(sw.moves, [2]string{from, to})
 		return nil
-	})
+	}
+	current, err := os.ReadDir(s.UploadDir)
+	if err != nil {
+		return sw, err
+	}
+	for _, e := range current {
+		if n := e.Name(); n != ".restore-new" && n != ".restore-old" {
+			if err := move(filepath.Join(s.UploadDir, n), filepath.Join(sw.old, n)); err != nil {
+				return sw, err
+			}
+		}
+	}
+	staged, err := os.ReadDir(staging)
+	if err != nil {
+		return sw, err
+	}
+	for _, e := range staged {
+		if err := move(filepath.Join(staging, e.Name()), filepath.Join(s.UploadDir, e.Name())); err != nil {
+			return sw, err
+		}
+	}
+	return sw, nil
+}
+
+// undo 逆序撤销已完成的重命名，素材目录回到恢复前
+func (sw *uploadSwap) undo() {
+	for i := len(sw.moves) - 1; i >= 0; i-- {
+		m := sw.moves[i]
+		if err := os.Rename(m[1], m[0]); err != nil {
+			log.Printf("[restore] undo %s: %v", m[1], err)
+		}
+	}
+	os.Remove(sw.old)
+}
+
+// discard 恢复成功后删掉换下来的旧素材
+func (sw *uploadSwap) discard() {
+	os.RemoveAll(sw.old)
 }
 
 func extractTo(f *zip.File, dst string) error {
