@@ -102,6 +102,7 @@ const parts = (a: string) => a.split('`').map((text, i) => ({ text, code: i % 2 
     padding: 0 46px 16px 0;
     font-size: 15px;
     line-height: 1.85;
+    white-space: pre-line;
     color: var(--text-2);
     opacity: 0;
     transform: translateY(-6px);
