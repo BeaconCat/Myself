@@ -1,12 +1,15 @@
 <script setup lang="ts">
+import { useConfigStore } from '../../stores/config';
+import { scheduleInput } from '../../utils/publication';
 import { siteToday } from '../../utils/date';
 import Icon from '../../components/ui/Icon.vue';
 import { Check } from 'lucide';
-import { computed, onBeforeUnmount, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import '../admin/studio/i18n';
 import SIcon from '../admin/studio/SIcon.vue';
 import StModal from '../admin/studio/StModal.vue';
+import PublishTiming from '../../components/admin/PublishTiming.vue';
 import LightCover from '../admin/studio/LightCover.vue';
 
 /** 发布确认：左侧「读者将看到」预览卡，右侧发布选项与发布前检查 */
@@ -26,12 +29,16 @@ const props = defineProps<{
   /** 作者投稿需站长审阅：发布改为「提交审阅」 */
   review?: boolean;
 }>();
+const publishAt = defineModel<string | null>('publishAt', { default: null });
+const scheduleOK = ref(true);
 const pinned = defineModel<boolean>('pinned', { default: false });
 const announce = defineModel<boolean>('announce', { default: false });
 const emit = defineEmits<{ close: []; confirm: [] }>();
 const { t } = useI18n();
 
 const today = siteToday();
+const config = useConfigStore();
+const previewDate = computed(() => publishAt.value === null ? today : scheduleInput(publishAt.value || '', config.cfg.timezone).slice(0, 10) || t('schedule.pending'));
 const checks = computed(() => [
   { ok: !!props.title.trim(), label: t('studio.write.ckTitle') },
   { ok: !!props.excerpt.trim(), label: t('studio.write.ckExcerpt') },
@@ -40,7 +47,7 @@ const checks = computed(() => [
 ]);
 
 function onKey(e: KeyboardEvent): void {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !props.busy) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !props.busy && scheduleOK.value) {
     e.preventDefault();
     emit('confirm');
   }
@@ -62,7 +69,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
         <p class="post-excerpt">{{ excerpt || t('studio.posts.noExcerpt') }}</p>
         <div class="meta">
           <span v-if="tags[0]" class="tag">{{ tags[0] }}</span>
-          <span class="mono">{{ today }}</span>
+          <span class="mono">{{ previewDate }}</span>
           <span>{{ t('studio.write.minutes', { n: minutes }) }}</span>
         </div>
       </div>
@@ -70,11 +77,9 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
     </div>
 
     <div class="pub-r">
-      <h3>{{ review ? t('studio.write.reviewTitle') : republish ? t('studio.write.pubUpdateTitle') : t('studio.write.pubTitle') }}</h3>
+      <h3>{{ review ? t('studio.write.reviewTitle') : publishAt !== null ? t('schedule.postTitle') : republish ? t('studio.write.pubUpdateTitle') : t('studio.write.pubTitle') }}</h3>
 
-      <div class="st-flabel">{{ t('studio.write.when') }}</div>
-      <!-- 尚未支持定时发布：只有「立即」，不摆一个点不动的选项 -->
-      <div class="when"><SIcon name="clock" :size="16" /><span>{{ t('studio.write.nowText') }}</span></div>
+      <PublishTiming v-model="publishAt" :disabled="busy" :allow-schedule="!review && !republish" @valid="scheduleOK = $event" />
 
       <p v-if="review" class="review-note"><SIcon name="clock" :size="16" />{{ t('studio.write.reviewNote') }}</p>
       <div v-if="!author" class="st-flabel">{{ t('studio.write.after') }}</div>
@@ -83,7 +88,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
           <span class="st-ck" :class="{ on: pinned }"><Icon :icon="Check" /></span>
           {{ t('studio.write.optPin') }}
         </div>
-        <div v-if="!republish" class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="announce" @click.prevent="announce = !announce" @keydown.enter.space.prevent="announce = !announce">
+        <div v-if="!republish && publishAt === null" class="st-ckrow" role="checkbox" tabindex="0" :aria-checked="announce" @click.prevent="announce = !announce" @keydown.enter.space.prevent="announce = !announce">
           <span class="st-ck" :class="{ on: announce }"><Icon :icon="Check" /></span>
           {{ t('studio.write.optAnnounce') }}
         </div>
@@ -99,8 +104,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
       <div class="ft">
         <span class="kb"><kbd class="st-kbd">Ctrl</kbd><kbd class="st-kbd">Enter</kbd></span>
         <button type="button" class="st-btn g" @click="emit('close')">{{ t('studio.write.moreEdit') }}</button>
-        <button type="button" class="st-btn p" :disabled="busy || !title.trim()" @click="emit('confirm')">
-          <SIcon name="send" :size="16" />{{ review ? t('studio.write.submitReview') : republish ? t('studio.write.update') : t('studio.write.publish') }}
+        <button type="button" class="st-btn p" :disabled="busy || !title.trim() || !scheduleOK" @click="emit('confirm')">
+          <SIcon :name="publishAt !== null ? 'clock' : 'send'" :size="16" />{{ review ? t('studio.write.submitReview') : publishAt !== null ? t('schedule.later') : republish ? t('studio.write.update') : t('studio.write.publish') }}
         </button>
       </div>
     </div>
@@ -113,7 +118,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
   display: grid;
   grid-template-columns: 340px 1fr;
   padding: 0;
-  overflow: hidden;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
 }
 
 .review-note {

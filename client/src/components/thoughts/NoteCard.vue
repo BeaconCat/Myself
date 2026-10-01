@@ -9,6 +9,7 @@ import { Pin } from 'lucide';
 import Icon from '../ui/Icon.vue';
 import { formatDateTime } from '../../utils/date';
 import { render as renderMarkdown } from '../../utils/markdown';
+import { useNoteTime } from '../../composables/useNoteTime';
 import IdentityName from '../common/IdentityName.vue';
 
 /**
@@ -24,6 +25,8 @@ const emit = defineEmits<{
 }>();
 const { t } = useI18n();
 const router = useRouter();
+const noteTime = useNoteTime();
+const viewsText = computed(() => new Intl.NumberFormat('zh-CN', { notation: 'compact', maximumFractionDigits: 1 }).format(props.note.views ?? 0));
 const link = computed(() => `/thoughts/${props.note.id}`);
 
 /** 点卡片空白处进入详情（链接、按钮、配图、选中文字时不跳） */
@@ -51,10 +54,12 @@ function openAt(e: MouseEvent, i: number): void {
     <span class="av"><img :src="avatar" alt="" draggable="false" /></span>
     <div class="main">
       <header class="hd">
-        <b><IdentityName :name="name" :alias="alias" /></b>
-        <span v-if="handle" class="handle">@{{ handle }}</span>
-        <span class="dotsep" />
-        <time :datetime="`${note.createdAt.replace(' ', 'T')}Z`" :title="formatDateTime(note.createdAt, true)">{{ formatDateTime(note.createdAt, true) }}</time>
+        <div class="author-line">
+          <b :title="alias ? `${name} ${alias}` : name"><IdentityName :name="name" :alias="alias" /></b>
+          <span v-if="handle" class="handle" :title="`@${handle}`">@{{ handle }}</span>
+          <span v-if="!detail" class="dotsep" />
+          <time v-if="!detail" :datetime="`${note.createdAt.replace(' ', 'T')}Z`" :title="formatDateTime(note.createdAt, true)">{{ noteTime(note.createdAt) }}</time>
+        </div>
         <span v-if="note.pinned" class="pin"><Icon :icon="Pin" :size="12" :stroke="2" />{{ t('noteDetail.pinned') }}</span>
         <button v-if="note.mood" type="button" class="tag" @click="emit('mood', note.mood)">{{ note.mood }}</button>
       </header>
@@ -74,6 +79,12 @@ function openAt(e: MouseEvent, i: number): void {
         </button>
       </div>
 
+      <div v-if="detail" class="detail-meta">
+        <time :datetime="`${note.createdAt.replace(' ', 'T')}Z`">{{ formatDateTime(note.createdAt, true) }}</time>
+        <template v-if="!note.status || note.status === 'published'">
+          <span aria-hidden="true">·</span><span><b>{{ viewsText }}</b> {{ t('noteDetail.views') }}</span>
+        </template>
+      </div>
       <EngageBar class="act" target="note" :id="note.id" :link="link" :text="note.contentMd" :big="detail" @comment="detail || router.push(link + '#comments')" />
     </div>
   </article>
@@ -126,8 +137,12 @@ function openAt(e: MouseEvent, i: number): void {
   .handle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 
+.author-line { display: contents; }
+
 @media (max-width: 767px) {
-  .hd time { flex-basis: 100%; order: 1; font-size: 12px; }
+  .author-line { display: flex; flex-basis: 100%; min-width: 0; align-items: baseline; gap: 6px; }
+  .author-line b, .hd .handle { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hd time { flex: none; font-size: 12px; }
   .hd .dotsep { display: none; }
 }
 
@@ -178,6 +193,9 @@ function openAt(e: MouseEvent, i: number): void {
   &:hover { color: var(--ink); }
   &:focus-visible { outline: none; box-shadow: var(--focus); }
 }
+
+.detail-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin: 18px 0 8px; font: 13px/1.7 var(--font-sans); color: var(--text-3); }
+.detail-meta b { color: var(--text-2); font-variant-numeric: tabular-nums; }
 
 .body { margin-top: 8px; user-select: text; }
 

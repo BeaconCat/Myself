@@ -398,6 +398,15 @@ func (s *Server) importPosts(w http.ResponseWriter, r *http.Request) {
 			it.Status = "draft"
 		}
 
+		scheduledAt := ""
+		if fmString(meta, "status") == "scheduled" {
+			it.Status = "draft"
+			if when, ok := s.parsePublishTime(fmString(meta, "publishAt", "publish_at")); ok && when.After(time.Now()) && !asDraft {
+				it.Status = "scheduled"
+				scheduledAt = when.UTC().Format("2006-01-02 15:04:05")
+			}
+		}
+
 		// 日期：front matter → Jekyll 文件名 → 现在
 		fileBase := strings.TrimSuffix(path.Base(p), path.Ext(p))
 		if fileBase == "index" { // Hugo 页面包 / Hexo 目录形式
@@ -458,10 +467,10 @@ func (s *Server) importPosts(w http.ResponseWriter, r *http.Request) {
 		}
 		tags := fmStrings(meta, "tags", "categories", "category", "tag")
 		excerpt := fmString(meta, "excerpt", "description", "summary", "subtitle")
-		if _, err := s.DB.Exec(`INSERT INTO posts (slug, title, excerpt, content_md, covers, tags, status, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		if _, err := s.DB.Exec(`INSERT INTO posts (slug, title, excerpt, content_md, covers, tags, status, created_at, updated_at, publish_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			slug, title, excerpt, content, store.JSONStrings(covers), store.JSONStrings(tags), it.Status,
-			created.Format("2006-01-02 15:04:05"), updated.Format("2006-01-02 15:04:05")); err != nil {
+			created.Format("2006-01-02 15:04:05"), updated.Format("2006-01-02 15:04:05"), scheduledAt); err != nil {
 			it.Reason = "save_failed"
 		} else {
 			nCreated++

@@ -142,6 +142,21 @@ func (db *DB) migrateMySQL() error {
 			return err
 		}
 	}
+	for _, statement := range []string{
+		"ALTER TABLE posts ADD COLUMN publish_at VARCHAR(32) NOT NULL DEFAULT ''",
+		"ALTER TABLE notes ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'published'",
+		"ALTER TABLE notes ADD COLUMN publish_at VARCHAR(32) NOT NULL DEFAULT ''",
+		"ALTER TABLE notes ADD COLUMN views BIGINT NOT NULL DEFAULT 0",
+		"ALTER TABLE posts ADD INDEX idx_posts_publish (status, publish_at)",
+		"ALTER TABLE notes ADD INDEX idx_notes_publish (status, publish_at)",
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			var duplicate *mysql.MySQLError
+			if !errors.As(err, &duplicate) || (duplicate.Number != 1060 && duplicate.Number != 1061) {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

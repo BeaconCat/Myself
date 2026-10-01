@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { api, type Note } from '../../api';
+import { adminApi, type Note } from '../../api';
 import '../admin/studio/i18n';
 import SIcon from '../admin/studio/SIcon.vue';
 import NoteComposer from '../admin/studio/NoteComposer.vue';
@@ -25,13 +25,7 @@ const id = computed(() => {
 
 /** 公开流分页查找目标随想（后台与前台同源） */
 async function find(target: number): Promise<Note | null> {
-  for (let page = 1; page <= 20; page += 1) {
-    const res = await api.notes({ page, pageSize: 50 });
-    const hit = res.items.find((n) => n.id === target);
-    if (hit) return hit;
-    if (page * 50 >= res.total) break;
-  }
-  return null;
+  return adminApi.note(target).catch(() => null);
 }
 
 async function load(): Promise<void> {
@@ -50,8 +44,8 @@ async function load(): Promise<void> {
 }
 watch(id, () => void load());
 
-function onPublished(): void {
-  toast(t('studio.composer.published'), { action: t('studio.view'), fn: () => void router.push({ name: 'admin-notes' }) });
+function onPublished(_id: number, status = 'published'): void {
+  toast(t(status === 'scheduled' ? 'schedule.arranged' : status === 'draft' ? 'schedule.draftSaved' : 'studio.composer.published'), { action: t('studio.view'), fn: () => void router.push({ name: 'admin-notes' }) });
   void refreshCounts();
 }
 

@@ -34,10 +34,10 @@ export const API_CATALOG: ApiGroup[] = [
   {
     title: '外部通道（X-Api-Key，供 AI / 脚本托管）',
     endpoints: [
-      { method: 'GET', path: '/api/v1/ext/posts?status=all', desc: '文章列表（含草稿）', auth: 'apikey' },
+      { method: 'GET', path: '/api/v1/ext/posts?status=all', desc: '文章列表（含草稿与定时内容）', auth: 'apikey' },
       { method: 'GET', path: '/api/v1/ext/posts/:id', desc: '文章详情（含正文）', auth: 'apikey', sample: { ':id': '1' } },
       {
-        method: 'POST', path: '/api/v1/ext/posts', desc: '创建文章（默认草稿，需人工审核发布；status 可显式 published）', auth: 'apikey',
+        method: 'POST', path: '/api/v1/ext/posts', desc: '创建文章；全托管 Key 可用 scheduled + publishAt 定时发布', auth: 'apikey',
         sampleBody: '{\n  "slug": "hello-from-agent",\n  "title": "来自 Agent 的文章",\n  "excerpt": "一句话摘要",\n  "contentMd": "# 正文\\n\\n用 Markdown 书写。",\n  "tags": ["AI"],\n  "covers": [],\n  "status": "draft"\n}',
       },
       {
@@ -45,7 +45,8 @@ export const API_CATALOG: ApiGroup[] = [
         sampleBody: '{\n  "title": "更新后的标题",\n  "excerpt": "",\n  "contentMd": "# 更新后的正文",\n  "tags": [],\n  "covers": [],\n  "status": "draft"\n}',
       },
       { method: 'DELETE', path: '/api/v1/ext/posts/:id', desc: '删除文章', auth: 'apikey', sample: { ':id': '999' } },
-      { method: 'GET', path: '/api/v1/ext/notes?pageSize=50', desc: '随想列表', auth: 'apikey' },
+      { method: 'GET', path: '/api/v1/ext/notes?pageSize=50', desc: '随想列表（含草稿与定时内容）', auth: 'apikey' },
+      { method: 'GET', path: '/api/v1/ext/notes/:id', desc: '随想详情与发布状态', auth: 'apikey', sample: { ':id': '1' } },
       {
         method: 'POST', path: '/api/v1/ext/notes', desc: '发布随想（Markdown + 心情 + 最多 9 图）', auth: 'apikey',
         sampleBody: '{\n  "contentMd": "来自 Agent 的一条随想",\n  "mood": "AI",\n  "images": []\n}',
@@ -122,17 +123,26 @@ X-Api-Key: ${key}
     补充说明，作为脚注的第二段。
 ~~~
 
+## 定时发布与草稿
+- 文章与随想均支持 status="draft" / "published" / "scheduled"。
+- 只有站长明确要求定时发布时，使用 status="scheduled" 并提供未来的 publishAt；推荐带时区的 RFC3339（如 2099-01-02T09:30:00+08:00）。不带时区的 YYYY-MM-DDTHH:mm:ss 按站点时区解释。
+- 服务器返回规范化的 UTC publishAt。定时内容在到期前不会进入前台、搜索、RSS 或互动；服务重启会补发到期内容。
+- 修改排期：先读取内容，再 PUT status="scheduled" 与新的 publishAt。取消排期：PUT status="draft", publishAt=null，保留正文；立即发布：PUT status="published", publishAt=null。
+- 更新正文但不改变发布安排时，省略 status 和 publishAt；不要把定时内容意外改成草稿或立即发布。
+- 定时发布只对有发布权限的作者与全托管 Key 开放；投稿 Key 会保留草稿。务必检查响应中的 status，不能把草稿说成已排期。
+
 ## 接口
 文章：
 - GET    ${baseUrl}/api/v1/ext/posts?status=all        列表（含草稿）
 - GET    ${baseUrl}/api/v1/ext/posts/{id}              详情（含正文）
-- POST   ${baseUrl}/api/v1/ext/posts                   创建 {slug,title,excerpt,contentMd,tags,covers,status}
+- POST   ${baseUrl}/api/v1/ext/posts                   创建 {slug,title,excerpt,contentMd,tags,covers,status,publishAt}
 - PUT    ${baseUrl}/api/v1/ext/posts/{id}              更新（同上，slug 不可改）
 - DELETE ${baseUrl}/api/v1/ext/posts/{id}              删除
 
 随想：
 - GET    ${baseUrl}/api/v1/ext/notes?pageSize=50       列表
-- POST   ${baseUrl}/api/v1/ext/notes                   发布 {contentMd,mood,images}
+- GET    ${baseUrl}/api/v1/ext/notes/{id}             详情（含发布状态）
+- POST   ${baseUrl}/api/v1/ext/notes                   创建 {contentMd,mood,images,status,publishAt}
 - PUT    ${baseUrl}/api/v1/ext/notes/{id}              更新
 - DELETE ${baseUrl}/api/v1/ext/notes/{id}              删除
 

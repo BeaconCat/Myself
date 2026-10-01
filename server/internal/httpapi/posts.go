@@ -140,7 +140,7 @@ func (s *Server) listNotes(w http.ResponseWriter, r *http.Request) {
 	where := []string{"1=1"}
 	// 隐藏的随想只在后台（站长带 all=1）列出
 	if qs.Get("all") != "1" || !s.isAdminReq(r) {
-		where = append(where, "hidden = 0")
+		where = append(where, store.PublicNote)
 	}
 	var args []any
 	if q != "" {
@@ -167,7 +167,11 @@ func (s *Server) listNotes(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	items, err := s.DB.QueryNotes(`WHERE `+whereSQL+` ORDER BY pinned DESC, created_at DESC LIMIT ? OFFSET ?`,
+	order := "pinned DESC, created_at DESC"
+	if qs.Get("all") == "1" && s.isAdminReq(r) {
+		order = "CASE WHEN status = 'scheduled' THEN 0 WHEN status = 'draft' THEN 1 ELSE 2 END, publish_at ASC, pinned DESC, created_at DESC"
+	}
+	items, err := s.DB.QueryNotes(`WHERE `+whereSQL+` ORDER BY `+order+` LIMIT ? OFFSET ?`,
 		true, append(args, pageSize, (page-1)*pageSize)...)
 	if err != nil {
 		fail(w, err)

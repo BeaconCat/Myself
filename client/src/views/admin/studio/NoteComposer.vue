@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { adminApi, thumbOf, type Note } from '../../../api';
+import { adminApi, thumbOf, type Note, type NoteDraft, type PublicationStatus } from '../../../api';
 import { useConfigStore } from '../../../stores/config';
 import SIcon from './SIcon.vue';
+import PublishTiming from '../../../components/admin/PublishTiming.vue';
 import MarkdownEditor from '../../../components/admin/MarkdownEditor.vue';
 import { toast } from './toast';
 
@@ -15,7 +16,7 @@ const props = withDefaults(
   defineProps<{ placeholder?: string; note?: Note | null; alwaysOpen?: boolean; hint?: boolean }>(),
   { placeholder: '', note: null, alwaysOpen: false, hint: false },
 );
-const emit = defineEmits<{ published: [id: number]; saved: [] }>();
+const emit = defineEmits<{ published: [id: number, status: PublicationStatus]; saved: [] }>();
 
 const { t } = useI18n();
 const config = useConfigStore();
@@ -43,6 +44,10 @@ const ta = ref<InstanceType<typeof MarkdownEditor> | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const text = ref('');
 const mood = ref('');
+const publishAt = ref<string | null>(null);
+const timingOK = ref(true);
+const unchangedSchedule = computed(() => props.note?.status === 'scheduled' && publishAt.value === props.note.publishAt);
+const timingAllowed = computed(() => timingOK.value || unchangedSchedule.value);
 const pinned = ref(false);
 const imgs = ref<Img[]>([]);
 const focused = ref(false);
@@ -63,6 +68,7 @@ const customMood = computed(() => (mood.value && !moodNames.value.some((m) => m.
 
 function reset(): void {
   text.value = '';
+  publishAt.value = null;
   mood.value = '';
   pinned.value = false;
   imgs.value.forEach((i) => i.preview.startsWith('blob:') && URL.revokeObjectURL(i.preview));
@@ -73,6 +79,7 @@ function load(n: Note | null): void {
   reset();
   if (!n) return;
   text.value = n.contentMd;
+  publishAt.value = n.status === 'scheduled' ? n.publishAt ?? '' : null;
   mood.value = n.mood;
   pinned.value = n.pinned;
   imgs.value = n.images.map((u) => ({ id: ++seq, url: u, preview: thumbOf(u), busy: false }));
@@ -156,7 +163,9 @@ function shake(): void {
   ta.value?.focus();
 }
 
-async function submit(): Promise<void> {
+async function submit(override?: PublicationStatus): Promise<void> {
+  if (!override && !timingAllowed.value) { toast(t('schedule.invalid'), { icon: 'clock' }); return; }
+  const status: PublicationStatus = override ?? (publishAt.value !== null ? 'scheduled' : 'published');
   if (sending.value) return;
   if (!text.value.trim()) return shake();
   if (uploading.value) {
@@ -164,7 +173,8 @@ async function submit(): Promise<void> {
     return;
   }
   sending.value = true;
-  const body = {
+  const body: NoteDraft = {
+    ...(unchangedSchedule.value && !override ? {} : { status, publishAt: status === 'scheduled' ? publishAt.value : null }),
     contentMd: text.value.trim(),
     mood: mood.value,
     images: imgs.value.map((i) => i.url).filter(Boolean),
@@ -172,11 +182,12 @@ async function submit(): Promise<void> {
   };
   try {
     if (props.note) {
-      await adminApi.updateNote(props.note.id, body);
-      toast(t('studio.composer.saved'));
+      const result = await adminApi.updateNote(props.note.id, body);
+      toast(t(result.status === 'scheduled' ? 'schedule.updated' : result.status === 'draft' ? (props.note.status === 'scheduled' ? 'schedule.cancelled' : 'schedule.draftSaved') : 'studio.composer.saved'));
       emit('saved');
     } else {
-      const { id } = await adminApi.createNote(body);
+      const result = await adminApi.createNote(body);
+      const { id } = result;
       sent.value = true;
       window.setTimeout(() => {
         sent.value = false;
@@ -184,10 +195,10 @@ async function submit(): Promise<void> {
         (document.activeElement as HTMLElement | null)?.blur();
         focused.value = false;
       }, 260);
-      emit('published', id);
+      emit('published', id, result.status ?? status);
     }
-  } catch {
-    toast(t('studio.saveFailed'), { icon: 'x' });
+  } catch (error) {
+    toast(t(error instanceof Error && error.message.includes('publish_time') ? 'schedule.invalid' : 'studio.saveFailed'), { icon: 'x' });
   } finally {
     sending.value = false;
   }
@@ -260,6 +271,7 @@ const avatar = computed(() => config.cfg.about?.avatar || config.cfg.site.logo |
             </button>
           </div>
 
+          <PublishTiming v-model="publishAt" class="note-timing" :disabled="sending" :allow-schedule="!note || (note.status ?? 'published') !== 'published'" @valid="timingOK = $event" />
           <div v-if="imgs.length" class="imgs" :data-n="gridN">
             <div
               v-for="(img, i) in imgs"
@@ -300,8 +312,9 @@ const avatar = computed(() => config.cfg.about?.avatar || config.cfg.site.logo |
           <span class="sp" />
           <span class="cnt mono">{{ t('studio.composer.count', { n: count }) }}</span>
           <span class="keys"><kbd class="st-kbd">Ctrl</kbd><kbd class="st-kbd">Enter</kbd></span>
-          <button type="button" class="st-btn p sm" :disabled="sending" @click="submit">
-            {{ note ? t('studio.composer.save') : t('studio.composer.publish') }}
+          <button v-if="note?.status === 'scheduled' || note?.status === 'draft' || publishAt !== null" type="button" class="st-btn g sm" :disabled="sending" @click="submit('draft')">{{ t(note?.status === 'scheduled' ? 'schedule.cancel' : 'schedule.saveDraft') }}</button>
+          <button type="button" class="st-btn p sm" :disabled="sending || !timingAllowed" @click="submit()">
+            {{ publishAt !== null ? t(note?.status === 'scheduled' ? 'schedule.save' : 'schedule.later') : note && (note.status ?? 'published') === 'published' ? t('studio.composer.save') : t('studio.composer.publish') }}
           </button>
         </div>
       </div>
@@ -383,6 +396,8 @@ const avatar = computed(() => config.cfg.about?.avatar || config.cfg.site.logo |
 
   .open & { opacity: 1; transform: none; transition-delay: 0.08s; }
 }
+
+.note-timing { margin-bottom: 16px; }
 
 .moods {
   display: flex;

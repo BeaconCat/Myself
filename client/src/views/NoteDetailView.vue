@@ -41,8 +41,13 @@ async function load(): Promise<void> {
   }
   const release = useLoadingStore().holdRoute();
   try {
-    const res = await api.note(id.value);
+    const requested = id.value;
+    const res = await api.note(requested);
+    if (requested !== id.value) return;
     note.value = res.note;
+    void api.noteView(requested).then(({ views }) => {
+      if (note.value?.id === requested) note.value.views = views;
+    }).catch(() => { /* Counter availability never blocks reading. */ });
     older.value = res.older;
     newer.value = res.newer;
     missing.value = false;

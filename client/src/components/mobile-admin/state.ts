@@ -75,7 +75,7 @@ export async function loadPosts(): Promise<AdminPost[]> {
 
 const NOTE_PAGE = 50;
 export async function loadNotes(): Promise<Note[]> {
-  const res = await api.notes({ page: 1, pageSize: NOTE_PAGE });
+  const res = await api.notes({ page: 1, pageSize: NOTE_PAGE, all: true });
   cache.notes = res.items;
   cache.notesTotal = res.total;
   cache.notesPage = 1;
@@ -84,7 +84,7 @@ export async function loadNotes(): Promise<Note[]> {
 
 export async function loadMoreNotes(): Promise<void> {
   if (!cache.notes || cache.notes.length >= cache.notesTotal) return;
-  const res = await api.notes({ page: cache.notesPage + 1, pageSize: NOTE_PAGE });
+  const res = await api.notes({ page: cache.notesPage + 1, pageSize: NOTE_PAGE, all: true });
   const seen = new Set(cache.notes.map((n) => n.id));
   cache.notes = [...cache.notes, ...res.items.filter((n) => !seen.has(n.id))];
   cache.notesPage += 1;

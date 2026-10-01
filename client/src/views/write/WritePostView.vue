@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { scheduleValid, scheduleLabel } from '../../utils/publication';
 import { siteToday } from '../../utils/date';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { adminApi, thumbOf, type MediaItem, type PostDraft } from '../../api';
+import { adminApi, thumbOf, type MediaItem, type PostDraft, type PublicationStatus, type PublicationResult } from '../../api';
 import { useDialogStore } from '../../stores/dialog';
 import { useAuthStore } from '../../stores/auth';
 import { useConfigStore } from '../../stores/config';
@@ -42,6 +43,7 @@ const draft = reactive<PostDraft>({
   covers: [],
   tags: [],
   status: 'draft',
+  publishAt: null,
   pinned: false,
 });
 const createdAt = ref('');
@@ -54,7 +56,7 @@ const drawer = ref(false);
 const typing = ref(false);
 const source = ref(false);
 const slugTouched = ref(false);
-/** 定时发布：预留界面，保存时忽略 */
+
 
 const rich = ref<InstanceType<typeof RichEditor> | null>(null);
 const titleEl = ref<HTMLTextAreaElement | null>(null);
@@ -86,6 +88,7 @@ async function load(): Promise<void> {
       covers: [...post.covers],
       tags: [...post.tags],
       status: post.status,
+      publishAt: post.status === 'scheduled' ? post.publishAt ?? '' : null,
       pinned: post.pinned,
     });
     createdAt.value = post.createdAt;
@@ -152,7 +155,9 @@ watch(
 const stateText = computed(() => t(`studio.write.state.${saveState.value}`));
 
 /* ===== 保存 / 发布 ===== */
-async function save(status: 'draft' | 'published' = draft.status): Promise<boolean> {
+async function save(status?: PublicationStatus): Promise<boolean> {
+  const requested = status ?? draft.status;
+  if (status === 'scheduled' && !scheduleValid(draft.publishAt, config.cfg.timezone)) { toast(t('schedule.invalid'), { icon: 'clock' }); return false; }
   if (busy.value) return false;
   if (!draft.title.trim()) {
     toast(t('studio.write.needTitle'), { icon: 'pen' });
@@ -163,23 +168,29 @@ async function save(status: 'draft' | 'published' = draft.status): Promise<boole
   ensureSlug();
   busy.value = true;
   saveState.value = 'saving';
-  const body: PostDraft = { ...draft, covers: [...draft.covers], tags: [...draft.tags], status };
+  const body: PostDraft = { ...draft, covers: [...draft.covers], tags: [...draft.tags], status: requested, publishAt: requested === 'scheduled' ? draft.publishAt : null };
   try {
+    let result: PublicationResult;
     if (id.value === null) {
       const res = await adminApi.createPost(body);
+      result = res;
       id.value = res.id;
       createdAt.value = new Date().toISOString();
       void router.replace({ name: 'admin-write-post', query: { id: String(res.id) } });
     } else {
-      await adminApi.updatePost(id.value, body);
+      if (status === undefined) {
+        const { status: _status, publishAt: _at, ...content } = body;
+        result = await adminApi.updatePost(id.value, content);
+      } else result = await adminApi.updatePost(id.value, body);
     }
-    draft.status = status;
+    draft.status = result.status ?? requested;
+    draft.publishAt = result.publishAt || null;
     saveState.value = 'clean';
     void refreshCounts();
     return true;
   } catch (err) {
     saveState.value = 'error';
-    toast((err as Error).message === 'slug_exists' ? t('studio.write.slugExists') : t('studio.saveFailed'), { icon: 'x' });
+    toast((err as Error).message === 'slug_exists' ? t('studio.write.slugExists') : (err as Error).message.includes('publish_time') ? t('schedule.invalid') : t('studio.saveFailed'), { icon: 'x' });
     if ((err as Error).message === 'slug_exists') drawer.value = true;
     return false;
   } finally {
@@ -204,6 +215,7 @@ async function unpublish(): Promise<void> {
 const pubOpen = ref(false);
 const announce = ref(false);
 const republish = ref(false);
+const plannedAt = ref<string | null>(null);
 
 function openPublish(): void {
   if (!draft.title.trim()) {
@@ -213,6 +225,7 @@ function openPublish(): void {
   }
   ensureSlug();
   republish.value = draft.status === 'published';
+  plannedAt.value = draft.status === 'scheduled' ? draft.publishAt ?? '' : null;
   pubOpen.value = true;
 }
 
@@ -220,6 +233,14 @@ function openPublish(): void {
 const stage = reactive({ open: false, title: '', cover: '', url: '', meta: '' });
 
 async function confirmPublish(): Promise<void> {
+  if (!review.value && plannedAt.value !== null) {
+    draft.publishAt = plannedAt.value;
+    const editing = draft.status === 'scheduled';
+    if (!(await save('scheduled'))) return;
+    pubOpen.value = false;
+    toast(t(editing ? 'schedule.updated' : 'schedule.arranged'), { icon: 'clock' });
+    return;
+  }
   if (review.value) {
     if (!(await save('published'))) return;
     draft.status = 'draft';
@@ -421,7 +442,7 @@ onBeforeUnmount(() => {
         </button>
         <button type="button" class="st-btn q sm" :disabled="busy" @click="saveNow">{{ t('studio.save') }}</button>
         <button type="button" class="st-btn p sm" :disabled="busy" @click="openPublish">
-          {{ draft.status === 'published' ? t('studio.write.update') : t('studio.write.publish') }}
+          {{ draft.status === 'scheduled' ? t('schedule.edit') : draft.status === 'published' ? t('studio.write.update') : t('studio.write.publish') }}
         </button>
       </div>
     </div>
@@ -504,7 +525,8 @@ onBeforeUnmount(() => {
             <StSwitch v-model="draft.pinned" :label="t('studio.write.pinned')" />
           </div>
           <div class="row-opt">
-            <div>{{ t('studio.write.status') }}<small>{{ draft.status === 'published' ? t('studio.write.statusPub') : t('studio.write.statusDraft') }}</small></div>
+            <div>{{ t('studio.write.status') }}<small>{{ draft.status === 'scheduled' ? t('schedule.at', { when: scheduleLabel(draft.publishAt || '', config.cfg.timezone) }) : draft.status === 'published' ? t('studio.write.statusPub') : t('studio.write.statusDraft') }}</small></div>
+            <button v-if="draft.status === 'scheduled'" type="button" class="st-btn g sm" :disabled="busy" @click="save('draft').then(ok => ok && toast(t('schedule.cancelled')))">{{ t('schedule.cancel') }}</button>
             <button v-if="draft.status === 'published'" type="button" class="st-btn g sm" :disabled="busy" @click="unpublish">{{ t('studio.write.unpublish') }}</button>
             <span v-else class="st-badge st-draft"><i class="st-dot" />{{ t('studio.status.draft') }}</span>
           </div>
@@ -513,7 +535,7 @@ onBeforeUnmount(() => {
       <div class="dr-f">
         <button type="button" class="st-btn g" :disabled="busy" @click="saveNow">{{ t('studio.save') }}</button>
         <button type="button" class="st-btn p" :disabled="busy" @click="openPublish">
-          <SIcon name="send" :size="16" />{{ draft.status === 'published' ? t('studio.write.update') : t('studio.write.publish') }}
+          <SIcon name="send" :size="16" />{{ draft.status === 'scheduled' ? t('schedule.edit') : draft.status === 'published' ? t('studio.write.update') : t('studio.write.publish') }}
         </button>
       </div>
     </aside>
@@ -540,6 +562,7 @@ onBeforeUnmount(() => {
     </StModal>
 
     <PublishPanel
+      v-model:publish-at="plannedAt"
       v-model:pinned="draft.pinned"
       v-model:announce="announce"
       :open="pubOpen"

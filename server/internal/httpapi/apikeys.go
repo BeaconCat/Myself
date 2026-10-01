@@ -177,7 +177,7 @@ func ownWhere(k apiKeyCtx) (string, []any) {
 func (s *Server) extListPosts(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	where, args := "WHERE 1 = 1", []any{}
-	if status == "published" || status == "draft" {
+	if status == "published" || status == "draft" || status == "scheduled" {
 		where += " AND status = ?"
 		args = append(args, status)
 	}
@@ -207,6 +207,8 @@ func (s *Server) extGetPost(w http.ResponseWriter, r *http.Request) {
 
 // POST /ext/posts 投稿文章（默认草稿；全托管 Key 可显式 published）
 func (s *Server) extCreatePost(w http.ResponseWriter, r *http.Request) {
+	s.publicationMu.Lock()
+	defer s.publicationMu.Unlock()
 	k := keyOf(r)
 	var b body
 	if err := readJSON(w, r, &b); err != nil {
@@ -218,12 +220,19 @@ func (s *Server) extCreatePost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_post")
 		return
 	}
+	var pubErr error
+	in.Status, in.PublishAt, pubErr = s.publicationInput(b, "draft", "")
+	if pubErr != nil {
+		writeError(w, http.StatusBadRequest, pubErr.Error())
+		return
+	}
 	if k.Scope != scopeFull {
 		in.Status = "draft"
+		in.PublishAt = ""
 	}
-	res, err := s.DB.Exec(`INSERT INTO posts (slug, title, excerpt, content_md, covers, tags, status, source_key)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		in.Slug, in.Title, in.Excerpt, in.ContentMd, store.JSONStrings(in.Covers), store.JSONStrings(in.Tags), in.Status, k.ID)
+	res, err := s.DB.Exec(`INSERT INTO posts (slug, title, excerpt, content_md, covers, tags, status, source_key, publish_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		in.Slug, in.Title, in.Excerpt, in.ContentMd, store.JSONStrings(in.Covers), store.JSONStrings(in.Tags), in.Status, k.ID, in.PublishAt)
 	if store.IsUniqueErr(err) {
 		writeError(w, http.StatusConflict, "slug_exists")
 		return
@@ -233,11 +242,13 @@ func (s *Server) extCreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, _ := res.LastInsertId()
-	writeJSON(w, http.StatusCreated, map[string]any{"id": id, "slug": in.Slug, "status": in.Status})
+	writeJSON(w, http.StatusCreated, map[string]any{"id": id, "slug": in.Slug, "status": in.Status, "publishAt": store.PublishTime(in.PublishAt)})
 }
 
 // PUT /ext/posts/{id} 更新文章（slug 不可改；仅投稿 Key 不能发布）
 func (s *Server) extUpdatePost(w http.ResponseWriter, r *http.Request) {
+	s.publicationMu.Lock()
+	defer s.publicationMu.Unlock()
 	k := keyOf(r)
 	var b body
 	if err := readJSON(w, r, &b); err != nil {
@@ -249,19 +260,34 @@ func (s *Server) extUpdatePost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_post")
 		return
 	}
+	own, ownArgs := ownWhere(k)
+	previous, err := s.DB.GetPost(`WHERE id = ?`+own, append([]any{pathID(r)}, ownArgs...)...)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	if previous == nil {
+		writeError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	in.Status, in.PublishAt, err = s.publicationInput(b, previous.Status, previous.PublishAt)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if k.Scope != scopeFull {
 		in.Status = "draft"
+		in.PublishAt = ""
 	}
-	own, ownArgs := ownWhere(k)
-	args := append([]any{in.Title, in.Excerpt, in.ContentMd, store.JSONStrings(in.Covers), store.JSONStrings(in.Tags), in.Status, pathID(r)}, ownArgs...)
+	args := append([]any{in.Title, in.Excerpt, in.ContentMd, store.JSONStrings(in.Covers), store.JSONStrings(in.Tags), in.Status, in.PublishAt, pathID(r)}, ownArgs...)
 	res, err := s.DB.Exec(`UPDATE posts SET
-		title = ?, excerpt = ?, content_md = ?, covers = ?, tags = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+		title = ?, excerpt = ?, content_md = ?, covers = ?, tags = ?, status = ?, publish_at = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`+own, args...)
 	if err != nil {
 		fail(w, err)
 		return
 	}
-	okOrNotFound(w, res)
+	publicationSaved(w, res, in.Status, in.PublishAt)
 }
 
 // DELETE /ext/posts/{id}
@@ -303,6 +329,8 @@ func (s *Server) extListNotes(w http.ResponseWriter, r *http.Request) {
 
 // POST /ext/notes 投稿随想
 func (s *Server) extCreateNote(w http.ResponseWriter, r *http.Request) {
+	s.publicationMu.Lock()
+	defer s.publicationMu.Unlock()
 	if !fullOnly(w, r) {
 		return
 	}
@@ -316,18 +344,26 @@ func (s *Server) extCreateNote(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_note")
 		return
 	}
-	res, err := s.DB.Exec(`INSERT INTO notes (content_md, mood, images, source_key) VALUES (?, ?, ?, ?)`,
-		in.ContentMd, in.Mood, store.JSONStrings(in.Images), keyOf(r).ID)
+	var pubErr error
+	in.Status, in.PublishAt, pubErr = s.publicationInput(b, "published", "")
+	if pubErr != nil {
+		writeError(w, http.StatusBadRequest, pubErr.Error())
+		return
+	}
+	res, err := s.DB.Exec(`INSERT INTO notes (content_md, mood, images, source_key, status, publish_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		in.ContentMd, in.Mood, store.JSONStrings(in.Images), keyOf(r).ID, in.Status, in.PublishAt)
 	if err != nil {
 		fail(w, err)
 		return
 	}
 	id, _ := res.LastInsertId()
-	writeJSON(w, http.StatusCreated, map[string]int64{"id": id})
+	writeJSON(w, http.StatusCreated, map[string]any{"id": id, "status": in.Status, "publishAt": store.PublishTime(in.PublishAt)})
 }
 
 // PUT /ext/notes/{id} 更新随想
 func (s *Server) extUpdateNote(w http.ResponseWriter, r *http.Request) {
+	s.publicationMu.Lock()
+	defer s.publicationMu.Unlock()
 	if !fullOnly(w, r) {
 		return
 	}
@@ -341,13 +377,27 @@ func (s *Server) extUpdateNote(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_note")
 		return
 	}
-	res, err := s.DB.Exec(`UPDATE notes SET content_md = ?, mood = ?, images = ? WHERE id = ?`,
-		in.ContentMd, in.Mood, store.JSONStrings(in.Images), pathID(r))
+	previous, err := s.DB.QueryNotes(`WHERE id = ?`, true, pathID(r))
 	if err != nil {
 		fail(w, err)
 		return
 	}
-	okOrNotFound(w, res)
+	if len(previous) == 0 {
+		writeError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	in.Status, in.PublishAt, err = s.publicationInput(b, previous[0].Status, previous[0].PublishAt)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	res, err := s.DB.Exec(`UPDATE notes SET content_md = ?, mood = ?, images = ?, status = ?, publish_at = ? WHERE id = ?`,
+		in.ContentMd, in.Mood, store.JSONStrings(in.Images), in.Status, in.PublishAt, pathID(r))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	publicationSaved(w, res, in.Status, in.PublishAt)
 }
 
 // DELETE /ext/notes/{id}
@@ -373,4 +423,11 @@ func boolInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+func (s *Server) extGetNote(w http.ResponseWriter, r *http.Request) {
+	if !fullOnly(w, r) {
+		return
+	}
+	s.adminGetNote(w, r)
 }

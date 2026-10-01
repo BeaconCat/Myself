@@ -3,6 +3,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, api, thumbOf, type PostDraft, type Tag } from '../../api';
+import PublishTiming from '../admin/PublishTiming.vue';
 import MaSheet from './MaSheet.vue';
 import MaIcon from './MaIcon.vue';
 import MaRing from './MaRing.vue';
@@ -11,11 +12,12 @@ import MaSwitch from './MaSwitch.vue';
 import { shell, toast } from './state';
 import { SLUG_RE, toSlug } from './format';
 
-defineProps<{ open: boolean }>();
+withDefaults(defineProps<{ open: boolean; allowSchedule?: boolean }>(), { allowSchedule: true });
 const emit = defineEmits<{ 'update:open': [v: boolean] }>();
 const draft = defineModel<PostDraft>('draft', { required: true });
 const { t } = useI18n();
 
+const sheet = ref<InstanceType<typeof MaSheet> | null>(null);
 const MAX_COVERS = 3;
 const uploading = ref(0);
 const tagInput = ref('');
@@ -83,13 +85,18 @@ function autoSlug(): void {
 }
 
 const statusIdx = computed({
-  get: () => (draft.value.status === 'published' ? 1 : 0),
-  set: (v: number) => (draft.value.status = v ? 'published' : 'draft'),
+  get: () => (draft.value.status === 'draft' ? 0 : 1),
+  set: (v: number) => { draft.value.status = v ? 'published' : 'draft'; draft.value.publishAt = null; },
+});
+const timing = computed<string | null>({
+  get: () => draft.value.status === 'scheduled' ? draft.value.publishAt ?? '' : null,
+  set: value => { draft.value.publishAt = value; draft.value.status = value === null ? 'published' : 'scheduled'; if (value !== null) sheet.value?.expand(); },
 });
 </script>
 
 <template>
   <MaSheet
+    ref="sheet"
     :open="open"
     :detents="['half', 'full']"
     :label="t('mobileAdmin.post.meta')"
@@ -107,8 +114,10 @@ const statusIdx = computed({
       <MaSegmented
         v-model="statusIdx"
         class="seg"
-        :items="[{ label: t('mobileAdmin.content.draft') }, { label: t('mobileAdmin.content.published') }]"
+        :items="[{ label: t('mobileAdmin.content.draft') }, { label: t('schedule.publish') }]"
       />
+
+      <PublishTiming v-if="draft.status !== 'draft'" v-model="timing" class="meta-timing" :allow-schedule="allowSchedule" />
 
       <h5>{{ t('mobileAdmin.post.covers') }}<small>{{ draft.covers.length }}/{{ MAX_COVERS }}</small></h5>
       <div class="covers">
@@ -171,6 +180,7 @@ const statusIdx = computed({
 </template>
 
 <style scoped lang="scss">
+.meta-timing { margin-top: 14px; }
 .mh {
   display: flex;
   align-items: center;

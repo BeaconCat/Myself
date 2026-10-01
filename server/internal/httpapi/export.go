@@ -58,8 +58,11 @@ func postMarkdown(p store.PostRow) string {
 	if p.Excerpt != "" {
 		fields = append(fields, [2]string{"excerpt", yamlStr(p.Excerpt)})
 	}
-	if p.Status == "draft" {
+	if p.Status != "published" {
 		fields = append(fields, [2]string{"draft", "true"})
+	}
+	if p.Status == "scheduled" {
+		fields = append(fields, [2]string{"status", yamlStr(p.Status)}, [2]string{"publishAt", yamlStr(store.PublishTime(p.PublishAt))})
 	}
 	if p.Pinned != 0 {
 		fields = append(fields, [2]string{"pinned", "true"})
@@ -99,6 +102,12 @@ func (s *Server) exportMarkdown(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, n := range notes {
 		fields := [][2]string{{"date", yamlStr(n.CreatedAt)}}
+		if n.Status != "published" {
+			fields = append(fields, [2]string{"draft", "true"}, [2]string{"status", yamlStr(n.Status)})
+		}
+		if n.PublishAt != "" {
+			fields = append(fields, [2]string{"publishAt", yamlStr(n.PublishAt)})
+		}
 		if n.Mood != "" {
 			fields = append(fields, [2]string{"mood", yamlStr(n.Mood)})
 		}

@@ -3,6 +3,9 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi, thumbOf, type AdminPost, type BatchAction } from '../../api';
+import { useConfigStore } from '../../stores/config';
+import { scheduleLabel } from '../../utils/publication';
+import { usePublicationRefresh } from '../../composables/usePublicationRefresh';
 import { useDialogStore } from '../../stores/dialog';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
@@ -23,14 +26,16 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const dialog = useDialogStore();
+const config = useConfigStore();
 
-type Filter = 'all' | 'published' | 'draft' | 'pinned' | 'hidden';
+type Filter = 'all' | 'published' | 'draft' | 'scheduled' | 'pinned' | 'hidden';
 type Layout = 'grid' | 'list';
 
 const LAYOUT_KEY = 'myself.studio.postsLayout';
 const posts = ref<AdminPost[]>([]);
+usePublicationRefresh(() => posts.value, load);
 const loaded = ref(false);
-const filter = ref<Filter>(['published', 'draft', 'pinned', 'hidden'].includes(String(route.query.status)) ? (route.query.status as Filter) : 'all');
+const filter = ref<Filter>(['published', 'draft', 'scheduled', 'pinned', 'hidden'].includes(String(route.query.status)) ? (route.query.status as Filter) : 'all');
 const query = ref('');
 const layout = ref<Layout>((() => {
   try {
@@ -59,6 +64,7 @@ const counts = computed(() => ({
   all: posts.value.length,
   published: posts.value.filter((p) => p.status === 'published').length,
   draft: posts.value.filter((p) => p.status === 'draft').length,
+  scheduled: posts.value.filter((p) => p.status === 'scheduled').length,
   pinned: posts.value.filter((p) => p.pinned).length,
   hidden: posts.value.filter((p) => p.hidden).length,
 }));
@@ -76,7 +82,7 @@ const list = computed(() => {
   });
 });
 
-const FILTERS: Filter[] = ['all', 'published', 'draft', 'pinned', 'hidden'];
+const FILTERS: Filter[] = ['all', 'published', 'draft', 'scheduled', 'pinned', 'hidden'];
 
 /* ---------- 勾选与批量：勾选角标进入选择态，此后点卡片即勾选 ---------- */
 const picked = ref<Set<number>>(new Set());
@@ -145,7 +151,6 @@ async function togglePin(p: AdminPost): Promise<void> {
       contentMd: full.contentMd ?? '',
       covers: full.covers,
       tags: full.tags,
-      status: full.status,
       pinned: !full.pinned,
     });
     p.pinned = !full.pinned;
@@ -263,6 +268,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <div class="bd">
           <h3>{{ p.title || t('studio.untitled') }}</h3>
           <p class="post-excerpt">{{ p.excerpt || t('studio.posts.noExcerpt') }}</p>
+          <p v-if="p.status === 'scheduled'" class="schedule-at"><SIcon name="clock" :size="14" />{{ t('schedule.at', { when: scheduleLabel(p.publishAt || '', config.cfg.timezone) }) }}</p>
           <div class="meta">
             <span class="st-badge" :class="`st-${p.status}`"><i class="st-dot" />{{ t(`studio.status.${p.status}`) }}</span>
             <span v-if="p.hidden" class="hid-tag" :title="t('studio.batch.hiddenHint')"><SIcon name="eyeOff" :size="14" />{{ t('studio.batch.hidden') }}</span>
@@ -303,6 +309,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <span class="stc">
           <span class="st-badge" :class="`st-${p.status}`"><i class="st-dot" />{{ t(`studio.status.${p.status}`) }}</span>
           <span v-if="p.hidden" class="hid-tag" :title="t('studio.batch.hiddenHint')"><SIcon name="eyeOff" :size="14" />{{ t('studio.batch.hidden') }}</span>
+          <small v-if="p.status === 'scheduled'" class="schedule-at">{{ scheduleLabel(p.publishAt || '', config.cfg.timezone) }}</small>
         </span>
         <span class="num">{{ dateText(p.createdAt) }}</span>
         <span class="num">{{ relTime(p.updatedAt || p.createdAt) }}</span>
@@ -319,6 +326,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </template>
 
 <style scoped lang="scss">
+.schedule-at { display: flex; align-items: center; gap: 6px; font: 12px/1.5 var(--font-mono); color: var(--st-ink-3); white-space: normal; }
 .view {
   max-width: 1280px;
   margin: 0 auto;

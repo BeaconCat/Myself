@@ -9,6 +9,8 @@ export interface GithubLanguages {
   stale: boolean;
 }
 
+export type PublicationStatus = 'published' | 'draft' | 'scheduled';
+
 export interface Post {
   id: number;
   slug: string;
@@ -47,6 +49,9 @@ export interface Note {
   mood: string;
   images: string[];
   pinned: boolean;
+  status?: PublicationStatus;
+  publishAt?: string;
+  views?: number;
   /** 已隐藏（仅后台列表里出现） */
   hidden?: boolean;
   createdAt: string;
@@ -66,6 +71,8 @@ export interface EngageSummary {
 }
 
 export interface NoteDraft {
+  status?: PublicationStatus;
+  publishAt?: string | null;
   contentMd: string;
   mood: string;
   images: string[];
@@ -80,7 +87,8 @@ export interface NoteList {
 }
 
 export interface AdminPost extends Post {
-  status: 'published' | 'draft';
+  status: PublicationStatus;
+  publishAt?: string;
   /** 已隐藏：前台不可见 */
   hidden?: boolean;
 }
@@ -181,6 +189,7 @@ export const api = {
   siteConfig: <T>() => get<T>('/site-config'),
   /** 单条随想 + 相邻（older = 更早一条，newer = 更新一条；0 表示没有） */
   note: (id: number) => get<{ note: Note; older: number; newer: number }>(`/notes/${id}`),
+  noteView: (id: number) => publicPost<{ views: number }>(`/notes/${id}/view`, {}),
   /** 批量互动摘要：回应计数、当前访客已点、已公开评论数 */
   engage: (target: EngageTarget, ids: number[]) =>
     fetch(`${BASE}/engage?target=${target}&ids=${ids.join(',')}`, { credentials: 'same-origin' })
@@ -220,6 +229,8 @@ export const api = {
   },
 };
 
+export interface PublicationResult { status: PublicationStatus; publishAt: string }
+
 export interface PostDraft {
   slug: string;
   title: string;
@@ -227,7 +238,8 @@ export interface PostDraft {
   contentMd: string;
   covers: string[];
   tags: string[];
-  status: 'published' | 'draft';
+  status: PublicationStatus;
+  publishAt?: string | null;
   pinned: boolean;
 }
 
@@ -291,19 +303,20 @@ export const adminApi = {
   posts: () => authed<AdminPost[]>('/admin/posts'),
   post: (id: number) => authed<AdminPost>(`/admin/posts/${id}`),
   createPost: (draft: PostDraft) =>
-    authed<{ id: number }>('/admin/posts', { method: 'POST', body: JSON.stringify(draft) }),
-  updatePost: (id: number, draft: PostDraft) =>
-    authed<{ ok: boolean }>(`/admin/posts/${id}`, { method: 'PUT', body: JSON.stringify(draft) }),
+    authed<{ id: number } & PublicationResult>('/admin/posts', { method: 'POST', body: JSON.stringify(draft) }),
+  updatePost: (id: number, draft: Omit<PostDraft, 'status' | 'publishAt'> & Partial<Pick<PostDraft, 'status' | 'publishAt'>>) =>
+    authed<{ ok: boolean } & PublicationResult>(`/admin/posts/${id}`, { method: 'PUT', body: JSON.stringify(draft) }),
   batchPosts: (ids: number[], action: BatchAction) =>
     authed<{ affected: number }>('/admin/posts/batch', { method: 'POST', body: JSON.stringify({ ids, action }) }),
   batchNotes: (ids: number[], action: BatchAction) =>
     authed<{ affected: number }>('/admin/notes/batch', { method: 'POST', body: JSON.stringify({ ids, action }) }),
   deletePost: (id: number) =>
     authed<{ ok: boolean }>(`/admin/posts/${id}`, { method: 'DELETE' }),
+  note: (id: number) => authed<Note>(`/admin/notes/${id}`),
   createNote: (note: NoteDraft) =>
-    authed<{ id: number }>('/admin/notes', { method: 'POST', body: JSON.stringify(note) }),
+    authed<{ id: number } & PublicationResult>('/admin/notes', { method: 'POST', body: JSON.stringify(note) }),
   updateNote: (id: number, note: NoteDraft) =>
-    authed<{ ok: boolean }>(`/admin/notes/${id}`, { method: 'PUT', body: JSON.stringify(note) }),
+    authed<{ ok: boolean } & PublicationResult>(`/admin/notes/${id}`, { method: 'PUT', body: JSON.stringify(note) }),
   deleteNote: (id: number) =>
     authed<{ ok: boolean }>(`/admin/notes/${id}`, { method: 'DELETE' }),
   apiKeys: () => authed<ApiKeyInfo[]>('/admin/apikeys'),
@@ -675,7 +688,8 @@ export interface ImportResult {
   found: number;
   created: number;
   images: number;
-  items: { file: string; title: string; slug: string; status: 'published' | 'draft'; images: number; reason?: string }[];
+  items: { file: string; title: string; slug: string; status: PublicationStatus;
+  publishAt?: string; images: number; reason?: string }[];
 }
 
 /** 带上传进度的 multipart 请求（XHR；fetch 的请求体进度尚未普及）；非 2xx 抛出后端错误码 */

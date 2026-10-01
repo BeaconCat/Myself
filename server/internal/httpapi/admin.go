@@ -14,9 +14,9 @@ var slugRe = regexp.MustCompile(`^[a-z0-9-]{1,80}$`)
 
 // postInput 是文章写入的规范化字段。
 type postInput struct {
-	Slug, Title, Excerpt, ContentMd, Status string
-	Covers, Tags                            []string
-	Pinned                                  bool
+	Slug, Title, Excerpt, ContentMd, Status, PublishAt string
+	Covers, Tags                                       []string
+	Pinned                                             bool
 }
 
 // parsePost 校验并规范化文章体。requireSlug=false 时不校验 slug（外部 PUT）。
@@ -39,6 +39,9 @@ func parsePost(b body, requireSlug, defaultPublished bool, coverLimit int) (post
 		}
 	} else if b.strOr("status") == "published" {
 		status = "published"
+	}
+	if b.strOr("status") == "scheduled" {
+		status = "scheduled"
 	}
 	return postInput{
 		Slug:      slug,
@@ -66,6 +69,7 @@ func (s *Server) authorStatus(r *http.Request, in *postInput) {
 		in.Pinned = false
 		if !s.Config.Typed().Users.Authors.DirectPublish {
 			in.Status = "draft"
+			in.PublishAt = ""
 		}
 	}
 }
@@ -98,6 +102,8 @@ func (s *Server) adminGetPost(w http.ResponseWriter, r *http.Request) {
 
 // POST /admin/posts 新建
 func (s *Server) adminCreatePost(w http.ResponseWriter, r *http.Request) {
+	s.publicationMu.Lock()
+	defer s.publicationMu.Unlock()
 	var b body
 	if err := readJSON(w, r, &b); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_post")
@@ -108,15 +114,21 @@ func (s *Server) adminCreatePost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_post")
 		return
 	}
+	var pubErr error
+	in.Status, in.PublishAt, pubErr = s.publicationInput(b, "published", "")
+	if pubErr != nil {
+		writeError(w, http.StatusBadRequest, pubErr.Error())
+		return
+	}
 	s.authorStatus(r, &in)
 	var author any
 	if u := userOf(r); u != nil && u.Role == store.RoleAuthor {
 		author = u.ID
 	}
-	res, err := s.DB.Exec(`INSERT INTO posts (slug, title, excerpt, content_md, covers, tags, status, pinned, author_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	res, err := s.DB.Exec(`INSERT INTO posts (slug, title, excerpt, content_md, covers, tags, status, pinned, author_id, publish_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		in.Slug, in.Title, in.Excerpt, in.ContentMd, store.JSONStrings(in.Covers), store.JSONStrings(in.Tags),
-		in.Status, boolInt(in.Pinned), author)
+		in.Status, boolInt(in.Pinned), author, in.PublishAt)
 	if store.IsUniqueErr(err) {
 		writeError(w, http.StatusConflict, "slug_exists")
 		return
@@ -126,11 +138,13 @@ func (s *Server) adminCreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, _ := res.LastInsertId()
-	writeJSON(w, http.StatusCreated, map[string]int64{"id": id})
+	writeJSON(w, http.StatusCreated, map[string]any{"id": id, "status": in.Status, "publishAt": store.PublishTime(in.PublishAt)})
 }
 
 // PUT /admin/posts/{id} 更新
 func (s *Server) adminUpdatePost(w http.ResponseWriter, r *http.Request) {
+	s.publicationMu.Lock()
+	defer s.publicationMu.Unlock()
 	var b body
 	if err := readJSON(w, r, &b); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_post")
@@ -141,13 +155,27 @@ func (s *Server) adminUpdatePost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_post")
 		return
 	}
-	s.authorStatus(r, &in)
 	scope, args := authorScope(r)
+	previous, err := s.DB.GetPost(`WHERE id = ?`+scope, append([]any{pathID(r)}, args...)...)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	if previous == nil {
+		writeError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	in.Status, in.PublishAt, err = s.publicationInput(b, previous.Status, previous.PublishAt)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.authorStatus(r, &in)
 	res, err := s.DB.Exec(`UPDATE posts SET
-		slug = ?, title = ?, excerpt = ?, content_md = ?, covers = ?, tags = ?, status = ?, pinned = ?,
+		slug = ?, title = ?, excerpt = ?, content_md = ?, covers = ?, tags = ?, status = ?, pinned = ?, publish_at = ?,
 		updated_at = CURRENT_TIMESTAMP WHERE id = ?`+scope,
 		append([]any{in.Slug, in.Title, in.Excerpt, in.ContentMd, store.JSONStrings(in.Covers), store.JSONStrings(in.Tags),
-			in.Status, boolInt(in.Pinned), pathID(r)}, args...)...)
+			in.Status, boolInt(in.Pinned), in.PublishAt, pathID(r)}, args...)...)
 	if store.IsUniqueErr(err) {
 		writeError(w, http.StatusConflict, "slug_exists")
 		return
@@ -156,7 +184,7 @@ func (s *Server) adminUpdatePost(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	okOrNotFound(w, res)
+	publicationSaved(w, res, in.Status, in.PublishAt)
 }
 
 // DELETE /admin/posts/{id}
@@ -172,9 +200,9 @@ func (s *Server) adminDeletePost(w http.ResponseWriter, r *http.Request) {
 
 // noteInput 是随想写入的规范化字段。
 type noteInput struct {
-	ContentMd, Mood string
-	Images          []string
-	Pinned          bool
+	ContentMd, Mood, Status, PublishAt string
+	Images                             []string
+	Pinned                             bool
 }
 
 func parseNote(b body) (noteInput, bool) {
@@ -192,6 +220,8 @@ func parseNote(b body) (noteInput, bool) {
 
 // POST /admin/notes 发随想
 func (s *Server) adminCreateNote(w http.ResponseWriter, r *http.Request) {
+	s.publicationMu.Lock()
+	defer s.publicationMu.Unlock()
 	var b body
 	if err := readJSON(w, r, &b); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_note")
@@ -202,18 +232,26 @@ func (s *Server) adminCreateNote(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_note")
 		return
 	}
-	res, err := s.DB.Exec(`INSERT INTO notes (content_md, mood, images, pinned) VALUES (?, ?, ?, ?)`,
-		in.ContentMd, in.Mood, store.JSONStrings(in.Images), boolInt(in.Pinned))
+	var pubErr error
+	in.Status, in.PublishAt, pubErr = s.publicationInput(b, "published", "")
+	if pubErr != nil {
+		writeError(w, http.StatusBadRequest, pubErr.Error())
+		return
+	}
+	res, err := s.DB.Exec(`INSERT INTO notes (content_md, mood, images, pinned, status, publish_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		in.ContentMd, in.Mood, store.JSONStrings(in.Images), boolInt(in.Pinned), in.Status, in.PublishAt)
 	if err != nil {
 		fail(w, err)
 		return
 	}
 	id, _ := res.LastInsertId()
-	writeJSON(w, http.StatusCreated, map[string]int64{"id": id})
+	writeJSON(w, http.StatusCreated, map[string]any{"id": id, "status": in.Status, "publishAt": store.PublishTime(in.PublishAt)})
 }
 
 // PUT /admin/notes/{id} 编辑随想
 func (s *Server) adminUpdateNote(w http.ResponseWriter, r *http.Request) {
+	s.publicationMu.Lock()
+	defer s.publicationMu.Unlock()
 	var b body
 	if err := readJSON(w, r, &b); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_note")
@@ -224,13 +262,27 @@ func (s *Server) adminUpdateNote(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_note")
 		return
 	}
-	res, err := s.DB.Exec(`UPDATE notes SET content_md = ?, mood = ?, images = ?, pinned = ? WHERE id = ?`,
-		in.ContentMd, in.Mood, store.JSONStrings(in.Images), boolInt(in.Pinned), pathID(r))
+	previous, err := s.DB.QueryNotes(`WHERE id = ?`, true, pathID(r))
 	if err != nil {
 		fail(w, err)
 		return
 	}
-	okOrNotFound(w, res)
+	if len(previous) == 0 {
+		writeError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	in.Status, in.PublishAt, err = s.publicationInput(b, previous[0].Status, previous[0].PublishAt)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	res, err := s.DB.Exec(`UPDATE notes SET content_md = ?, mood = ?, images = ?, pinned = ?, status = ?, publish_at = ? WHERE id = ?`,
+		in.ContentMd, in.Mood, store.JSONStrings(in.Images), boolInt(in.Pinned), in.Status, in.PublishAt, pathID(r))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	publicationSaved(w, res, in.Status, in.PublishAt)
 }
 
 // DELETE /admin/notes/{id}
@@ -355,4 +407,18 @@ func publicUsersConfig(t config.Typed) config.Map {
 func aboutName(cfg config.Map) string {
 	about, _ := cfg["about"].(config.Map)
 	return strings.TrimSpace(str(about["name"]))
+}
+
+// GET /admin/notes/{id} includes drafts and scheduled notes for editing.
+func (s *Server) adminGetNote(w http.ResponseWriter, r *http.Request) {
+	notes, err := s.DB.QueryNotes(`WHERE id = ?`, true, pathID(r))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	if len(notes) == 0 {
+		writeError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	writeJSON(w, http.StatusOK, notes[0])
 }

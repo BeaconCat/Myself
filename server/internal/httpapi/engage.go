@@ -176,7 +176,7 @@ func (s *Server) publicIDs(target string, ids []int64) []int64 {
 	if len(ids) == 0 {
 		return ids
 	}
-	q := `SELECT id FROM notes WHERE hidden = 0 AND id IN (`
+	q := `SELECT id FROM notes WHERE ` + store.PublicNote + ` AND id IN (`
 	if target == "post" {
 		q = `SELECT id FROM posts WHERE ` + store.PublicPost + ` AND id IN (`
 	}
@@ -201,7 +201,7 @@ func (s *Server) publicIDs(target string, ids []int64) []int64 {
 
 // reactionTargets 可回应的对象 → 存在性校验（只能回应已公开的内容）。
 var reactionTargets = map[string]string{
-	"note":    `SELECT COUNT(*) FROM notes WHERE id = ? AND hidden = 0`,
+	"note":    `SELECT COUNT(*) FROM notes WHERE id = ? AND ` + store.PublicNote,
 	"post":    `SELECT COUNT(*) FROM posts WHERE id = ? AND ` + store.PublicPost,
 	"comment": `SELECT COUNT(*) FROM comments WHERE id = ? AND status = 'approved'`,
 }
@@ -267,7 +267,7 @@ func (s *Server) toggleReaction(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getNote(w http.ResponseWriter, r *http.Request) {
 	id := pathID(r)
 	// 隐藏的随想前台 404；站长仍可打开（便于预览）
-	vis := " AND hidden = 0"
+	vis := " AND " + store.PublicNote
 	if s.isAdminReq(r) {
 		vis = ""
 	}
@@ -281,9 +281,9 @@ func (s *Server) getNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var prev, next int64
-	_ = s.DB.QueryRow(`SELECT id FROM notes WHERE hidden = 0 AND (created_at < ? OR (created_at = ? AND id < ?)) ORDER BY created_at DESC, id DESC LIMIT 1`,
+	_ = s.DB.QueryRow(`SELECT id FROM notes WHERE `+store.PublicNote+` AND (created_at < ? OR (created_at = ? AND id < ?)) ORDER BY created_at DESC, id DESC LIMIT 1`,
 		items[0].CreatedAt, items[0].CreatedAt, id).Scan(&prev)
-	_ = s.DB.QueryRow(`SELECT id FROM notes WHERE hidden = 0 AND (created_at > ? OR (created_at = ? AND id > ?)) ORDER BY created_at ASC, id ASC LIMIT 1`,
+	_ = s.DB.QueryRow(`SELECT id FROM notes WHERE `+store.PublicNote+` AND (created_at > ? OR (created_at = ? AND id > ?)) ORDER BY created_at ASC, id ASC LIMIT 1`,
 		items[0].CreatedAt, items[0].CreatedAt, id).Scan(&next)
 	writeJSON(w, http.StatusOK, map[string]any{"note": items[0], "older": prev, "newer": next})
 }

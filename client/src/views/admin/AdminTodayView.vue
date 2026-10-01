@@ -182,8 +182,8 @@ const weekSub = computed(() => {
   return w.best ? `${cmp}${t('studio.today.weekBest', { day: w.best })}` : cmp;
 });
 
-function onPublished(): void {
-  toast(t('studio.composer.published'), { action: t('studio.view'), fn: () => void router.push({ name: 'admin-notes' }) });
+function onPublished(_id: number, status = 'published'): void {
+  toast(t(status === 'scheduled' ? 'schedule.arranged' : status === 'draft' ? 'schedule.draftSaved' : 'studio.composer.published'), { action: t('studio.view'), fn: () => void router.push({ name: 'admin-notes' }) });
   void load();
   void refreshCounts();
 }

@@ -84,7 +84,7 @@ func (s *Server) resolveTarget(target, key string) (int64, bool) {
 			return 0, false
 		}
 		var n int
-		_ = s.DB.QueryRow(`SELECT COUNT(*) FROM notes WHERE id = ? AND hidden = 0`, id).Scan(&n)
+		_ = s.DB.QueryRow(`SELECT COUNT(*) FROM notes WHERE id = ? AND `+store.PublicNote, id).Scan(&n)
 		return id, n > 0
 	case "guestbook":
 		return 0, true

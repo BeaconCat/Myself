@@ -122,6 +122,13 @@ CREATE TABLE IF NOT EXISTS media (
 		// 隐藏：前台不可见（列表、详情、RSS、标签、互动一律排除），后台照常管理
 		`ALTER TABLE posts ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE notes ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`,
+		// 排期是持久化状态；旧随想默认保持已发布，历史浏览数从 0 开始累计。
+		`ALTER TABLE posts ADD COLUMN publish_at TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE notes ADD COLUMN status TEXT NOT NULL DEFAULT 'published'`,
+		`ALTER TABLE notes ADD COLUMN publish_at TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE notes ADD COLUMN views INTEGER NOT NULL DEFAULT 0`,
+		`CREATE INDEX IF NOT EXISTS idx_posts_publish ON posts(status, publish_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_notes_publish ON notes(status, publish_at)`,
 		// 素材文件夹（虚拟路径，如「封面/2026」）；空文件夹记在 media_folders
 		`ALTER TABLE media ADD COLUMN folder TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS media_folders (path TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
@@ -165,6 +172,7 @@ type Post struct {
 	UpdatedAt string   `json:"updatedAt"`
 	ContentMd *string  `json:"contentMd,omitempty"`
 	Status    string   `json:"status,omitempty"`
+	PublishAt string   `json:"publishAt,omitempty"`
 	// Hidden 已隐藏（仅后台输出）
 	Hidden bool `json:"hidden,omitempty"`
 	// Author 协作作者署名；站长本人写的文章为空（前台用站点身份）
@@ -189,6 +197,7 @@ type PostRow struct {
 	Covers    string
 	Tags      string
 	Status    string
+	PublishAt string
 	Pinned    int64
 	CreatedAt string
 	UpdatedAt string
@@ -196,9 +205,11 @@ type PostRow struct {
 	Hidden    int64
 }
 
-const postColumns = `id, slug, title, excerpt, content_md, covers, tags, status, pinned, created_at, updated_at, COALESCE(author_id, 0), hidden`
+const postColumns = `id, slug, title, excerpt, content_md, covers, tags, status, pinned, created_at, updated_at, COALESCE(author_id, 0), hidden, publish_at`
 
 // PublicPost 前台可见的文章：已发布且未隐藏。
+const PublicNote = `status = 'published' AND hidden = 0`
+
 const PublicPost = `status = 'published' AND hidden = 0`
 
 // PostOpts 控制行 → API 对象的字段。
@@ -227,6 +238,7 @@ func (r PostRow) ToPost(o PostOpts) Post {
 	}
 	if o.WithStatus {
 		p.Status = r.Status
+		p.PublishAt = PublishTime(r.PublishAt)
 		p.Hidden = r.Hidden != 0
 	}
 	return p
@@ -239,7 +251,7 @@ type scanner interface {
 func scanPost(s scanner) (PostRow, error) {
 	var r PostRow
 	err := s.Scan(&r.ID, &r.Slug, &r.Title, &r.Excerpt, &r.ContentMd, &r.Covers, &r.Tags,
-		&r.Status, &r.Pinned, &r.CreatedAt, &r.UpdatedAt, &r.AuthorID, &r.Hidden)
+		&r.Status, &r.Pinned, &r.CreatedAt, &r.UpdatedAt, &r.AuthorID, &r.Hidden, &r.PublishAt)
 	return r, err
 }
 
@@ -283,11 +295,14 @@ type Note struct {
 	// Hidden 已隐藏（前台查询本就排除，只会出现在后台列表里）
 	Hidden    bool   `json:"hidden,omitempty"`
 	CreatedAt string `json:"createdAt"`
+	Status    string `json:"status"`
+	PublishAt string `json:"publishAt,omitempty"`
+	Views     int64  `json:"views"`
 }
 
 // QueryNotes 执行 notes 查询；withPinned 控制是否输出 pinned 字段。
 func (db *DB) QueryNotes(tail string, withPinned bool, args ...any) ([]Note, error) {
-	rows, err := db.Query(`SELECT id, content_md, mood, images, pinned, hidden, created_at FROM notes `+tail, args...)
+	rows, err := db.Query(`SELECT id, content_md, mood, images, pinned, hidden, created_at, status, publish_at, views FROM notes `+tail, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -297,10 +312,11 @@ func (db *DB) QueryNotes(tail string, withPinned bool, args ...any) ([]Note, err
 		var n Note
 		var images string
 		var pinned, hidden int64
-		if err := rows.Scan(&n.ID, &n.ContentMd, &n.Mood, &images, &pinned, &hidden, &n.CreatedAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.ContentMd, &n.Mood, &images, &pinned, &hidden, &n.CreatedAt, &n.Status, &n.PublishAt, &n.Views); err != nil {
 			return nil, err
 		}
 		n.Images = ParseStrings(images)
+		n.PublishAt = PublishTime(n.PublishAt)
 		n.Hidden = hidden != 0
 		if withPinned {
 			b := pinned != 0
@@ -368,4 +384,12 @@ func (db *DB) TagCounts() ([]TagCount, error) {
 		out = append(out, t)
 	}
 	return out, rows.Err()
+}
+
+// PublishTime exposes stored UTC schedule times without an ambiguous local timezone.
+func PublishTime(value string) string {
+	if value == "" {
+		return ""
+	}
+	return strings.Replace(value, " ", "T", 1) + "Z"
 }

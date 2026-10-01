@@ -1,4 +1,14 @@
 export default {
+  schedule: {
+    postTitle: '定时发布这篇文章', activityPost: '安排了文章 {title}', activityNote: '安排了随想 {text}', activityDraft: '保存了随想草稿 {text}',
+    publish: '发布', when: '发布时间', now: '立即发布', later: '定时发布', dateTime: '定时发布时间',
+    inHour: '1 小时后', tomorrow: '明天 09:00', timezone: '站点时区：{zone}',
+    summary: '将于 {when} 自动发布', invalid: '请选择有效的未来时间',
+    arranged: '已安排定时发布', updated: '排期已更新', at: '定于 {when}',
+    cancelShort: '取消定时', cancel: '取消定时，存为草稿', cancelled: '已取消定时，内容保留为草稿',
+    saveDraft: '存为草稿', draftSaved: '草稿已保存', edit: '修改排期', scheduled: '待发布',
+    draft: '草稿', published: '已发布', save: '保存排期', pending: '尚未发布',
+  },
   markdownEditor: { expandToolbar: '展开工具栏', collapseToolbar: '收起工具栏', mode: '编辑模式', rich: '富文本', source: 'Markdown 源码', heading: '{n} 级标题', footnote: '插入脚注', footnoteText: '脚注说明' },
   nav: {
     home: '首页',
@@ -56,6 +66,9 @@ export default {
     searchPlaceholder: '搜索随想内容或心情',
     mediaEmpty: '暂无媒体内容',
     justNow: '刚刚',
+    minutesAgo: '{n} 分钟前',
+    shortDate: '{m}月{d}日',
+    fullDate: '{y}年{m}月{d}日',
     hoursAgo: '{n} 小时前',
     daysAgo: '{n} 天前',
   },
@@ -776,6 +789,7 @@ export default {
     },
   },
   noteDetail: {
+    views: '次浏览',
     back: '返回随想',
     older: '更早一条',
     newer: '更新一条',

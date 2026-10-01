@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useNoteTime } from '../../composables/useNoteTime';
 import { useThoughtIdentity } from '../../components/thoughts/useThoughtIdentity';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -21,6 +22,7 @@ import IdentityName from '../../components/common/IdentityName.vue';
  */
 const { t } = useI18n();
 const router = useRouter();
+const noteTime = useNoteTime();
 
 /** 点卡片空白处进入随想详情（配图、按钮、链接除外） */
 function openDetail(e: MouseEvent, n: Note): void {
@@ -154,10 +156,13 @@ const mediaCount = computed(() => media.value.length);
             <span class="av"><img class="m-avatar" :src="avatar" alt="" draggable="false" /></span>
             <div class="post-main">
               <header>
-                <b><IdentityName :name="name" :alias="alias" /></b><span v-if="handle">@{{ handle }}</span>
+                <div class="author-line">
+                  <b :title="alias ? `${name} ${alias}` : name"><IdentityName :name="name" :alias="alias" /></b>
+                  <span v-if="handle" class="handle" :title="`@${handle}`">@{{ handle }}</span>
+                  <time :datetime="`${n.createdAt.replace(' ', 'T')}Z`" :title="formatDateTime(n.createdAt, true)">{{ noteTime(n.createdAt) }}</time>
+                </div>
                 <i v-if="n.pinned" class="m-pin">{{ t('noteDetail.pinned') }}</i>
                 <em v-if="n.mood" class="m-mood">{{ n.mood }}</em>
-                <time :datetime="`${n.createdAt.replace(' ', 'T')}Z`">{{ formatDateTime(n.createdAt, true) }}</time>
               </header>
               <!-- eslint-disable-next-line vue/no-v-html -->
               <div class="body markdown-content" v-html="render(n.contentMd, `note-${n.id}`)" />
@@ -326,7 +331,9 @@ const mediaCount = computed(() => media.value.length);
       text-overflow: ellipsis;
     }
 
-    time { flex-basis: 100%; font-size: 12px; line-height: 1.6; white-space: nowrap; }
+    .author-line { display: flex; flex-basis: 100%; min-width: 0; align-items: baseline; gap: 6px; }
+    .author-line b, .handle { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    time { flex: none; font-size: 12px; line-height: 1.6; white-space: nowrap; }
     .m-mood { margin-left: auto; }
 
     .m-pin {

@@ -69,6 +69,9 @@ type Server struct {
 	comments              commentLimiter
 	reacts                reactLimiter
 	thumbs                singleflight.Group
+	publicationMu         sync.Mutex
+	viewMu                sync.Mutex
+	viewed                map[string]time.Time
 	backupMu              sync.Mutex
 	setupMu               sync.Mutex
 	updateMu              sync.Mutex
@@ -126,6 +129,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+p+"/tags", s.tags)
 	mux.HandleFunc("GET "+p+"/notes", s.listNotes)
 	mux.HandleFunc("GET "+p+"/notes/{id}", s.getNote)
+	mux.HandleFunc("POST "+p+"/notes/{id}/view", withCSRF(s.recordNoteView))
 	mux.HandleFunc("GET "+p+"/engage", s.engage)
 	mux.HandleFunc("POST "+p+"/reactions", s.toggleReaction)
 	mux.HandleFunc("GET "+p+"/img/{from}/{to}/{label}", s.placeholderImage)
@@ -177,6 +181,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+p+"/admin/posts/batch", staff(s.adminBatchPosts))
 	mux.HandleFunc("POST "+p+"/admin/notes/batch", admin(s.adminBatchNotes))
 	mux.HandleFunc("POST "+p+"/admin/notes", admin(s.adminCreateNote))
+	mux.HandleFunc("GET "+p+"/admin/notes/{id}", admin(s.adminGetNote))
 	mux.HandleFunc("PUT "+p+"/admin/notes/{id}", admin(s.adminUpdateNote))
 	mux.HandleFunc("DELETE "+p+"/admin/notes/{id}", admin(s.adminDeleteNote))
 	mux.HandleFunc("GET "+p+"/admin/settings", admin(s.adminGetSettings))
@@ -236,6 +241,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT "+p+"/ext/posts/{id}", ext(s.extUpdatePost))
 	mux.HandleFunc("DELETE "+p+"/ext/posts/{id}", ext(s.extDeletePost))
 	mux.HandleFunc("GET "+p+"/ext/notes", ext(s.extListNotes))
+	mux.HandleFunc("GET "+p+"/ext/notes/{id}", ext(s.extGetNote))
 	mux.HandleFunc("POST "+p+"/ext/notes", ext(s.extCreateNote))
 	mux.HandleFunc("PUT "+p+"/ext/notes/{id}", ext(s.extUpdateNote))
 	mux.HandleFunc("DELETE "+p+"/ext/notes/{id}", ext(s.extDeleteNote))

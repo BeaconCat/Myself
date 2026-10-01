@@ -170,7 +170,7 @@ const activity = computed<Activity[]>(() => {
       key: `p${p.id}`,
       icon: p.status === 'draft' ? 'pen' : 'docs',
       html: t(
-        p.status === 'draft' ? 'mobileAdmin.today.actDraft' : updated ? 'mobileAdmin.today.actPostUpdated' : 'mobileAdmin.today.actPost',
+        p.status === 'scheduled' ? 'schedule.activityPost' : p.status === 'draft' ? 'mobileAdmin.today.actDraft' : updated ? 'mobileAdmin.today.actPostUpdated' : 'mobileAdmin.today.actPost',
         { title: `<b>${esc(p.title)}</b>` },
       ),
       sub: relTime(p.updatedAt, t),
@@ -182,7 +182,7 @@ const activity = computed<Activity[]>(() => {
     items.push({
       key: `n${n.id}`,
       icon: 'bubble',
-      html: t('mobileAdmin.today.actNote', { text: `<b>${esc(mdPlain(n.contentMd).slice(0, 18))}</b>` }),
+      html: t(n.status === 'scheduled' ? 'schedule.activityNote' : n.status === 'draft' ? 'schedule.activityDraft' : 'mobileAdmin.today.actNote', { text: `<b>${esc(mdPlain(n.contentMd).slice(0, 18))}</b>` }),
       sub: `${relTime(n.createdAt, t)}${n.images.length ? ` · ${t('mobileAdmin.content.images', { n: n.images.length })}` : ''}`,
       at: parseTime(n.createdAt).getTime(),
     });

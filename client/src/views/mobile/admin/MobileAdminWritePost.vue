@@ -7,8 +7,11 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { adminApi, thumbOf, type PostDraft } from '../../../api';
+import { adminApi, thumbOf, type PostDraft, type PublicationStatus, type PublicationResult } from '../../../api';
 import { useDialogStore } from '../../../stores/dialog';
+import { useAuthStore } from '../../../stores/auth';
+import { useConfigStore } from '../../../stores/config';
+import { scheduleValid, scheduleLabel } from '../../../utils/publication';
 import MarkdownEditor from '../../../components/admin/MarkdownEditor.vue';
 import MaIcon from '../../../components/mobile-admin/MaIcon.vue';
 import MaSkeleton from '../../../components/mobile-admin/MaSkeleton.vue';
@@ -20,6 +23,9 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const dialog = useDialogStore();
+const config = useConfigStore();
+const auth = useAuthStore();
+const review = computed(() => auth.role === 'author' && !config.cfg.users?.authors.directPublish);
 
 const id = computed(() => {
   const raw = route.query.id;
@@ -36,6 +42,7 @@ const empty = (): PostDraft => ({
   covers: [],
   tags: [],
   status: 'published',
+  publishAt: null,
   pinned: false,
 });
 const draft = ref<PostDraft>(empty());
@@ -46,12 +53,16 @@ const savedAt = ref('');
 const scrollY = ref(0);
 let snapshot = JSON.stringify(draft.value);
 let leaving = false;
-const origStatus = ref<'published' | 'draft' | null>(null);
+const origStatus = ref<PublicationStatus | null>(null);
+const origTime = ref<string | null>(null);
+const unchangedSchedule = computed(() => origStatus.value === 'scheduled' && draft.value.status === 'scheduled' && draft.value.publishAt === origTime.value);
 
 const dirty = computed(() => JSON.stringify(draft.value) !== snapshot);
 const words = computed(() => draft.value.contentMd.replace(/\s/g, '').length);
 const primaryLabel = computed(() => {
   if (busy.value === 'publish') return t('mobileAdmin.common.saving');
+  if (draft.value.status === 'scheduled') return t(origStatus.value === 'scheduled' ? 'schedule.save' : 'schedule.later');
+  if (review.value && draft.value.status !== 'draft') return t('studio.write.submitReview');
   if (draft.value.status === 'draft') return t('mobileAdmin.common.save');
   if (id.value !== null && origStatus.value === 'published') return t('mobileAdmin.post.update');
   return t('mobileAdmin.post.publish');
@@ -81,9 +92,11 @@ onMounted(async () => {
         covers: [...p.covers],
         tags: [...p.tags],
         status: p.status,
+        publishAt: p.status === 'scheduled' ? p.publishAt ?? '' : null,
         pinned: p.pinned,
       };
       origStatus.value = p.status;
+      origTime.value = draft.value.publishAt ?? null;
     } catch {
       toast(t('mobileAdmin.post.loadFailed'), '', 'error');
     }
@@ -142,21 +155,30 @@ async function save(mode: 'publish' | 'draft'): Promise<void> {
     metaOpen.value = true;
     return;
   }
+  if (mode !== 'draft' && d.status === 'scheduled' && !unchangedSchedule.value && !scheduleValid(d.publishAt, config.cfg.timezone)) { toast(t('schedule.invalid'), '', 'error'); metaOpen.value = true; return; }
   busy.value = mode;
   /* 主按钮按元信息里的状态保存；「存草稿」强制草稿 */
-  const body: PostDraft = { ...d, status: mode === 'draft' ? 'draft' : d.status };
+  const body: PostDraft = { ...d, status: mode === 'draft' ? 'draft' : d.status, publishAt: mode !== 'draft' && d.status === 'scheduled' ? d.publishAt : null };
+  const requestedStatus = body.status;
   try {
+    let result: PublicationResult;
     if (id.value === null) {
-      await adminApi.createPost(body);
+      result = await adminApi.createPost(body);
       localStorage.removeItem(LOCAL_KEY);
     } else {
-      await adminApi.updatePost(id.value, body);
+      if (unchangedSchedule.value && mode !== 'draft') {
+        const { status: _status, publishAt: _at, ...content } = body;
+        result = await adminApi.updatePost(id.value, content);
+      } else result = await adminApi.updatePost(id.value, body);
     }
+    body.status = result.status ?? body.status;
+    draft.value.status = body.status;
+    draft.value.publishAt = result.publishAt || null;
     snapshot = JSON.stringify(draft.value);
     shell.bump.posts += 1;
     const msg =
-      body.status === 'draft'
-        ? t('mobileAdmin.post.savedDraft')
+      review.value && requestedStatus !== 'draft' ? t('studio.write.submitted') : body.status === 'scheduled' ? t('schedule.arranged') : body.status === 'draft'
+        ? t(origStatus.value === 'scheduled' ? 'schedule.cancelled' : 'mobileAdmin.post.savedDraft')
         : id.value !== null && origStatus.value === 'published'
           ? t('mobileAdmin.post.updated')
           : t('mobileAdmin.post.published');
@@ -168,7 +190,7 @@ async function save(mode: 'publish' | 'draft'): Promise<void> {
       toast(t('mobileAdmin.post.slugExists'), d.slug, 'error');
       metaOpen.value = true;
     } else {
-      toast(t('mobileAdmin.common.saveFailed'), '', 'error');
+      toast(t(code.includes('publish_time') ? 'schedule.invalid' : 'mobileAdmin.common.saveFailed'), '', 'error');
     }
   } finally {
     busy.value = '';
@@ -224,6 +246,7 @@ onBeforeUnmount(() => window.clearTimeout(autosaveTimer));
       >
         {{ busy === 'draft' ? t('mobileAdmin.common.saving') : t('mobileAdmin.post.saveDraft') }}
       </button>
+      <button v-if="draft.status === 'scheduled'" type="button" class="txtbtn sub tap" :disabled="!!busy" :title="t('schedule.cancel')" @click="save('draft')">{{ t('schedule.cancelShort') }}</button>
       <button class="icbtn tap" :aria-label="t('mobileAdmin.post.meta')" @click="metaOpen = true">
         <MaIcon name="sliders" :size="20" />
       </button>
@@ -253,7 +276,8 @@ onBeforeUnmount(() => window.clearTimeout(autosaveTimer));
         />
 
         <div class="ed-tags">
-          <span class="st" :class="draft.status === 'draft' ? 'dr' : 'pub'">{{ draft.status === 'draft' ? t('mobileAdmin.content.draft') : t('mobileAdmin.content.published') }}</span>
+          <span class="st" :class="draft.status === 'published' ? 'pub' : 'dr'">{{ t(`schedule.${draft.status}`) }}</span>
+          <span v-if="draft.status === 'scheduled'" class="schedule-label">{{ scheduleLabel(draft.publishAt || '', config.cfg.timezone) }}</span>
           <button v-for="tg in draft.tags" :key="tg" class="tagp tap" @click="metaOpen = true"><span class="hs">#</span>{{ tg }}</button>
           <button class="tagp add tap" @click="metaOpen = true">+ {{ t('mobileAdmin.post.tag') }}</button>
         </div>
@@ -266,7 +290,7 @@ onBeforeUnmount(() => window.clearTimeout(autosaveTimer));
       </template>
     </div>
 
-    <PostMetaSheet v-model:open="metaOpen" v-model:draft="draft" />
+    <PostMetaSheet v-model:open="metaOpen" v-model:draft="draft" :allow-schedule="!review && origStatus !== 'published'" />
   </div>
 </template>
 
@@ -399,6 +423,8 @@ onBeforeUnmount(() => window.clearTimeout(autosaveTimer));
     border-radius: 999px;
   }
 }
+
+.schedule-label { font: 12px var(--font-mono); color: var(--text-2); }
 
 /* 标签：极轻描边胶囊，「# 名称」# 用三级灰 */
 .tagp {

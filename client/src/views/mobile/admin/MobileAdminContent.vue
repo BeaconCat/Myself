@@ -3,6 +3,9 @@
  * 后台 · 内容：文章 / 随想分段；列表左滑置顶 / 删除（删除走全局确认模态），点击进入编辑。
  * 分段与路由同步（admin-posts / admin-notes），切换时列表按方向滑入；随想分页无限加载。
  */
+import { useConfigStore } from '../../../stores/config';
+import { scheduleLabel } from '../../../utils/publication';
+import { usePublicationRefresh } from '../../../composables/usePublicationRefresh';
 import { dateTimeText, parseTime } from '../../admin/studio/format';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -27,6 +30,8 @@ import {
 import { mdPlain, relTime } from '../../../components/mobile-admin/format';
 
 const { t } = useI18n();
+const config = useConfigStore();
+usePublicationRefresh(() => [...(cache.posts ?? []), ...(cache.notes ?? [])], () => Promise.all([loadPosts(), loadNotes()]));
 const route = useRoute();
 const router = useRouter();
 const dialog = useDialogStore();
@@ -117,8 +122,7 @@ async function onPostAction(p: AdminPost, id: string): Promise<void> {
         contentMd: full.contentMd ?? '',
         covers: full.covers,
         tags: full.tags,
-        status: full.status,
-        pinned: !full.pinned,
+          pinned: !full.pinned,
       });
       p.pinned = !full.pinned;
       toast(p.pinned ? t('mobileAdmin.content.pinned') : t('mobileAdmin.content.unpinned'), p.title);
@@ -262,10 +266,11 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
               <div class="ct">
                 <b>{{ p.title }}</b>
                 <small>
-                  <span class="st" :class="p.status === 'draft' ? 'dr' : 'pub'">{{ p.status === 'draft' ? t('mobileAdmin.content.draft') : t('mobileAdmin.content.published') }}</span>
+                  <span class="st" :class="p.status === 'published' ? 'pub' : 'dr'">{{ t(`schedule.${p.status}`) }}</span>
                   <span v-if="p.pinned" class="st pin">{{ t('mobileAdmin.content.pinnedTag') }}</span>
                   <span class="meta">{{ relTime(p.updatedAt, t) }}<template v-if="p.tags.length"> · {{ p.tags.slice(0, 2).join(' / ') }}</template></span>
                 </small>
+                <span v-if="p.status === 'scheduled'" class="published-time">{{ t('schedule.at', { when: scheduleLabel(p.publishAt || '', config.cfg.timezone) }) }}</span>
               </div>
               <MaIcon name="chev" :size="16" class="chev" />
             </div>
@@ -298,12 +303,13 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
               </div>
               <div class="ct">
                 <b>{{ mdPlain(n.contentMd) }}</b>
-                <small v-if="n.pinned || n.mood || n.images.length">
+                <small v-if="n.pinned || n.mood || n.images.length || n.status !== 'published'">
+                  <span v-if="n.status && n.status !== 'published'" class="st dr">{{ t(`schedule.${n.status}`) }}</span>
                   <span v-if="n.pinned" class="st pin">{{ t('mobileAdmin.content.pinnedTag') }}</span>
                   <span v-if="n.mood" class="mood">{{ n.mood }}</span>
                   <span v-if="n.images.length" class="meta">{{ t('mobileAdmin.content.images', { n: n.images.length }) }}</span>
                 </small>
-                <time class="published-time" :datetime="parseTime(n.createdAt)?.toISOString()">{{ dateTimeText(n.createdAt, true) }}</time>
+                <time class="published-time" :datetime="parseTime(n.createdAt)?.toISOString()">{{ n.status === 'scheduled' ? t('schedule.at', { when: scheduleLabel(n.publishAt || '', config.cfg.timezone) }) : dateTimeText(n.createdAt, true) }}</time>
               </div>
             </div>
           </MaSwipeRow>

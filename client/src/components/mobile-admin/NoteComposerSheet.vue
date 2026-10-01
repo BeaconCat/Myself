@@ -6,15 +6,16 @@
  */
 import { computed, nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { adminApi, api, thumbOf, type Note } from '../../api';
+import { adminApi, thumbOf, type Note, type NoteDraft, type PublicationStatus } from '../../api';
 import { useConfigStore } from '../../stores/config';
 import { useDialogStore } from '../../stores/dialog';
 import MaSheet from './MaSheet.vue';
+import PublishTiming from '../admin/PublishTiming.vue';
 import MarkdownEditor from '../admin/MarkdownEditor.vue';
 import MaIcon from './MaIcon.vue';
 import MaRing from './MaRing.vue';
 import MaSwitch from './MaSwitch.vue';
-import { cache, loadNotes, shell, toast } from './state';
+import { loadNotes, shell, toast } from './state';
 
 const props = defineProps<{ open: boolean; noteId: number | null; seq: number }>();
 const emit = defineEmits<{ 'update:open': [v: boolean]; stack: [v: number, animated: boolean]; closed: [] }>();
@@ -29,6 +30,11 @@ const MOODS = ['record', 'idea', 'joy', 'calm', 'tired'] as const;
 const sheet = ref<InstanceType<typeof MaSheet> | null>(null);
 
 const content = ref('');
+const publishAt = ref<string | null>(null);
+const loadedStatus = ref<PublicationStatus | null>(null);
+const loadedTime = ref('');
+const timingOK = ref(true);
+const unchangedSchedule = computed(() => loadedStatus.value === 'scheduled' && publishAt.value === loadedTime.value);
 const mood = ref('');
 const images = ref<string[]>([]);
 const pinned = ref(false);
@@ -42,15 +48,16 @@ const editing = computed(() => props.noteId !== null);
 const moodLabels = computed(() => MOODS.map((m) => t(`mobileAdmin.note.moods.${m}`)));
 const customMood = computed(() => (mood.value && !moodLabels.value.includes(mood.value) ? mood.value : ''));
 const count = computed(() => content.value.length);
-const canPost = computed(() => !!content.value.trim() && !busy.value && !uploads.value.length);
+const canPost = computed(() => !!content.value.trim() && !busy.value && !uploads.value.length && (timingOK.value || unchangedSchedule.value));
 const avatar = computed(() => config.cfg.about.avatar || config.cfg.site.logo || '/favicon-256.png');
 const name = computed(() => config.cfg.about.name || 'Myself');
 
-const state = (): string => JSON.stringify([content.value, mood.value, images.value, pinned.value]);
+const state = (): string => JSON.stringify([content.value, mood.value, images.value, pinned.value, publishAt.value]);
 const dirty = computed(() => state() !== snapshot);
 
 function reset(): void {
   content.value = '';
+  publishAt.value = null; loadedStatus.value = null; loadedTime.value = '';
   mood.value = '';
   images.value = [];
   pinned.value = false;
@@ -59,14 +66,7 @@ function reset(): void {
 }
 
 async function findNote(id: number): Promise<Note | undefined> {
-  const hit = cache.notes?.find((n) => n.id === id);
-  if (hit) return hit;
-  for (let page = 1; page <= 10; page += 1) {
-    const res = await api.notes({ page, pageSize: 50 });
-    const n = res.items.find((x) => x.id === id);
-    if (n || res.items.length < 50) return n;
-  }
-  return undefined;
+  return adminApi.note(id).catch(() => undefined);
 }
 
 watch(
@@ -80,6 +80,9 @@ watch(
       const n = await findNote(props.noteId);
       if (n) {
         content.value = n.contentMd;
+        loadedStatus.value = n.status ?? 'published';
+        loadedTime.value = n.publishAt ?? '';
+        publishAt.value = n.status === 'scheduled' ? n.publishAt ?? '' : null;
         mood.value = n.mood;
         images.value = [...n.images];
         pinned.value = n.pinned;
@@ -102,6 +105,10 @@ async function beforeClose(): Promise<boolean> {
     cancelText: t('mobileAdmin.note.keep'),
     danger: true,
   });
+}
+
+function onTimingChange(value: string | null): void {
+  if (value !== null) sheet.value?.expand();
 }
 
 function onFocus(): void {
@@ -151,24 +158,24 @@ async function customMoodPrompt(): Promise<void> {
   if (v !== null) mood.value = v.trim().slice(0, 12);
 }
 
-async function publish(): Promise<void> {
-  if (!canPost.value) return;
+async function publish(override?: PublicationStatus): Promise<void> {
+  if (busy.value || !content.value.trim() || uploads.value.length || (!override && !canPost.value)) return;
+  const status: PublicationStatus = override ?? (publishAt.value !== null ? 'scheduled' : 'published');
   busy.value = true;
-  const body = { contentMd: content.value.trim(), mood: mood.value, images: images.value, pinned: pinned.value };
+  const body: NoteDraft = { ...(unchangedSchedule.value && !override ? {} : { status, publishAt: status === 'scheduled' ? publishAt.value : null }), contentMd: content.value.trim(), mood: mood.value, images: images.value, pinned: pinned.value };
   try {
-    if (props.noteId === null) await adminApi.createNote(body);
-    else await adminApi.updateNote(props.noteId, body);
+    const result = props.noteId === null ? await adminApi.createNote(body) : await adminApi.updateNote(props.noteId, body);
     snapshot = state();
     emit('update:open', false);
     shell.bump.notes += 1;
     void loadNotes().catch(() => undefined);
     const preview = body.contentMd.replace(/\s+/g, ' ').slice(0, 12);
     window.setTimeout(
-      () => toast(editing.value ? t('mobileAdmin.note.saved') : t('mobileAdmin.note.published'), preview),
+      () => toast(t(result.status === 'scheduled' ? 'schedule.arranged' : result.status === 'draft' ? 'schedule.draftSaved' : editing.value ? 'mobileAdmin.note.saved' : 'mobileAdmin.note.published'), preview),
       320,
     );
-  } catch {
-    toast(t('mobileAdmin.common.saveFailed'), '', 'error');
+  } catch (error) {
+    toast(t(error instanceof Error && error.message.includes('publish_time') ? 'schedule.invalid' : 'mobileAdmin.common.saveFailed'), '', 'error');
   } finally {
     busy.value = false;
   }
@@ -191,8 +198,8 @@ async function publish(): Promise<void> {
       <div class="cp-head">
         <button class="txtbtn tap" @click="close">{{ t('mobileAdmin.common.cancel') }}</button>
         <b>{{ editing ? t('mobileAdmin.note.edit') : t('mobileAdmin.note.new') }}</b>
-        <button class="pill-btn tap" :disabled="!canPost" @click="publish">
-          {{ busy ? t('mobileAdmin.common.saving') : editing ? t('mobileAdmin.common.save') : t('mobileAdmin.note.post') }}
+        <button class="pill-btn tap" :disabled="!canPost" @click="publish()">
+          {{ busy ? t('mobileAdmin.common.saving') : publishAt !== null ? t('schedule.later') : editing && loadedStatus === 'published' ? t('mobileAdmin.common.save') : t('mobileAdmin.note.post') }}
         </button>
       </div>
     </template>
@@ -206,6 +213,8 @@ async function publish(): Promise<void> {
 
       <MarkdownEditor v-model="content" :placeholder="t('mobileAdmin.note.placeholder')" @focusin="onFocus" />
 
+      <PublishTiming v-model="publishAt" class="cp-timing" @update:model-value="onTimingChange" @focusin="onFocus" :disabled="busy" :allow-schedule="!editing || loadedStatus !== 'published'" @valid="timingOK = $event" />
+      <button v-if="loadedStatus === 'scheduled' || loadedStatus === 'draft' || publishAt !== null" type="button" class="cp-draft" :disabled="busy || !content.trim() || uploads.length > 0" @click="publish('draft')">{{ t(loadedStatus === 'scheduled' ? 'schedule.cancel' : 'schedule.saveDraft') }}</button>
       <div class="cp-media">
         <div v-for="(img, i) in images" :key="img" class="t">
           <img :src="thumbOf(img)" alt="" draggable="false" />
@@ -312,6 +321,9 @@ async function publish(): Promise<void> {
 }
 
 .cp-body > .markdown-editor { margin: 12px 0; }
+
+.cp-timing { margin: 18px 0 12px; }
+.cp-draft { padding: 8px 0; color: var(--text-2); font-size: 13px; }
 
 .cp-media {
   display: grid;

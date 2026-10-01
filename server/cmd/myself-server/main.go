@@ -52,7 +52,9 @@ func main() {
 	}
 	if *showVersion {
 		name := "Myself"
-		if code := buildInfo().Codename; code != "" { name += " " + code }
+		if code := buildInfo().Codename; code != "" {
+			name += " " + code
+		}
 		fmt.Printf("%s %s (commit %s, built %s)\n", name, version, commit, buildDate)
 		return
 	}
@@ -201,6 +203,7 @@ func serve(runtime runtimeOptions, configFile, setupCode string) (*restartReques
 	background, stopBackground := context.WithCancel(context.Background())
 	defer stopBackground()
 	srv.StartAutoBackup(background)
+	srv.StartPublicationSchedule(background)
 	srv.StartUpdateSchedule(background)
 
 	port := runtime.Port

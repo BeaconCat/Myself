@@ -5,6 +5,8 @@ import { useI18n } from 'vue-i18n';
 import { adminApi, api, thumbOf, type BatchAction, type Note } from '../../api';
 import { useConfigStore } from '../../stores/config';
 import { useDialogStore } from '../../stores/dialog';
+import { usePublicationRefresh } from '../../composables/usePublicationRefresh';
+import { scheduleLabel } from '../../utils/publication';
 import { render as renderMarkdown } from '../../utils/markdown';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
@@ -25,6 +27,7 @@ const dialog = useDialogStore();
 
 const PAGE = 30;
 const notes = ref<Note[]>([]);
+usePublicationRefresh(() => notes.value, () => load());
 const total = ref(0);
 const page = ref(1);
 const loaded = ref(false);
@@ -69,10 +72,10 @@ const groups = computed<Group[]>(() => {
   for (const note of notes.value) {
     const d = parseTime(note.createdAt) ?? new Date();
     // 置顶的（接口排在最前）单独成组，其余按月；否则置顶的旧随想会把新月份挤到最后
-    const key = note.pinned ? 'pinned' : `${d.getFullYear()}-${d.getMonth()}`;
+    const key = note.status === 'scheduled' ? 'scheduled' : note.status === 'draft' ? 'draft' : note.pinned ? 'pinned' : `${d.getFullYear()}-${d.getMonth()}`;
     let g = out.find((x) => x.key === key);
     if (!g) {
-      g = { key, label: note.pinned ? t('studio.notes.pinnedGroup') : t('studio.notes.month', { y: d.getFullYear(), m: d.getMonth() + 1 }), items: [] };
+      g = { key, label: key === 'scheduled' ? t('schedule.later') : key === 'draft' ? t('schedule.draft') : note.pinned ? t('studio.notes.pinnedGroup') : t('studio.notes.month', { y: d.getFullYear(), m: d.getMonth() + 1 }), items: [] };
       out.push(g);
     }
     g.items.push({ note, day: String(d.getDate()).padStart(2, '0'), week: WEEKDAYS[d.getDay()] });
@@ -149,8 +152,8 @@ async function remove(note: Note): Promise<void> {
   }
 }
 
-async function onPublished(id: number): Promise<void> {
-  toast(t('studio.composer.published'));
+async function onPublished(id: number, status = 'published'): Promise<void> {
+  toast(t(status === 'scheduled' ? 'schedule.arranged' : status === 'draft' ? 'schedule.draftSaved' : 'studio.composer.published'));
   await load();
   fresh.value = id;
   void refreshCounts();
@@ -265,12 +268,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           :style="{ '--i': Math.min(i, 8) }"
         >
           <div class="d">
-            <b class="mono">{{ it.day }}</b>
-            <small>{{ it.week }}</small>
-            <time class="published-time mono" :datetime="parseTime(it.note.createdAt)?.toISOString()" :title="dateTimeText(it.note.createdAt, true)">{{ timeText(it.note.createdAt) }}</time>
+            <SIcon v-if="it.note.status === 'scheduled'" name="clock" :size="24" /><b v-else class="mono">{{ it.day }}</b>
+            <small>{{ it.note.status === 'scheduled' ? t('schedule.scheduled') : it.week }}</small>
+            <time v-if="!it.note.status || it.note.status === 'published'" class="published-time mono" :datetime="parseTime(it.note.createdAt)?.toISOString()" :title="dateTimeText(it.note.createdAt, true)">{{ timeText(it.note.createdAt) }}</time>
             <span class="pk" role="checkbox" tabindex="0" :aria-checked="picked.has(it.note.id)" :aria-label="t('studio.a11y.select', { name: shortText(it.note.contentMd) })" :title="t('studio.batch.pick')" @click.stop="togglePick(it.note)" @keydown.enter.space.prevent.stop="togglePick(it.note)"><span class="st-ck" :class="{ on: picked.has(it.note.id) }"><Icon :icon="Check" /></span></span>
           </div>
           <div class="c" @click="onCard(it.note, $event)">
+            <div v-if="it.note.status && it.note.status !== 'published'" class="publication-state">
+              <span class="st-badge" :class="`st-${it.note.status}`"><i class="st-dot" />{{ t(`schedule.${it.note.status}`) }}</span>
+              <span v-if="it.note.status === 'scheduled'">{{ t('schedule.at', { when: scheduleLabel(it.note.publishAt || '', config.cfg.timezone) }) }}</span>
+            </div>
             <!-- eslint-disable-next-line vue/no-v-html -->
             <div class="md markdown-content" v-html="renderMarkdown(it.note.contentMd, `admin-note-${it.note.id}`)" />
             <div v-if="it.note.images.length" class="imgs" :data-n="gridN(it.note.images.length)">
@@ -344,6 +351,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </template>
 
 <style scoped lang="scss">
+.publication-state { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; color: var(--st-ink-3); font: 12px/1.6 var(--font-mono); }
 .view {
   max-width: 1280px;
   margin: 0 auto;
