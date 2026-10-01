@@ -1,5 +1,5 @@
 /**
- * 默认封面：scripts/gen_covers.py 程序生成的 12 幅抽象构图（client/public/covers/NN.webp，另有 NN-s.webp 小图）。
+ * 默认封面：预生成的 12 幅抽象构图（client/public/covers/NN.webp，另有 NN-s.webp 小图）。
  * 无封面的文章、随想占位图与后台示意都从这里按种子稳定取一幅，全站同一套画面语言。
  */
 export const DEFAULT_COVERS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'] as const;

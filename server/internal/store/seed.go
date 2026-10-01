@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// demoAbout 示例关于页模块（由 scripts/sync_about_defaults.py 从 client/src/about/demo-modules.json 同步）。
+// demoAbout 示例关于页模块，与 client/src/about/demo-modules.json 保持同步。
 //
 //go:embed demo_about.json
 var demoAbout []byte

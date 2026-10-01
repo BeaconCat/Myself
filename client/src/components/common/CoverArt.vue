@@ -12,7 +12,7 @@ import { defaultCover } from '../../utils/defaultCovers';
 
 /**
  * 封面：有真实封面用图片（thumb 时走按需缩略图）；没有时按 seed 稳定取一幅默认封面
- * （scripts/gen_covers.py 生成的抽象构图，thumb 时用 640px 小图）。图片加载完成后淡入。
+ * （预生成的抽象构图，thumb 时用 640px 小图）。图片加载完成后淡入。
  * pool 为历史参数（随想配图占位），现与文章共用同一组默认封面。
  */
 const props = withDefaults(

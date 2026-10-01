@@ -1,5 +1,5 @@
 /**
- * 关于页模块 data 结构（与 design/round2/about-kit 的 schema 一一对应）。
+ * 关于页模块 data 结构，与模块注册表和编辑器保持一致。
  * 存储层仍是松散 JSON（AboutModule.data: any），读取时经 migrate.ts 归一为这些形状。
  */
 

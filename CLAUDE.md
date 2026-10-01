@@ -1,7 +1,7 @@
 # Myself — 个人博客（内部代号 Myself）
 
 ## 总体
-- Monorepo：`client/`（Vue 3 + Vite 7 + PNPM）+ `server/`（Go 1.26 net/http + SQLite，纯 Go 无 cgo）；旧 Node 实现归档于 `server-node/`
+- Monorepo：`client/`（Vue 3 + Vite 8 + PNPM）+ `server/`（Go 1.26 net/http，纯 Go 无 cgo）。生产前端、字体与 SQLite 驱动均内置在二进制中，运行时不依赖系统安装 SQLite。
 - 遵循 Google 开发规范；代码简洁专业、易维护
 - 内容统一 Markdown 存储与渲染
 - 每个功能开发完 → 运行测试服务器人工测试 → 通过后 commit 到 GitHub 私有仓 `BeaconCat/Myself`
@@ -15,9 +15,9 @@
 - i18n：vue-i18n，当前仅 zh-CN（`i18n/locales/zh-CN.ts`）；多语言暂缓，新增文案一律走字典不写死
 - 桌面：顶部毛玻璃胶囊导航。移动端（≤767px）不是响应式缩放，而是独立外壳：前台 `components/mobile/MobileShell.vue`（悬浮玻璃胶囊底栏 + 跟手侧滑抽屉 + iOS 式 push/返回手势 + 骨架屏），后台 `views/mobile/admin/`（贴底底栏 + 中央「+」写作）；路由用命名视图 `mobile`，映射在 `router/mobile-public.ts` / `router/mobile-admin.ts`
 - 后台：Studio 设计（`views/admin/`，token 在 `styles/admin.scss` 的 `.studio` 作用域，底色/纸面随主题色 3–8% 交叠）；子路由契约 `router/admin.ts`（name 稳定）
-- 设计语言：强调系统见 `design/round3/IMPLEMENT.md`（抬升 + 轻染、实底主按钮、无彩色发光、圆角 token `--r-*`，基准由 `theme.radius` 配置）；高密度排版见 `design/round3/DENSITY.md`（统计条、大号等宽数字、图表撑满、收紧留白）
+- 设计语言：抬升 + 轻染、实底主按钮、无彩色发光、圆角 token `--r-*`，基准由 `theme.radius` 配置；高密度排版使用统计条、大号等宽数字、撑满区域的图表与收紧的留白。
 - 首页 Hero：文字动效与卡组动效为两个独立注册表（`components/home/hero/choreo/{text,card}`），配置 `hero.textAnim` / `hero.cardAnim` 自由搭配，后台「外观」页用 `HeroMixer.vue` 实时预览
-- 关于页：模块化组件库（`about/`，26 种模块，12 栏 bento，`span/variant/title/hidden`），旧配置经 `about/migrate.ts` 读取时迁移；出厂模块 `about/default-modules.json`（仅身份 / 统计 / 格言），演示模块 `about/demo-modules.json`（初始化选了 Demo 才写入数据库），改后运行 `python scripts/sync_about_defaults.py` 同步到 Go；演示数据不得写死在代码里
+- 关于页：模块化组件库（`about/`，26 种模块，12 栏 bento，`span/variant/title/hidden`），旧配置经 `about/migrate.ts` 读取时迁移；出厂模块 `about/default-modules.json`（仅身份 / 统计 / 格言），演示模块 `about/demo-modules.json`（初始化选了 Demo 才写入数据库），修改时同步 Go 配置默认值与 `server/internal/store/demo_about.json`；演示数据不得写死在组件里。
 - 留言墙模块是真实评论（target=guestbook），模块只存展示选项
 - 站点身份：头像 / 形象图 / 名片头图（`banner`，默认关）/ 名字 / 别名 / 签名 / 自述 / 状态 / 链接 / 格言存于 `about` 顶层，是全站唯一来源（`about/identity.ts`，展示值统一取 `about/useIdentity.ts`），后台「身份」页（`views/admin/AdminIdentityView.vue`）编辑；profile / motto 模块只存展示选项（kicker、收尾装饰），渲染时 `injectIdentity` 注入内容，勿把内容写回模块；链接的 `card` 标记决定名片按钮（最多 3 个，桌面与移动共用 `cardLinks`）
 
@@ -56,7 +56,7 @@
 - API Key 两档：`contrib` 仅投稿（默认，只写草稿、只碰自己创建的草稿）/ `full` 全托管
 - 响应头：页面 CSP 由 `server/web/web.go` 按 index.html 内联脚本哈希生成（勿新增内联脚本）；`/uploads/` 只按单段安全文件名直出，不列目录；配置里的外链统一走 `utils/safeUrl.ts` 的 `safeHref`
 - `backups/`、`uploads/`、`data/` 不入库；Demo 数据在 `server/internal/store/seed.go`
-- 默认封面：`scripts/gen_covers.py` 生成 `client/public/covers/NN(-s).webp`，无封面时经 `utils/defaultCovers.ts` 按种子稳定取图
+- 默认封面：已生成的资源位于 `client/public/covers/NN(-s).webp`，无封面时经 `utils/defaultCovers.ts` 按种子稳定取图。
 
 ## 分期
 - P0 骨架：主题系统、i18n、响应式布局、motion 系统、Hero 轮播 ✅进行中
