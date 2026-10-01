@@ -3,6 +3,7 @@ module myself/server
 go 1.26.0
 
 require (
+	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/gen2brain/webp v0.6.4
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/golang-jwt/jwt/v5 v5.3.1

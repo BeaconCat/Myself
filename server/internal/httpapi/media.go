@@ -79,8 +79,8 @@ func (s *Server) fileInfo(name string) (mediaItem, error) {
 		Size:      stat.Size(),
 		CreatedAt: isoTime(stat.ModTime()),
 	}
-	// 缩略图只有图片才有
-	if kind == kindImage {
+	// 音视频封面按需提取；没有内嵌图片时前端使用首帧或类型占位。
+	if kind == kindImage || kind == kindAudio || kind == kindVideo {
 		item.Thumb = thumbURL(name)
 	}
 	if _, err := os.Stat(filepath.Join(s.originalsDir, name)); err == nil {

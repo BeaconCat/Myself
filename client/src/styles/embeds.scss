@@ -185,6 +185,9 @@
   outline-offset: 6px;
   transition: outline-color var(--dur-fast);
 
+  &::before { content: ''; position: absolute; bottom: 100%; left: -8px; right: -8px; height: 14px; z-index: 2; pointer-events: none; }
+  &:hover::before, &.sel::before { pointer-events: auto; }
+
   &:hover { outline-color: var(--line-2, rgba(128, 128, 128, 0.25)); }
   &.sel { outline-color: color-mix(in oklab, var(--ink, var(--primary)) 60%, transparent); }
 
@@ -208,6 +211,9 @@
   transform: translateY(4px);
   pointer-events: none;
   transition: opacity var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+
+  // The transparent bridge keeps the parent hovered across the gap above the card.
+  &::after { content: ''; position: absolute; inset: -8px -8px -16px; z-index: -1; }
 
   button {
     height: 28px;

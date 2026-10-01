@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"errors"
+	"image"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -63,7 +64,13 @@ func (s *Server) buildThumb(name string) (string, error) {
 	}
 	decodeSlots <- struct{}{}
 	defer func() { <-decodeSlots }()
-	img, err := imaging.Decode(src)
+	var img image.Image
+	kind, _, _, _ := mediaKind(name)
+	if kind == kindAudio || kind == kindVideo {
+		img, err = imaging.Artwork(src)
+	} else {
+		img, err = imaging.Decode(src)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -82,7 +89,8 @@ func (s *Server) removeThumb(name string) {
 func (s *Server) serveThumb(w http.ResponseWriter, r *http.Request) {
 	file := r.PathValue("name")
 	name := safeName(strings.TrimSuffix(file, ".webp"))
-	if name == "" || !strings.HasSuffix(file, ".webp") || !isImage(name) {
+	kind, _, _, _ := mediaKind(name)
+	if name == "" || !strings.HasSuffix(file, ".webp") || (kind != kindImage && kind != kindAudio && kind != kindVideo) {
 		http.NotFound(w, r)
 		return
 	}

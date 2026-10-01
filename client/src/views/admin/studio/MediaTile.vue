@@ -1,26 +1,38 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Archive, FileText, Film, Music } from 'lucide';
+import { computed, ref, watch } from 'vue';
+import { Archive, FileText, Film, Image as ImageIcon, Music } from 'lucide';
 import type { MediaItem } from '../../../api';
 import Icon from '../../../components/ui/Icon.vue';
 import { extOf, mediaKind } from '../../../utils/mediaKind';
 
 /**
- * 素材缩略块：图片用缩略图；视频取首帧（preload=metadata，不自动播放）；音频 / 压缩包 / 文件显示类型图标 + 扩展名。
+ * 素材缩略块：优先显示图片/内嵌封面；无封面的视频主动读取首帧，其余使用类型占位。
  * 素材库页与素材库模态框共用。
  */
 const props = defineProps<{ item: MediaItem; stamp?: string | number }>();
 const kind = computed(() => mediaKind(props.item));
 const ext = computed(() => (props.item.ext || extOf(props.item.name)).toUpperCase());
-const ICONS = { video: Film, audio: Music, archive: Archive, file: FileText } as const;
+const ICONS = { image: ImageIcon, video: Film, audio: Music, archive: Archive, file: FileText } as const;
+const thumbFailed = ref(false), frameReady = ref(false);
+const cover = computed(() => props.item.thumb && !thumbFailed.value && ['image', 'audio', 'video'].includes(kind.value));
+const source = computed(() => props.stamp ? `${props.item.thumb}?v=${props.stamp}` : props.item.thumb);
+watch(() => [props.item.url, props.item.thumb, props.stamp], () => { thumbFailed.value = false; frameReady.value = false; });
+function seekFrame(event: Event): void {
+  const video = event.target as HTMLVideoElement;
+  if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = Math.min(.1, video.duration / 2);
+}
+function showFrame(event: Event): void { frameReady.value = (event.target as HTMLVideoElement).videoWidth > 0; }
 </script>
 
 <template>
   <span class="mt" :data-kind="kind">
-    <img v-if="kind === 'image'" :src="stamp ? `${item.thumb}?v=${stamp}` : item.thumb" alt="" loading="lazy" draggable="false" />
-    <video v-else-if="kind === 'video'" :src="`${item.url}#t=0.1`" preload="metadata" muted playsinline />
+    <img v-if="cover" :src="source" alt="" loading="lazy" draggable="false" @error="thumbFailed = true" />
+    <template v-else-if="kind === 'video'">
+      <span v-if="!frameReady" class="ph"><Icon :icon="Film" :size="26" /><em>{{ ext }}</em></span>
+      <video :src="item.url" preload="metadata" muted playsinline :class="{ ready: frameReady }" @loadedmetadata="seekFrame" @loadeddata="showFrame" @seeked="showFrame" />
+    </template>
     <span v-else class="ph"><Icon :icon="ICONS[kind]" :size="26" /><em>{{ ext }}</em></span>
-    <span v-if="kind === 'video'" class="badge"><Icon :icon="Film" :size="13" />{{ ext }}</span>
+    <span v-if="kind === 'video' || (kind === 'audio' && cover)" class="badge"><Icon :icon="kind === 'video' ? Film : Music" :size="13" />{{ ext }}</span>
   </span>
 </template>
 
@@ -33,6 +45,7 @@ const ICONS = { video: Film, audio: Music, archive: Archive, file: FileText } as
   background: var(--well-2);
 
   img, video { display: block; width: 100%; height: 100%; object-fit: cover; }
+  video { position: relative; opacity: 0; } video.ready { opacity: 1; }
 }
 
 .ph {

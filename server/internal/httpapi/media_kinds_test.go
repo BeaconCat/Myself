@@ -64,7 +64,7 @@ func zipOf(t *testing.T, files map[string]string, dirs ...string) []byte {
 	return buf.Bytes()
 }
 
-// 非图片素材：类别 / 扩展名 / MIME 正确、没有缩略图，列表里能看到；可执行与标记类型拒收。
+// 非图片素材：类别 / 扩展名 / MIME 正确；音视频有封面入口，其余没有缩略图。
 func TestMediaKindsUpload(t *testing.T) {
 	e := newEnv(t)
 	cases := []struct{ file, kind, ext, mime string }{
@@ -80,7 +80,11 @@ func TestMediaKindsUpload(t *testing.T) {
 			data = zipOf(t, map[string]string{"a.txt": "a"})
 		}
 		item := e.uploadOne(c.file, data)
-		if item.Kind != c.kind || item.Ext != c.ext || item.Mime != c.mime || item.Thumb != "" || item.Title != c.file {
+		wantThumb := ""
+		if c.kind == kindVideo || c.kind == kindAudio {
+			wantThumb = thumbURL(item.Name)
+		}
+		if item.Kind != c.kind || item.Ext != c.ext || item.Mime != c.mime || item.Thumb != wantThumb || item.Title != c.file {
 			t.Fatalf("case %d: %+v", i, item)
 		}
 		if !strings.HasSuffix(item.Name, "."+c.ext) {
@@ -112,7 +116,7 @@ func TestMediaKindsUpload(t *testing.T) {
 	kinds := map[string]int{}
 	for _, it := range list {
 		kinds[it.Kind]++
-		if it.Kind != kindImage && it.Thumb != "" {
+		if it.Kind != kindImage && it.Kind != kindAudio && it.Kind != kindVideo && it.Thumb != "" {
 			t.Fatalf("non-image thumb: %+v", it)
 		}
 	}
