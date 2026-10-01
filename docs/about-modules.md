@@ -329,4 +329,3 @@ Now 页：在做 / 在学 / 在读 / 在玩，附注释、进度与更新时间�
 - 宽度：2/3、整行
 
 ![留言墙模块](screenshots/about/guestbook.jpg)
-

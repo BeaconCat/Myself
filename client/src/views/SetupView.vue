@@ -31,7 +31,7 @@ let coverTimer = 0;
 
 /* ---------- 步骤 ---------- */
 type Step = 'code' | 'database' | 'admin' | 'site' | 'content' | 'done';
-const canConfigureDatabase = ref(false);
+const canConfigureDatabase = ref(true);
 const currentDatabase = ref('sqlite');
 const databaseChoice = ref<'current' | 'sqlite' | 'mysql'>('current');
 const mysql = reactive({ host: '127.0.0.1', port: 3306, name: 'myself', user: 'myself', password: '', tls: 'false' as 'false' | 'true' });
@@ -128,6 +128,9 @@ async function next(): Promise<void> {
     busy.value = true;
     try {
       await adminApi.verifySetupCode(form.code.trim());
+      const status = await adminApi.setupStatus();
+      canConfigureDatabase.value = status.canConfigureDatabase;
+      currentDatabase.value = status.databaseDriver;
     } catch (e) {
       error.value = explain(e);
       shake();
@@ -233,10 +236,6 @@ function shake(): void {
 }
 
 onMounted(() => {
-  void adminApi.setupStatus().then(status => {
-    canConfigureDatabase.value = status.canConfigureDatabase;
-    currentDatabase.value = status.databaseDriver;
-  }).catch(() => { /* Existing configuration loading already reports backend outages. */ });
   document.documentElement.dataset.studio = '';
   coverTimer = window.setInterval(() => { coverIdx.value = (coverIdx.value + 1) % COVERS.length; }, 5200);
 });
