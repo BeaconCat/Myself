@@ -265,6 +265,8 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
     position: absolute;
     top: 100%;
     filter: blur(1.5px);
+    // 固定光源的最大光锥；门扇只遮挡它，外翻不会继续撑宽光束。
+    clip-path: polygon(calc(50% - var(--door-size) / 2) 0, calc(50% + var(--door-size) / 2) 0, 100% 100%, 0 100%);
 
     i {
       position: absolute;
