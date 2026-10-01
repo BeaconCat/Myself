@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -12,7 +13,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -35,9 +35,17 @@ func (s *Server) createBackupWith(prune bool) (string, error) {
 	if prune {
 		defer s.pruneBackups(keepBackups)
 	}
-	// 先把 WAL 合并进主库文件，保证 zip 内的 .db 自洽可单独恢复。
-	if _, err := s.DB.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
-		log.Printf("[backup] checkpoint: %v", err)
+	// Both engines export a consistent SQLite snapshot; runtime files and credentials
+	// outside the database are deliberately excluded from a site backup.
+	snapshot, err := os.MkdirTemp("", "myself-backup-")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(snapshot)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	if err := s.DB.SnapshotTo(ctx, filepath.Join(snapshot, "myself.db")); err != nil {
+		return "", err
 	}
 	name, out, err := s.newBackupFile()
 	if err != nil {
@@ -45,7 +53,7 @@ func (s *Server) createBackupWith(prune bool) (string, error) {
 	}
 	zw := zip.NewWriter(out)
 	for _, dir := range []struct{ path, prefix string }{
-		{s.DataDir, "data"},
+		{snapshot, "data"},
 		{s.UploadDir, "uploads"},
 	} {
 		if !dirExists(dir.path) {
@@ -126,28 +134,34 @@ func dirExists(path string) bool {
 	return err == nil && st.IsDir()
 }
 
-var autoBackupOnce sync.Once
-
 // StartAutoBackup 自动备份调度：间隔小时数取自站点配置，0 关闭；每分钟核对一次。
-func (s *Server) StartAutoBackup() {
-	autoBackupOnce.Do(func() {
-		go func() {
-			var last time.Time
-			for range time.Tick(time.Minute) {
-				hours := s.Config.Typed().Backup.AutoHours
-				if hours <= 0 {
-					continue
-				}
-				hours = max(hours, 1)
-				if time.Since(last) >= time.Duration(hours*float64(time.Hour)) {
-					last = time.Now()
-					if _, err := s.createBackup(); err != nil {
-						log.Printf("[auto-backup] %v", err)
-					}
+func (s *Server) StartAutoBackup(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		var last time.Time
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+			if s.maintenance.Load() {
+				continue
+			}
+			hours := s.Config.Typed().Backup.AutoHours
+			if hours <= 0 {
+				continue
+			}
+			hours = max(hours, 1)
+			if time.Since(last) >= time.Duration(hours*float64(time.Hour)) {
+				last = time.Now()
+				if _, err := s.createBackup(); err != nil {
+					log.Printf("[auto-backup] %v", err)
 				}
 			}
-		}()
-	})
+		}
+	}()
 }
 
 type backupInfo struct {

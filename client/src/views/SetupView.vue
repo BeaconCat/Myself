@@ -30,11 +30,15 @@ const coverIdx = ref(0);
 let coverTimer = 0;
 
 /* ---------- 步骤 ---------- */
-type Step = 'code' | 'admin' | 'site' | 'content' | 'done';
-const STEPS: Step[] = ['code', 'admin', 'site', 'content'];
+type Step = 'code' | 'database' | 'admin' | 'site' | 'content' | 'done';
+const canConfigureDatabase = ref(false);
+const currentDatabase = ref('sqlite');
+const databaseChoice = ref<'current' | 'sqlite' | 'mysql'>('current');
+const mysql = reactive({ host: '127.0.0.1', port: 3306, name: 'myself', user: 'myself', password: '', tls: 'false' as 'false' | 'true' });
+const STEPS = computed<Step[]>(() => ['code', ...(canConfigureDatabase.value ? ['database' as const] : []), 'admin', 'site', 'content']);
 const step = ref<Step>('code');
 const dir = ref<1 | -1>(1);
-const stepNo = computed(() => STEPS.indexOf(step.value));
+const stepNo = computed(() => STEPS.value.indexOf(step.value));
 
 const form = reactive({
   code: '',
@@ -78,7 +82,7 @@ function validate(s: Step): string {
 }
 
 function go(to: Step): void {
-  dir.value = STEPS.indexOf(to) >= stepNo.value ? 1 : -1;
+  dir.value = STEPS.value.indexOf(to) >= stepNo.value ? 1 : -1;
   error.value = '';
   step.value = to;
 }
@@ -94,6 +98,30 @@ async function next(): Promise<void> {
     void finish();
     return;
   }
+  if (step.value === 'database') {
+    busy.value = true;
+    try {
+      const driver = databaseChoice.value;
+      const expectedDriver = driver === 'current' ? currentDatabase.value : driver;
+      await adminApi.setupDatabase(form.code.trim(), { driver, ...(driver === 'mysql' ? { mysql: { ...mysql } } : {}) });
+      let ready = false;
+      for (let i = 0; i < 60; i++) {
+        await new Promise(resolve => window.setTimeout(resolve, 500));
+        try {
+          const status = await adminApi.setupStatus();
+          if (status.databaseDriver === expectedDriver) { ready = true; break; }
+        } catch { /* The server closes and reopens its listener during reconfiguration. */ }
+      }
+      if (!ready) throw new Error('database_restart_timeout');
+      currentDatabase.value = expectedDriver;
+      databaseChoice.value = 'current';
+      mysql.password = '';
+    } catch (e) {
+      error.value = explain(e);
+      shake();
+      return;
+    } finally { busy.value = false; }
+  }
   // 初始化码当场向服务端核对，错了不必等到最后一步才知道
   if (step.value === 'code') {
     if (busy.value) return;
@@ -108,11 +136,11 @@ async function next(): Promise<void> {
       busy.value = false;
     }
   }
-  go(STEPS[stepNo.value + 1]);
+  go(STEPS.value[stepNo.value + 1]);
 }
 
 function back(): void {
-  if (stepNo.value > 0) go(STEPS[stepNo.value - 1]);
+  if (stepNo.value > 0) go(STEPS.value[stepNo.value - 1]);
 }
 
 const ERRORS: Record<string, string> = {
@@ -124,6 +152,9 @@ const ERRORS: Record<string, string> = {
   invalid_site_url: 'setup.err.url',
   bad_credentials: 'setup.err.oldWrong',
   change_code_required: 'setup.err.changeCode',
+  database_configuration_failed: 'setup.database.failed',
+  database_configuration_unavailable: 'setup.database.unavailable',
+  database_restart_timeout: 'setup.database.timeout',
 };
 
 function explain(e: unknown): string {
@@ -202,6 +233,10 @@ function shake(): void {
 }
 
 onMounted(() => {
+  void adminApi.setupStatus().then(status => {
+    canConfigureDatabase.value = status.canConfigureDatabase;
+    currentDatabase.value = status.databaseDriver;
+  }).catch(() => { /* Existing configuration loading already reports backend outages. */ });
   document.documentElement.dataset.studio = '';
   coverTimer = window.setInterval(() => { coverIdx.value = (coverIdx.value + 1) % COVERS.length; }, 5200);
 });
@@ -261,6 +296,27 @@ onBeforeUnmount(() => {
               </label>
               <p class="err" :class="{ on: !!error }" :role="error ? 'alert' : undefined" :aria-hidden="!error">{{ error || '&nbsp;' }}</p>
               <button type="submit" class="st-btn p lg go" :disabled="busy">{{ busy ? t('setup.checking') : t('setup.next') }}<SIcon name="arrowR" :size="16" /></button>
+            </form>
+
+            <form v-else-if="step === 'database'" key="database" class="form" @submit.prevent="next">
+              <span class="kicker">{{ t('setup.database.kicker') }}</span>
+              <h1>{{ t('setup.database.title') }}</h1>
+              <p class="sub">{{ t('setup.database.sub') }}</p>
+              <label><span class="st-flabel">{{ t('setup.database.driver') }}</span><span class="st-field"><select v-model="databaseChoice" :disabled="busy"><option value="current">{{ t('setup.database.current', { driver: currentDatabase === 'mysql' ? 'MySQL' : 'SQLite' }) }}</option><option value="sqlite">SQLite</option><option value="mysql">MySQL</option></select></span></label>
+              <template v-if="databaseChoice === 'mysql'">
+                <div class="two">
+                  <label><span class="st-flabel">{{ t('setup.database.host') }}</span><span class="st-field"><input v-model.trim="mysql.host" required autocomplete="off" /></span></label>
+                  <label><span class="st-flabel">{{ t('setup.database.port') }}</span><span class="st-field"><input v-model.number="mysql.port" type="number" min="1" max="65535" required /></span></label>
+                </div>
+                <div class="two">
+                  <label><span class="st-flabel">{{ t('setup.database.name') }}</span><span class="st-field"><input v-model.trim="mysql.name" required autocomplete="off" /></span></label>
+                  <label><span class="st-flabel">{{ t('setup.database.user') }}</span><span class="st-field"><input v-model.trim="mysql.user" required autocomplete="off" /></span></label>
+                </div>
+                <label><span class="st-flabel">{{ t('setup.database.password') }}</span><span class="st-field"><input v-model="mysql.password" type="password" autocomplete="new-password" /></span></label>
+                <label><span class="st-flabel">{{ t('setup.database.tls') }}</span><span class="st-field"><select v-model="mysql.tls"><option value="false">{{ t('setup.database.tlsOff') }}</option><option value="true">{{ t('setup.database.tlsOn') }}</option></select></span></label>
+              </template>
+              <p class="err" :class="{ on: !!error }" :role="error ? 'alert' : undefined" :aria-hidden="!error">{{ error || '&nbsp;' }}</p>
+              <div class="nav"><button type="button" class="st-btn g lg" :disabled="busy" @click="back">{{ t('setup.back') }}</button><button type="submit" class="st-btn p lg go" :disabled="busy">{{ busy ? t('setup.database.connecting') : t('setup.next') }}<SIcon name="arrowR" :size="16" /></button></div>
             </form>
 
             <form v-else-if="step === 'admin'" key="admin" class="form" @submit.prevent="next">

@@ -154,6 +154,12 @@ func HashToken(raw string) string {
 
 // Init 启动时：准备 JWT 密钥；迁移旧版单管理员；未初始化时生成一次性初始化码并打印到日志。
 func (s *Service) Init() error {
+	return s.InitWithSetupCode("")
+}
+
+// InitWithSetupCode preserves a verified bootstrap code across an in-process
+// database reconfiguration. The code never comes from an unauthenticated option.
+func (s *Service) InitWithSetupCode(setupCode string) error {
 	secret, err := s.db.GetSetting("jwt_secret")
 	if err != nil {
 		return err
@@ -178,9 +184,13 @@ func (s *Service) Init() error {
 		return err
 	}
 	if need {
-		code, err := newOneTimeCode()
-		if err != nil {
-			return err
+		code := setupCode
+		if code == "" {
+			var err error
+			code, err = newOneTimeCode()
+			if err != nil {
+				return err
+			}
 		}
 		s.setupCode = code
 		log.Printf("[myself-server] 站点尚未初始化：打开 /setup，初始化码 %s（仅本次启动有效）", s.setupCode)
@@ -289,7 +299,7 @@ func (s *Service) migrateLegacyAdmin() error {
 		return err
 	}
 	for _, k := range []string{"admin_username", "admin_password", "token_version", "admin_must_change"} {
-		if _, err := s.db.Exec(`DELETE FROM settings WHERE key = ?`, k); err != nil {
+		if _, err := s.db.Exec("DELETE FROM settings WHERE `key` = ?", k); err != nil {
 			return err
 		}
 	}
@@ -541,7 +551,7 @@ func (s *Service) PeekToken(kind, raw string) (*Token, error) {
 	var t Token
 	var uid sql.NullInt64
 	err := s.db.QueryRow(`SELECT id, kind, user_id, role, email, note FROM user_tokens
-		WHERE kind = ? AND token_hash = ? AND used_at IS NULL AND expires_at > datetime('now')`,
+		WHERE kind = ? AND token_hash = ? AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP`,
 		kind, HashToken(strings.TrimSpace(raw))).Scan(&t.ID, &t.Kind, &uid, &t.Role, &t.Email, &t.Note)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrBadToken
@@ -559,7 +569,7 @@ func (s *Service) ConsumeToken(t *Token, usedBy int64) error {
 	if usedBy > 0 {
 		by = usedBy
 	}
-	res, err := s.db.Exec(`UPDATE user_tokens SET used_at = datetime('now'), used_by = ? WHERE id = ? AND used_at IS NULL`, by, t.ID)
+	res, err := s.db.Exec(`UPDATE user_tokens SET used_at = CURRENT_TIMESTAMP, used_by = ? WHERE id = ? AND used_at IS NULL`, by, t.ID)
 	if err != nil {
 		return err
 	}

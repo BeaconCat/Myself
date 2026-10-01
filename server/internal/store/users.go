@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"time"
 )
 
 // 用户系统：users（管理员 / 作者 / 读者）+ user_tokens（邮箱验证、重置密码、邀请的一次性令牌）+ comments。
@@ -23,7 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
   email_verified INTEGER NOT NULL DEFAULT 0,
   token_version INTEGER NOT NULL DEFAULT 0,
   must_change INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   last_active_at TEXT
 );
 CREATE TABLE IF NOT EXISTS user_tokens (
@@ -37,7 +38,7 @@ CREATE TABLE IF NOT EXISTS user_tokens (
   expires_at TEXT NOT NULL,
   used_at TEXT,
   used_by INTEGER,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 CREATE TABLE IF NOT EXISTS comments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,7 +50,7 @@ CREATE TABLE IF NOT EXISTS comments (
   body TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   ip_hash TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 CREATE INDEX IF NOT EXISTS idx_comments_target ON comments(target, target_id, status);
 CREATE INDEX IF NOT EXISTS idx_comments_user ON comments(user_id);
@@ -59,7 +60,7 @@ CREATE TABLE IF NOT EXISTS reactions (
   target_id INTEGER NOT NULL,
   kind TEXT NOT NULL,
   voter TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   UNIQUE (target, target_id, kind, voter)
 );
 `
@@ -166,6 +167,9 @@ const userOrder = ` ORDER BY CASE role WHEN 'admin' THEN 0 WHEN 'author' THEN 1 
 
 // QueryUsers 按条件（where 以 WHERE 开头或为空）分页列出用户，附这一页用户的评论数。
 func (db *DB) QueryUsers(where string, args []any, limit, offset int) ([]User, map[int64]int, error) {
+	if limit < 0 {
+		limit = int(^uint(0) >> 1) // MySQL does not accept SQLite's LIMIT -1 sentinel.
+	}
 	rows, err := db.Query(`SELECT `+userColumns+` FROM users `+where+userOrder+` LIMIT ? OFFSET ?`, append(args, limit, offset)...)
 	if err != nil {
 		return nil, nil, err
@@ -246,8 +250,8 @@ func (db *DB) CountUsers(role string) (int, error) {
 
 // TouchUser 记录最近活跃（5 分钟内不重复写）。
 func (db *DB) TouchUser(id int64) {
-	_, _ = db.Exec(`UPDATE users SET last_active_at = datetime('now')
-		WHERE id = ? AND (last_active_at IS NULL OR last_active_at < datetime('now', '-5 minutes'))`, id)
+	_, _ = db.Exec(`UPDATE users SET last_active_at = CURRENT_TIMESTAMP
+		WHERE id = ? AND (last_active_at IS NULL OR last_active_at < ?)`, id, time.Now().UTC().Add(-5*time.Minute).Format("2006-01-02 15:04:05"))
 }
 
 // AttachAuthors 为文章填上协作作者署名（管理员写的不署名，前台用站点身份）。

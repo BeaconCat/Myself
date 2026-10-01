@@ -65,8 +65,7 @@ func (s *Server) ensureMediaHashes() error {
 		if err != nil {
 			continue
 		}
-		if _, err := s.DB.Exec(`INSERT INTO media (name, sha256) VALUES (?, ?)
-			ON CONFLICT(name) DO UPDATE SET sha256 = excluded.sha256`, name, sum); err != nil {
+		if _, err := s.DB.Upsert("media", []string{"name", "sha256"}, []string{"name"}, []string{"sha256"}, name, sum); err != nil {
 			return err
 		}
 	}

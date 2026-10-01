@@ -220,11 +220,35 @@ export interface PostDraft {
   pinned: boolean;
 }
 
+export interface DatabaseConfig {
+  driver: 'current' | 'sqlite' | 'mysql';
+  mysql?: { host: string; port: number; name: string; user: string; password: string; tls: 'true' | 'false' };
+}
+
+export interface UpdateStatus {
+  current: { version: string; commit: string; date: string; os: string; arch: string; updateProtocol: number };
+  repository: string;
+  phase: string;
+  checkedAt?: string;
+  available?: { version: string; name: string; notes: string; url: string; publishedAt: string; size: number };
+  canApply: boolean;
+  reason?: string;
+  downloaded: number;
+  total: number;
+  error?: string;
+  backup?: string;
+  databaseDriver?: 'mysql' | 'sqlite';
+}
+
 export const adminApi = {
+  systemStatus: () => authed<UpdateStatus>('/admin/system'),
+  checkUpdate: () => authed<UpdateStatus>('/admin/system/check-update', { method: 'POST' }),
+  applyUpdate: (version: string) => authed<UpdateStatus>('/admin/system/update', { method: 'POST', body: JSON.stringify({ version }) }),
   /** 登录：成功后服务端写入会话 Cookie；mustChange = 仍在用历史默认口令，需先改密 */
   login: (username: string, password: string) =>
     publicPost<{ ok: boolean; mustChange?: boolean; user: SessionUser }>('/auth/login', { username, password }),
-  setupStatus: () => get<{ needsSetup: boolean }>('/setup'),
+  setupStatus: () => get<{ needsSetup: boolean; databaseDriver: 'sqlite' | 'mysql'; canConfigureDatabase: boolean }>('/setup'),
+  setupDatabase: (code: string, database: DatabaseConfig) => publicPost<{ ok: boolean }>('/setup/database', { code, database }),
   setup: (payload: SetupPayload) => publicPost<{ ok: boolean; user: SessionUser }>('/setup', payload),
   verifySetupCode: (code: string) => publicPost<{ ok: boolean }>('/setup/verify', { code }),
   /** 改密：其它会话全部失效，当前会话由服务端换发新 Cookie */

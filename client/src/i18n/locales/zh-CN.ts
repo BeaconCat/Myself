@@ -497,7 +497,7 @@ export default {
       dark: '深色',
       site: '站点',
       hint: {
-        'admin-settings': '标题、加载、时区',
+        'admin-settings': '标题、时区、系统更新',
         'admin-appearance': '色盘、风格与首页动效',
         'admin-identity': '头像、签名与格言',
         'admin-about': '模块编排',
@@ -787,6 +787,7 @@ export default {
     optional: '可选',
     aside: {
       code: '先确认你是这台服务器的主人。',
+      database: '为你的文字选一个安放的地方。',
       admin: '一把只属于你的钥匙。',
       site: '给它起个名字，再写一句话。',
       content: '从示例开始，或者从一张白纸开始。',
@@ -800,23 +801,31 @@ export default {
       label: '初始化码',
     },
     admin: {
-      kicker: 'Step 02 · 管理员',
+      kicker: '管理员',
       title: '创建管理员账号',
       sub: '用于登录后台。之后可以在「设置 · 账号安全」里修改密码。',
     },
     site: {
-      kicker: 'Step 03 · 站点与身份',
+      kicker: '站点与身份',
       title: '介绍一下你的站点',
       sub: '这些都能在后台「身份」与「设置」里随时修改。',
     },
     content: {
-      kicker: 'Step 04 · 内容',
+      kicker: '内容',
       title: '先放点什么进去？',
       sub: '示例内容能帮你快速看到站点完整的样子，之后可以逐条删除。',
       demo: '导入示例内容',
       demoSub: '6 篇文章、8 条随想，配一组默认封面',
       blank: '从空白开始',
       blankSub: '只保留站点结构，第一篇由你来写',
+    },
+    database: {
+      kicker: '数据库', title: '选择数据存储',
+      sub: 'SQLite 无需额外服务；MySQL 8.0.19+ 需提前创建专用空数据库并授权。连接信息保存在服务器配置文件中，已有站点请通过配置文件连接。',
+      driver: '数据库类型', current: '使用当前数据库（{driver}）', host: '服务器地址', port: '数据库端口', name: '数据库名称', user: '数据库用户', password: '数据库密码',
+      tls: '加密连接', tlsOff: '关闭（本机或可信内网）', tlsOn: 'TLS（验证服务器证书）', connecting: '正在连接并保存…',
+      failed: '连接或保存失败。请检查地址、账号、库名、TLS 和配置目录写权限，并确认目标数据库尚未初始化。',
+      unavailable: '当前不能修改数据库配置。请刷新页面检查初始化状态。', timeout: '服务重启尚未完成，请检查服务端日志后刷新页面。',
     },
     done: {
       title: '一切就绪',

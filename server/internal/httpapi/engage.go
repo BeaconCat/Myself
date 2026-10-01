@@ -250,7 +250,7 @@ func (s *Server) toggleReaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if gone, _ := res.RowsAffected(); gone == 0 {
-		if _, err := s.DB.Exec(`INSERT OR IGNORE INTO reactions (target, target_id, kind, voter) VALUES (?, ?, ?, ?)`, target, id, kind, voter); err != nil {
+		if _, err := s.DB.Upsert("reactions", []string{"target", "target_id", "kind", "voter"}, []string{"target", "target_id", "kind", "voter"}, nil, target, id, kind, voter); err != nil {
 			fail(w, err)
 			return
 		}

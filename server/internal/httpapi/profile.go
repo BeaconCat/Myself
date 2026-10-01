@@ -233,7 +233,7 @@ func (s *Server) changeLogin(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": "login_cooldown", "next": t.Add(loginCooldown).Format("2006-01-02 15:04:05")})
 		return
 	}
-	if _, err := s.DB.Exec(`UPDATE users SET login = ?, login_changed_at = datetime('now') WHERE id = ?`, login, u.ID); err != nil {
+	if _, err := s.DB.Exec(`UPDATE users SET login = ?, login_changed_at = CURRENT_TIMESTAMP WHERE id = ?`, login, u.ID); err != nil {
 		if store.IsUniqueErr(err) {
 			writeError(w, http.StatusConflict, "login_taken")
 			return
@@ -251,7 +251,7 @@ const emailChangeTTL = 24 * time.Hour
 func (s *Server) pendingEmail(uid int64) string {
 	var email string
 	_ = s.DB.QueryRow(`SELECT email FROM user_tokens WHERE kind = 'email' AND user_id = ? AND used_at IS NULL
-		AND expires_at > datetime('now') ORDER BY id DESC LIMIT 1`, uid).Scan(&email)
+		AND expires_at > CURRENT_TIMESTAMP ORDER BY id DESC LIMIT 1`, uid).Scan(&email)
 	return email
 }
 

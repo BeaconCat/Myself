@@ -4,6 +4,7 @@ package store
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,12 +12,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	_ "modernc.org/sqlite"
 )
 
 // DB 是全局数据库句柄的薄封装。
 type DB struct {
 	*sql.DB
+	dialect string
 }
 
 // Open 打开（或创建）data/myself.db 并执行幂等建表迁移。
@@ -25,16 +28,20 @@ func Open(dataDir string) (*DB, error) {
 	if err := os.MkdirAll(dataDir, 0o700); err != nil {
 		return nil, err
 	}
+	return openSQLiteFile(filepath.Join(dataDir, "myself.db"))
+}
+
+func openSQLiteFile(filename string) (*DB, error) {
 	// WAL + busy_timeout：多读单写；_txlock=immediate 让事务开头即拿写锁，避免升级死锁。
 	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)&_txlock=immediate",
-		filepath.ToSlash(filepath.Join(dataDir, "myself.db")))
+		filepath.ToSlash(filename))
 	raw, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
 	}
 	raw.SetMaxOpenConns(max(4, runtime.NumCPU()))
 	raw.SetConnMaxIdleTime(5 * time.Minute)
-	db := &DB{raw}
+	db := &DB{DB: raw}
 	if err := db.migrate(); err != nil {
 		raw.Close()
 		return nil, err
@@ -53,15 +60,15 @@ CREATE TABLE IF NOT EXISTS posts (
   covers TEXT NOT NULL DEFAULT '[]',
   tags TEXT NOT NULL DEFAULT '[]',
   status TEXT NOT NULL DEFAULT 'published',
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 CREATE TABLE IF NOT EXISTS notes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   content_md TEXT NOT NULL,
   mood TEXT NOT NULL DEFAULT '',
   images TEXT NOT NULL DEFAULT '[]',
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
@@ -73,12 +80,12 @@ CREATE TABLE IF NOT EXISTS api_keys (
   key_hash TEXT NOT NULL UNIQUE,
   prefix TEXT NOT NULL,
   last_used_at TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 CREATE TABLE IF NOT EXISTS media (
   name TEXT PRIMARY KEY,
   crop_json TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );`
 	if _, err := db.Exec(schema); err != nil {
 		return err
@@ -117,7 +124,7 @@ CREATE TABLE IF NOT EXISTS media (
 		`ALTER TABLE notes ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`,
 		// 素材文件夹（虚拟路径，如「封面/2026」）；空文件夹记在 media_folders
 		`ALTER TABLE media ADD COLUMN folder TEXT NOT NULL DEFAULT ''`,
-		`CREATE TABLE IF NOT EXISTS media_folders (path TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+		`CREATE TABLE IF NOT EXISTS media_folders (path TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP))`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return err
@@ -132,7 +139,7 @@ CREATE TABLE IF NOT EXISTS media (
 // GetSetting 读取 settings 表单值；不存在返回空串。
 func (db *DB) GetSetting(key string) (string, error) {
 	var v string
-	err := db.QueryRow(`SELECT value FROM settings WHERE key = ?`, key).Scan(&v)
+	err := db.QueryRow("SELECT value FROM settings WHERE `key` = ?", key).Scan(&v)
 	if err == sql.ErrNoRows {
 		return "", nil
 	}
@@ -141,8 +148,7 @@ func (db *DB) GetSetting(key string) (string, error) {
 
 // SetSetting 写入或覆盖 settings 表单值。
 func (db *DB) SetSetting(key, value string) error {
-	_, err := db.Exec(`INSERT INTO settings (key, value) VALUES (?, ?)
-		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
+	_, err := db.Upsert("settings", []string{"key", "value"}, []string{"key"}, []string{"value"}, key, value)
 	return err
 }
 
@@ -325,6 +331,10 @@ func JSONStrings(v []string) string {
 
 // IsUniqueErr 判断是否唯一约束冲突。
 func IsUniqueErr(err error) bool {
+	var mysqlErr *mysql.MySQLError
+	if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+		return true
+	}
 	return err != nil && strings.Contains(err.Error(), "UNIQUE")
 }
 
@@ -336,8 +346,12 @@ type TagCount struct {
 
 // TagCounts 用 json_each 在 SQL 层聚合已发布文章的标签，按最近使用排序。
 func (db *DB) TagCounts() ([]TagCount, error) {
+	from := "posts p, json_each(p.tags) je"
+	if db.Driver() == "mysql" {
+		from = `posts p, JSON_TABLE(p.tags, '$[*]' COLUMNS (value VARCHAR(255) PATH '$')) je`
+	}
 	rows, err := db.Query(`SELECT je.value, COUNT(*) AS n, MAX(p.created_at) AS latest
-		FROM posts p, json_each(p.tags) je
+		FROM ` + from + `
 		WHERE p.status = 'published' AND p.hidden = 0 AND json_valid(p.tags)
 		GROUP BY je.value ORDER BY latest DESC, n DESC`)
 	if err != nil {

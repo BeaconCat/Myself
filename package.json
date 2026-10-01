@@ -3,11 +3,11 @@
   "private": true,
   "version": "1.0.0",
   "description": "Myself — 开源个人博客引擎（Vue 3 + Go + SQLite）",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
-    "dev": "concurrently -n client,server -c cyan,magenta \"pnpm -C client dev\" \"go -C server run ./cmd/myself-server\"",
-    "build": "pnpm -C client build && go -C server build -o bin/myself-server ./cmd/myself-server",
-    "test": "go -C server test ./..."
+    "dev": "concurrently -n client,server -c cyan,magenta \"pnpm -C client dev\" \"go -C server run -tags nodynamic ./cmd/myself-server\"",
+    "build": "pnpm -C client build && go -C server build -tags nodynamic -o bin/myself-server ./cmd/myself-server",
+    "test": "go -C server test -tags nodynamic ./..."
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

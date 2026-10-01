@@ -69,7 +69,7 @@ func (s *Server) requireAPIKey(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		entry.KeyID, entry.KeyName, entry.KeyPrefix = &k.ID, name, prefix
-		if _, err := s.DB.Exec(`UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?`, k.ID); err != nil {
+		if _, err := s.DB.Exec(`UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?`, k.ID); err != nil {
 			fail(rec, err)
 			return
 		}
@@ -255,7 +255,7 @@ func (s *Server) extUpdatePost(w http.ResponseWriter, r *http.Request) {
 	own, ownArgs := ownWhere(k)
 	args := append([]any{in.Title, in.Excerpt, in.ContentMd, store.JSONStrings(in.Covers), store.JSONStrings(in.Tags), in.Status, pathID(r)}, ownArgs...)
 	res, err := s.DB.Exec(`UPDATE posts SET
-		title = ?, excerpt = ?, content_md = ?, covers = ?, tags = ?, status = ?, updated_at = datetime('now')
+		title = ?, excerpt = ?, content_md = ?, covers = ?, tags = ?, status = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`+own, args...)
 	if err != nil {
 		fail(w, err)

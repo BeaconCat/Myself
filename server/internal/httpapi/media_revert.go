@@ -50,7 +50,7 @@ func (s *Server) clearCompression(name string) {
 // renameMediaRecord 素材改名（PNG 转 WebP / 回退）：记录整行跟随（显示名、哈希、裁切都保留），
 // 站内所有引用同步替换：文章、随想与站点配置（身份头像、形象图、关于页模块等）。
 func (s *Server) renameMediaRecord(from, to string) error {
-	if _, err := s.DB.Exec(`INSERT INTO media (name) VALUES (?) ON CONFLICT(name) DO NOTHING`, from); err != nil {
+	if _, err := s.DB.Upsert("media", []string{"name"}, []string{"name"}, nil, from); err != nil {
 		return err
 	}
 	if _, err := s.DB.Exec(`DELETE FROM media WHERE name = ?`, to); err != nil {
@@ -63,16 +63,14 @@ func (s *Server) renameMediaRecord(from, to string) error {
 	if err := s.replaceURLRefs(oldURL, newURL); err != nil {
 		return err
 	}
-	_, err := s.DB.Exec(`UPDATE settings SET value = REPLACE(value, ?, ?) WHERE key = 'site_config' AND value LIKE ?`,
+	_, err := s.DB.Exec("UPDATE settings SET value = REPLACE(value, ?, ?) WHERE `key` = 'site_config' AND value LIKE ?",
 		`"`+oldURL+`"`, `"`+newURL+`"`, `%"`+oldURL+`"%`)
 	return err
 }
 
 // markCompressed 压缩成功后记录（多次压缩保留最早的那份备份与体积）。
 func (s *Server) markCompressed(name, from string, before int64) error {
-	_, err := s.DB.Exec(`INSERT INTO media (name, compressed_from, compressed_before, compressed_at) VALUES (?, ?, ?, ?)
-		ON CONFLICT(name) DO UPDATE SET compressed_from = excluded.compressed_from,
-		compressed_before = excluded.compressed_before, compressed_at = excluded.compressed_at`,
+	_, err := s.DB.Upsert("media", []string{"name", "compressed_from", "compressed_before", "compressed_at"}, []string{"name"}, []string{"compressed_from", "compressed_before", "compressed_at"},
 		name, from, before, isoTime(time.Now()))
 	return err
 }

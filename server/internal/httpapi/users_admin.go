@@ -103,11 +103,12 @@ func (s *Server) adminListUsers(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	stat := func(q string) int {
+	stat := func(q string, args ...any) int {
 		var n int
-		_ = s.DB.QueryRow(q).Scan(&n)
+		_ = s.DB.QueryRow(q, args...).Scan(&n)
 		return n
 	}
+	monthAgo := time.Now().UTC().Add(-30 * 24 * time.Hour).Format("2006-01-02 15:04:05")
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items":          toAdmin(users, commentCounts),
 		"page":           page,
@@ -117,12 +118,12 @@ func (s *Server) adminListUsers(w http.ResponseWriter, r *http.Request) {
 		"pendingAvatars": toAdmin(pending, pendingCounts),
 		"stats": map[string]int{
 			"total":         stat(`SELECT COUNT(*) FROM users`),
-			"newMonth":      stat(`SELECT COUNT(*) FROM users WHERE created_at >= datetime('now', '-30 days')`),
-			"activeMonth":   stat(`SELECT COUNT(*) FROM users WHERE last_active_at >= datetime('now', '-30 days')`),
+			"newMonth":      stat(`SELECT COUNT(*) FROM users WHERE created_at >= ?`, monthAgo),
+			"activeMonth":   stat(`SELECT COUNT(*) FROM users WHERE last_active_at >= ?`, monthAgo),
 			"authors":       stat(`SELECT COUNT(*) FROM users WHERE role = 'author'`),
 			"avatars":       stat(`SELECT COUNT(*) FROM users WHERE avatar_pending != ''`),
 			"comments":      stat(`SELECT COUNT(*) FROM comments WHERE status = 'approved'`),
-			"commentsMonth": stat(`SELECT COUNT(*) FROM comments WHERE status = 'approved' AND created_at >= datetime('now', '-30 days')`),
+			"commentsMonth": stat(`SELECT COUNT(*) FROM comments WHERE status = 'approved' AND created_at >= ?`, monthAgo),
 			"pending":       stat(`SELECT COUNT(*) FROM comments WHERE status = 'pending'`),
 		},
 	})

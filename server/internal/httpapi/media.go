@@ -266,8 +266,7 @@ func (s *Server) uploadMedia(w http.ResponseWriter, r *http.Request) {
 			dups[existing] = true
 			continue
 		}
-		if _, err := s.DB.Exec(`INSERT INTO media (name, sha256, title, folder) VALUES (?, ?, ?, ?)
-			ON CONFLICT(name) DO UPDATE SET sha256 = excluded.sha256, title = excluded.title, folder = excluded.folder`, name, sum, title, folder); err != nil {
+		if _, err := s.DB.Upsert("media", []string{"name", "sha256", "title", "folder"}, []string{"name"}, []string{"sha256", "title", "folder"}, name, sum, title, folder); err != nil {
 			fail(w, err)
 			return
 		}
@@ -360,8 +359,7 @@ func (s *Server) cropMedia(w http.ResponseWriter, r *http.Request) {
 	}
 	cropJSON, _ := json.Marshal(rect)
 	s.clearCompression(name)
-	if _, err := s.DB.Exec(`INSERT INTO media (name, crop_json) VALUES (?, ?)
-		ON CONFLICT(name) DO UPDATE SET crop_json = excluded.crop_json`, name, string(cropJSON)); err != nil {
+	if _, err := s.DB.Upsert("media", []string{"name", "crop_json"}, []string{"name"}, []string{"crop_json"}, name, string(cropJSON)); err != nil {
 		fail(w, err)
 		return
 	}

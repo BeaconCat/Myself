@@ -78,7 +78,9 @@ func (s *Server) requireRole(roles ...string) func(http.HandlerFunc) http.Handle
 				writeError(w, http.StatusForbidden, "must_change_password")
 				return
 			}
-			s.DB.TouchUser(u.ID)
+			if !s.maintenance.Load() && (s.Updates == nil || !s.Updates.Pending()) {
+				s.DB.TouchUser(u.ID)
+			}
 			next(w, r.WithContext(context.WithValue(r.Context(), userCtxKey{}, u)))
 		}
 	}

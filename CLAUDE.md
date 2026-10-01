@@ -43,11 +43,13 @@
 - 用户系统（`users.*` 配置）：总开关 `enabled` → 读者（注册 open/invite/closed、邮箱验证）/ 协作作者（直接发布）/ 评论（审核 all/first/none、匿名）各自独立；访客回应 `reactions` 不受总开关约束；登录：密码 / GitHub OAuth / 站长生成重置链接，发信走 `mail.*` SMTP；前端路由守卫按角色预判（`stores/auth.ts` 的 `canEnterAdmin`），作者只进文章 / 写作 / 评论（写作时可用素材库选取与上传，素材页的管理操作只给站长）
 - 互动：回应（喜欢 / 灵感 / 会心 / 共鸣，访客 Cookie 去重）与评论（post / note / guestbook）；前端 `stores/engage.ts` 批量取摘要，`components/engage/`（EngageBar、CommentSection）
 - API 中心：APIKey 认证（`X-Api-Key`），供外部 AI 发文
-- SQLite 存储（modernc.org/sqlite），文章正文为 Markdown
+- 默认内置 SQLite（modernc.org/sqlite），可选 MySQL 8.0.19+，文章正文为 Markdown。两种数据库共用 SQLite 格式的备份快照，恢复只触及站点表。
 - 布局：`cmd/myself-server` 入口，`internal/{store,auth,config,imaging,httpapi}`；标准库 ServeMux 方法路由
 - 图片处理纯 Go（stdlib + gen2brain/webp），备份 archive/zip；本机无 gcc，勿引入 cgo 依赖
-- 启动：根目录 `pnpm dev`（concurrently 拉起 client + `go -C server run`）；`go test ./...`
+- 启动：根目录 `pnpm dev`（concurrently 拉起 client + Go）；测试 `pnpm test`。直接运行 Go 时使用 `-tags nodynamic`，统一走纯 Go 图像处理，避免系统动态库和 32 位回调兼容问题。
 - 生产：`pnpm build` → client 产物输出 `server/web/dist` → go:embed 单二进制托管 SPA + API；`/feed` RSS；`/uploads/thumbs/<name>.webp` 按需缩略图
+- 运行配置：`--config` / `MYSELF_CONFIG` / 当前目录 `config.json`，端口与数据根仍可由环境变量覆盖。数据库连接凭据不得放进公开站点配置。
+- 更新：`internal/updater` 检查稳定版，下载校验后维护停写、备份、替换与启动检查，失败恢复程序和数据。Linux/macOS 保留主 PID，Windows 用辅助进程；不得绕过角色、校验或备份。
 - 前端 Markdown 统一走 `client/src/utils/markdown.ts`（highlight.js 离线 + TOC 锚点），请求统一经 `client/src/api/index.ts`
 
 ## 安全与首次启动

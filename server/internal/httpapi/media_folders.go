@@ -49,7 +49,7 @@ func (s *Server) ensureFolder(folder string) error {
 	}
 	segs := strings.Split(folder, "/")
 	for i := range segs {
-		if _, err := s.DB.Exec(`INSERT INTO media_folders (path) VALUES (?) ON CONFLICT(path) DO NOTHING`, strings.Join(segs[:i+1], "/")); err != nil {
+		if _, err := s.DB.Upsert("media_folders", []string{"path"}, []string{"path"}, nil, strings.Join(segs[:i+1], "/")); err != nil {
 			return err
 		}
 	}
@@ -158,7 +158,7 @@ func (s *Server) renameFolder(w http.ResponseWriter, r *http.Request) {
 		`UPDATE media SET folder = ? || substr(folder, ?) WHERE folder = ? OR folder LIKE ? ESCAPE '\'`,
 		`UPDATE OR IGNORE media_folders SET path = ? || substr(path, ?) WHERE path = ? OR path LIKE ? ESCAPE '\'`,
 	} {
-		if _, err := tx.Exec(q, to, utf8.RuneCountInString(from)+1, from, subfolders(from)); err != nil {
+		if _, err := tx.Exec(s.DB.IgnoreUpdate(q), to, utf8.RuneCountInString(from)+1, from, subfolders(from)); err != nil {
 			fail(w, err)
 			return
 		}
@@ -231,7 +231,7 @@ func (s *Server) deleteFolder(w http.ResponseWriter, r *http.Request) {
 		{`DELETE FROM media_folders WHERE path = ? OR path LIKE ? ESCAPE '\'`, []any{folder, prefix}},
 	}
 	for _, st := range stmts {
-		if _, err := tx.Exec(st.q, st.args...); err != nil {
+		if _, err := tx.Exec(s.DB.IgnoreUpdate(st.q), st.args...); err != nil {
 			fail(w, err)
 			return
 		}
@@ -267,7 +267,7 @@ func (s *Server) moveMedia(w http.ResponseWriter, r *http.Request) {
 		if name = safeName(name); name == "" || !fileExists(s.UploadDir+"/"+name) {
 			continue
 		}
-		if _, err := s.DB.Exec(`INSERT INTO media (name, folder) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET folder = excluded.folder`, name, folder); err != nil {
+		if _, err := s.DB.Upsert("media", []string{"name", "folder"}, []string{"name"}, []string{"folder"}, name, folder); err != nil {
 			fail(w, err)
 			return
 		}

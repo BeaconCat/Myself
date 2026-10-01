@@ -145,7 +145,7 @@ func (s *Server) adminUpdatePost(w http.ResponseWriter, r *http.Request) {
 	scope, args := authorScope(r)
 	res, err := s.DB.Exec(`UPDATE posts SET
 		slug = ?, title = ?, excerpt = ?, content_md = ?, covers = ?, tags = ?, status = ?, pinned = ?,
-		updated_at = datetime('now') WHERE id = ?`+scope,
+		updated_at = CURRENT_TIMESTAMP WHERE id = ?`+scope,
 		append([]any{in.Slug, in.Title, in.Excerpt, in.ContentMd, store.JSONStrings(in.Covers), store.JSONStrings(in.Tags),
 			in.Status, boolInt(in.Pinned), pathID(r)}, args...)...)
 	if store.IsUniqueErr(err) {

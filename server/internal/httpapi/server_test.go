@@ -38,7 +38,7 @@ type env struct {
 func newEnv(t *testing.T) *env {
 	t.Helper()
 	root := t.TempDir()
-	db, err := store.Open(filepath.Join(root, "data"))
+	db, err := openTestDB(t, filepath.Join(root, "data"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,7 +384,7 @@ func TestSetupOnlyOnce(t *testing.T) {
 
 func TestSetupRequiresCode(t *testing.T) {
 	root := t.TempDir()
-	db, err := store.Open(filepath.Join(root, "data"))
+	db, err := openTestDB(t, filepath.Join(root, "data"))
 	if err != nil {
 		t.Fatal(err)
 	}

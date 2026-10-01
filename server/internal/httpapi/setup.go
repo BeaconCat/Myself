@@ -22,7 +22,45 @@ func (s *Server) setupStatus(w http.ResponseWriter, _ *http.Request) {
 		fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"needsSetup": need})
+	writeJSON(w, http.StatusOK, map[string]any{"needsSetup": need, "databaseDriver": s.DB.Driver(), "canConfigureDatabase": need && s.ConfigureDatabase != nil})
+}
+
+func (s *Server) setupDatabase(w http.ResponseWriter, r *http.Request) {
+	s.setupMu.Lock()
+	defer s.setupMu.Unlock()
+	if s.ConfigureDatabase == nil || s.maintenance.Load() {
+		writeError(w, http.StatusConflict, "database_configuration_unavailable")
+		return
+	}
+	ip := clientIP(r)
+	if d := s.limiter.blocked(ip); d > 0 {
+		tooMany(w, d)
+		return
+	}
+	var b struct {
+		Code     string               `json:"code"`
+		Database store.DatabaseConfig `json:"database"`
+	}
+	if err := readJSON(w, r, &b); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json")
+		return
+	}
+	if err := s.Auth.CheckSetupCode(b.Code); err != nil {
+		s.limiter.fail(ip)
+		writeError(w, http.StatusForbidden, "bad_setup_code")
+		return
+	}
+	if need, err := s.Auth.NeedsSetup(); err != nil || !need {
+		writeError(w, http.StatusConflict, "already_setup")
+		return
+	}
+	if err := s.ConfigureDatabase(b.Database, s.Auth.SetupCode()); err != nil {
+		// Credentials and driver errors are intentionally not reflected into HTTP/logs.
+		writeError(w, http.StatusBadRequest, "database_configuration_failed")
+		return
+	}
+	s.SetMaintenance()
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 // POST /setup/verify 校验初始化码（失败计入 IP 锁定）
@@ -52,6 +90,12 @@ func (s *Server) setupVerify(w http.ResponseWriter, r *http.Request) {
 // {code, username, password, site:{title, subtitle, url}, identity:{name, hello, tagline, bio, motto, avatar}, demo}
 // 初始化码只打印在服务端启动日志里；失败计入与登录相同的 IP 锁定。成功后写入会话 Cookie（即已登录）。
 func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
+	s.setupMu.Lock()
+	defer s.setupMu.Unlock()
+	if s.maintenance.Load() {
+		writeError(w, http.StatusServiceUnavailable, "maintenance")
+		return
+	}
 	ip := clientIP(r)
 	if d := s.limiter.blocked(ip); d > 0 {
 		tooMany(w, d)

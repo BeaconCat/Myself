@@ -112,6 +112,13 @@ func (s *Server) restoreBackup(zipPath string) error {
 func (s *Server) restoreDB(src string, beforeCommit func() error) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
+	if s.DB.Driver() == "mysql" {
+		err := s.DB.RestoreSnapshot(ctx, src, beforeCommit)
+		if err != nil && err.Error() == "invalid_backup" {
+			return errBadBackup
+		}
+		return err
+	}
 	conn, err := s.DB.Conn(ctx)
 	if err != nil {
 		return err

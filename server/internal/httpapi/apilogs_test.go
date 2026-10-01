@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"myself/server/internal/store"
 )
@@ -137,10 +138,26 @@ func TestAPILogRetention(t *testing.T) {
 	e := newEnv(t)
 	db := e.server.DB
 	// 灌入超额的旧记录：前 10 条是 100 天前的
-	if _, err := db.Exec(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
-		INSERT INTO api_logs (created_at, method, path, status)
-		SELECT CASE WHEN i <= 10 THEN datetime('now', '-100 days') ELSE datetime('now') END, 'GET', '/api/v1/ext/posts', 200 FROM n`,
-		store.APILogKeep+120); err != nil {
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	stmt, err := tx.Prepare(`INSERT INTO api_logs (created_at, method, path, status) VALUES (?, 'GET', '/api/v1/ext/posts', 200)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < store.APILogKeep+120; i++ {
+		at := time.Now().UTC()
+		if i < 10 {
+			at = at.AddDate(0, 0, -100)
+		}
+		if _, err := stmt.Exec(at.Format("2006-01-02 15:04:05")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stmt.Close()
+	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
 	// 顺带清理只在 id 为 50 的倍数时触发：写到下一个倍数为止
@@ -157,7 +174,7 @@ func TestAPILogRetention(t *testing.T) {
 		}
 	}
 	var n, old int
-	if err := db.QueryRow(`SELECT COUNT(*), COALESCE(SUM(created_at < datetime('now', '-90 days')), 0) FROM api_logs`).Scan(&n, &old); err != nil {
+	if err := db.QueryRow(`SELECT COUNT(*), COALESCE(SUM(created_at < ?), 0) FROM api_logs`, time.Now().UTC().AddDate(0, 0, -90).Format("2006-01-02 15:04:05")).Scan(&n, &old); err != nil {
 		t.Fatal(err)
 	}
 	if n > store.APILogKeep || old != 0 {

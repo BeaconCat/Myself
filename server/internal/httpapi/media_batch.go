@@ -59,8 +59,7 @@ func (s *Server) updateMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	title := cleanMediaTitle(b.Title)
-	if _, err := s.DB.Exec(`INSERT INTO media (name, title) VALUES (?, ?)
-		ON CONFLICT(name) DO UPDATE SET title = excluded.title`, name, title); err != nil {
+	if _, err := s.DB.Upsert("media", []string{"name", "title"}, []string{"name"}, []string{"title"}, name, title); err != nil {
 		fail(w, err)
 		return
 	}

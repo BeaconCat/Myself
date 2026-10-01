@@ -2,7 +2,7 @@ package store
 
 import (
 	"database/sql"
-	"strconv"
+	"time"
 )
 
 // API 调用日志：外部通道（X-Api-Key）每次请求一行，含无效 / 缺失 Key 的尝试。
@@ -11,7 +11,7 @@ import (
 const apiLogsSchema = `
 CREATE TABLE IF NOT EXISTS api_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   key_id INTEGER,
   key_name TEXT NOT NULL DEFAULT '',
   key_prefix TEXT NOT NULL DEFAULT '',
@@ -68,8 +68,8 @@ func (db *DB) InsertAPILog(l APILog) error {
 
 // PruneAPILogs 删除 id 落在最近 APILogKeep 行之外、或早于 APILogDays 天的记录。
 func (db *DB) PruneAPILogs(lastID int64) error {
-	_, err := db.Exec(`DELETE FROM api_logs WHERE id <= ? OR created_at < datetime('now', ?)`,
-		lastID-APILogKeep, "-"+strconv.Itoa(APILogDays)+" days")
+	_, err := db.Exec(`DELETE FROM api_logs WHERE id <= ? OR created_at < ?`,
+		lastID-APILogKeep, time.Now().UTC().AddDate(0, 0, -APILogDays).Format("2006-01-02 15:04:05"))
 	return err
 }
 

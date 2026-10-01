@@ -13,11 +13,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"myself/server/internal/auth"
 	"myself/server/internal/config"
 	"myself/server/internal/store"
+	"myself/server/internal/updater"
 
 	"golang.org/x/sync/singleflight"
 )
@@ -33,7 +35,10 @@ type Deps struct {
 	// Frontend 可选：内嵌 SPA 处理器，接管非 /api、/uploads 的请求。
 	Frontend http.Handler
 	// DemoCovers 可选：内嵌的默认封面（NN.webp）；初始化选择 Demo 时导入素材库。
-	DemoCovers fs.FS
+	DemoCovers        fs.FS
+	ConfigureDatabase func(store.DatabaseConfig, string) error
+	Build             updater.Build
+	Updates           *updater.Manager
 }
 
 // Server 聚合全部路由处理器。
@@ -64,6 +69,9 @@ type Server struct {
 	reacts      reactLimiter
 	thumbs      singleflight.Group
 	backupMu    sync.Mutex
+	setupMu     sync.Mutex
+	maintenance atomic.Bool
+	requests    sync.RWMutex
 	// mediaHashMu 串行化素材哈希回填
 	mediaHashMu sync.Mutex
 	// mailer 发信实现；nil 用 SMTP（sendWith），测试里替换成捕获函数
@@ -139,6 +147,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+p+"/setup", s.setupStatus)
 	mux.HandleFunc("POST "+p+"/setup", withCSRF(s.setup))
 	mux.HandleFunc("POST "+p+"/setup/verify", withCSRF(s.setupVerify))
+	mux.HandleFunc("POST "+p+"/setup/database", withCSRF(s.setupDatabase))
+	mux.HandleFunc("GET "+p+"/system/health", s.systemHealth)
+	mux.HandleFunc("GET "+p+"/admin/system", admin(s.systemStatus))
+	mux.HandleFunc("POST "+p+"/admin/system/check-update", admin(s.checkUpdate))
+	mux.HandleFunc("POST "+p+"/admin/system/update", admin(s.applyUpdate))
 
 	// 管理员
 	mux.HandleFunc("PUT "+p+"/auth/password", member(s.changePassword))
@@ -231,8 +244,32 @@ func (s *Server) Handler() http.Handler {
 	if s.Frontend != nil {
 		mux.Handle("/", s.Frontend)
 	}
-	return recoverMiddleware(securityHeaders(logMiddleware(mux)))
+	return recoverMiddleware(securityHeaders(logMiddleware(s.maintenanceHandler(mux))))
 }
+
+func (s *Server) maintenanceHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && (r.URL.Path == "/api/v1/system/health" || r.URL.Path == "/api/v1/admin/system") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if s.maintenance.Load() || (s.Updates != nil && s.Updates.Pending()) {
+			w.Header().Set("Retry-After", "2")
+			writeError(w, http.StatusServiceUnavailable, "maintenance")
+			return
+		}
+		s.requests.RLock()
+		defer s.requests.RUnlock()
+		if s.maintenance.Load() {
+			writeError(w, http.StatusServiceUnavailable, "maintenance")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// SetMaintenance rejects new requests; Shutdown drains the requests already running.
+func (s *Server) SetMaintenance() { s.maintenance.Store(true) }
 
 // logMiddleware 访问日志：方法 路径 状态 耗时。
 func logMiddleware(next http.Handler) http.Handler {

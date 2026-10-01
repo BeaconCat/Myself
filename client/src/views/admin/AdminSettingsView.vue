@@ -13,6 +13,7 @@ import SectionGithub from './settings/SectionGithub.vue';
 import SectionAccount from './settings/SectionAccount.vue';
 import SectionMail from './settings/SectionMail.vue';
 import SectionLogin from './settings/SectionLogin.vue';
+import SectionUpdates from './settings/SectionUpdates.vue';
 
 /** 设置：站点 / 加载文案 / 随想与封面 / 时区 / GitHub / 邮件 / 登录方式 / 账号。左侧锚点导航随滚动高亮 */
 const { t } = useI18n();
@@ -28,7 +29,7 @@ const busy = ref(false);
 const mine = () => stableJson([cfg.site, cfg.loading, cfg.thoughts, cfg.covers, cfg.timezone, cfg.github, cfg.mail, cfg.oauth, cfg.users?.login, cfg.session]);
 const dirty = computed(() => loaded.value && mine() !== snapshot.value);
 
-const SECTIONS = ['site', 'loading', 'content', 'timezone', 'github', 'mail', 'login', 'account'] as const;
+const SECTIONS = ['site', 'loading', 'content', 'timezone', 'github', 'mail', 'login', 'account', 'system'] as const;
 const current = ref<string>('site');
 
 const TIMEZONES = [
@@ -92,9 +93,11 @@ const expandSec = computed({
 /* ===== 锚点导航 ===== */
 const root = ref<HTMLElement | null>(null);
 let io: IntersectionObserver | null = null;
+let anchorUntil = 0;
 
 function jump(id: string): void {
   current.value = id;
+  anchorUntil = performance.now() + 1200;
   root.value?.querySelector(`#set-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -120,6 +123,7 @@ onMounted(() => {
   window.addEventListener('keydown', onKey);
   io = new IntersectionObserver(
     (entries) => {
+      if (performance.now() < anchorUntil) return;
       const hit = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
       if (hit) current.value = hit.target.id.replace('set-', '');
     },
@@ -232,6 +236,10 @@ onBeforeUnmount(() => {
           <h2>{{ t('studio.settings.nav.account') }}</h2>
           <p class="sec-desc">{{ t('studio.settings.accountDesc') }}</p>
           <SectionAccount />
+        </section>
+        <section id="set-system" class="sec st-card wide st-rise" style="--i: 8">
+          <h2>{{ t('studio.settings.nav.system') }}</h2>
+          <SectionUpdates :dirty="dirty" />
         </section>
       </div>
     </div>
