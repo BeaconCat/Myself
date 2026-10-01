@@ -1,0 +1,16 @@
+{
+  "port": "3100",
+  "root": "./runtime",
+  "database": {
+    "driver": "mysql",
+    "mysql": {
+      "host": "127.0.0.1",
+      "port": 3306,
+      "name": "myself",
+      "user": "myself",
+      "password": "REPLACE_WITH_YOUR_PASSWORD",
+      "tls": "false"
+    }
+  },
+  "updates": { "repository": "BeaconCat/Myself", "disabled": false }
+}

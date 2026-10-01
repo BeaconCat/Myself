@@ -1,0 +1,6 @@
+{
+  "port": "3100",
+  "root": "./runtime",
+  "database": { "driver": "sqlite" },
+  "updates": { "repository": "BeaconCat/Myself", "disabled": false }
+}

@@ -1,0 +1,150 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: myself-ci-only
+          MYSQL_ROOT_HOST: '%'
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --host=127.0.0.1 --password=myself-ci-only"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - run: npm install --global pnpm@10.6.4
+      - run: pnpm -C client install --frozen-lockfile
+      - run: pnpm -C client build
+      - run: go -C server test -tags nodynamic ./...
+      - run: go -C server test -race -tags nodynamic ./internal/updater
+      - name: MySQL regression suite
+        run: go -C server test -tags nodynamic ./internal/httpapi -count=1
+        env:
+          MYSELF_TEST_MYSQL_ADDR: 127.0.0.1:3306
+          MYSELF_TEST_MYSQL_PASSWORD: myself-ci-only
+      - name: Package all platforms
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          if [ "$REF_TYPE" = tag ]; then
+            VERSION="$REF_NAME"
+          else
+            VERSION="v0.0.0-ci.$RUN_NUMBER"
+          fi
+          python3 .github/release/package_release.py --version "$VERSION"
+      - name: Smoke test packaged Linux application
+        run: python3 .github/release/smoke_release.py dist-release linux-amd64
+      - name: Smoke test other Linux architectures
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes qemu-user
+          python3 .github/release/smoke_release.py dist-release linux-386 --runner qemu-i386
+          python3 .github/release/smoke_release.py dist-release linux-arm --runner qemu-arm
+          python3 .github/release/smoke_release.py dist-release linux-arm64 --runner qemu-aarch64
+          python3 .github/release/smoke_release.py dist-release linux-riscv64 --runner qemu-riscv64
+      - name: Exercise update and rollback with real binaries
+        run: |
+          go -C server build -tags nodynamic -ldflags "-X main.version=v0.0.0 -X main.commit=$GITHUB_SHA" -o "$RUNNER_TEMP/myself-old" ./cmd/myself-server
+          NEW_BINARY=$(python3 -c 'import json; m=json.load(open("dist-release/release-manifest.json")); print("dist-release/"+next(a["name"] for a in m["artifacts"] if a["os"]=="linux" and a["arch"]=="amd64" and a["kind"]=="binary"))')
+          python3 .github/release/test_update.py "$RUNNER_TEMP/myself-old" "$NEW_BINARY"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-assets
+          path: dist-release/*
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  native-smoke:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            target: windows-amd64
+          - runner: windows-11-arm
+            target: windows-arm64
+          - runner: macos-15-intel
+            target: darwin-amd64
+          - runner: macos-15
+            target: darwin-arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: release-assets
+          path: dist-release
+      - name: Initialize embedded database and encode an image
+        env:
+          TARGET: ${{ matrix.target }}
+        shell: bash
+        run: python .github/release/smoke_release.py dist-release "$TARGET"
+      - if: matrix.target == 'windows-amd64'
+        run: python .github/release/smoke_release.py dist-release windows-386
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, native-smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download verified build artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: gh run download "$RUN_ID" --name release-assets --dir dist-release
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cd dist-release
+          sha256sum --check SHA256SUMS
+          FLAGS=()
+          if [[ "$TAG" == *-* ]]; then FLAGS+=(--prerelease); fi
+          gh release create "$TAG" ./* --verify-tag --generate-notes --title "Myself $TAG" "${FLAGS[@]}"
