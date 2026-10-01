@@ -6,6 +6,11 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      codename:
+        description: Display codename (for example Alpha or Astra)
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -58,13 +63,14 @@ jobs:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
           RUN_NUMBER: ${{ github.run_number }}
+          RELEASE_CODENAME: ${{ inputs.codename || vars.RELEASE_CODENAME }}
         run: |
           if [ "$REF_TYPE" = tag ]; then
             VERSION="$REF_NAME"
           else
             VERSION="v0.0.0-ci.$RUN_NUMBER"
           fi
-          python3 .github/release/package_release.py --version "$VERSION"
+          python3 .github/release/package_release.py --version "$VERSION" --codename "$RELEASE_CODENAME" --repository "$GITHUB_REPOSITORY"
       - name: Smoke test packaged Linux application
         run: python3 .github/release/smoke_release.py dist-release linux-amd64
       - name: Smoke test other Linux architectures
@@ -147,4 +153,9 @@ jobs:
           sha256sum --check SHA256SUMS
           FLAGS=()
           if [[ "$TAG" == *-* ]]; then FLAGS+=(--prerelease); fi
-          gh release create "$TAG" ./* --verify-tag --generate-notes --title "Myself $TAG" "${FLAGS[@]}"
+          TITLE=$(python3 -c 'import json; m=json.load(open("release-manifest.json")); print(" ".join(x for x in ["Myself",m.get("codename"),m["version"]] if x))')
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" ./*
+          else
+            gh release create "$TAG" ./* --verify-tag --generate-notes --title "$TITLE" "${FLAGS[@]}"
+          fi

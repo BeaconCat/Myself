@@ -1,3 +1,4 @@
+import { updateMessages } from "../settings/updateMessages";
 import { i18n } from '../../../i18n';
 
 /**
@@ -728,15 +729,7 @@ const studio = {
     leaveTitle: '离开外观设置？',
     leaveBody: '还有未保存的修改，离开后会丢失。',
   },
-  updates: {
-    description: '从项目 Release 检查稳定版本。确认升级后会自动下载、校验、备份、替换程序并重启；新版本启动失败时恢复升级前的程序和数据。',
-    current: '当前版本', platform: '运行平台', database: '数据库', checked: '上次检查', check: '检查更新', checking: '正在检查…', install: '开始升级', installVersion: '升级至 {version}',
-    confirmTitle: '升级至 {version}？', confirmBody: '升级时站点会短暂进入维护状态，并自动创建整站备份。请先保存编辑中的内容。新版本启动检查失败时会自动回退。',
-    saveFirst: '请先保存本页设置，再执行升级。', releaseNotes: '查看 Release', changes: '展开变更说明', backup: '升级前备份：', progress: '更新下载进度',
-    reconnecting: '服务正在重启，正在等待恢复…', refresh: '刷新页面', loadFailed: '暂时无法读取更新状态，请稍后重试。', noRelease: '尚无可用的 Release，或当前服务没有访问该仓库的权限。',
-    reason: { development_build: '当前为开发构建。安装正式 Release 后可使用自动升级。', disabled_by_operator: '此部署已关闭自动替换程序，可检查新版本后手动升级。', not_configured: '当前启动方式未配置自动升级。' },
-    phase: { idle: '尚未检查更新', available: '发现新版本', up_to_date: '当前已是最新稳定版本', check_failed: '检查更新未完成', downloading: '正在下载新版本', verifying: '正在验证程序', backing_up: '正在创建升级前备份', restarting: '正在替换程序并重启', rolling_back: '新版本启动失败，正在回退', installed: '升级完成，请刷新页面使用新版', rolled_back: '已恢复升级前的程序和数据', failed: '升级未完成' },
-  },
+  updates: updateMessages,
   settings: {
     title: '设置',
     desc: '站点信息、文案、时区与外部数据源。改动会在保存后对访客生效。',

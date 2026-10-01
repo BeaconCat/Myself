@@ -49,7 +49,7 @@
 - 启动：根目录 `pnpm dev`（concurrently 拉起 client + Go）；测试 `pnpm test`。直接运行 Go 时使用 `-tags nodynamic`，统一走纯 Go 图像处理，避免系统动态库和 32 位回调兼容问题。
 - 生产：`pnpm build` → client 产物输出 `server/web/dist` → go:embed 单二进制托管 SPA + API；`/feed` RSS；`/uploads/thumbs/<name>.webp` 按需缩略图
 - 运行配置：`--config` / `MYSELF_CONFIG` / 当前目录 `config.json`，端口与数据根仍可由环境变量覆盖。数据库连接凭据不得放进公开站点配置。
-- 更新：`internal/updater` 检查稳定版，下载校验后维护停写、备份、替换与启动检查，失败恢复程序和数据。Linux/macOS 保留主 PID，Windows 用辅助进程；不得绕过角色、校验或备份。
+- 更新：`internal/updater` 按清单数字版本比较，标题与代号仅展示；仓库可自定义、版本列表可分页选择兼容版本。自动更新与 SMTP 订阅按站点时区午夜检查，通知在发信前持久化去重。切换前维护停写、备份、校验、替换与启动检查，失败恢复程序和数据。Linux/macOS 保留主 PID，Windows 用辅助进程；不得绕过角色、校验或备份。
 - 前端 Markdown 统一走 `client/src/utils/markdown.ts`（highlight.js 离线 + TOC 锚点），请求统一经 `client/src/api/index.ts`
 
 ## 安全与首次启动

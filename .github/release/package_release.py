@@ -1,5 +1,6 @@
 """Build portable releases from an already-built frontend. Python stdlib only."""
 import argparse
+import base64
 import datetime
 import hashlib
 import json
@@ -56,9 +57,19 @@ def third_party_notices():
     return "\n\n" + ("\n\n" + "=" * 72 + "\n\n").join(sections)
 
 
-def package(version, targets, output):
-    if not re.fullmatch(r"v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?", version):
-        raise ValueError("version must be vMAJOR.MINOR.PATCH or a prerelease such as v1.0.0-rc.1")
+def package(version, targets, output, codename="", repository=""):
+    if len(version) > 256 or not re.fullmatch(r"[vV]?[0-9]+(?:\.[0-9]+){1,15}(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?", version):
+        raise ValueError("version must be dot-separated numbers, e.g. 0.0.1 or 0.1.0.9")
+    version = "v" + version.lstrip("vV")
+    if len(codename) > 80 or any(ord(c) < 32 for c in codename):
+        raise ValueError("codename must be at most 80 characters without control characters")
+    repository = repository or os.environ.get("GITHUB_REPOSITORY", "")
+    if not repository:
+        remote = run("git", "remote", "get-url", "origin").strip()
+        match = re.search(r"github\.com[:/]([^/]+/[^/]+?)(?:\.git)?$", remote)
+        repository = match[1] if match else "BeaconCat/Myself"
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,99}/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}", repository):
+        raise ValueError("repository must be owner/name")
     if not (REPO / "server/web/dist/index.html").is_file():
         raise RuntimeError("Build frontend first: pnpm -C client build")
     output.mkdir(parents=True, exist_ok=True)
@@ -75,7 +86,7 @@ def package(version, targets, output):
         binary = output / (name + suffix)
         env = dict(os.environ, GOOS=goos, GOARCH=goarch, GOARM="6", GOAMD64="v1", GO386="sse2", GORISCV64="rva20u64", CGO_ENABLED="0")
         run("go", "-C", "server", "build", "-tags", "nodynamic", "-trimpath", "-ldflags",
-            f"-s -w -X main.version={version} -X main.commit={revision} -X main.buildDate={built}",
+            f"-s -w -X main.version={version} -X main.commit={revision} -X main.buildDate={built} -X main.repository={repository} -X main.codenameBase64={base64.b64encode(codename.encode()).decode()}",
             "-o", str(binary), "./cmd/myself-server", env=env)
         binary.chmod(0o755)
         with tempfile.TemporaryDirectory(prefix="myself-release-") as temp:
@@ -110,7 +121,7 @@ def package(version, targets, output):
             artifacts.append(dict(name=path.name, os=goos, arch=goarch, kind=kind,
                                   size=path.stat().st_size, sha256=digest))
         print(f"Built {target}: {binary.stat().st_size} bytes", flush=True)
-    manifest = dict(schemaVersion=1, updateProtocol=1, version=version, commit=revision, builtAt=built, artifacts=artifacts)
+    manifest = dict(schemaVersion=1, updateProtocol=1, version=version, codename=codename, repository=repository, commit=revision, builtAt=built, artifacts=artifacts)
     manifest_path = output / "release-manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     sums = [f"{item['sha256']}  {item['name']}" for item in artifacts]
@@ -124,5 +135,7 @@ if __name__ == "__main__":
     parser.add_argument("--version", required=True)
     parser.add_argument("--target", choices=TARGETS, action="append")
     parser.add_argument("--output", default="dist-release")
+    parser.add_argument("--codename", default="")
+    parser.add_argument("--repository", default="")
     args = parser.parse_args()
-    package(args.version, args.target or TARGETS, Path(args.output).resolve())
+    package(args.version, args.target or TARGETS, Path(args.output).resolve(), args.codename, args.repository)

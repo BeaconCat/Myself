@@ -20,10 +20,10 @@ func TestStableVersionSelection(t *testing.T) {
 		latest, current string
 		newer           bool
 	}{
-		{"v1.2.0", "v1.1.9", true}, {"v1.0.0", "v1.0.0-rc.1", true},
+		{"v1.2.0", "v1.1.9", true}, {"v1.0.0", "v1.0.0-rc.1", false},
 		{"v1.0.0", "v1.0.0", false}, {"v1.0.0", "v2.0.0", false},
-		{"v2.0.0-beta", "v1.0.0", false}, {"v1.0.0", "dev", false},
-		{"v999999999999999999999999.0.0", "v1.0.0", false},
+		{"v2.0.0-beta", "v1.0.0", true}, {"v1.0.0", "dev", false},
+		{"v999999999999999999999999.0.0", "v1.0.0", true},
 	} {
 		if got := newer(tc.latest, tc.current); got != tc.newer {
 			t.Errorf("%s > %s = %v", tc.latest, tc.current, got)
@@ -38,10 +38,15 @@ func releaseServer(t *testing.T, hash string, protocol int, binary []byte) *http
 		Artifacts: []Artifact{{Name: name, OS: runtime.GOOS, Arch: runtime.GOARCH, Kind: "binary", Size: int64(len(binary)), SHA256: hash}}}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/repos/BeaconCat/Myself/releases/latest":
-			json.NewEncoder(w).Encode(map[string]any{"tag_name": "v1.1.0", "name": "New release", "assets": []map[string]any{
+		case "/repos/BeaconCat/Myself/releases", "/repos/BeaconCat/Myself/releases/42":
+			release := map[string]any{"id": 42, "tag_name": "v1.1.0", "name": "New release", "assets": []map[string]any{
 				{"id": 1, "name": "release-manifest.json", "size": 100}, {"id": 2, "name": name, "size": len(binary)},
-			}})
+			}}
+			if strings.HasSuffix(r.URL.Path, "/42") {
+				json.NewEncoder(w).Encode(release)
+			} else {
+				json.NewEncoder(w).Encode([]any{release})
+			}
 		case "/repos/BeaconCat/Myself/releases/assets/1":
 			json.NewEncoder(w).Encode(metadata)
 		case "/repos/BeaconCat/Myself/releases/assets/2":
@@ -83,7 +88,7 @@ func TestReleaseCheckAndProtocolGate(t *testing.T) {
 			if err := m.Start("v9.9.9"); err == nil {
 				t.Fatal("stale/unselected version accepted")
 			}
-		} else if err == nil || state.CanApply {
+		} else if state.CanApply || state.Available == nil || state.Available.Installable {
 			t.Fatal("unknown protocol accepted")
 		}
 		server.Close()

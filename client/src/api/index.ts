@@ -123,6 +123,7 @@ async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
     kickToLogin();
     throw new Error('unauthorized');
   }
+  if (path.startsWith('/admin/system') && !res.headers.get('Content-Type')?.includes('application/json')) throw new Error('backend_outdated');
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const code = (body as { error?: string }).error ?? `api_error_${res.status}`;
@@ -225,12 +226,26 @@ export interface DatabaseConfig {
   mysql?: { host: string; port: number; name: string; user: string; password: string; tls: 'true' | 'false' };
 }
 
+export interface UpdatePreferences { repository: string; autoUpdate: boolean; subscribe: boolean; email: string }
+export interface UpdateRelease {
+  id: number; tag: string; version: string; codename?: string; name: string; notes: string; url: string; publishedAt: string; size: number;
+  prerelease: boolean; installable: boolean; reason?: string; relation?: 'older' | 'current' | 'newer';
+}
+export interface UpdateReleasePage { items: UpdateRelease[]; page: number; pageSize: number; hasNext: boolean; repository: string }
 export interface UpdateStatus {
-  current: { version: string; commit: string; date: string; os: string; arch: string; updateProtocol: number };
+  current: { version: string; codename?: string; repository?: string; commit: string; date: string; os: string; arch: string; updateProtocol: number };
   repository: string;
   phase: string;
   checkedAt?: string;
-  available?: { version: string; name: string; notes: string; url: string; publishedAt: string; size: number };
+  available?: UpdateRelease;
+  target?: UpdateRelease;
+  preferences: UpdatePreferences;
+  busy: boolean;
+  smtpReady?: boolean;
+  adminEmail?: string;
+  nextCheck?: string;
+  timezone?: string;
+  notification?: { repository: string; version: string; email: string; status: string; at: string; error?: string };
   canApply: boolean;
   reason?: string;
   downloaded: number;
@@ -244,6 +259,9 @@ export const adminApi = {
   systemStatus: () => authed<UpdateStatus>('/admin/system'),
   checkUpdate: () => authed<UpdateStatus>('/admin/system/check-update', { method: 'POST' }),
   applyUpdate: (version: string) => authed<UpdateStatus>('/admin/system/update', { method: 'POST', body: JSON.stringify({ version }) }),
+  updateReleases: (page = 1) => authed<UpdateReleasePage>(`/admin/system/releases?page=${page}&pageSize=10`),
+  saveUpdatePreferences: (preferences: UpdatePreferences) => authed<UpdateStatus>('/admin/system/preferences', { method: 'PUT', body: JSON.stringify(preferences) }),
+  selectUpdateRelease: (repository: string, releaseId: number) => authed<UpdateStatus>('/admin/system/update', { method: 'POST', body: JSON.stringify({ repository, releaseId }) }),
   /** 登录：成功后服务端写入会话 Cookie；mustChange = 仍在用历史默认口令，需先改密 */
   login: (username: string, password: string) =>
     publicPost<{ ok: boolean; mustChange?: boolean; user: SessionUser }>('/auth/login', { username, password }),

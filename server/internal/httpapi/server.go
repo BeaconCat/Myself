@@ -63,15 +63,17 @@ type Server struct {
 	// acctLimiter 按登录名计失败次数（与按 IP 叠加）
 	acctLimiter *attemptLimiter
 	// mailLimiter 按用户限制「确认邮箱」等外发邮件（15 分钟 3 封）
-	mailLimiter *attemptLimiter
-	oauth       oauthStates
-	comments    commentLimiter
-	reacts      reactLimiter
-	thumbs      singleflight.Group
-	backupMu    sync.Mutex
-	setupMu     sync.Mutex
-	maintenance atomic.Bool
-	requests    sync.RWMutex
+	mailLimiter           *attemptLimiter
+	oauth                 oauthStates
+	comments              commentLimiter
+	reacts                reactLimiter
+	thumbs                singleflight.Group
+	backupMu              sync.Mutex
+	setupMu               sync.Mutex
+	updateMu              sync.Mutex
+	updateScheduleRunning atomic.Bool
+	maintenance           atomic.Bool
+	requests              sync.RWMutex
 	// mediaHashMu 串行化素材哈希回填
 	mediaHashMu sync.Mutex
 	// mailer 发信实现；nil 用 SMTP（sendWith），测试里替换成捕获函数
@@ -152,6 +154,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+p+"/admin/system", admin(s.systemStatus))
 	mux.HandleFunc("POST "+p+"/admin/system/check-update", admin(s.checkUpdate))
 	mux.HandleFunc("POST "+p+"/admin/system/update", admin(s.applyUpdate))
+	mux.HandleFunc("GET "+p+"/admin/system/releases", admin(s.listReleases))
+	mux.HandleFunc("PUT "+p+"/admin/system/preferences", admin(s.updatePreferences))
 
 	// 管理员
 	mux.HandleFunc("PUT "+p+"/auth/password", member(s.changePassword))

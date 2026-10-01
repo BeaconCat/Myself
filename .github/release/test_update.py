@@ -159,4 +159,5 @@ func main() {
 if __name__ == "__main__":
     old, new = Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve()
     exercise(old, new, False)
+    exercise(new, old, False)
     crash_fixture(old)

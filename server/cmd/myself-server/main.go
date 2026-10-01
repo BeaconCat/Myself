@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -15,6 +16,7 @@ import (
 	goruntime "runtime"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	"myself/server/internal/auth"
 	"myself/server/internal/config"
@@ -27,6 +29,9 @@ import (
 var version = "dev"
 var commit = "unknown"
 var buildDate = "unknown"
+var codename = ""
+var codenameBase64 = ""
+var repository = "BeaconCat/Myself"
 
 func main() {
 	configPath := flag.String("config", "", "runtime JSON config (default: ./config.json)")
@@ -46,7 +51,9 @@ func main() {
 		return
 	}
 	if *showVersion {
-		fmt.Printf("Myself %s (commit %s, built %s)\n", version, commit, buildDate)
+		name := "Myself"
+		if code := buildInfo().Codename; code != "" { name += " " + code }
+		fmt.Printf("%s %s (commit %s, built %s)\n", name, version, commit, buildDate)
 		return
 	}
 	filename := *configPath
@@ -99,7 +106,11 @@ type restartRequest struct {
 }
 
 func buildInfo() updater.Build {
-	return updater.Build{Version: version, Commit: commit, Date: buildDate, OS: goruntime.GOOS, Arch: goruntime.GOARCH, UpdateProtocol: updater.Protocol}
+	name := codename
+	if decoded, err := base64.StdEncoding.DecodeString(codenameBase64); err == nil && codenameBase64 != "" {
+		name = string(decoded)
+	}
+	return updater.Build{Version: version, Codename: name, Repository: repository, Commit: commit, Date: buildDate, OS: goruntime.GOOS, Arch: goruntime.GOARCH, UpdateProtocol: updater.Protocol}
 }
 
 func recoverUpdate(runtime runtimeOptions, filename string) error {
@@ -190,6 +201,7 @@ func serve(runtime runtimeOptions, configFile, setupCode string) (*restartReques
 	background, stopBackground := context.WithCancel(context.Background())
 	defer stopBackground()
 	srv.StartAutoBackup(background)
+	srv.StartUpdateSchedule(background)
 
 	port := runtime.Port
 	httpServer := &http.Server{

@@ -12,5 +12,5 @@
       "tls": "false"
     }
   },
-  "updates": { "repository": "BeaconCat/Myself", "disabled": false }
+  "updates": { "repository": "", "disabled": false }
 }

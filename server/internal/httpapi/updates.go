@@ -12,15 +12,30 @@ import (
 	"myself/server/internal/updater"
 )
 
-func (s *Server) systemStatus(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) systemStatus(w http.ResponseWriter, r *http.Request) {
+	s.writeSystemStatus(w, r, http.StatusOK)
+}
+
+func (s *Server) writeSystemStatus(w http.ResponseWriter, r *http.Request, code int) {
 	if s.Updates == nil {
-		writeError(w, http.StatusServiceUnavailable, "updates_unavailable")
+		writeJSON(w, http.StatusOK, map[string]any{"current": s.Build, "phase": "unavailable", "reason": "updates_unavailable", "canApply": false, "databaseDriver": s.DB.Driver()})
 		return
 	}
-	writeJSON(w, http.StatusOK, struct {
+	status := s.Updates.Status()
+	if s.updateScheduleRunning.Load() {
+		status.Busy = true
+		status.CanApply = false
+	}
+	writeJSON(w, code, struct {
 		updater.Status
-		DatabaseDriver string `json:"databaseDriver"`
-	}{s.Updates.Status(), s.DB.Driver()})
+		DatabaseDriver string                `json:"databaseDriver"`
+		SMTPReady      bool                  `json:"smtpReady"`
+		AdminEmail     string                `json:"adminEmail"`
+		NextCheck      string                `json:"nextCheck"`
+		Timezone       string                `json:"timezone"`
+		Notification   *updater.Notification `json:"notification,omitempty"`
+	}{status, s.DB.Driver(), s.Config.Typed().Mail.Ready(), userOf(r).Email,
+		nextUpdateCheck(time.Now(), s.siteLocation()).Format(time.RFC3339), s.siteLocation().String(), s.Updates.LastNotification()})
 }
 
 func (s *Server) checkUpdate(w http.ResponseWriter, r *http.Request) {
@@ -28,8 +43,13 @@ func (s *Server) checkUpdate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "updates_unavailable")
 		return
 	}
-	status, _ := s.Updates.Check(r.Context())
-	writeJSON(w, http.StatusOK, status)
+	if !s.updateMu.TryLock() {
+		writeError(w, http.StatusConflict, "update_in_progress")
+		return
+	}
+	defer s.updateMu.Unlock()
+	_, _ = s.Updates.Check(r.Context())
+	s.systemStatus(w, r)
 }
 
 func (s *Server) applyUpdate(w http.ResponseWriter, r *http.Request) {
@@ -37,18 +57,79 @@ func (s *Server) applyUpdate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "updates_unavailable")
 		return
 	}
+	if !s.updateMu.TryLock() {
+		writeError(w, http.StatusConflict, "update_in_progress")
+		return
+	}
+	defer s.updateMu.Unlock()
 	var b struct {
-		Version string `json:"version"`
+		Version    string `json:"version"`
+		ReleaseID  int64  `json:"releaseId"`
+		Repository string `json:"repository"`
 	}
 	if err := readJSON(w, r, &b); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_json")
 		return
 	}
-	if err := s.Updates.Start(b.Version); err != nil {
+	var err error
+	if b.ReleaseID != 0 {
+		err = s.Updates.StartSelected(r.Context(), b.Repository, b.ReleaseID)
+	} else {
+		err = s.Updates.Start(b.Version)
+	}
+	if err != nil {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusAccepted, s.Updates.Status())
+	s.writeSystemStatus(w, r, http.StatusAccepted)
+}
+
+func (s *Server) listReleases(w http.ResponseWriter, r *http.Request) {
+	if s.Updates == nil {
+		writeError(w, http.StatusServiceUnavailable, "updates_unavailable")
+		return
+	}
+	page, err := s.Updates.List(r.Context(), queryInt(r, "page", 1, 1, 100000), queryInt(r, "pageSize", 10, 1, 20))
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
+}
+
+func (s *Server) updatePreferences(w http.ResponseWriter, r *http.Request) {
+	if s.Updates == nil {
+		writeError(w, http.StatusServiceUnavailable, "updates_unavailable")
+		return
+	}
+	if !s.updateMu.TryLock() {
+		writeError(w, http.StatusConflict, "update_in_progress")
+		return
+	}
+	defer s.updateMu.Unlock()
+	var p updater.Preferences
+	if err := readJSON(w, r, &p); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json")
+		return
+	}
+	if p.Subscribe {
+		if !s.Config.Typed().Mail.Ready() {
+			writeError(w, http.StatusBadRequest, "smtp_required")
+			return
+		}
+		if p.Email == "" {
+			p.Email = userOf(r).Email
+		}
+		if !emailRe.MatchString(p.Email) {
+			writeError(w, http.StatusBadRequest, "notification_email_required")
+			return
+		}
+	}
+	if err := s.Updates.Configure(p, time.Now().In(s.siteLocation()).Format("2006-01-02")); err != nil {
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	s.systemStatus(w, r)
 }
 
 func (s *Server) systemHealth(w http.ResponseWriter, r *http.Request) {

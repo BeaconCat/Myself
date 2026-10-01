@@ -26,6 +26,7 @@ type Options struct {
 	Port       string
 	Args       []string
 	Disabled   bool
+	Transport  http.RoundTripper
 	// Prepare quiesces the site and returns a complete safety backup.
 	Prepare func() (string, error)
 	Resume  func()
@@ -33,17 +34,20 @@ type Options struct {
 }
 
 type Status struct {
-	Current    Build    `json:"current"`
-	Repository string   `json:"repository"`
-	Phase      string   `json:"phase"`
-	CheckedAt  string   `json:"checkedAt,omitempty"`
-	Available  *Release `json:"available,omitempty"`
-	CanApply   bool     `json:"canApply"`
-	Reason     string   `json:"reason,omitempty"`
-	Downloaded int64    `json:"downloaded"`
-	Total      int64    `json:"total"`
-	Error      string   `json:"error,omitempty"`
-	Backup     string   `json:"backup,omitempty"`
+	Current     Build       `json:"current"`
+	Repository  string      `json:"repository"`
+	Phase       string      `json:"phase"`
+	CheckedAt   string      `json:"checkedAt,omitempty"`
+	Available   *Release    `json:"available,omitempty"`
+	Target      *Release    `json:"target,omitempty"`
+	Preferences Preferences `json:"preferences"`
+	CanApply    bool        `json:"canApply"`
+	Busy        bool        `json:"busy"`
+	Reason      string      `json:"reason,omitempty"`
+	Downloaded  int64       `json:"downloaded"`
+	Total       int64       `json:"total"`
+	Error       string      `json:"error,omitempty"`
+	Backup      string      `json:"backup,omitempty"`
 }
 
 type Manager struct {
@@ -57,11 +61,16 @@ type Manager struct {
 	token      string
 	executable string
 	stateDir   string
+	prefs      Preferences
+	catalog    map[string]manifest
 }
 
 func New(opts Options) (*Manager, error) {
 	if opts.Repository == "" {
-		opts.Repository = "BeaconCat/Myself"
+		opts.Repository = opts.Build.Repository
+		if opts.Repository == "" {
+			opts.Repository = "BeaconCat/Myself"
+		}
 	}
 	if !repoRE.MatchString(opts.Repository) {
 		return nil, errors.New("invalid update repository")
@@ -79,11 +88,31 @@ func New(opts Options) (*Manager, error) {
 		return nil, err
 	}
 	m := &Manager{opts: opts, executable: exe, stateDir: dir, apiBase: "https://api.github.com", client: newClient(), token: os.Getenv("MYSELF_UPDATE_TOKEN"), pending: os.Getenv("MYSELF_UPDATE_NONCE") != ""}
+	if opts.Transport != nil {
+		m.client.Transport = opts.Transport
+	}
 	m.state = Status{Current: opts.Build, Repository: opts.Repository, Phase: "idle"}
+	m.prefs.Repository = opts.Repository
+	if data, err := os.ReadFile(filepath.Join(dir, "preferences.json")); err == nil {
+		var stored storedPreferences
+		if json.Unmarshal(data, &stored) == nil {
+			if repo, err := NormalizeRepository(stored.Repository); err == nil {
+				m.prefs = stored.Preferences
+				m.prefs.Repository = repo
+				m.prefs.LastScanDay = stored.LastScanDay
+				m.opts.Repository = repo
+			}
+		}
+	}
+	m.loadCatalog()
 	if data, err := os.ReadFile(filepath.Join(dir, "status.json")); err == nil {
 		_ = json.Unmarshal(data, &m.state)
-		m.state.Current, m.state.Repository = opts.Build, opts.Repository
+		if m.state.Repository != m.opts.Repository && !m.pending {
+			m.state.Available, m.state.Target = nil, nil
+			m.state.Phase, m.state.Error = "idle", ""
+		}
 	}
+	m.state.Current, m.state.Repository = opts.Build, m.opts.Repository
 	if !m.pending && activePhase(m.state.Phase) {
 		data, _ := os.ReadFile(exe + ".update-lock")
 		pid, _ := strconv.Atoi(strings.TrimSpace(string(data)))
@@ -129,8 +158,10 @@ func (m *Manager) Status() Status {
 		}
 	}
 	s.Current, s.Repository = m.opts.Build, m.opts.Repository
+	s.Preferences = m.prefs
+	s.Busy = m.busy || activePhase(s.Phase)
 	s.Reason = m.disabledReason()
-	s.CanApply = s.Reason == "" && !m.busy && !activePhase(s.Phase) && s.Available != nil && newer(s.Available.Version, s.Current.Version)
+	s.CanApply = s.Reason == "" && !m.busy && !activePhase(s.Phase) && s.Available != nil && s.Available.Installable && newer(s.Available.Version, s.Current.Version)
 	return s
 }
 
@@ -170,7 +201,7 @@ func (m *Manager) Check(ctx context.Context) (Status, error) {
 	}
 	m.busy = true
 	m.mu.Unlock()
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, catalogueTimeout)
 	defer cancel()
 	release, err := m.latest(ctx)
 	m.mu.Lock()
@@ -180,9 +211,14 @@ func (m *Manager) Check(ctx context.Context) (Status, error) {
 	m.state.Available = nil
 	if err != nil {
 		m.state.Phase, m.state.Error = "check_failed", err.Error()
+		if err.Error() == "no_releases" || err.Error() == "no_compatible_releases" {
+			m.state.Phase, m.state.Error = err.Error(), ""
+			err = nil
+		}
 	} else {
 		m.state.Phase = "up_to_date"
-		if newer(release.Version, m.opts.Build.Version) {
+		_, currentKnown := NumericVersion(m.opts.Build.Version)
+		if !currentKnown || newer(release.Version, m.opts.Build.Version) {
 			m.state.Phase, m.state.Available = "available", release
 		}
 	}
@@ -201,17 +237,19 @@ func (m *Manager) Start(version string) error {
 	if m.busy || activePhase(m.state.Phase) {
 		return errors.New("update_in_progress")
 	}
-	if m.state.Available == nil || m.state.Available.Version != version || !newer(version, m.opts.Build.Version) {
+	if m.state.Available == nil || !m.state.Available.Installable || m.state.Available.Version != version || !newer(version, m.opts.Build.Version) {
 		return errors.New("check_update_first")
 	}
 	m.busy = true
 	m.state.Phase, m.state.Error, m.state.Downloaded = "downloading", "", 0
 	m.state.Total = m.state.Available.Size
+	m.state.Target = m.state.Available
 	if err := m.save(); err != nil {
 		m.busy = false
+		m.state.Phase = "failed"
 		return err
 	}
-	go m.install(version)
+	go m.install(version, m.state.Available.ID)
 	return nil
 }
 
@@ -222,7 +260,7 @@ func (m *Manager) phase(phase string) error {
 	return m.save()
 }
 
-func (m *Manager) install(version string) {
+func (m *Manager) install(version string, id int64) {
 	var installErr error
 	var staged, helper, lockPath string
 	prepared, dispatched := false, false
@@ -249,7 +287,7 @@ func (m *Manager) install(version string) {
 	}()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
-	release, err := m.latest(ctx)
+	release, err := m.selected(ctx, id)
 	if err != nil {
 		installErr = err
 		return
@@ -322,7 +360,9 @@ func (m *Manager) install(version string) {
 	metadata, err := cmd.Output()
 	stop()
 	var build Build
-	if err != nil || json.Unmarshal(metadata, &build) != nil || build.Version != version || build.Commit != release.commit || build.OS != m.opts.Build.OS || build.Arch != m.opts.Build.Arch || build.UpdateProtocol != Protocol {
+	decodeErr := json.Unmarshal(metadata, &build)
+	versionOrder, versionValid := CompareVersions(build.Version, version)
+	if err != nil || decodeErr != nil || !versionValid || versionOrder != 0 || build.Commit != release.commit || build.OS != m.opts.Build.OS || build.Arch != m.opts.Build.Arch || build.UpdateProtocol != Protocol || (release.Codename != "" && build.Codename != release.Codename) {
 		installErr = errors.New("binary_verification_failed")
 		return
 	}
@@ -351,7 +391,7 @@ func (m *Manager) install(version string) {
 	}
 	plan := Plan{Executable: m.executable, Staged: staged, Previous: m.executable + ".previous-" + nonce,
 		Helper: helper, Root: m.opts.Root, Backup: backup, Args: m.opts.Args, CWD: cwd, ParentPID: os.Getpid(),
-		Port: m.opts.Port, Version: version, Commit: release.commit, Nonce: nonce, SHA256: release.artifact.SHA256, Current: m.opts.Build}
+		Port: m.opts.Port, Version: build.Version, Commit: release.commit, Nonce: nonce, SHA256: release.artifact.SHA256, Current: m.opts.Build}
 	planPath := filepath.Join(m.stateDir, "plan.json")
 	if err := writeJSONFile(planPath, plan); err != nil {
 		installErr = err
