@@ -11,6 +11,7 @@ import type { MediaRef } from './types';
 import { dateTimeText, formatSize } from './format';
 import { mediaKind } from '../../../utils/mediaKind';
 import { renderMediaHtml } from '../../../utils/embeds';
+import { useModalLayer } from '../../../composables/useModalLayer';
 
 /**
  * 素材大图查看器 + 裁切：始终基于原图与上次裁切框。
@@ -28,6 +29,8 @@ const { t } = useI18n();
 /** 裁剪与删除只对站长开放（协作作者只能浏览和上传） */
 const isAdmin = computed(() => useAuthStore().isAdmin);
 const dialog = useDialogStore();
+const panel = ref<HTMLElement | null>(null);
+const isTopModal = useModalLayer(panel);
 
 const item = computed(() => props.items[index.value] ?? null);
 /** 非图片（视频 / 音频 / 压缩包 / 文件）：舞台直接播放或显示文件卡片，没有裁切 */
@@ -135,6 +138,7 @@ function step(d: number): void {
 }
 
 function onKey(e: KeyboardEvent): void {
+  if (!isTopModal()) return;
   if (document.querySelector('.modal-mask')) return;
   if (e.key === 'Escape') close();
   if (e.key === 'ArrowRight') step(1);
@@ -331,7 +335,7 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <Transition name="viewer">
-      <div v-if="open && item" class="studio viewer">
+      <div v-if="open && item" ref="panel" class="studio viewer" role="dialog" aria-modal="true" :aria-label="item.title || item.name" tabindex="-1">
         <div class="v-stage" @click.self="close">
           <div class="v-close">
             <button type="button" class="st-ibtn" :title="t('studio.media.close')" @click="close"><SIcon name="x" /></button>

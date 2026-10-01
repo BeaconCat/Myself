@@ -274,7 +274,7 @@ onBeforeUnmount(() => {
 
         <Transition name="pe">
           <div v-if="editingPreset" class="p-edit">
-            <label class="st-field"><input v-model="editingPreset.name" :placeholder="t('studio.appearance.pName')" /></label>
+            <label class="st-field"><input v-model="editingPreset.name" :placeholder="t('studio.appearance.pName')" :aria-label="t('studio.appearance.pName')" /></label>
             <label class="color"><i class="sw" :style="{ background: editingPreset.primary }" /><input v-model="editingPreset.primary" type="color" /><span><small>{{ t('studio.appearance.primary') }}</small><b class="mono">{{ editingPreset.primary }}</b></span></label>
             <label class="color"><i class="sw" :style="{ background: editingPreset.primaryDeep }" /><input v-model="editingPreset.primaryDeep" type="color" /><span><small>{{ t('studio.appearance.deep') }}</small><b class="mono">{{ editingPreset.primaryDeep }}</b></span></label>
             <button type="button" class="st-ibtn ring" :disabled="presets.length <= 1" :title="t('studio.delete')" @click="removePreset(editingPreset)"><SIcon name="trash" /></button>
@@ -415,7 +415,7 @@ onBeforeUnmount(() => {
             <span class="st-chip on">{{ t('studio.appearance.radiusChipOn') }}</span>
             <span class="st-chip">{{ t('studio.appearance.radiusChip') }}</span>
           </div>
-          <label class="st-field"><SIcon name="search" :size="18" /><input :placeholder="t('studio.appearance.radiusInput')" /></label>
+          <label class="st-field"><SIcon name="search" :size="18" /><input :placeholder="t('studio.appearance.radiusInput')" :aria-label="t('studio.appearance.radiusInput')" /></label>
           <div class="d-card">
             <LightCover class="d-cv" kind="door" />
             <div><b>{{ t('studio.appearance.radiusCard') }}</b><small>{{ t('studio.appearance.radiusCardMeta') }}</small></div>

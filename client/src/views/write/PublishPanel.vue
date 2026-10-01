@@ -92,7 +92,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
       <div class="st-flabel">{{ t('studio.write.checklist') }}</div>
       <ul class="checks">
         <li v-for="c in checks" :key="c.label" :class="{ ok: c.ok }">
-          <SIcon :name="c.ok ? 'check' : 'minus'" :size="14" />{{ c.label }}
+          <SIcon :name="c.ok ? 'check' : 'minus'" :size="14" />{{ c.label }}<span class="sr-only"> · {{ t(c.ok ? 'studio.write.ckDone' : 'studio.write.ckPending') }}</span>
         </li>
       </ul>
 

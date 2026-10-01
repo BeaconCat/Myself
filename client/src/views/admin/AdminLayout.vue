@@ -614,7 +614,7 @@ onBeforeUnmount(() => {
       position: absolute;
       inset: 3px;
       border-radius: 50%;
-      box-shadow: 0 0 0 1.5px var(--st-ink);
+      box-shadow: 0 0 0 1.5px var(--primary);
       opacity: 0;
       transform: scale(0.6);
       transition: all var(--dur) var(--ease-spring);
@@ -622,7 +622,7 @@ onBeforeUnmount(() => {
 
     &:hover i { transform: scale(1.12); }
 
-    /* 色盘选中：抬升底 + 中性细环（不用色盘自身颜色描边/发光） */
+    /* 色盘选中：抬升底 + 当前主题强调色细环。 */
     &.on {
       background: var(--lift);
       box-shadow: var(--lift-shadow);

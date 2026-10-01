@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref } from 'vue';
+import { nextTick, onBeforeUnmount, ref, useId } from 'vue';
 import { useI18n } from 'vue-i18n';
 import SIcon from './SIcon.vue';
 import type { MenuItem } from './types';
@@ -10,6 +10,7 @@ defineProps<{ items: MenuItem[]; title?: string; label?: string }>();
 const { t } = useI18n();
 
 const open = ref(false);
+const uid = useId();
 const pos = ref({ top: 0, left: 0 });
 const btn = ref<HTMLElement | null>(null);
 const menu = ref<HTMLElement | null>(null);
@@ -57,12 +58,13 @@ defineExpose({ close });
     :aria-label="label || title || t('studio.a11y.more')"
     aria-haspopup="menu"
     :aria-expanded="open"
+    :aria-controls="open ? uid : undefined"
     @click.stop="toggle"
   >
     <SIcon name="more" />
   </button>
   <Teleport to="body">
-    <div v-if="open" ref="menu" class="studio st-menu" role="menu" :style="{ top: `${pos.top}px`, left: `${pos.left}px` }" @click.stop>
+    <div v-if="open" :id="uid" ref="menu" class="studio st-menu" role="menu" :style="{ top: `${pos.top}px`, left: `${pos.left}px` }" @click.stop>
       <template v-for="(item, i) in items" :key="i">
         <hr v-if="item.divider" />
         <button type="button" role="menuitem" :class="{ d: item.danger }" @click="pick(item)">

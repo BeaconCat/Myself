@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onUpdated, ref, useId, watch } from 'vue';
+import { useModalLayer } from '../../../composables/useModalLayer';
 
 /**
  * Studio 纸面模态：遮罩 + 弹簧入场；内容由插槽提供（确认类统一走 stores/dialog）。
@@ -9,6 +10,7 @@ const props = defineProps<{ open: boolean; wide?: boolean; panelClass?: string; 
 const emit = defineEmits<{ close: [] }>();
 
 function onKey(e: KeyboardEvent): void {
+  if (!isTopModal()) return;
   if (e.key === 'Escape') emit('close');
 }
 
@@ -23,6 +25,7 @@ watch(
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 
 const panel = ref<HTMLElement | null>(null);
+const isTopModal = useModalLayer(panel);
 const labelledby = ref<string | undefined>();
 const uid = useId();
 function nameFromHeading(): void {
@@ -45,6 +48,7 @@ onUpdated(nameFromHeading);
           :class="[panelClass, { wide }]"
           role="dialog"
           aria-modal="true"
+          tabindex="-1"
           :aria-label="label || undefined"
           :aria-labelledby="label ? undefined : labelledby"
         >

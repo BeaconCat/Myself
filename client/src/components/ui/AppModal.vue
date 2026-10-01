@@ -2,9 +2,12 @@
 import { nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useDialogStore } from '../../stores/dialog';
+import { useModalLayer } from '../../composables/useModalLayer';
 
 /** 全局模态宿主：挂在 App 根部，消费 dialog store */
 const dialog = useDialogStore();
+const panel = ref<HTMLElement | null>(null);
+useModalLayer(panel);
 const { t } = useI18n();
 
 const inputValue = ref('');
@@ -63,9 +66,11 @@ function onKey(e: KeyboardEvent): void {
     >
       <!-- 名称取标题；只有正文（如「退出登录？」）时取正文 -->
       <div
+        ref="panel"
         class="modal"
         :role="snapshot.alertOnly ? 'alertdialog' : 'dialog'"
         aria-modal="true"
+        tabindex="-1"
         :aria-labelledby="snapshot.title ? 'app-modal-title' : snapshot.message ? 'app-modal-msg' : undefined"
         :aria-describedby="snapshot.title && snapshot.message ? 'app-modal-msg' : undefined"
       >

@@ -261,7 +261,7 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
 
     <TransitionGroup tag="div" name="cm" class="cm-list" :class="{ busy: busy && !loading }">
       <div v-for="c in list" :key="c.id" class="cm" :class="{ sel: selected.has(c.id) }">
-        <span class="st-ck" :class="{ on: selected.has(c.id) }" role="checkbox" tabindex="0" :aria-checked="selected.has(c.id)" :aria-label="t('studio.a11y.select', { name: c.author.name })" @click="toggle(c.id)" @keydown.enter.space.prevent="toggle(c.id)"><Icon :icon="Check" /></span>
+        <span class="st-ck" :class="{ on: selected.has(c.id) }" role="checkbox" tabindex="0" :aria-checked="selected.has(c.id)" :aria-label="t('studio.a11y.selectComment', { name: c.author.name, text: plainText(c.body).slice(0, 48), id: c.id })" @click="toggle(c.id)" @keydown.enter.space.prevent="toggle(c.id)"><Icon :icon="Check" /></span>
         <span class="av" :style="{ background: c.author.avatar ? undefined : tint(c.author.name) }">
           <img v-if="c.author.avatar" :src="c.author.avatar" alt="" /><template v-else>{{ initial(c.author.name) }}</template>
         </span>

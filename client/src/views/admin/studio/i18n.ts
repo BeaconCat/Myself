@@ -377,6 +377,8 @@ const studio = {
     optPin: '置顶到首页轮播',
     optAnnounce: '同时发一条随想，告诉读者有新文章',
     checklist: '发布前检查',
+    ckDone: '已完成',
+    ckPending: '未完成',
     ckTitle: '标题',
     ckExcerpt: '摘要',
     ckCover: '封面',
@@ -1150,6 +1152,7 @@ const studio = {
   a11y: {
     more: '更多操作',
     select: '选择「{name}」',
+    selectComment: '选择 {name} 的评论：{text}（编号 {id}）',
     view: '查看「{name}」',
     viewMode: '显示方式',
     closeSettings: '关闭设置',

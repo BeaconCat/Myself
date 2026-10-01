@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, X } from 'lucide';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CoverArt, { isArtUrl } from '../common/CoverArt.vue';
+import { useModalLayer } from '../../composables/useModalLayer';
 
 /**
  * 全屏图片查看器：
@@ -27,6 +28,8 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>();
 
 const { t } = useI18n();
+const panel = ref<HTMLElement | null>(null);
+const isTopModal = useModalLayer(panel);
 
 const index = ref(props.startIndex);
 const scale = ref(1);
@@ -208,6 +211,7 @@ function go(delta: number): void {
 }
 
 function onKey(e: KeyboardEvent): void {
+  if (!isTopModal()) return;
   if (e.key === 'Escape') requestClose();
   if (e.key === 'ArrowLeft') go(-1);
   if (e.key === 'ArrowRight') go(1);
@@ -231,10 +235,12 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <div
+      ref="panel"
       class="viewer"
       :class="{ closing }"
       role="dialog"
       aria-modal="true"
+      tabindex="-1"
       :aria-label="t('viewer.title', { i: index + 1, n: images.length })"
       @click="onBackdropTap"
       @wheel.prevent="onWheel"

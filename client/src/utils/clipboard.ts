@@ -15,7 +15,9 @@ export async function copyText(text: string): Promise<boolean> {
   ta.value = text;
   ta.setAttribute('readonly', '');
   ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
-  document.body.appendChild(ta);
+  // Keep the fallback selection inside the active modal's focus boundary.
+  const modal = active?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]');
+  (modal ?? document.body).appendChild(ta);
   ta.select();
   let ok = false;
   try {
