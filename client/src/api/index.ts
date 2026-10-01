@@ -250,6 +250,8 @@ export interface UpdateStatus {
   available?: UpdateRelease;
   target?: UpdateRelease;
   preferences: UpdatePreferences;
+  tokenConfigured: boolean;
+  tokenSource: 'none' | 'settings' | 'environment';
   busy: boolean;
   smtpReady?: boolean;
   adminEmail?: string;
@@ -270,7 +272,7 @@ export const adminApi = {
   checkUpdate: () => authed<UpdateStatus>('/admin/system/check-update', { method: 'POST' }),
   applyUpdate: (version: string) => authed<UpdateStatus>('/admin/system/update', { method: 'POST', body: JSON.stringify({ version }) }),
   updateReleases: (page = 1) => authed<UpdateReleasePage>(`/admin/system/releases?page=${page}&pageSize=10`),
-  saveUpdatePreferences: (preferences: UpdatePreferences) => authed<UpdateStatus>('/admin/system/preferences', { method: 'PUT', body: JSON.stringify(preferences) }),
+  saveUpdatePreferences: (preferences: UpdatePreferences & { token?: string }) => authed<UpdateStatus>('/admin/system/preferences', { method: 'PUT', body: JSON.stringify(preferences) }),
   selectUpdateRelease: (repository: string, releaseId: number) => authed<UpdateStatus>('/admin/system/update', { method: 'POST', body: JSON.stringify({ repository, releaseId }) }),
   /** 登录：成功后服务端写入会话 Cookie；mustChange = 仍在用历史默认口令，需先改密 */
   login: (username: string, password: string) =>

@@ -34,20 +34,22 @@ type Options struct {
 }
 
 type Status struct {
-	Current     Build       `json:"current"`
-	Repository  string      `json:"repository"`
-	Phase       string      `json:"phase"`
-	CheckedAt   string      `json:"checkedAt,omitempty"`
-	Available   *Release    `json:"available,omitempty"`
-	Target      *Release    `json:"target,omitempty"`
-	Preferences Preferences `json:"preferences"`
-	CanApply    bool        `json:"canApply"`
-	Busy        bool        `json:"busy"`
-	Reason      string      `json:"reason,omitempty"`
-	Downloaded  int64       `json:"downloaded"`
-	Total       int64       `json:"total"`
-	Error       string      `json:"error,omitempty"`
-	Backup      string      `json:"backup,omitempty"`
+	Current         Build       `json:"current"`
+	Repository      string      `json:"repository"`
+	Phase           string      `json:"phase"`
+	CheckedAt       string      `json:"checkedAt,omitempty"`
+	Available       *Release    `json:"available,omitempty"`
+	Target          *Release    `json:"target,omitempty"`
+	Preferences     Preferences `json:"preferences"`
+	TokenConfigured bool        `json:"tokenConfigured"`
+	TokenSource     string      `json:"tokenSource"`
+	CanApply        bool        `json:"canApply"`
+	Busy            bool        `json:"busy"`
+	Reason          string      `json:"reason,omitempty"`
+	Downloaded      int64       `json:"downloaded"`
+	Total           int64       `json:"total"`
+	Error           string      `json:"error,omitempty"`
+	Backup          string      `json:"backup,omitempty"`
 }
 
 type Manager struct {
@@ -59,6 +61,8 @@ type Manager struct {
 	client     *http.Client
 	apiBase    string
 	token      string
+	savedToken string
+	envToken   string
 	executable string
 	stateDir   string
 	prefs      Preferences
@@ -88,6 +92,7 @@ func New(opts Options) (*Manager, error) {
 		return nil, err
 	}
 	m := &Manager{opts: opts, executable: exe, stateDir: dir, apiBase: "https://api.github.com", client: newClient(), token: os.Getenv("MYSELF_UPDATE_TOKEN"), pending: os.Getenv("MYSELF_UPDATE_NONCE") != ""}
+	m.envToken = m.token
 	if opts.Transport != nil {
 		m.client.Transport = opts.Transport
 	}
@@ -101,6 +106,10 @@ func New(opts Options) (*Manager, error) {
 				m.prefs.Repository = repo
 				m.prefs.LastScanDay = stored.LastScanDay
 				m.opts.Repository = repo
+				m.savedToken = stored.Token
+				if m.savedToken != "" {
+					m.token = m.savedToken
+				}
 			}
 		}
 	}
@@ -159,6 +168,13 @@ func (m *Manager) Status() Status {
 	}
 	s.Current, s.Repository = m.opts.Build, m.opts.Repository
 	s.Preferences = m.prefs
+	s.TokenConfigured = m.token != ""
+	s.TokenSource = "none"
+	if m.savedToken != "" {
+		s.TokenSource = "settings"
+	} else if m.envToken != "" {
+		s.TokenSource = "environment"
+	}
 	s.Busy = m.busy || activePhase(s.Phase)
 	s.Reason = m.disabledReason()
 	s.CanApply = s.Reason == "" && !m.busy && !activePhase(s.Phase) && s.Available != nil && s.Available.Installable && newer(s.Available.Version, s.Current.Version)

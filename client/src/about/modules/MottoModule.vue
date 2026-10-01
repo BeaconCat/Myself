@@ -23,7 +23,7 @@ const fx = computed(() => {
     <p>
       <span class="mo-line">
         <span v-if="fx === 'quote'" class="mo-q open" aria-hidden="true">&ldquo;</span>
-        <span v-for="(ch, i) in chars" :key="i" class="ch" :style="{ '--k': i }">{{ ch }}</span>
+        <span class="mo-text"><span v-for="(ch, i) in chars" :key="i" class="ch" :style="{ '--k': i }">{{ ch }}</span></span>
         <span v-if="fx === 'quote'" class="mo-q close" aria-hidden="true">&rdquo;</span>
       </span>
     </p>
@@ -132,19 +132,21 @@ const fx = computed(() => {
   i { transform: none; }
 }
 
-/* ---------- quote 引号：一对超大宋体引号挂在整句两端（左上 / 右下），不参与居中 ---------- */
+/* Quote gutters participate in layout, so wrapped text never runs under a quote. */
 .mo-line { position: relative; }
+.fx-quote .mo-line { display: inline-grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .08em; max-width: 100%; align-items: center; }
+.fx-quote .mo-text { min-width: 0; overflow-wrap: anywhere; }
 
 .mo-q {
-  position: absolute;
+  display: block;
   font: 700 1.7em/1 var(--font-serif);
   color: var(--line-2);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.9s var(--ease-out), transform 0.9s var(--ease-out);
 
-  &.open { right: 100%; top: -0.18em; margin-right: 0.04em; transform: translate(-10px, -6px); transition-delay: 0.1s; }
-  &.close { left: 100%; bottom: -0.52em; margin-left: -0.3em; transform: translate(10px, 6px); transition-delay: var(--after); }
+  &.open { align-self: start; transform: translate(-10px, -6px); transition-delay: 0.1s; }
+  &.close { align-self: end; position: relative; top: .35em; transform: translate(10px, 6px); transition-delay: var(--after); }
 }
 
 .in .mo-q { opacity: 1; transform: none; }

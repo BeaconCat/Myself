@@ -262,6 +262,8 @@ location / {
 
 在“设置 → 系统与更新”设置 `owner/repository` 或完整 GitHub 仓库地址。首次默认使用构建来源仓库，Fork 的 CI 产物会指向自己的 Fork；也可以通过后台修改。运行配置的 `updates.repository` 留空即使用构建来源，后台保存的更新偏好优先。
 
+私有仓库可在同一页面配置 **GitHub Update Token**，保存后立即用于版本检查和下载，无需重启。Token 不会回显，留空保持原值，输入新值替换；清除后台保存值后回退到 `MYSELF_UPDATE_TOKEN` 环境变量（若有）。后台 Token 保存在数据根的私有 `.updates/preferences.json`，不进入公开站点配置或站点备份。
+
 点击“检查更新”会按数字版本寻找更新，版本列表支持分页和指定版本安装。Release 标题与开发代号可自由命名，例如 `Myself Alpha v0.0.1`、`Myself Beta v0.0.2`、`Myself Astra v0.1.0.9`。比较时逐段比较数字，缺失段按零处理：`0.1.0.10 > 0.1.0.9`，`0.1 = 0.1.0.0`；名称和预发布标记不影响排序。
 
 数字版本来自 `release-manifest.json`，不从 Release 标题猜测。无 Release 时显示空状态；没有更新清单、更新协议不兼容或缺少当前平台程序的版本会说明原因，不能自动安装。

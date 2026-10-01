@@ -24,6 +24,7 @@ type Preferences struct {
 type storedPreferences struct {
 	Preferences
 	LastScanDay string `json:"lastScanDay"`
+	Token       string `json:"token,omitempty"`
 }
 
 func NormalizeRepository(value string) (string, error) {
@@ -39,10 +40,32 @@ func NormalizeRepository(value string) (string, error) {
 func (m *Manager) Preferences() Preferences { m.mu.Lock(); defer m.mu.Unlock(); return m.prefs }
 
 func (m *Manager) savePreferences(p Preferences) error {
-	return writeJSONFile(filepath.Join(m.stateDir, "preferences.json"), storedPreferences{Preferences: p, LastScanDay: p.LastScanDay})
+	return m.savePreferencesWithToken(p, m.savedToken)
+}
+
+func (m *Manager) savePreferencesWithToken(p Preferences, token string) error {
+	return writeJSONFile(filepath.Join(m.stateDir, "preferences.json"), storedPreferences{Preferences: p, LastScanDay: p.LastScanDay, Token: token})
 }
 
 func (m *Manager) Configure(p Preferences, day string) error {
+	return m.ConfigureWithToken(p, day, nil)
+}
+
+// A nil token preserves the saved secret; an empty token clears the UI override.
+// Environment credentials remain available as the deployment-level fallback.
+func (m *Manager) ConfigureWithToken(p Preferences, day string, token *string) error {
+	var replacement string
+	if token != nil {
+		replacement = strings.TrimSpace(*token)
+		if len(replacement) > 4096 {
+			return errors.New("invalid_update_token")
+		}
+		for _, ch := range replacement {
+			if ch < 33 || ch > 126 {
+				return errors.New("invalid_update_token")
+			}
+		}
+	}
 	repo, err := NormalizeRepository(p.Repository)
 	if err != nil {
 		return err
@@ -64,12 +87,24 @@ func (m *Manager) Configure(p Preferences, day string) error {
 	if p.Repository != m.prefs.Repository || ((!m.prefs.AutoUpdate && !m.prefs.Subscribe) && (p.AutoUpdate || p.Subscribe)) {
 		p.LastScanDay = day
 	}
-	if err := m.savePreferences(p); err != nil {
+	savedToken := m.savedToken
+	if token != nil {
+		savedToken = replacement
+	}
+	if err := m.savePreferencesWithToken(p, savedToken); err != nil {
 		return err
 	}
-	if p.Repository != m.opts.Repository {
+	if savedToken != m.savedToken {
+		m.catalog = map[string]manifest{}
+	}
+	if p.Repository != m.opts.Repository || savedToken != m.savedToken {
 		m.state.Available, m.state.Target = nil, nil
 		m.state.Phase, m.state.Error, m.state.CheckedAt = "idle", "", ""
+	}
+	m.savedToken = savedToken
+	m.token = savedToken
+	if m.token == "" {
+		m.token = m.envToken
 	}
 	m.prefs, m.opts.Repository = p, p.Repository
 	m.state.Repository = p.Repository

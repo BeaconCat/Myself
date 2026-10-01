@@ -107,7 +107,10 @@ func (s *Server) updatePreferences(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer s.updateMu.Unlock()
-	var p updater.Preferences
+	var p struct {
+		updater.Preferences
+		Token *string `json:"token"`
+	}
 	if err := readJSON(w, r, &p); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_json")
 		return
@@ -125,7 +128,7 @@ func (s *Server) updatePreferences(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := s.Updates.Configure(p, time.Now().In(s.siteLocation()).Format("2006-01-02")); err != nil {
+	if err := s.Updates.ConfigureWithToken(p.Preferences, time.Now().In(s.siteLocation()).Format("2006-01-02"), p.Token); err != nil {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}

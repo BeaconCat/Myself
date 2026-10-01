@@ -13,7 +13,8 @@ const status = ref<UpdateStatus | null>(null);
 const catalogue = ref<UpdateReleasePage | null>(null);
 const preferences = reactive<UpdatePreferences>({ repository: '', autoUpdate: false, subscribe: false, email: '' });
 const saved = ref('');
-const changed = computed(() => !!saved.value && saved.value !== JSON.stringify(preferences));
+const token = ref(''), clearToken = ref(false);
+const changed = computed(() => (!!saved.value && saved.value !== JSON.stringify(preferences)) || !!token.value.trim() || clearToken.value);
 const busy = ref(false), listBusy = ref(false), reconnecting = ref(false);
 const error = ref(''), listError = ref('');
 const page = ref(1);
@@ -36,6 +37,7 @@ function accept(next: UpdateStatus, force = false): void {
     preferences.email ||= next.adminEmail ?? '';
     saved.value = JSON.stringify(preferences);
   }
+  if (force) { token.value = ''; clearToken.value = false; }
 }
 async function load(): Promise<void> {
   window.clearTimeout(timer);
@@ -57,7 +59,11 @@ async function save(): Promise<void> {
     preferences.autoUpdate = false;
   }
   busy.value = true; error.value = '';
-  try { accept(await adminApi.saveUpdatePreferences({ ...preferences }), true); catalogue.value = null; }
+  try {
+    const credential = clearToken.value ? { token: '' } : token.value.trim() ? { token: token.value.trim() } : {};
+    accept(await adminApi.saveUpdatePreferences({ ...preferences, ...credential }), true);
+    catalogue.value = null;
+  }
   catch (e) { error.value = explain((e as Error).message); }
   finally { busy.value = false; }
   if (!error.value) await releases();
@@ -95,6 +101,9 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
       <form v-if="status.preferences" class="preferences" @submit.prevent="save">
         <label><span class="st-flabel">{{ t('studio.updates.repository') }}</span><span class="st-field"><input v-model.trim="preferences.repository" placeholder="owner/repository" required :disabled="disabled" /></span></label>
         <p class="description">{{ t('studio.updates.repositoryHint') }}</p>
+        <label><span class="st-flabel">{{ t('studio.updates.token') }}</span><span class="st-field"><input v-model="token" type="password" autocomplete="new-password" spellcheck="false" maxlength="4096" :aria-label="t('studio.updates.token')" :placeholder="t(status.tokenConfigured ? 'studio.updates.tokenKeep' : 'studio.updates.tokenEmpty')" :disabled="disabled || clearToken" /></span></label>
+        <p class="description">{{ t('studio.updates.tokenHint') }}</p>
+        <div class="token-state"><span class="description">{{ t(clearToken ? 'studio.updates.tokenClearing' : `studio.updates.tokenSources.${status.tokenSource || 'none'}`) }}</span><button v-if="status.tokenSource === 'settings'" type="button" class="st-btn" :disabled="disabled" @click="clearToken = !clearToken; token = ''">{{ t(clearToken ? 'studio.updates.tokenUndo' : 'studio.updates.tokenClear') }}</button></div>
         <div class="option"><div><b>{{ t('studio.updates.automatic') }}</b><p>{{ t('studio.updates.automaticHint') }}</p></div><StSwitch v-model="preferences.autoUpdate" :label="t('studio.updates.automatic')" :disabled="disabled || (!!status.reason && !preferences.autoUpdate)" /></div>
         <div class="option"><div><b>{{ t('studio.updates.subscribe') }}</b><p>{{ t('studio.updates.subscribeHint') }}</p></div><StSwitch v-model="preferences.subscribe" :label="t('studio.updates.subscribe')" :disabled="disabled || (!status.smtpReady && !preferences.subscribe)" /></div>
         <p v-if="!status.smtpReady" class="note">{{ t('studio.updates.smtpRequired') }} <a href="#set-mail">{{ t('studio.updates.configureSMTP') }}</a></p>
@@ -139,6 +148,7 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
 dt { font-size: 12px; color: var(--st-ink-3); } dd { margin: 0; font-family: var(--font-mono); font-size: 17px; overflow-wrap: anywhere; }
 .preferences { display: grid; gap: 12px; border-block: 1px solid var(--line); padding: 18px 0; }
 .preferences label { display: grid; gap: 6px; min-width: 0; }.preferences input { min-width: 0; width: 100%; }.preferences > button { justify-self: start; }
+.token-state { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .option { display: flex; justify-content: space-between; align-items: center; gap: 18px; }.option b { font-size: 14px; }
 .status,.actions,.pagination,.history-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }.status span { color: var(--st-ink-3); font-size: 12px; }
 .history,.version-list { display: grid; gap: 12px; min-width: 0; }.history-heading { justify-content: space-between; }.history-heading h3 { font-size: 16px; margin: 0; }
