@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import type { LanguagesData } from '../types';
 import type { ModProps } from './props';
 import ModHead from '../parts/ModHead.vue';
+import { useGithubLanguages } from '../useGithubLanguages';
 
 /**
  * 语言占比（languages）：堆叠条（段间 3px 缝）或环形图；图例与图形悬停互相高亮。
@@ -13,11 +14,14 @@ const props = defineProps<ModProps>();
 const d = computed(() => props.mod.data as LanguagesData);
 const { t } = useI18n();
 const hover = ref<number | null>(null);
+const automatic = computed(() => d.value.source === 'github');
+const { data: remote, loading, error } = useGithubLanguages(automatic);
+const sourceItems = computed(() => automatic.value ? remote.value?.items ?? [] : d.value.items);
 
 /** 合计不足 100 时按比例归一 */
 const items = computed(() => {
-  const sum = d.value.items.reduce((a, b) => a + Math.max(0, b.percent), 0) || 1;
-  return d.value.items.map((it, i) => ({ ...it, share: (Math.max(0, it.percent) / sum) * 100, color: ladder(i) }));
+  const sum = sourceItems.value.reduce((a, b) => a + Math.max(0, b.percent), 0) || 1;
+  return sourceItems.value.map((it, i) => ({ ...it, share: (Math.max(0, it.percent) / sum) * 100, color: ladder(i) }));
 });
 
 /** 主色单色阶梯：第 i 段主色不透明度递减（叠在卡面上即为同色相明度阶梯） */
@@ -43,8 +47,10 @@ const arcs = computed(() => {
 </script>
 
 <template>
-  <ModHead :title="title">{{ d.unit }}</ModHead>
-  <div :class="variant === 'ring' ? 'lg-ring' : 'lg-barwrap'" @pointerleave="hover = null">
+  <ModHead :title="title">{{ automatic ? t('aboutKit.languages.unit') : d.unit }}</ModHead>
+  <p v-if="automatic && !items.length" class="lg-status" role="status">{{ t(loading ? 'aboutKit.languages.loading' : error ? 'aboutKit.languages.unavailable' : 'aboutKit.languages.empty') }}</p>
+  <p v-if="automatic && items.length && error" class="lg-status">{{ t('aboutKit.languages.stale') }}</p>
+  <div v-if="items.length" :class="variant === 'ring' ? 'lg-ring' : 'lg-barwrap'" @pointerleave="hover = null">
     <div v-if="variant === 'ring'" class="ctr">
       <svg viewBox="0 0 124 124">
         <circle
@@ -79,7 +85,7 @@ const arcs = computed(() => {
         :style="{ '--c': it.color }"
         @pointerenter="hover = i"
       >
-        <i /><span>{{ it.name }}</span><b>{{ it.percent }}<small>%</small></b>
+        <i /><span>{{ it.name }}</span><b>{{ Number(it.share.toFixed(2)) }}<small>%</small></b>
         <span v-if="variant !== 'ring'" class="lg-track"><em :style="{ '--w': `${(it.share / maxShare) * 100}%`, '--k': i }" /></span>
       </li>
     </ul>

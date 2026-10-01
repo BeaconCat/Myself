@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { publicAccountsEnabled } from '../../utils/publicAccounts';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -12,7 +13,7 @@ const route = useRoute();
 const auth = useAuthStore();
 const config = useConfigStore();
 /** 用户系统开放时，未登录访客看到「登录」入口 */
-const showLogin = computed(() => !auth.loggedIn && !!config.cfg.users?.enabled);
+const showLogin = computed(() => !auth.loggedIn && publicAccountsEnabled(config.cfg.users));
 const loginTo = computed(() => ({ path: '/account/login', query: route.path.startsWith('/account') ? {} : { next: route.fullPath } }));
 const me = computed(() => auth.user);
 const meInitial = computed(() => (me.value?.name || me.value?.login || '?').trim()[0]?.toUpperCase() ?? '?');

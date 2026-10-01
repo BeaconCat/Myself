@@ -61,6 +61,7 @@ const DATA: Record<string, (d: Any) => Any> = {
   github: (d) => ({ ...d, showCommits: d.showCommits !== false, commitCount: num(d.commitCount, 3) }),
   languages: (d) => ({
     ...d,
+    source: d.source === 'github' ? 'github' : 'manual',
     items: arr(d.items).map((x) => ({ ...obj(x), name: str(obj(x).name), percent: num(obj(x).percent), color: str(obj(x).color, '#8a96ab') })),
   }),
   skillbars: (d) => ({ ...d, items: arr(d.items).map((x) => ({ ...obj(x), name: str(obj(x).name), level: num(obj(x).level) })) }),

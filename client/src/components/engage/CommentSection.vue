@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { publicAccountsEnabled } from '../../utils/publicAccounts';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -151,7 +152,7 @@ watch(() => props.commentKey, () => {
         <button type="submit" class="send" :disabled="busy || !body.trim()">{{ busy ? t('comments.sending') : t('comments.send') }}</button>
       </div>
     </form>
-    <div v-else class="cs-login">
+    <div v-else-if="publicAccountsEnabled(config.cfg.users)" class="cs-login">
       <span>{{ t('comments.loginPrompt') }}</span>
       <router-link :to="loginLink" class="primary">{{ t('comments.login') }}</router-link>
       <router-link v-if="signupOpen" :to="registerLink">{{ t('comments.register') }}</router-link>

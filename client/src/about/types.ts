@@ -77,7 +77,7 @@ export interface StatsData {
 
 export interface GithubData { showCommits: boolean; commitCount: number }
 
-export interface LanguagesData { unit?: string; items: { name: string; percent: number; color: string }[] }
+export interface LanguagesData { source?: 'manual' | 'github'; unit?: string; items: { name: string; percent: number; color: string }[] }
 
 export interface SkillbarsData { items: { name: string; level: number; tier?: string }[] }
 

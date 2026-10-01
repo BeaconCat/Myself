@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { publicAccountsEnabled } from '../../utils/publicAccounts';
 import { useIdentity } from '../../about/useIdentity';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -155,7 +156,7 @@ function openGithub(): void {
         <span>{{ t('mobile.aboutSite') }}</span><small>{{ config.cfg.site.title }}</small>
       </button>
     </div>
-    <div v-if="auth.loggedIn || config.cfg.users?.enabled" class="m-list admin">
+    <div v-if="auth.loggedIn || publicAccountsEnabled(config.cfg.users)" class="m-list admin">
       <button v-if="auth.loggedIn" class="m-li" @click="go('/account')">
         <span class="lic" style="--c: #5b6b86"><MIcon name="user" /></span>
         <span>{{ t('account.me.profile') }}</span><small>{{ auth.user?.name }}</small><MIcon name="chev" class="chev" />

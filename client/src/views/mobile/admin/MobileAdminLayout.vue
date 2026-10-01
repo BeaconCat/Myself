@@ -53,6 +53,7 @@ const isFallback = (r: RouteLocationNormalizedLoaded): boolean =>
 /** 0 = 底栏页；1 = 二级页（推入）；2 = 全屏编辑器（上推） */
 function depthOf(r: RouteLocationNormalizedLoaded): number {
   if (nameOf(r) === 'admin-write-post') return 2;
+  if (nameOf(r) === 'admin-about') return 1;
   return isFallback(r) ? 1 : 0;
 }
 

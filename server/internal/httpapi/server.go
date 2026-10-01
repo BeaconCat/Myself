@@ -48,12 +48,13 @@ type Server struct {
 	// precompressDir 压缩前的文件（回退用）
 	precompressDir string
 
-	ghMu      sync.Mutex
-	ghCache   githubCache
-	ghSyncLog []syncEntry
-	ghFlight  singleflight.Group
-	ghFailAt  time.Time
-	ghFailKey string
+	ghMu        sync.Mutex
+	ghCache     githubCache
+	ghSyncLog   []syncEntry
+	ghFlight    singleflight.Group
+	ghFailAt    time.Time
+	ghFailKey   string
+	ghLanguages languageCache
 
 	thumbsDir string
 	jobs      *jobRegistry
@@ -132,6 +133,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /feed", s.rssFeed)
 	mux.HandleFunc("GET /feed.xml", s.rssFeed)
 	mux.HandleFunc("GET "+p+"/github-status", s.githubStatus)
+	mux.HandleFunc("GET "+p+"/github-languages", s.githubLanguages)
 	mux.HandleFunc("POST "+p+"/auth/login", withCSRF(s.login))
 	mux.HandleFunc("POST "+p+"/auth/logout", withCSRF(s.logout))
 	mux.HandleFunc("GET "+p+"/auth/session", s.session)
@@ -210,6 +212,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+p+"/admin/quality/compress", admin(s.qualityCompress))
 	mux.HandleFunc("GET "+p+"/admin/quality/jobs/{id}", admin(s.compressJobStatus))
 	mux.HandleFunc("POST "+p+"/admin/github/sync", admin(s.githubSync))
+	mux.HandleFunc("POST "+p+"/admin/github/languages/sync", admin(s.githubLanguagesSync))
 	mux.HandleFunc("GET "+p+"/admin/github/log", admin(s.githubLog))
 	mux.HandleFunc("GET "+p+"/admin/users", admin(s.adminListUsers))
 	mux.HandleFunc("GET "+p+"/admin/users/export", admin(s.adminExportUsers))

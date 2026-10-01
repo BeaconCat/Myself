@@ -1,5 +1,14 @@
 /** RESTful API 客户端（/api/v1，开发态经 Vite 代理到后端） */
 
+export interface GithubLanguages {
+  username: string;
+  items: { name: string; bytes: number; percent: number }[];
+  repositories: number;
+  totalBytes: number;
+  fetchedAt: string;
+  stale: boolean;
+}
+
 export interface Post {
   id: number;
   slug: string;
@@ -189,6 +198,7 @@ export const api = {
     return data as EngageSummary;
   },
   githubStatus: <T>() => get<T>('/github-status'),
+  githubLanguages: () => get<GithubLanguages>('/github-languages'),
   /** 压缩包目录（公开）；非 zip 415、损坏 422 */
   archive: (name: string) => get<ArchiveListing>(`/archive/${encodeURIComponent(name)}`),
   notes: (params: {
@@ -447,6 +457,7 @@ export const adminApi = {
   qualityJob: (id: string) => authed<CompressJob>(`/admin/quality/jobs/${id}`),
   githubSync: () =>
     authed<{ ok: boolean; data?: unknown }>('/admin/github/sync', { method: 'POST' }),
+  githubLanguagesSync: () => authed<GithubLanguages>('/admin/github/languages/sync', { method: 'POST' }),
   githubLog: () =>
     authed<{
       log: { at: string; ok: boolean; message: string }[];

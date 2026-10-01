@@ -16,6 +16,7 @@ export const mobileAdminViews: Record<string, () => Promise<RouteComponent>> = {
   'admin-write-note': content,
   'admin-write-post': () => import('../views/mobile/admin/MobileAdminWritePost.vue'),
   'admin-media': () => import('../views/mobile/admin/MobileAdminMedia.vue'),
+  'admin-about': () => import('../views/mobile/admin/MobileAdminAbout.vue'),
   'admin-settings': () => import('../views/mobile/admin/MobileAdminMe.vue'),
 };
 

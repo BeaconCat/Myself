@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -97,6 +98,7 @@ func githubClient(cfg config.GitHub) *http.Client {
 type ghFetcher struct {
 	client *http.Client
 	token  string
+	ctx    context.Context
 }
 
 func (g ghFetcher) do(method, rawURL string, body []byte, accept string) ([]byte, error) {
@@ -107,6 +109,9 @@ func (g ghFetcher) do(method, rawURL string, body []byte, accept string) ([]byte
 	req, err := http.NewRequest(method, rawURL, rd)
 	if err != nil {
 		return nil, err
+	}
+	if g.ctx != nil {
+		req = req.WithContext(g.ctx)
 	}
 	req.Header.Set("User-Agent", "myself-blog")
 	if accept != "" {
