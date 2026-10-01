@@ -1,5 +1,9 @@
-# Vue 3 + TypeScript + Vite
+# Myself 前端
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Vue 3 + TypeScript + Vite 8，使用 Pinia、Vue Router、Vue I18n 和 Tiptap。
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+完整功能、截图和部署见 [项目 README](../README.md)，组件展示见 [关于页图鉴](../docs/about-modules.md)。
+
+运行 `pnpm install --frozen-lockfile` 安装前端依赖，`pnpm build` 执行类型检查与构建，产物写入 `../server/web/dist`。回到根目录执行 `pnpm dev` 同时启动前后端。本目录的 `pnpm dev` 只启动 Vite。
+
+开发地址默认 `http://localhost:5173`，API 代理目标默认 `http://localhost:3100`，可用 `VITE_API` 覆盖。

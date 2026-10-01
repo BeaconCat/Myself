@@ -1,0 +1,451 @@
+{
+  "sourceCommit": "80bf4f7",
+  "moduleCount": 26,
+  "demo": "独立演示数据；GitHub 活跃度为模拟展示数据",
+  "screenshots": [
+    {
+      "file": "setup.jpg",
+      "label": "首次初始化向导",
+      "bytes": 77908,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "home-light.jpg",
+      "label": "首页 · 浅色冬蓝",
+      "bytes": 80360,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "home-dark.jpg",
+      "label": "首页 · 深色炽红",
+      "bytes": 78659,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "articles.jpg",
+      "label": "文章列表",
+      "bytes": 103534,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "article.jpg",
+      "label": "文章阅读",
+      "bytes": 136655,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "thoughts.jpg",
+      "label": "随想",
+      "bytes": 91964,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "about-overview.jpg",
+      "label": "关于页概览",
+      "bytes": 94572,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "about/profile.jpg",
+      "label": "身份区",
+      "module": "profile",
+      "variant": "portrait",
+      "width": 1192,
+      "height": 576,
+      "bytes": 62928
+    },
+    {
+      "file": "about/status.jpg",
+      "label": "在线状态",
+      "module": "status",
+      "variant": "card",
+      "width": 395,
+      "height": 384,
+      "bytes": 17714
+    },
+    {
+      "file": "about/chapter.jpg",
+      "label": "章节",
+      "module": "chapter",
+      "variant": "rule",
+      "width": 1192,
+      "height": 114,
+      "bytes": 7983
+    },
+    {
+      "file": "about/socials.jpg",
+      "label": "社交",
+      "module": "socials",
+      "variant": "list",
+      "width": 395,
+      "height": 304,
+      "bytes": 11114
+    },
+    {
+      "file": "about/contact.jpg",
+      "label": "联系",
+      "module": "contact",
+      "variant": "card",
+      "width": 793,
+      "height": 304,
+      "bytes": 20440
+    },
+    {
+      "file": "about/stats.jpg",
+      "label": "站点数字",
+      "module": "stats",
+      "variant": "row",
+      "width": 793,
+      "height": 384,
+      "bytes": 25652
+    },
+    {
+      "file": "about/github.jpg",
+      "label": "GitHub",
+      "module": "github",
+      "variant": "full",
+      "width": 793,
+      "height": 494,
+      "bytes": 71892
+    },
+    {
+      "file": "about/languages.jpg",
+      "label": "语言占比",
+      "module": "languages",
+      "variant": "bar",
+      "width": 395,
+      "height": 494,
+      "bytes": 17534
+    },
+    {
+      "file": "about/skillbars.jpg",
+      "label": "技能刻度",
+      "module": "skillbars",
+      "variant": "ruler",
+      "width": 395,
+      "height": 473,
+      "bytes": 23441
+    },
+    {
+      "file": "about/year.jpg",
+      "label": "年度回顾",
+      "module": "year",
+      "variant": "chart",
+      "width": 1192,
+      "height": 548,
+      "bytes": 47585
+    },
+    {
+      "file": "about/now.jpg",
+      "label": "此刻",
+      "module": "now",
+      "variant": "list",
+      "width": 395,
+      "height": 473,
+      "bytes": 28707
+    },
+    {
+      "file": "about/milestones.jpg",
+      "label": "历程",
+      "module": "milestones",
+      "variant": "vertical",
+      "width": 395,
+      "height": 499,
+      "bytes": 26133
+    },
+    {
+      "file": "about/projects.jpg",
+      "label": "作品",
+      "module": "projects",
+      "variant": "feature",
+      "width": 793,
+      "height": 499,
+      "bytes": 57529
+    },
+    {
+      "file": "about/principles.jpg",
+      "label": "信条",
+      "module": "principles",
+      "variant": "cols",
+      "width": 1192,
+      "height": 194,
+      "bytes": 28913
+    },
+    {
+      "file": "about/bookshelf.jpg",
+      "label": "书架",
+      "module": "bookshelf",
+      "variant": "spine",
+      "width": 793,
+      "height": 342,
+      "bytes": 39841
+    },
+    {
+      "file": "about/listening.jpg",
+      "label": "最近在听",
+      "module": "listening",
+      "variant": "vinyl",
+      "width": 395,
+      "height": 473,
+      "bytes": 29029
+    },
+    {
+      "file": "about/quotes.jpg",
+      "label": "语录",
+      "module": "quotes",
+      "variant": "rotator",
+      "width": 395,
+      "height": 342,
+      "bytes": 10614
+    },
+    {
+      "file": "about/motto.jpg",
+      "label": "格言",
+      "module": "motto",
+      "variant": "closing",
+      "width": 1192,
+      "height": 221,
+      "bytes": 20364
+    },
+    {
+      "file": "about/gallery.jpg",
+      "label": "画廊",
+      "module": "gallery",
+      "variant": "mosaic",
+      "width": 1192,
+      "height": 404,
+      "bytes": 57952
+    },
+    {
+      "file": "about/places.jpg",
+      "label": "足迹",
+      "module": "places",
+      "variant": "map",
+      "width": 793,
+      "height": 549,
+      "bytes": 42936
+    },
+    {
+      "file": "about/favorites.jpg",
+      "label": "喜好",
+      "module": "favorites",
+      "variant": "tabs",
+      "width": 395,
+      "height": 549,
+      "bytes": 18319
+    },
+    {
+      "file": "about/skills.jpg",
+      "label": "技能",
+      "module": "skills",
+      "variant": "keys",
+      "width": 395,
+      "height": 416,
+      "bytes": 16861
+    },
+    {
+      "file": "about/stack.jpg",
+      "label": "技术栈",
+      "module": "stack",
+      "variant": "grid",
+      "width": 395,
+      "height": 458,
+      "bytes": 17169
+    },
+    {
+      "file": "about/uses.jpg",
+      "label": "工作台",
+      "module": "uses",
+      "variant": "groups",
+      "width": 793,
+      "height": 416,
+      "bytes": 31411
+    },
+    {
+      "file": "about/faq.jpg",
+      "label": "问答",
+      "module": "faq",
+      "variant": "accordion",
+      "width": 793,
+      "height": 458,
+      "bytes": 19407
+    },
+    {
+      "file": "about/guestbook.jpg",
+      "label": "留言墙",
+      "module": "guestbook",
+      "variant": "wall",
+      "width": 1192,
+      "height": 350,
+      "bytes": 55275
+    },
+    {
+      "file": "about-full.jpg",
+      "label": "关于页完整长图",
+      "bytes": 749789,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "admin-dashboard.jpg",
+      "label": "Studio 概览",
+      "bytes": 115568,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "admin-media.jpg",
+      "label": "素材库与文件夹",
+      "bytes": 126639,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "admin-appearance.jpg",
+      "label": "外观配置",
+      "bytes": 157511,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "admin-about.jpg",
+      "label": "关于页编排",
+      "bytes": 120458,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "admin-api.jpg",
+      "label": "API 中心",
+      "bytes": 154775,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "admin-backups.jpg",
+      "label": "数据备份与迁移",
+      "bytes": 132001,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "admin-users.jpg",
+      "label": "用户与权限",
+      "bytes": 127939,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "admin-comments.jpg",
+      "label": "评论管理",
+      "bytes": 73174,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "editor.jpg",
+      "label": "沉浸式写作",
+      "bytes": 84001,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "mobile-home.jpg",
+      "label": "移动首页",
+      "bytes": 50523,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "mobile-articles.jpg",
+      "label": "移动文章",
+      "bytes": 51699,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "mobile-about.jpg",
+      "label": "移动关于页",
+      "bytes": 43285,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "mobile-media.jpg",
+      "label": "移动素材管理",
+      "bytes": 47142,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "mobile-editor.jpg",
+      "label": "移动写作",
+      "bytes": 50476,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "setup-database.jpg",
+      "label": "数据库选择",
+      "bytes": 90298,
+      "source": "当前开发版本"
+    },
+    {
+      "file": "admin-updates.jpg",
+      "label": "系统与更新",
+      "bytes": 18337,
+      "source": "当前开发版本"
+    }
+  ]
+}
