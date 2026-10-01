@@ -11,7 +11,8 @@ import MediaViewer, { type ViewerItem } from '../../components/mobile/MediaViewe
 import MIcon from '../../components/mobile/MIcon.vue';
 import EngageBar from '../../components/engage/EngageBar.vue';
 import { useRouter } from 'vue-router';
-import { monthDay, openSearch } from '../../components/mobile/shell';
+import { openSearch } from '../../components/mobile/shell';
+import { formatDateTime } from '../../utils/date';
 import IdentityName from '../../components/common/IdentityName.vue';
 
 /**
@@ -46,10 +47,6 @@ function switchTab(next: NotesTab): void {
   feed.switchTab(next);
 }
 
-function md(s: string): string {
-  const { m, d } = monthDay(s);
-  return `${m}月${d}日`;
-}
 
 function gridClass(n: number): string {
   if (n === 1) return 'g1';
@@ -83,7 +80,7 @@ function itemOf(n: Note, src: string): ViewerItem {
   return {
     src,
     caption: plain(n.contentMd),
-    meta: `${fullName.value} · ${md(n.createdAt)}${n.mood ? ` · #${n.mood}` : ''}`,
+    meta: `${fullName.value} · ${formatDateTime(n.createdAt, true)}${n.mood ? ` · #${n.mood}` : ''}`,
   };
 }
 
@@ -157,9 +154,10 @@ const mediaCount = computed(() => media.value.length);
             <span class="av"><img class="m-avatar" :src="avatar" alt="" draggable="false" /></span>
             <div class="post-main">
               <header>
-                <b><IdentityName :name="name" :alias="alias" /></b><span><template v-if="handle">@{{ handle }} · </template>{{ md(n.createdAt) }}</span>
+                <b><IdentityName :name="name" :alias="alias" /></b><span v-if="handle">@{{ handle }}</span>
                 <i v-if="n.pinned" class="m-pin">{{ t('noteDetail.pinned') }}</i>
                 <em v-if="n.mood" class="m-mood">{{ n.mood }}</em>
+                <time :datetime="`${n.createdAt.replace(' ', 'T')}Z`">{{ formatDateTime(n.createdAt, true) }}</time>
               </header>
               <!-- eslint-disable-next-line vue/no-v-html -->
               <div class="body markdown-content" v-html="render(n.contentMd, `note-${n.id}`)" />
@@ -310,6 +308,7 @@ const mediaCount = computed(() => media.value.length);
 
   header {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: 6px;
     font-size: 13px;
@@ -327,6 +326,7 @@ const mediaCount = computed(() => media.value.length);
       text-overflow: ellipsis;
     }
 
+    time { flex-basis: 100%; font-size: 12px; line-height: 1.6; white-space: nowrap; }
     .m-mood { margin-left: auto; }
 
     .m-pin {

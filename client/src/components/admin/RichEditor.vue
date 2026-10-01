@@ -355,22 +355,27 @@ defineExpose({
 
 <template>
   <div ref="root" class="rich" :class="{ lite, bare }">
-    <div v-if="!bare" v-show="toolbarVisible !== false" :id="toolbarId" class="toolbar" :data-v="version">
-      <div v-for="(row, rowIndex) in toolbarRows" :key="rowIndex" class="toolbar-row">
-        <template v-for="(item, i) in row" :key="i">
-          <span v-if="'divider' in item" class="divider" />
-          <button
-            v-else
-            type="button"
-            class="tool"
-            :class="{ on: item.active?.() }"
-            :title="item.disabled?.() ? t('studio.write.tool.tableNested') : item.title"
-            :disabled="item.disabled?.()"
-            :aria-label="item.title"
-            @mousedown.prevent
-            @click="item.run()"
-          ><SIcon v-if="item.icon" :name="item.icon" :size="16" /><span v-else>{{ item.label }}</span></button>
-        </template>
+    <div v-if="!bare" :id="toolbarId" class="toolbar-shell" :class="{ expanded: toolbarVisible !== false }"
+      :inert="toolbarVisible === false" :aria-hidden="toolbarVisible === false">
+      <div class="toolbar-clip">
+        <div class="toolbar" :data-v="version">
+          <div v-for="(row, rowIndex) in toolbarRows" :key="rowIndex" class="toolbar-row">
+            <template v-for="(item, i) in row" :key="i">
+              <span v-if="'divider' in item" class="divider" />
+              <button
+                v-else
+                type="button"
+                class="tool"
+                :class="{ on: item.active?.() }"
+                :title="item.disabled?.() ? t('studio.write.tool.tableNested') : item.title"
+                :disabled="item.disabled?.()"
+                :aria-label="item.title"
+                @mousedown.prevent
+                @click="item.run()"
+              ><SIcon v-if="item.icon" :name="item.icon" :size="16" /><span v-else>{{ item.label }}</span></button>
+            </template>
+          </div>
+        </div>
       </div>
     </div>
     <EditorContent class="content" :editor="editor" @keydown="emit('typing')" />
@@ -447,6 +452,15 @@ defineExpose({
   }
 }
 
+.toolbar-shell {
+  position: sticky; top: 0; z-index: 5;
+  display: grid; grid-template-rows: 0fr; opacity: 0;
+  transition: grid-template-rows .28s var(--ease-out), opacity .2s ease;
+  &.expanded { grid-template-rows: 1fr; opacity: 1; }
+}
+.toolbar-clip { min-height: 0; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .toolbar-shell { transition: none; } }
+
 .toolbar {
   display: flex;
   flex-direction: column;
@@ -455,9 +469,6 @@ defineExpose({
   border-bottom: 1px solid var(--border);
   border-radius: var(--r-sm) var(--r-sm) 0 0;
   background: var(--surface-2);
-  position: sticky;
-  top: 0;
-  z-index: 5;
 }
 
 .toolbar-row { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, useId } from 'vue';
-import { ChevronDown, ChevronUp } from 'lucide';
+import { ChevronDown } from 'lucide';
 import Icon from '../ui/Icon.vue';
 import { useI18n } from 'vue-i18n';
 import RichEditor from './RichEditor.vue';
@@ -23,7 +23,7 @@ defineExpose({ focus: () => source.value ? textarea.value?.focus() : rich.value?
         :aria-label="t(showToolbar ? 'markdownEditor.collapseToolbar' : 'markdownEditor.expandToolbar')"
         @click="showToolbar = !showToolbar">
         {{ t(showToolbar ? 'markdownEditor.collapseToolbar' : 'markdownEditor.expandToolbar') }}
-        <Icon :icon="showToolbar ? ChevronUp : ChevronDown" :size="14" />
+        <Icon :icon="ChevronDown" :size="14" />
       </button>
     </div>
     <textarea v-if="source" ref="textarea" class="source" :value="props.modelValue" :placeholder="placeholder"
@@ -37,5 +37,8 @@ defineExpose({ focus: () => source.value ? textarea.value?.focus() : rich.value?
 .mode button { padding: 6px 10px; border: 0; border-radius: var(--r-xs); background: none; color: var(--text-2); font-size: 12px; }
 .mode button[aria-pressed='true'] { background: var(--well); color: var(--text); }
 .mode .toolbar-toggle { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.toolbar-toggle :deep(svg) { transition: transform .28s var(--ease-out); }
+.toolbar-toggle[aria-expanded="true"] :deep(svg) { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .toolbar-toggle :deep(svg) { transition: none; } }
 .source { width: 100%; min-height: 240px; resize: vertical; padding: 14px; border: 1px solid var(--line-2); border-radius: var(--r-sm); background: var(--well); color: var(--text); font: 14px/1.9 var(--font-mono); }
 </style>

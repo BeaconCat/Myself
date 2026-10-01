@@ -14,7 +14,7 @@ export function formatDate(s: string): string {
   }).format(parseUtc(s)).replaceAll('/', '-');
 }
 
-export function formatDateTime(s: string): string {
+export function formatDateTime(s: string, withSeconds = false): string {
   return new Intl.DateTimeFormat('zh-CN', {
     timeZone: useConfigStore().cfg.timezone,
     year: 'numeric',
@@ -22,6 +22,7 @@ export function formatDateTime(s: string): string {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    ...(withSeconds ? { second: '2-digit' as const } : {}),
     hour12: false,
   }).format(parseUtc(s)).replaceAll('/', '-');
 }

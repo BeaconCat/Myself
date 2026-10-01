@@ -7,7 +7,6 @@ import EngageBar from '../engage/EngageBar.vue';
 import { useRouter } from 'vue-router';
 import { Pin } from 'lucide';
 import Icon from '../ui/Icon.vue';
-import { ymdOf } from '../post/content';
 import { formatDateTime } from '../../utils/date';
 import { render as renderMarkdown } from '../../utils/markdown';
 import IdentityName from '../common/IdentityName.vue';
@@ -41,20 +40,6 @@ const grid = computed(() => {
   return n >= 5 ? 'n9' : `n${n}`;
 });
 
-/** 一天内口语化，一周内「n 天前」，更早 M月D日（跨年带年份） */
-const when = computed(() => {
-  const s = props.note.createdAt;
-  // created_at 是 UTC（SQLite datetime('now')），补上 Z 再解析，否则会被当成本地时间差出时区
-  const diff = Date.now() - new Date(`${s.replace(' ', 'T')}Z`).getTime();
-  const hours = Math.floor(diff / 3.6e6);
-  if (hours < 1 && diff >= 0) return t('thoughts.justNow');
-  if (hours < 24 && diff >= 0) return t('thoughts.hoursAgo', { n: hours });
-  const days = Math.floor(hours / 24);
-  if (days < 7 && diff >= 0) return t('thoughts.daysAgo', { n: days });
-  const { y, m, d } = ymdOf(s);
-  return y === new Date().getFullYear() ? `${m}月${d}日` : `${y}年${m}月${d}日`;
-});
-
 function openAt(e: MouseEvent, i: number): void {
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
   emit('open', props.note.images, i, rect);
@@ -69,7 +54,7 @@ function openAt(e: MouseEvent, i: number): void {
         <b><IdentityName :name="name" :alias="alias" /></b>
         <span v-if="handle" class="handle">@{{ handle }}</span>
         <span class="dotsep" />
-        <time :datetime="`${note.createdAt.replace(' ', 'T')}Z`" :title="formatDateTime(note.createdAt)">{{ when }}</time>
+        <time :datetime="`${note.createdAt.replace(' ', 'T')}Z`" :title="formatDateTime(note.createdAt, true)">{{ formatDateTime(note.createdAt, true) }}</time>
         <span v-if="note.pinned" class="pin"><Icon :icon="Pin" :size="12" :stroke="2" />{{ t('noteDetail.pinned') }}</span>
         <button v-if="note.mood" type="button" class="tag" @click="emit('mood', note.mood)">{{ note.mood }}</button>
       </header>
@@ -129,6 +114,7 @@ function openAt(e: MouseEvent, i: number): void {
 
 .hd {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -136,7 +122,13 @@ function openAt(e: MouseEvent, i: number): void {
   color: var(--text-3);
 
   b { font-size: 15px; font-weight: 500; color: var(--text); }
+  time { white-space: nowrap; }
   .handle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
+@media (max-width: 767px) {
+  .hd time { flex-basis: 100%; order: 1; font-size: 12px; }
+  .hd .dotsep { display: none; }
 }
 
 .dotsep {
