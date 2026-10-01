@@ -7,7 +7,7 @@ import LightCover from '../admin/studio/LightCover.vue';
 
 /**
  * 发布完成：「门开了」——门扇打开、光洒出、文章卡片从门里走出来。
- * 时间线 open(350ms) → out(1500ms) → fin(2100ms)；减弱动效时直接到终态。
+ * 时间线 open(250ms) → out(1200ms) → fin(2300ms)；减弱动效时直接到终态。
  */
 const props = defineProps<{
   open: boolean;
@@ -48,7 +48,7 @@ watch(
       shown.value = true;
       phase.value = '';
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const T = reduced ? [0, 0, 0] : [350, 1500, 2100];
+      const T = reduced ? [0, 0, 0] : [250, 1200, 2300];
       timers.push(window.setTimeout(() => (phase.value = 'open'), T[0]));
       timers.push(window.setTimeout(() => (phase.value = 'out'), T[1]));
       timers.push(window.setTimeout(() => (phase.value = 'fin'), T[2]));
@@ -83,21 +83,21 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
         fin: phase === 'fin',
       }"
     >
-      <div class="bloom" />
       <div class="scene">
+        <div class="bloom" />
         <div class="door">
           <div class="floor"><i /></div>
           <div class="hole" />
           <div class="leaf l" />
           <div class="leaf r" />
+          <div class="fly">
+            <LightCover class="fcv" :src="cover" :seed="seed" />
+            <h4>{{ title }}</h4>
+            <small>{{ meta }}</small>
+          </div>
         </div>
         <div class="dust">
           <i v-for="(d, i) in DUST" :key="i" :style="{ '--x': d.x, '--dl': d.dl, top: d.top }" />
-        </div>
-        <div class="fly">
-          <LightCover class="fcv" :src="cover" :seed="seed" />
-          <h4>{{ title }}</h4>
-          <small>{{ meta }}</small>
         </div>
         <div class="done-t">
           <h2>{{ t('studio.write.doorTitle') }}</h2>
@@ -138,9 +138,9 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
 .bloom {
   position: absolute;
   left: 50%;
-  top: 52%;
-  width: 1400px;
-  height: 1000px;
+  top: calc(40px + var(--door-size) / 2);
+  width: calc(var(--door-size) * 3);
+  height: calc(var(--door-size) * 3);
   transform: translate(-50%, -50%) scale(0.2);
   border-radius: 50%;
   background: radial-gradient(closest-side, color-mix(in oklab, var(--primary) 30%, transparent), transparent);
@@ -149,18 +149,20 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
 
 .scene {
   position: relative;
-  width: 560px;
-  height: 560px;
+  --door-size: clamp(180px, 48vw, 320px);
+  width: min(640px, calc(100vw - 32px));
+  height: calc(var(--door-size) + 320px);
   perspective: 1100px;
+  perspective-origin: 50% calc(40px + var(--door-size) / 2);
 }
 
 .door {
   position: absolute;
   left: 50%;
-  top: 70px;
-  width: 200px;
-  height: 300px;
-  margin-left: -100px;
+  top: 40px;
+  width: var(--door-size);
+  height: var(--door-size);
+  margin-left: calc(var(--door-size) / -2);
   transform-style: preserve-3d;
   perspective: 900px;
   transition: transform 1.2s var(--ease-out), opacity 1s var(--ease-out);
@@ -190,7 +192,7 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
     top: 0;
     height: 100%;
     width: 50%;
-    transition: transform 1.1s cubic-bezier(0.5, 0, 0.2, 1);
+    transition: transform 2s cubic-bezier(0.4, 0, 0.2, 1);
 
     &.l {
       left: 0;
@@ -222,15 +224,15 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
     i {
       position: absolute;
       inset: 0;
-      clip-path: polygon(calc(50% - 100px) 0, calc(50% + 100px) 0, 100% 100%, 0 100%);
+      clip-path: polygon(calc(50% - var(--door-size) / 2) 0, calc(50% + var(--door-size) / 2) 0, 100% 100%, 0 100%);
       background: linear-gradient(rgba(255, 255, 255, 0.95), color-mix(in oklab, var(--primary) 45%, transparent) 50%, transparent 95%);
     }
   }
 }
 
 .stage.open {
-  .door .leaf.l { transform: rotateY(-64deg); }
-  .door .leaf.r { transform: rotateY(64deg); }
+  .door .leaf.l { transform: rotateY(-126deg); }
+  .door .leaf.r { transform: rotateY(126deg); }
   .door .hole { opacity: 1; transform: none; transition: opacity 0.6s ease-out 0.15s, transform 0.9s var(--ease-out); }
   .door .floor { transform: scaleY(1); opacity: 0.9; transition: transform 1.1s var(--ease-out) 0.25s, opacity 0.8s ease-out 0.25s; }
   .bloom { opacity: 1; transform: translate(-50%, -50%) scale(1); transition: transform 1.6s var(--ease-out) 0.2s, opacity 1.2s ease-out 0.2s; }
@@ -238,16 +240,15 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
 }
 
 .stage.out {
-  .door { transform: translateY(-58px) scale(1.22); }
   .door .hole::after { opacity: 0.92; }
   .door .hole { box-shadow: 0 0 90px 20px color-mix(in oklab, var(--primary) 55%, transparent), 0 0 220px 60px color-mix(in oklab, var(--primary) 30%, transparent); }
-  .fly { transform: translateZ(0) rotate(-2deg); opacity: 1; }
+  .fly { transform: translate(-50%, -50%) translateZ(24px); opacity: 1; }
 }
 
 .dust {
   position: absolute;
   left: 50%;
-  top: 370px;
+  top: calc(40px + var(--door-size));
   width: 1px;
   height: 1px;
 
@@ -271,15 +272,14 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
 .fly {
   position: absolute;
   left: 50%;
-  top: 150px;
-  width: 262px;
-  margin-left: -131px;
+  top: 50%;
+  width: 76%;
   border-radius: var(--r-md);
   background: #fff;
   padding: 8px;
   color: #1e1c19;
   box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  transform: translateZ(-600px) scale(0.5);
+  transform: translate(-50%, -50%) translateZ(-250px) scale(0.55);
   opacity: 0;
   transition: transform 1.1s var(--ease-spring), opacity 0.5s ease-out;
 
@@ -290,9 +290,9 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
 
 .done-t {
   position: absolute;
-  left: -200px;
-  right: -200px;
-  top: 432px;
+  left: 0;
+  right: 0;
+  top: calc(40px + var(--door-size) + 54px);
   text-align: center;
   color: #fff;
 
@@ -303,6 +303,8 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
 
   .url {
     display: inline-flex;
+    max-width: 100%;
+    overflow-wrap: anywhere;
     align-items: center;
     gap: 8px;
     font: 12.5px var(--font-mono);
@@ -316,8 +318,16 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
 
   > div:nth-of-type(1) { transition-delay: 0.25s; }
 
-  .row { display: flex; gap: 10px; justify-content: center; transition-delay: 0.3s; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; transition-delay: 0.3s; }
 }
 
+@media (max-width: 767px) {
+  .done-t h2 { font-size: 26px; }
+  .fly h4 { font-size: 13px; margin: 6px 4px 2px; }
+  .fly small { font-size: 10px; margin: 0 4px 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage, .stage * { animation: none !important; transition: none !important; }
+}
 .stage.fin .done-t > * { opacity: 1; transform: none; }
 </style>
