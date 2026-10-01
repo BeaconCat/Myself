@@ -73,3 +73,27 @@ func TestDropPlaceholders(t *testing.T) {
 		t.Fatalf("links = %v", links)
 	}
 }
+
+func TestThoughtIdentityLegacyAndExplicitVisibility(t *testing.T) {
+	legacy := Map{"thoughts": Map{"subtitle": "原来的副标题"}}
+	merged := DeepMerge(Default(), legacy).(Map)
+	thoughts := Sub(merged, "thoughts")
+	if !Bool(thoughts, "showAlias") || !Bool(thoughts, "showUsername") || Str(thoughts, "subtitle") != "原来的副标题" {
+		t.Fatalf("legacy display must remain unchanged: %v", thoughts)
+	}
+	for _, key := range []string{"showAlias", "showUsername"} {
+		saved := DeepMerge(merged, Map{"thoughts": Map{key: false}}).(Map)
+		reloaded := DeepMerge(Default(), saved).(Map)
+		got := Sub(reloaded, "thoughts")
+		if Bool(got, key) || Str(got, "subtitle") != "原来的副标题" {
+			t.Fatalf("explicit preference lost: %v", got)
+		}
+		other := "showAlias"
+		if key == other {
+			other = "showUsername"
+		}
+		if !Bool(got, other) {
+			t.Fatalf("independent preference changed: %v", got)
+		}
+	}
+}

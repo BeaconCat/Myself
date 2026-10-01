@@ -40,7 +40,7 @@ const defaultJSON = `{
     ]
   },
   "hero": { "intervalMs": 3000, "count": 4, "pinnedRule": "pinned-first", "textAnim": "lightscan", "cardAnim": "hinge", "rotateAnim": "lift" },
-  "thoughts": { "subtitle": "碎片化的想法、心情与瞬间，短到装不下一篇文章。" },
+  "thoughts": { "subtitle": "碎片化的想法、心情与瞬间，短到装不下一篇文章。", "showAlias": true, "showUsername": true },
   "covers": { "expandMs": 10000 },
   "timezone": "Asia/Shanghai",
   "github": {

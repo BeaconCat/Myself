@@ -15,7 +15,7 @@ import BatchBar from './studio/BatchBar.vue';
 import NoteComposer from './studio/NoteComposer.vue';
 import { refreshCounts } from './studio/state';
 import { toast } from './studio/toast';
-import { WEEKDAYS, parseTime, ymd, plainText } from './studio/format';
+import { WEEKDAYS, parseTime, ymd, plainText, timeText, dateTimeText } from './studio/format';
 
 /** 随想：左栏输入框 + 按月分组的时间线（编辑 / 置顶 / 隐藏 / 删除，勾选后批量）；右栏概览统计条 + 近 6 月柱状图 */
 const { t } = useI18n();
@@ -267,6 +267,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <div class="d">
             <b class="mono">{{ it.day }}</b>
             <small>{{ it.week }}</small>
+            <time class="published-time mono" :datetime="parseTime(it.note.createdAt)?.toISOString()" :title="dateTimeText(it.note.createdAt, true)">{{ timeText(it.note.createdAt) }}</time>
             <span class="pk" role="checkbox" tabindex="0" :aria-checked="picked.has(it.note.id)" :aria-label="t('studio.a11y.select', { name: shortText(it.note.contentMd) })" :title="t('studio.batch.pick')" @click.stop="togglePick(it.note)" @keydown.enter.space.prevent.stop="togglePick(it.note)"><span class="st-ck" :class="{ on: picked.has(it.note.id) }"><Icon :icon="Check" /></span></span>
           </div>
           <div class="c" @click="onCard(it.note, $event)">
@@ -442,6 +443,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
     b { display: block; font-size: 24px; line-height: 1.05; font-weight: 600; letter-spacing: -0.02em; }
     small { font-size: 12.5px; color: var(--st-ink-3); }
+    .published-time { display: block; margin-top: 4px; font-size: 12px; line-height: 1.5; color: var(--st-ink-3); }
   }
 
   .c {

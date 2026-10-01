@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useIdentity } from '../../about/useIdentity';
+import { useThoughtIdentity } from '../../components/thoughts/useThoughtIdentity';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { thumbOf, type Note } from '../../api';
@@ -37,9 +37,7 @@ const loadedOnce = ref(false);
 watch(loading, (on, was) => { if (was && !on) loadedOnce.value = true; });
 const showSkeleton = computed(() => loading.value || !loadedOnce.value);
 
-const { avatar, name, alias, fullName } = useIdentity();
-/** 未配置 GitHub 用户名时不显示 @handle */
-const handle = computed(() => config.cfg.github.username.trim());
+const { avatar, name, alias, fullName, handle } = useThoughtIdentity();
 
 const viewDir = ref<'in-r' | 'in-l'>('in-r');
 function switchTab(next: NotesTab): void {

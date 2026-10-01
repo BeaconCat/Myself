@@ -1,5 +1,5 @@
 export default {
-  markdownEditor: { mode: '编辑模式', rich: '富文本', source: 'Markdown 源码', heading: '{n} 级标题', footnote: '插入脚注', footnoteText: '脚注说明' },
+  markdownEditor: { expandToolbar: '展开工具栏', collapseToolbar: '收起工具栏', mode: '编辑模式', rich: '富文本', source: 'Markdown 源码', heading: '{n} 级标题', footnote: '插入脚注', footnoteText: '脚注说明' },
   nav: {
     home: '首页',
     articles: '文章',

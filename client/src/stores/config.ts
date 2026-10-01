@@ -69,7 +69,7 @@ export interface SiteConfig {
     /** 组内多封面的轮转动效 */
     rotateAnim: RotateChoreoId;
   };
-  thoughts: { subtitle: string };
+  thoughts: { subtitle: string; showAlias: boolean; showUsername: boolean };
   covers: { expandMs: number };
   timezone: string;
   github: {
@@ -139,7 +139,7 @@ export const FALLBACK_CONFIG: SiteConfig = {
   },
   motion: { route: 'standard', shockwave: false },
   hero: { intervalMs: 3000, count: 4, pinnedRule: 'pinned-first', textAnim: 'lightscan', cardAnim: 'hinge', rotateAnim: 'lift' },
-  thoughts: { subtitle: '碎片化的想法、心情与瞬间，短到装不下一篇文章。' },
+  thoughts: { subtitle: '碎片化的想法、心情与瞬间，短到装不下一篇文章。', showAlias: true, showUsername: true },
   covers: { expandMs: 10000 },
   timezone: 'Asia/Shanghai',
   github: {
@@ -220,6 +220,7 @@ export const useConfigStore = defineStore('config', {
       try {
         const cfg = await api.siteConfig<SiteConfig>();
         normalizeIdentity(cfg.about);
+        cfg.thoughts = { ...FALLBACK_CONFIG.thoughts, ...cfg.thoughts };
         this.cfg = cfg;
         stopRetry();
       } catch {

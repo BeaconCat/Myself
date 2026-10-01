@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useIdentity } from '../about/useIdentity';
+import { useThoughtIdentity } from '../components/thoughts/useThoughtIdentity';
 import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api';
@@ -27,9 +27,7 @@ const feed = useNotesFeed(sentinel);
 const { notes, tab, keyword, loading, loadingMore, hasMore, dateFrom, dateTo, loadedOnce } = feed;
 const index = useNotesIndex();
 
-const { avatar, name, alias } = useIdentity();
-/** 未配置 GitHub 用户名时不显示 @handle */
-const handle = computed(() => config.cfg.github.username.trim());
+const { avatar, name, alias, handle } = useThoughtIdentity();
 
 const booting = computed(() => !loadedOnce.value);
 const filtered = computed(() => !!(keyword.value.trim() || dateFrom.value || dateTo.value));

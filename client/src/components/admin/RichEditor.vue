@@ -33,6 +33,8 @@ const props = defineProps<{
   placeholder?: string;
   lite?: boolean;
   bare?: boolean;
+  toolbarVisible?: boolean;
+  toolbarId?: string;
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string]; typing: [] }>();
 
@@ -317,12 +319,13 @@ function insertFootnote(): void {
   else tr.insert(editor.state.doc.content.size, editor.schema.nodes.footnoteList.create(null, definition));
   editor.view.dispatch(tr);
 }
-const FULL_EXTRA: Cmd[] = [
+const HEADINGS: Cmd[] = [
   { label: 'H1', title: t('markdownEditor.heading', { n: 1 }), run: () => c().toggleHeading({ level: 1 }).run(), active: () => editor.isActive('heading', { level: 1 }) },
   { label: 'H2', title: t('markdownEditor.heading', { n: 2 }), run: () => c().toggleHeading({ level: 2 }).run(), active: () => editor.isActive('heading', { level: 2 }) },
   { label: 'H3', title: t('markdownEditor.heading', { n: 3 }), run: () => c().toggleHeading({ level: 3 }).run(), active: () => editor.isActive('heading', { level: 3 }) },
   { label: '[n]', title: t('markdownEditor.footnote'), run: insertFootnote },
-  { divider: true },
+];
+const INSERT_TOOLS: Cmd[] = [
   { icon: 'codeBlock', title: t('studio.editor.codeBlock'), run: () => c().toggleCodeBlock().run(), active: () => editor.isActive('codeBlock') },
   { icon: 'table', title: t('studio.editor.table'), run: insertTable, disabled: () => editor.isActive('table') },
   { icon: 'hr', title: t('studio.editor.hr'), run: () => c().setHorizontalRule().run() },
@@ -330,7 +333,7 @@ const FULL_EXTRA: Cmd[] = [
   { icon: 'collage', title: t('studio.editor.collage'), run: pickCollage },
   { icon: 'media', title: t('studio.editor.media'), run: pickMedia },
 ];
-const toolbar = props.lite ? TOOLBAR : [...TOOLBAR, ...FULL_EXTRA];
+const toolbarRows = props.lite ? [TOOLBAR] : [[...TOOLBAR, ...HEADINGS], INSERT_TOOLS];
 
 function onLibPick(items: MediaItem[]): void {
   lib.done(items);
@@ -352,21 +355,23 @@ defineExpose({
 
 <template>
   <div ref="root" class="rich" :class="{ lite, bare }">
-    <div v-if="!bare" class="toolbar" :data-v="version">
-      <template v-for="(item, i) in toolbar" :key="i">
-        <span v-if="'divider' in item" class="divider" />
-        <button
-          v-else
-          type="button"
-          class="tool"
-          :class="{ on: item.active?.() }"
-          :title="item.disabled?.() ? t('studio.write.tool.tableNested') : item.title"
-          :disabled="item.disabled?.()"
-          :aria-label="item.title"
-          @mousedown.prevent
-          @click="item.run()"
-        ><SIcon v-if="item.icon" :name="item.icon" :size="16" /><span v-else>{{ item.label }}</span></button>
-      </template>
+    <div v-if="!bare" v-show="toolbarVisible !== false" :id="toolbarId" class="toolbar" :data-v="version">
+      <div v-for="(row, rowIndex) in toolbarRows" :key="rowIndex" class="toolbar-row">
+        <template v-for="(item, i) in row" :key="i">
+          <span v-if="'divider' in item" class="divider" />
+          <button
+            v-else
+            type="button"
+            class="tool"
+            :class="{ on: item.active?.() }"
+            :title="item.disabled?.() ? t('studio.write.tool.tableNested') : item.title"
+            :disabled="item.disabled?.()"
+            :aria-label="item.title"
+            @mousedown.prevent
+            @click="item.run()"
+          ><SIcon v-if="item.icon" :name="item.icon" :size="16" /><span v-else>{{ item.label }}</span></button>
+        </template>
+      </div>
     </div>
     <EditorContent class="content" :editor="editor" @keydown="emit('typing')" />
 
@@ -444,9 +449,8 @@ defineExpose({
 
 .toolbar {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px;
+  flex-direction: column;
+  gap: 4px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--border);
   border-radius: var(--r-sm) var(--r-sm) 0 0;
@@ -455,6 +459,9 @@ defineExpose({
   top: 0;
   z-index: 5;
 }
+
+.toolbar-row { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+.toolbar-row + .toolbar-row { flex-wrap: nowrap; }
 
 .tool {
   width: 30px;

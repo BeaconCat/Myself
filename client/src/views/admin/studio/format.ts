@@ -44,9 +44,15 @@ export function dateText(s: string | null | undefined): string {
   return d ? ymd(d) : '';
 }
 
-export function dateTimeText(s: string | null | undefined): string {
+export function dateTimeText(s: string | null | undefined, withSeconds = false): string {
   const d = parseTime(s);
-  return d ? `${ymd(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}` : '';
+  return d ? `${ymd(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}${withSeconds ? `:${pad(d.getSeconds())}` : ''}` : '';
+}
+
+/** 发布时间的时分秒，与后台日期分组使用同一浏览器时区。 */
+export function timeText(s: string | null | undefined): string {
+  const d = parseTime(s);
+  return d ? `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` : '';
 }
 
 /** 相对时间：刚刚 / x 分钟前 / x 小时前 / 昨天 / x 天前 / 日期 */

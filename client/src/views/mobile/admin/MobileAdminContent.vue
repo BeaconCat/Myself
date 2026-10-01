@@ -3,6 +3,7 @@
  * 后台 · 内容：文章 / 随想分段；列表左滑置顶 / 删除（删除走全局确认模态），点击进入编辑。
  * 分段与路由同步（admin-posts / admin-notes），切换时列表按方向滑入；随想分页无限加载。
  */
+import { dateTimeText, parseTime } from '../../admin/studio/format';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -297,11 +298,12 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
               </div>
               <div class="ct">
                 <b>{{ mdPlain(n.contentMd) }}</b>
-                <small>
+                <small v-if="n.pinned || n.mood || n.images.length">
                   <span v-if="n.pinned" class="st pin">{{ t('mobileAdmin.content.pinnedTag') }}</span>
                   <span v-if="n.mood" class="mood">{{ n.mood }}</span>
-                  <span class="meta">{{ relTime(n.createdAt, t) }}<template v-if="n.images.length"> · {{ t('mobileAdmin.content.images', { n: n.images.length }) }}</template></span>
+                  <span v-if="n.images.length" class="meta">{{ t('mobileAdmin.content.images', { n: n.images.length }) }}</span>
                 </small>
+                <time class="published-time" :datetime="parseTime(n.createdAt)?.toISOString()">{{ dateTimeText(n.createdAt, true) }}</time>
               </div>
             </div>
           </MaSwipeRow>
@@ -453,6 +455,8 @@ const hasMoreNotes = computed(() => (cache.notes?.length ?? 0) < cache.notesTota
     color: var(--text-3);
   }
 }
+
+.published-time { display: block; margin-top: 4px; font: 12px/1.5 var(--font-mono); color: var(--text-3); }
 
 .ct {
   flex: 1;

@@ -5,8 +5,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, type Note } from '../api';
-import { useIdentity } from '../about/useIdentity';
-import { useConfigStore } from '../stores/config';
+import { useThoughtIdentity } from '../components/thoughts/useThoughtIdentity';
 import { useLoadingStore } from '../stores/loading';
 import NoteCard from '../components/thoughts/NoteCard.vue';
 import CommentSection from '../components/engage/CommentSection.vue';
@@ -21,10 +20,7 @@ import { usePageTitle } from '../composables/usePageTitle';
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
-const config = useConfigStore();
-const { avatar, name, alias } = useIdentity();
-/** 未配置 GitHub 用户名时不显示 @handle */
-const handle = computed(() => config.cfg.github.username.trim());
+const { avatar, name, alias, handle } = useThoughtIdentity();
 
 const note = ref<Note | null>(null);
 /** 标题取正文首行（去掉 Markdown 标记），过长截断 */

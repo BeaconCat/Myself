@@ -68,7 +68,7 @@ onMounted(() => void load());
     <div class="st-vh">
       <div>
         <h1>{{ id === null ? t('studio.writeNote.title') : t('studio.writeNote.editTitle') }}</h1>
-        <p v-if="note">{{ t('studio.writeNote.editSub', { when: dateTimeText(note.createdAt) }) }}</p>
+        <p v-if="note">{{ t('studio.writeNote.editSub', { when: dateTimeText(note.createdAt, true) }) }}</p>
         <p v-else>{{ t('studio.writeNote.desc') }}</p>
       </div>
     </div>

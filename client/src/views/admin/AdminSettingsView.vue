@@ -8,6 +8,7 @@ import { FALLBACK_CONFIG, useConfigStore, type SiteConfig } from '../../stores/c
 import { useDialogStore } from '../../stores/dialog';
 import './studio/i18n';
 import SIcon from './studio/SIcon.vue';
+import StSwitch from './studio/StSwitch.vue';
 import { toast } from './studio/toast';
 import SectionGithub from './settings/SectionGithub.vue';
 import SectionAccount from './settings/SectionAccount.vue';
@@ -43,6 +44,7 @@ async function load(): Promise<void> {
     Object.assign(cfg, JSON.parse(JSON.stringify(remote)));
     cfg.github = { ...FALLBACK_CONFIG.github, ...(remote.github ?? {}) };
     cfg.github.stats = { ...FALLBACK_CONFIG.github.stats, ...(remote.github?.stats ?? {}) };
+    cfg.thoughts = { ...FALLBACK_CONFIG.thoughts, ...(remote.thoughts ?? {}) };
     cfg.site.url ??= '';
     cfg.mail = { enabled: false, host: '', port: 587, username: '', password: '', from: '', security: 'starttls', ...(remote.mail ?? {}) };
     cfg.oauth = { github: { clientId: '', clientSecret: '', ...(remote.oauth?.github ?? {}) } };
@@ -197,6 +199,14 @@ onBeforeUnmount(() => {
             <div>{{ t('studio.settings.thoughtsSub') }}<small>{{ t('studio.settings.thoughtsSubSub') }}</small></div>
             <label class="st-field w420"><input v-model="cfg.thoughts.subtitle" :aria-label="t('studio.settings.thoughtsSub')" /></label>
           </div>
+          <div class="st-opt toggle-opt">
+            <div>{{ t('studio.settings.thoughtsShowAlias') }}<small>{{ t('studio.settings.thoughtsShowAliasSub') }}</small></div>
+            <StSwitch v-model="cfg.thoughts.showAlias" :label="t('studio.settings.thoughtsShowAlias')" />
+          </div>
+          <div class="st-opt toggle-opt">
+            <div>{{ t('studio.settings.thoughtsShowUsername') }}<small>{{ t('studio.settings.thoughtsShowUsernameSub') }}</small></div>
+            <StSwitch v-model="cfg.thoughts.showUsername" :label="t('studio.settings.thoughtsShowUsername')" />
+          </div>
           <div class="st-opt">
             <div>{{ t('studio.settings.coverMs') }}<small>{{ t('studio.settings.coverMsSub') }}</small></div>
             <label class="st-field w140"><input v-model="expandSec" :aria-label="t('studio.settings.coverMs')" type="number" min="1.5" step="0.5" /><span class="suffix">{{ t('studio.settings.seconds') }}</span></label>
@@ -311,6 +321,8 @@ onBeforeUnmount(() => {
 
   .st-field { width: auto; }
 }
+
+.half .toggle-opt { flex-direction: row; align-items: center; }
 
 .w140 { width: 140px; }
 .w260 { width: 260px; }
