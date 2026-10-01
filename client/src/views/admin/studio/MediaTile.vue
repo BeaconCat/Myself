@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import './i18n';
 import { Archive, FileText, Film, Image as ImageIcon, Music } from 'lucide';
 import type { MediaItem } from '../../../api';
 import Icon from '../../../components/ui/Icon.vue';
@@ -10,6 +12,7 @@ import { extOf, mediaKind } from '../../../utils/mediaKind';
  * 素材库页与素材库模态框共用。
  */
 const props = defineProps<{ item: MediaItem; stamp?: string | number }>();
+const { t } = useI18n();
 const kind = computed(() => mediaKind(props.item));
 const ext = computed(() => (props.item.ext || extOf(props.item.name)).toUpperCase());
 const ICONS = { image: ImageIcon, video: Film, audio: Music, archive: Archive, file: FileText } as const;
@@ -32,7 +35,7 @@ function showFrame(event: Event): void { frameReady.value = (event.target as HTM
       <video :src="item.url" preload="metadata" muted playsinline :class="{ ready: frameReady }" @loadedmetadata="seekFrame" @loadeddata="showFrame" @seeked="showFrame" />
     </template>
     <span v-else class="ph"><Icon :icon="ICONS[kind]" :size="26" /><em>{{ ext }}</em></span>
-    <span v-if="kind === 'video' || (kind === 'audio' && cover)" class="badge"><Icon :icon="kind === 'video' ? Film : Music" :size="13" />{{ ext }}</span>
+    <span v-if="kind === 'video' || kind === 'audio' || kind === 'archive'" class="badge" :title="t(`studio.library.kind.${kind}`)"><Icon :icon="ICONS[kind]" :size="13" />{{ ext }}</span>
   </span>
 </template>
 

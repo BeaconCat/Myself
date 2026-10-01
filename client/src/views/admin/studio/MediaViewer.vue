@@ -12,6 +12,8 @@ import { dateTimeText, formatSize } from './format';
 import { mediaKind } from '../../../utils/mediaKind';
 import { renderMediaHtml } from '../../../utils/embeds';
 import { useModalLayer } from '../../../composables/useModalLayer';
+import { Archive, Film, Music } from 'lucide';
+import Icon from '../../../components/ui/Icon.vue';
 
 /**
  * 素材大图查看器 + 裁切：始终基于原图与上次裁切框。
@@ -35,6 +37,7 @@ const isTopModal = useModalLayer(panel);
 const item = computed(() => props.items[index.value] ?? null);
 /** 非图片（视频 / 音频 / 压缩包 / 文件）：舞台直接播放或显示文件卡片，没有裁切 */
 const kind = computed(() => (item.value ? mediaKind(item.value) : 'image'));
+const typeIcon = computed(() => kind.value === 'video' ? Film : kind.value === 'audio' ? Music : kind.value === 'archive' ? Archive : null);
 const isImage = computed(() => kind.value === 'image');
 const fileHtml = computed(() => {
   const it = item.value;
@@ -378,6 +381,7 @@ onBeforeUnmount(() => {
 
         <aside class="v-panel">
           <div>
+            <span v-if="typeIcon" class="media-type"><Icon :icon="typeIcon" :size="14" />{{ t(`studio.library.kind.${kind}`) }}</span>
             <!-- 显示名：站长点击即可改名（回车 / 失焦保存，Esc 放弃）；文件地址不变 -->
             <input
               v-if="isAdmin"
@@ -619,7 +623,21 @@ onBeforeUnmount(() => {
   video { display: block; width: 100%; max-height: 80vh; border-radius: var(--r-md); background: #000; }
 }
 
-.v-file { width: min(100%, 560px); }
+.v-file {
+  width: min(100%, 560px);
+  min-width: 0;
+
+  :deep(.md-audio), :deep(.md-file) {
+    margin: 0;
+    background: var(--paper);
+    color: var(--st-ink);
+    box-shadow: 0 0 0 1px var(--line-2) inset;
+  }
+
+  :deep(.md-audio b), :deep(.md-file b) { color: var(--st-ink); }
+}
+
+.media-type { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; margin-bottom: 12px; border-radius: var(--r-sm); background: var(--well); color: var(--st-ink-2); font-size: 12px; }
 
 .kv .comp { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 
