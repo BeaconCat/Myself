@@ -35,7 +35,7 @@ function showFrame(event: Event): void { frameReady.value = (event.target as HTM
       <video :src="item.url" preload="metadata" muted playsinline :class="{ ready: frameReady }" @loadedmetadata="seekFrame" @loadeddata="showFrame" @seeked="showFrame" />
     </template>
     <span v-else class="ph"><Icon :icon="ICONS[kind]" :size="26" /><em>{{ ext }}</em></span>
-    <span v-if="kind === 'video' || kind === 'audio' || kind === 'archive'" class="badge" :title="t(`studio.library.kind.${kind}`)"><Icon :icon="ICONS[kind]" :size="13" />{{ ext }}</span>
+    <span v-if="kind !== 'image'" class="badge" role="img" :aria-label="t(`studio.library.kind.${kind}`)" :title="t(`studio.library.kind.${kind}`)"><Icon :icon="ICONS[kind]" :size="14" /></span>
   </span>
 </template>
 
@@ -68,14 +68,15 @@ function showFrame(event: Event): void { frameReady.value = (event.target as HTM
 
 .badge {
   position: absolute;
-  left: 8px;
-  bottom: 8px;
-  display: inline-flex;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 7px;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   border-radius: var(--r-xs);
-  font: 600 11px/18px var(--font-mono);
   color: #fff;
   background: rgba(0, 0, 0, 0.5);
 }

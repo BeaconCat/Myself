@@ -244,7 +244,7 @@ function addExternal(): void {
         :key="m.name"
         type="button"
         class="it"
-        :class="{ on: order(m) > 0 }"
+        :class="{ on: order(m) > 0, nonimage: mediaKind(m) !== 'image' }"
         :title="m.title || m.name"
         :aria-label="m.title || m.name"
         :aria-pressed="order(m) > 0"
@@ -404,6 +404,8 @@ function addExternal(): void {
   background: var(--solid);
   animation: st-pop var(--dur) var(--ease-spring);
 }
+
+.grid:not(.list) .it.nonimage .tick { right: auto; left: 6px; }
 
 .up {
   display: grid;
