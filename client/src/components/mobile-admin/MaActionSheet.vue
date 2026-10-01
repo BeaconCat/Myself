@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 中央 + 的 action sheet：卡片从 + 键处弹性放大升起，三行依次上浮。
- * 「上传图片」行本身是 file input 的 label，保证在用户手势内唤起系统相册。
+ * 「上传资源」行本身是 file input 的 label，保证在用户手势内唤起系统文件选择器。
  */
 import { useI18n } from 'vue-i18n';
 import MaIcon from './MaIcon.vue';
@@ -45,7 +45,7 @@ function onFiles(e: Event): void {
           <small>{{ t('mobileAdmin.create.uploadSub') }}</small>
         </div>
         <MaIcon name="chev" :size="16" class="chev" />
-        <input type="file" accept="image/*" multiple hidden @change="onFiles" />
+        <input type="file" multiple hidden @change="onFiles" />
       </label>
     </div>
   </div>

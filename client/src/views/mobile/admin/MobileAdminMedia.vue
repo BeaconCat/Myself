@@ -329,12 +329,18 @@ async function removeItem(m: MediaItem): Promise<void> {
           v-for="(m, k) in gridItems"
           :key="m.name"
           class="m"
+          :class="{ named: mediaKind(m) !== 'image' }"
           :data-k="k"
           :style="{ '--k': Math.min(k, 24) }"
+          :aria-label="m.title || m.name"
           @click="openAt(k)"
         >
-          <MediaTile :item="m" />
-          <small>{{ formatSize(m.size) }}</small>
+          <MediaTile :item="m" class="preview" />
+          <span v-if="mediaKind(m) !== 'image'" class="file-meta">
+            <span class="file-name" :title="m.title || m.name">{{ m.title || m.name }}</span>
+            <span class="file-size">{{ formatSize(m.size) }}</span>
+          </span>
+          <small v-else>{{ formatSize(m.size) }}</small>
         </button>
       </div>
       <div v-if="!gridItems.length && !tiles.length" class="empty">
@@ -468,11 +474,41 @@ label.icbtn { cursor: pointer; }
 
 .m {
   position: relative;
+  min-width: 0;
   aspect-ratio: 1;
   overflow: hidden;
   background: var(--fill);
   animation: ma-m-in 0.45s var(--ease-out) backwards;
   animation-delay: calc(var(--k, 0) * 18ms);
+
+  &.named {
+    display: flex;
+    flex-direction: column;
+
+    .preview { flex: 1; min-height: 0; height: auto; }
+  }
+
+  .file-meta {
+    flex: none;
+    display: grid;
+    gap: 2px;
+    padding: 6px 7px;
+    background: var(--elev);
+    text-align: left;
+  }
+
+  .file-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    line-height: 1.25;
+    color: var(--text);
+  }
+
+  .file-size { font: 11px/1.2 var(--font-mono); color: var(--text-3); }
 
   img {
     position: absolute;
