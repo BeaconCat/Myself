@@ -502,6 +502,8 @@ onBeforeUnmount(() => {
 
 .v-img {
   position: relative;
+  // 居中与裁剪都以外框为基准，宽度上限必须约束外框本身。
+  max-width: min(100%, 1100px);
   line-height: 0;
   border-radius: var(--r-xs);
   box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.8);
@@ -510,7 +512,7 @@ onBeforeUnmount(() => {
 
   img {
     display: block;
-    max-width: min(100%, 1100px);
+    max-width: 100%;
     max-height: calc(100vh - 150px);
     opacity: 0.35;
     transition: opacity var(--dur);
