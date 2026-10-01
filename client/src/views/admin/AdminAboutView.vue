@@ -218,7 +218,7 @@ function scroller(el: HTMLElement | null): HTMLElement {
   return document.scrollingElement as HTMLElement;
 }
 
-interface DragState { gx: number; gy: number; x: number; y: number; scroll: HTMLElement; raf: number; last: number }
+interface DragState { gx: number; gy: number; x: number; y: number; scroll: HTMLElement; raf: number; last: number; hitX: number; hitY: number; hitScroll: number }
 let drag: DragState | null = null;
 
 function onGripDown(e: PointerEvent, mod: AboutModule): void {
@@ -231,8 +231,9 @@ function onGripDown(e: PointerEvent, mod: AboutModule): void {
   ghostBox.h = r.height;
   ghostBox.x = r.left;
   ghostBox.y = r.top;
-  drag = { gx: e.clientX - r.left, gy: e.clientY - r.top, x: e.clientX, y: e.clientY, scroll: scroller(grid.value), raf: 0, last: 0 };
-  // 拖动期间网格改为按顺序排列（不回填），插入位置才可预期；切换本身走 FLIP
+  const scroll = scroller(grid.value);
+  drag = { gx: e.clientX - r.left, gy: e.clientY - r.top, x: e.clientX, y: e.clientY, scroll, raf: 0, last: 0, hitX: e.clientX, hitY: e.clientY, hitScroll: scroll.scrollTop };
+  // 拖动前后都按保存顺序排列；占位框与真实卡片使用相同的布局规则。
   void flip(() => { draggingId.value = mod.id; });
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
@@ -258,8 +259,21 @@ function tick(): void {
   if (y < sr.top + edge) sc.scrollTop -= Math.ceil((sr.top + edge - y) / 5);
   else if (y > sr.bottom - edge) sc.scrollTop += Math.ceil((y - (sr.bottom - edge)) / 5);
 
+  updateDragTarget();
+  drag.raf = requestAnimationFrame(tick);
+}
+
+/** Only a moved pointer or scrolling may choose a new target, never grid reflow alone. */
+function updateDragTarget(force = false): void {
+  if (!drag || !grid.value) return;
+  const { x, y } = drag;
+  const moved = Math.hypot(x - drag.hitX, y - drag.hitY) >= 4 || Math.abs(drag.scroll.scrollTop - drag.hitScroll) >= 4;
   const now = performance.now();
-  if (grid.value && now - drag.last > 80) {
+  if (moved && (force || now - drag.last > 80)) {
+    drag.last = now;
+    drag.hitX = x;
+    drag.hitY = y;
+    drag.hitScroll = drag.scroll.scrollTop;
     const gr = grid.value.getBoundingClientRect();
     const px = x - gr.left;
     const py = y - gr.top;
@@ -274,7 +288,6 @@ function tick(): void {
       if (after && to < from) to += 1;
       if (!after && to > from) to -= 1;
       if (to !== from && from >= 0 && to >= 0) {
-        drag.last = now;
         void flip(() => {
           const [m] = about.modules.splice(from, 1);
           about.modules.splice(to, 0, m);
@@ -283,16 +296,21 @@ function tick(): void {
       break;
     }
   }
-  drag.raf = requestAnimationFrame(tick);
 }
 
-async function onUp(): Promise<void> {
+async function onUp(e: PointerEvent): Promise<void> {
   window.removeEventListener('pointermove', onMove);
   window.removeEventListener('pointerup', onUp);
   window.removeEventListener('pointercancel', onUp);
   if (!drag) return;
+  if (e.type === 'pointerup') {
+    drag.x = e.clientX;
+    drag.y = e.clientY;
+    updateDragTarget(true);
+  }
   cancelAnimationFrame(drag.raf);
   drag = null;
+  await nextTick();
   // 幽灵卡落回占位框，再换回真卡
   const g = ghost.value;
   const slot = grid.value?.querySelector<HTMLElement>('.slot');
@@ -304,7 +322,7 @@ async function onUp(): Promise<void> {
     );
     await anim.finished.catch(() => undefined);
   }
-  // 松手后恢复与前台一致的 dense 回填
+  // 换回真实卡片，保留占位框确定的顺序与位置。
   await flip(() => { draggingId.value = ''; });
 }
 
@@ -427,7 +445,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
       </router-link>
     </div>
 
-    <div ref="grid" class="mods" :class="{ arranging: draggingId || resizingId, ordering: draggingId }">
+    <div ref="grid" class="mods" :class="{ arranging: draggingId || resizingId }">
       <template v-for="mod in about.modules" :key="mod.id">
       <!-- 拖动中：原位显示同宽占位框，真卡以幽灵卡形式跟手 -->
       <div v-if="draggingId === mod.id" class="slot" :class="spanClass(mod)" :data-id="mod.id" :style="{ minHeight: `${ghostBox.h}px` }" />
@@ -540,13 +558,12 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-flow: row;
   gap: 16px;
 }
 
-/* 与前台一致：按顺序排列并 dense 回填空格；拖动排序期间按纯顺序排列，插入位置可预期 */
-.mods { grid-auto-flow: row dense; }
+/* 与前台一致：保留保存顺序，不让小卡自动回填到前面的空位。 */
 .mods.arranging { user-select: none; cursor: grabbing; }
-.mods.ordering { grid-auto-flow: row; }
 
 .span-1 { grid-column: span 1; }
 .span-2 { grid-column: span 2; }
@@ -709,7 +726,7 @@ const visibleCount = computed(() => about.modules.filter((m) => !m.hidden).lengt
 .mod.resizing .rsz { opacity: 1; }
 .mod.resizing .rsz i { height: 36px; background: var(--ink); box-shadow: none; }
 
-/* 添加模块：网格末尾整行细条，不参与 dense 回填 */
+/* 添加模块：始终位于网格末尾的整行细条。 */
 .addm {
   grid-column: 1 / -1;
   align-items: center;

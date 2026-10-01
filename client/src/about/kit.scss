@@ -72,7 +72,7 @@
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: var(--ak-gap);
-    grid-auto-flow: row dense;
+    grid-auto-flow: row;
   }
 
   .ak-sec > [data-span='1'] { grid-column: span 4; }
