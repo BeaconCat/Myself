@@ -322,9 +322,10 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
   padding: 8px;
   color: #1e1c19;
   box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  transform: translate(-50%, -50%) translateZ(-250px) scale(0.55);
+  // 淡入期间始终位于门洞前，避免穿过不透明背景时突然显现。
+  transform: translate(-50%, -50%) translateZ(1px) scale(0.92);
   opacity: 0;
-  transition: transform 1.1s var(--ease-spring), opacity 0.5s ease-out;
+  transition: transform 1.4s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 1.2s ease-in-out;
 
   .fcv { aspect-ratio: 16 / 10; border-radius: var(--r-sm); }
   h4 { font: 600 15.5px/1.5 var(--font-serif); margin: 10px 6px 3px; }
