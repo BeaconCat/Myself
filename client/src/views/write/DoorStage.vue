@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import '../admin/studio/i18n';
 import SIcon from '../admin/studio/SIcon.vue';
@@ -7,7 +7,7 @@ import LightCover from '../admin/studio/LightCover.vue';
 
 /**
  * 发布完成：「门开了」——门扇打开、光洒出、文章卡片从门里走出来。
- * 时间线 open(250ms) → out(1200ms) → fin(2300ms)；减弱动效时直接到终态。
+ * 时间线 淡入(600ms) → open(650ms) → out(1900ms) → fin(2800ms)；减弱动效时直接到终态。
  */
 const props = defineProps<{
   open: boolean;
@@ -21,8 +21,58 @@ const emit = defineEmits<{ view: []; close: []; edit: [] }>();
 const { t } = useI18n();
 
 const phase = ref<'' | 'open' | 'out' | 'fin'>('');
-const shown = ref(false);
+const doorEl = ref<HTMLElement | null>(null);
+const doorSize = ref(320);
+const angle = ref(0);
+const PERSPECTIVE = 900;
+const FLOOR_DEPTH = 260;
+const FLOOR_SPREAD = 180;
 let timers: number[] = [];
+let motionFrame = 0;
+
+watch(doorEl, (el, _previous, cleanup) => {
+  if (!el) return;
+  doorSize.value = el.clientWidth;
+  const observer = new ResizeObserver(([entry]) => { doorSize.value = entry.contentRect.width; });
+  observer.observe(el);
+  cleanup(() => observer.disconnect());
+});
+
+/** Project the leaf's lower free corner and its light ray onto the same camera plane.
+ * The light starts half a doorway behind the threshold; the leaf clips its edge.
+ */
+const floorClip = computed(() => {
+  const half = doorSize.value / 2;
+  const radians = angle.value * Math.PI / 180;
+  const z = half * Math.sin(radians);
+  const x = half * (1 - Math.cos(radians));
+  const scale = PERSPECTIVE / (PERSPECTIVE - z);
+  const edgeX = x * scale;
+  const edgeY = half * (scale - 1);
+  const farZ = PERSPECTIVE * FLOOR_DEPTH / (half + FLOOR_DEPTH);
+  const farX = Math.min(half + FLOOR_SPREAD,
+    x * (farZ + half) / (z + half) * PERSPECTIVE / (PERSPECTIVE - farZ));
+  const center = half + FLOOR_SPREAD;
+  return `polygon(${FLOOR_SPREAD}px 0, ${center - edgeX}px ${edgeY}px, ${center - farX}px 100%, ${center + farX}px 100%, ${center + edgeX}px ${edgeY}px, ${FLOOR_SPREAD + doorSize.value}px 0)`;
+});
+
+function openLeaves(): void {
+  phase.value = 'open';
+  const started = performance.now();
+  const tick = (now: number) => {
+    const progress = Math.min(1, (now - started) / 2000);
+    const eased = progress < .5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
+    angle.value = 126 * eased;
+    if (progress < 1) motionFrame = requestAnimationFrame(tick);
+  };
+  motionFrame = requestAnimationFrame(tick);
+}
+
+function resetAfterLeave(): void {
+  if (props.open) return;
+  phase.value = '';
+  angle.value = 0;
+}
 
 const DUST = Array.from({ length: 18 }, (_, i) => ({
   x: `${(Math.sin(i * 7.1) * 110).toFixed(0)}px`,
@@ -33,6 +83,7 @@ const DUST = Array.from({ length: 18 }, (_, i) => ({
 function clear(): void {
   timers.forEach((id) => window.clearTimeout(id));
   timers = [];
+  cancelAnimationFrame(motionFrame);
 }
 
 /** Esc 只收起这一层、回到编辑器（不跳走），与「继续编辑」相同 */
@@ -45,22 +96,23 @@ watch(
   (v) => {
     clear();
     if (v) {
-      shown.value = true;
       phase.value = '';
+      angle.value = 0;
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const T = reduced ? [0, 0, 0] : [250, 1200, 2300];
-      timers.push(window.setTimeout(() => (phase.value = 'open'), T[0]));
-      timers.push(window.setTimeout(() => (phase.value = 'out'), T[1]));
-      timers.push(window.setTimeout(() => (phase.value = 'fin'), T[2]));
+      if (reduced) {
+        phase.value = 'fin';
+        angle.value = 126;
+      } else {
+        timers.push(window.setTimeout(openLeaves, 650));
+        timers.push(window.setTimeout(() => (phase.value = 'out'), 1900));
+        timers.push(window.setTimeout(() => (phase.value = 'fin'), 2800));
+      }
       document.addEventListener('keydown', onKey);
     } else {
       document.removeEventListener('keydown', onKey);
-      timers.push(window.setTimeout(() => {
-        shown.value = false;
-        phase.value = '';
-      }, 500));
     }
   },
+  { immediate: true },
 );
 
 onBeforeUnmount(() => {
@@ -73,44 +125,45 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
 
 <template>
   <Teleport to="body">
-    <div
-      v-if="shown"
-      class="studio stage"
-      :class="{
-        on: open,
-        open: ['open', 'out', 'fin'].includes(phase),
-        out: ['out', 'fin'].includes(phase),
-        fin: phase === 'fin',
-      }"
-    >
-      <div class="scene">
-        <div class="bloom" />
-        <div class="door">
-          <div class="floor"><i /></div>
-          <div class="hole" />
-          <div class="leaf l" />
-          <div class="leaf r" />
-          <div class="fly">
-            <LightCover class="fcv" :src="cover" :seed="seed" />
-            <h4>{{ title }}</h4>
-            <small>{{ meta }}</small>
+    <Transition name="door-reveal" appear @after-leave="resetAfterLeave">
+      <div
+        v-if="open"
+        class="studio stage"
+        :class="{
+          open: ['open', 'out', 'fin'].includes(phase),
+          out: ['out', 'fin'].includes(phase),
+          fin: phase === 'fin',
+        }"
+      >
+        <div class="scene">
+          <div class="bloom" />
+          <div ref="doorEl" class="door" :style="{ '--door-angle': `${angle}deg`, perspective: `${PERSPECTIVE}px` }">
+            <div class="floor" :style="{ left: `${-FLOOR_SPREAD}px`, right: `${-FLOOR_SPREAD}px`, height: `${FLOOR_DEPTH}px`, opacity: Math.min(1, angle / 12) * .9 }"><i :style="{ clipPath: floorClip }" /></div>
+            <div class="hole" />
+            <div class="leaf l" />
+            <div class="leaf r" />
+            <div class="fly">
+              <LightCover class="fcv" :src="cover" :seed="seed" />
+              <h4>{{ title }}</h4>
+              <small>{{ meta }}</small>
+            </div>
           </div>
-        </div>
-        <div class="dust">
-          <i v-for="(d, i) in DUST" :key="i" :style="{ '--x': d.x, '--dl': d.dl, top: d.top }" />
-        </div>
-        <div class="done-t">
-          <h2>{{ t('studio.write.doorTitle') }}</h2>
-          <p>{{ t('studio.write.doorSub', { title: shortTitle() }) }}</p>
-          <div><span class="url"><SIcon name="link" :size="16" />{{ url }}</span></div>
-          <div class="row">
-            <button type="button" class="st-btn p lg" @click="emit('view')">{{ t('studio.write.viewPost') }}</button>
-            <button type="button" class="st-btn w lg" @click="emit('close')">{{ t('studio.write.backToday') }}</button>
-            <button type="button" class="st-btn w lg" @click="emit('edit')">{{ t('studio.write.keepEditing') }}</button>
+          <div class="dust">
+            <i v-for="(d, i) in DUST" :key="i" :style="{ '--x': d.x, '--dl': d.dl, top: d.top }" />
+          </div>
+          <div class="done-t">
+            <h2>{{ t('studio.write.doorTitle') }}</h2>
+            <p>{{ t('studio.write.doorSub', { title: shortTitle() }) }}</p>
+            <div><span class="url"><SIcon name="link" :size="16" />{{ url }}</span></div>
+            <div class="row">
+              <button type="button" class="st-btn p lg" @click="emit('view')">{{ t('studio.write.viewPost') }}</button>
+              <button type="button" class="st-btn w lg" @click="emit('close')">{{ t('studio.write.backToday') }}</button>
+              <button type="button" class="st-btn w lg" @click="emit('edit')">{{ t('studio.write.keepEditing') }}</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
@@ -127,13 +180,13 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
   display: grid;
   place-items: center;
   overflow: hidden;
-  pointer-events: none;
-  opacity: 0;
+  pointer-events: auto;
   background: radial-gradient(70% 60% at 50% 72%, color-mix(in oklab, var(--primary) 16%, #0d1526), #070a12 72%);
-  transition: opacity 0.5s var(--ease-out);
-
-  &.on { opacity: 1; pointer-events: auto; }
 }
+
+.door-reveal-enter-active, .door-reveal-leave-active { transition: opacity .6s ease-in-out; }
+.door-reveal-enter-from, .door-reveal-leave-to { opacity: 0; }
+.door-reveal-leave-active { pointer-events: none; }
 
 .bloom {
   position: absolute;
@@ -152,8 +205,6 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
   --door-size: clamp(180px, 48vw, 320px);
   width: min(640px, calc(100vw - 32px));
   height: calc(var(--door-size) + 320px);
-  perspective: 1100px;
-  perspective-origin: 50% calc(40px + var(--door-size) / 2);
 }
 
 .door {
@@ -164,7 +215,6 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
   height: var(--door-size);
   margin-left: calc(var(--door-size) / -2);
   transform-style: preserve-3d;
-  perspective: 900px;
   transition: transform 1.2s var(--ease-out), opacity 1s var(--ease-out);
 
   .hole {
@@ -192,11 +242,11 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
     top: 0;
     height: 100%;
     width: 50%;
-    transition: transform 2s cubic-bezier(0.4, 0, 0.2, 1);
 
     &.l {
       left: 0;
       transform-origin: left center;
+      transform: rotateY(calc(-1 * var(--door-angle, 0deg)));
       background: linear-gradient(95deg, #fdfdff 60%, #dfe3ec);
       border-radius: 12px 3px 3px 12px; /* 门扇几何（品牌插画），不随圆角 token */
       box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.06);
@@ -205,6 +255,7 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
     &.r {
       right: 0;
       transform-origin: right center;
+      transform: rotateY(var(--door-angle, 0deg));
       background: linear-gradient(165deg, color-mix(in oklab, var(--primary) 70%, #fff), var(--primary) 40%, var(--primary-deep));
       border-radius: 3px 12px 12px 3px; /* 门扇几何（品牌插画），不随圆角 token */
     }
@@ -212,29 +263,19 @@ const shortTitle = () => props.title.split(/[：:]/)[0];
 
   .floor {
     position: absolute;
-    left: -180px;
-    right: -180px;
     top: 100%;
-    height: 260px;
-    transform-origin: top;
-    transform: scaleY(0);
-    filter: blur(10px);
-    opacity: 0;
+    filter: blur(1.5px);
 
     i {
       position: absolute;
       inset: 0;
-      clip-path: polygon(calc(50% - var(--door-size) / 2) 0, calc(50% + var(--door-size) / 2) 0, 100% 100%, 0 100%);
       background: linear-gradient(rgba(255, 255, 255, 0.95), color-mix(in oklab, var(--primary) 45%, transparent) 50%, transparent 95%);
     }
   }
 }
 
 .stage.open {
-  .door .leaf.l { transform: rotateY(-126deg); }
-  .door .leaf.r { transform: rotateY(126deg); }
   .door .hole { opacity: 1; transform: none; transition: opacity 0.6s ease-out 0.15s, transform 0.9s var(--ease-out); }
-  .door .floor { transform: scaleY(1); opacity: 0.9; transition: transform 1.1s var(--ease-out) 0.25s, opacity 0.8s ease-out 0.25s; }
   .bloom { opacity: 1; transform: translate(-50%, -50%) scale(1); transition: transform 1.6s var(--ease-out) 0.2s, opacity 1.2s ease-out 0.2s; }
   .dust i { animation: dust 3.4s ease-out infinite; animation-delay: var(--dl); }
 }
