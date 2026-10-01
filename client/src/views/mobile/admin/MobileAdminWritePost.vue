@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * 写文章 · 全屏编辑器：封面、标题、标签、Markdown 正文 textarea；
- * 键盘上方悬浮 Markdown 工具条（跟随 visualViewport，点按不收起键盘）；
+ * 写文章 · 全屏编辑器：封面、标题、标签、Markdown 正文富文本 / Markdown 源码；
+ * 与桌面共用完整 Markdown 编辑器及正文样式；
  * 元信息 sheet（slug / 标签 / 摘要 / 封面 / 状态 / 置顶）；?id= 编辑，新文章本机自动保存草稿。
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -9,11 +9,10 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { adminApi, thumbOf, type PostDraft } from '../../../api';
 import { useDialogStore } from '../../../stores/dialog';
+import MarkdownEditor from '../../../components/admin/MarkdownEditor.vue';
 import MaIcon from '../../../components/mobile-admin/MaIcon.vue';
-import MaRing from '../../../components/mobile-admin/MaRing.vue';
 import MaSkeleton from '../../../components/mobile-admin/MaSkeleton.vue';
 import PostMetaSheet from '../../../components/mobile-admin/PostMetaSheet.vue';
-import type { IconName } from '../../../components/mobile-admin/icons';
 import { shell, toast } from '../../../components/mobile-admin/state';
 import { SLUG_RE, toSlug } from '../../../components/mobile-admin/format';
 
@@ -44,6 +43,7 @@ const loading = ref(id.value !== null);
 const busy = ref<'' | 'publish' | 'draft'>('');
 const metaOpen = ref(false);
 const savedAt = ref('');
+const scrollY = ref(0);
 let snapshot = JSON.stringify(draft.value);
 let leaving = false;
 const origStatus = ref<'published' | 'draft' | null>(null);
@@ -58,7 +58,7 @@ const primaryLabel = computed(() => {
 });
 
 const titleEl = ref<HTMLTextAreaElement | null>(null);
-const bodyEl = ref<HTMLTextAreaElement | null>(null);
+const bodyEl = ref<InstanceType<typeof MarkdownEditor> | null>(null);
 
 function autosize(el: HTMLTextAreaElement | null, min: number): void {
   if (!el) return;
@@ -67,7 +67,6 @@ function autosize(el: HTMLTextAreaElement | null, min: number): void {
 }
 const fit = (): void => {
   autosize(titleEl.value, 40);
-  autosize(bodyEl.value, 260);
 };
 
 onMounted(async () => {
@@ -209,148 +208,7 @@ onBeforeRouteLeave(async () => {
   });
 });
 
-/* ---------- Markdown 工具条 ---------- */
-let sel = { s: 0, e: 0 };
-function remember(): void {
-  const el = bodyEl.value;
-  if (el) sel = { s: el.selectionStart, e: el.selectionEnd };
-}
-
-function apply(next: string, s: number, e: number): void {
-  draft.value.contentMd = next;
-  void nextTick(() => {
-    const el = bodyEl.value;
-    if (!el) return;
-    el.focus({ preventScroll: true });
-    el.setSelectionRange(s, e);
-    sel = { s, e };
-    autosize(el, 260);
-  });
-}
-
-function wrap(before: string, after: string, placeholder: string): void {
-  const v = draft.value.contentMd;
-  const { s, e } = sel;
-  const text = v.slice(s, e) || placeholder;
-  apply(v.slice(0, s) + before + text + after + v.slice(e), s + before.length, s + before.length + text.length);
-}
-
-function linePrefix(prefix: string | ((i: number) => string)): void {
-  const v = draft.value.contentMd;
-  const start = v.lastIndexOf('\n', Math.max(0, sel.s - 1)) + 1;
-  const endIdx = v.indexOf('\n', sel.e);
-  const end = endIdx < 0 ? v.length : endIdx;
-  const lines = v.slice(start, end).split('\n');
-  const pf = (i: number): string => (typeof prefix === 'string' ? prefix : prefix(i));
-  const all = lines.every((l, i) => l.startsWith(pf(i)));
-  const out = lines.map((l, i) => (all ? l.slice(pf(i).length) : pf(i) + l)).join('\n');
-  apply(v.slice(0, start) + out + v.slice(end), start, start + out.length);
-}
-
-function insertBlock(text: string, selectFrom = 0, selectLen = 0): void {
-  const v = draft.value.contentMd;
-  const { s, e } = sel;
-  const pre = s > 0 && v[s - 1] !== '\n' ? '\n\n' : '';
-  const ins = pre + text;
-  const pos = s + pre.length + selectFrom;
-  apply(v.slice(0, s) + ins + v.slice(e), pos, pos + selectLen);
-}
-
-interface Tool {
-  id: string;
-  icon?: IconName;
-  label?: string;
-  run: () => void;
-}
-const tools: Tool[] = [
-  { id: 'bold', icon: 'bold', run: () => wrap('**', '**', t('mobileAdmin.md.boldText')) },
-  { id: 'h2', label: 'H2', run: () => linePrefix('## ') },
-  { id: 'h3', label: 'H3', run: () => linePrefix('### ') },
-  { id: 'italic', icon: 'italic', run: () => wrap('*', '*', t('mobileAdmin.md.italicText')) },
-  { id: 'quote', icon: 'quote', run: () => linePrefix('> ') },
-  {
-    id: 'code',
-    icon: 'code',
-    run: () => {
-      const text = draft.value.contentMd.slice(sel.s, sel.e);
-      if (text.includes('\n')) wrap('```\n', '\n```', '');
-      else if (text) wrap('`', '`', '');
-      else insertBlock('```\n\n```\n', 4, 0);
-    },
-  },
-  {
-    id: 'link',
-    icon: 'link',
-    run: () => {
-      const v = draft.value.contentMd;
-      const text = v.slice(sel.s, sel.e) || t('mobileAdmin.md.linkText');
-      const ins = `[${text}](https://)`;
-      apply(v.slice(0, sel.s) + ins + v.slice(sel.e), sel.s + text.length + 3, sel.s + ins.length - 1);
-    },
-  },
-  { id: 'sep1', run: () => undefined },
-  { id: 'list', icon: 'list', run: () => linePrefix('- ') },
-  { id: 'olist', icon: 'olist', run: () => linePrefix((i) => `${i + 1}. `) },
-  { id: 'task', icon: 'task', run: () => linePrefix('- [ ] ') },
-  { id: 'hr', icon: 'hr', run: () => insertBlock('---\n\n', 5, 0) },
-];
-
-/* 触屏：touchend 阻止默认，避免焦点离开 textarea 收起键盘；横滑工具条时不触发 */
-let touchX = 0;
-function onToolTouchStart(e: TouchEvent): void {
-  touchX = e.touches[0].clientX;
-}
-function onToolTouchEnd(e: TouchEvent, tool: Tool): void {
-  if (Math.abs(e.changedTouches[0].clientX - touchX) > 8) return;
-  e.preventDefault();
-  tool.run();
-}
-
-const imgUploading = ref(false);
-async function onImage(e: Event): Promise<void> {
-  const input = e.target as HTMLInputElement;
-  const files = Array.from(input.files ?? []);
-  input.value = '';
-  if (!files.length) return;
-  imgUploading.value = true;
-  try {
-    const items = await adminApi.uploadMedia(files);
-    shell.bump.media += 1;
-    insertBlock(`${items.map((i) => `![](${i.url})`).join('\n\n')}\n\n`, 0, 0);
-    toast(t('mobileAdmin.post.imageInserted', { n: items.length }));
-  } catch {
-    toast(t('mobileAdmin.common.uploadFailed'), '', 'error');
-  } finally {
-    imgUploading.value = false;
-  }
-}
-
-/* 工具条跟随软键盘：visualViewport 底边 */
-const kbOffset = ref(0);
-const kbOpen = ref(false);
-function onViewport(): void {
-  const vv = window.visualViewport;
-  if (!vv) return;
-  const gap = window.innerHeight - (vv.height + vv.offsetTop);
-  kbOffset.value = Math.max(0, gap);
-  kbOpen.value = gap > 80;
-}
-onMounted(() => {
-  window.visualViewport?.addEventListener('resize', onViewport);
-  window.visualViewport?.addEventListener('scroll', onViewport);
-  onViewport();
-});
-onBeforeUnmount(() => {
-  window.visualViewport?.removeEventListener('resize', onViewport);
-  window.visualViewport?.removeEventListener('scroll', onViewport);
-  window.clearTimeout(autosaveTimer);
-});
-
-function hideKeyboard(): void {
-  (document.activeElement as HTMLElement | null)?.blur();
-}
-
-const scrollY = ref(0);
+onBeforeUnmount(() => window.clearTimeout(autosaveTimer));
 </script>
 
 <template>
@@ -400,51 +258,12 @@ const scrollY = ref(0);
           <button class="tagp add tap" @click="metaOpen = true">+ {{ t('mobileAdmin.post.tag') }}</button>
         </div>
 
-        <textarea
-          ref="bodyEl"
-          v-model="draft.contentMd"
-          class="ed-text"
-          :placeholder="t('mobileAdmin.post.bodyPh')"
-          @input="autosize(bodyEl, 260); remember()"
-          @select="remember"
-          @keyup="remember"
-          @click="remember"
-          @blur="remember"
-        />
+        <MarkdownEditor ref="bodyEl" v-model="draft.contentMd" :placeholder="t('mobileAdmin.post.bodyPh')" />
         <p class="ed-stat">
           {{ t('mobileAdmin.post.words', { n: words }) }}
           <template v-if="savedAt"> · {{ t('mobileAdmin.post.autosaved', { time: savedAt }) }}</template>
         </p>
       </template>
-    </div>
-
-    <div class="ed-kb glass" :class="{ lifted: kbOpen }" :style="{ transform: `translateY(${-kbOffset}px)` }">
-      <div class="kb-scroll">
-        <template v-for="tool in tools" :key="tool.id">
-          <span v-if="tool.id.startsWith('sep')" class="sep" />
-          <button
-            v-else
-            class="kb-btn"
-            :aria-label="t(`mobileAdmin.md.${tool.id}`)"
-            @touchstart.passive="onToolTouchStart"
-            @touchend="onToolTouchEnd($event, tool)"
-            @mousedown.prevent
-            @click="tool.run()"
-          >
-            <MaIcon v-if="tool.icon" :name="tool.icon" :size="18" />
-            <span v-else>{{ tool.label }}</span>
-          </button>
-        </template>
-        <span class="sep" />
-        <label class="kb-btn" :aria-label="t('mobileAdmin.md.image')" @mousedown.prevent>
-          <MaRing v-if="imgUploading" indeterminate :size="18" :stroke="2" class="kb-ring" />
-          <MaIcon v-else name="image" :size="18" />
-          <input type="file" accept="image/*" multiple hidden @change="onImage" />
-        </label>
-      </div>
-      <button v-if="kbOpen" class="kb-hide" :aria-label="t('mobileAdmin.md.hide')" @click="hideKeyboard">
-        <MaIcon name="keyboard" :size="18" />
-      </button>
     </div>
 
     <PostMetaSheet v-model:open="metaOpen" v-model:draft="draft" />
@@ -599,21 +418,7 @@ const scrollY = ref(0);
   }
 }
 
-.ed-text {
-  display: block;
-  width: 100%;
-  min-height: 260px;
-  margin-top: 16px;
-  resize: none;
-  overflow: hidden;
-  font-family: var(--font-serif);
-  font-size: 17px;
-  line-height: 1.9;
-  color: var(--text);
-  caret-color: var(--ink);
-
-  &::placeholder { color: var(--text-3); }
-}
+.ed-body :deep(.markdown-editor) { margin-top: 16px; }
 
 .ed-stat {
   margin-top: 14px;
@@ -622,81 +427,4 @@ const scrollY = ref(0);
   font-family: var(--font-mono);
 }
 
-/* 键盘上方工具条 */
-.ed-kb {
-  position: absolute;
-  z-index: 12;
-  left: 10px;
-  right: 10px;
-  bottom: calc(var(--safe-b) + 8px);
-  height: 50px;
-  border-radius: var(--r-lg);
-  display: flex;
-  align-items: center;
-  padding: 0 6px;
-  box-shadow: inset 0 0 0 0.5px var(--glass-line), inset 0 1px 0 var(--glass-hi), var(--shadow-pop);
-  transition: transform 0.25s var(--ease-out), bottom 0.25s var(--ease-out), border-radius 0.25s;
-
-  &.lifted {
-    bottom: 6px;
-  }
-}
-
-.kb-scroll {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  overflow-x: auto;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar { display: none; }
-}
-
-.kb-btn {
-  flex: none;
-  min-width: 40px;
-  height: 38px;
-  padding: 0 8px;
-  border-radius: var(--r-sm);
-  display: grid;
-  place-items: center;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-2);
-  font-family: var(--font-mono);
-  cursor: pointer;
-  transition: background var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
-
-  &:active {
-    background: var(--fill-2);
-    transform: scale(0.92);
-  }
-
-  .kb-ring {
-    --ring-bg: var(--fill-2);
-    --ring-fg: var(--ink);
-  }
-}
-
-.sep {
-  flex: none;
-  width: 0.5px;
-  height: 22px;
-  background: var(--line-2);
-  margin: 0 4px;
-}
-
-.kb-hide {
-  flex: none;
-  width: 40px;
-  height: 38px;
-  margin-left: 4px;
-  border-radius: var(--r-sm);
-  display: grid;
-  place-items: center;
-  color: var(--ink);
-  box-shadow: -8px 0 12px -8px rgba(0, 0, 0, 0.3);
-}
 </style>

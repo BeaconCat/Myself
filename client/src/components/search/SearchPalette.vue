@@ -446,7 +446,7 @@ onBeforeUnmount(() => {
                         <small>
                           <template v-if="it.post.tags[0]">{{ it.post.tags[0] }} · </template>{{ monthDay(it.post.createdAt) }}
                           <!-- eslint-disable-next-line vue/no-v-html -->
-                          · <span v-html="hl(it.post.excerpt)" />
+                          · <span class="post-excerpt" v-html="hl(it.post.excerpt)" />
                         </small>
                       </span>
                     </template>

@@ -82,7 +82,7 @@ function date(p: Post): string {
           <div class="txt">
             <div class="meta">{{ date(p) }}<template v-if="readMin"> · {{ readMin(p) }}</template></div>
             <h3>{{ p.title }}</h3>
-            <p>{{ p.excerpt }}</p>
+            <p class="post-excerpt">{{ p.excerpt }}</p>
           </div>
         </button>
       </article>

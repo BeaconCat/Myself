@@ -101,10 +101,26 @@ X-Api-Key: ${key}
 基础地址：${baseUrl}
 
 ## 内容规范
-- 一切正文使用 Markdown（标题/列表/表格/代码块/引用均支持）
-- 文章需要 slug（小写字母数字连字符）、title、contentMd；excerpt 一句话摘要；tags 字符串数组；covers 最多 3 个图片 URL
+- 一切正文使用 Markdown（文章与随想均支持标题、列表、待办、表格、代码块、引用、删除线、链接、图片与脚注）
+- 文章需要 slug（小写字母数字连字符）、title、contentMd；excerpt 为纯文本摘要，可用换行保留分行结构（JSON 中用 \\n 编码）；tags 字符串数组；covers 最多 3 个图片 URL
 - 新文章默认 status="draft"（草稿，待站长审核）；仅在站长明确要求时使用 "published"
-- 随想是短内容：contentMd + mood（心情标签）+ images（最多 9 个 URL）
+- 随想支持与文章相同的完整 Markdown：contentMd + mood（心情标签）+ images（最多 9 个 URL）
+
+## Markdown 与脚注
+- 使用标准命名脚注：正文写 [^source]，文末写 [^source]: 说明或来源链接。
+- 标签在同一篇内容内唯一，不包含空格；同一来源重复引用时复用标签，显示编号按首次引用顺序自动生成。
+- 每处引用必须有对应定义；脚注定义统一放在文末，不手写编号、HTML 锚点或返回链接。
+- 多段脚注的续行、列表和代码块缩进四个空格，段落之间保留空行；修改内容时保留完整定义块与所有引用。
+- 引用真实、可核验的来源，不编造脚注、文献或链接。无来源需求时不必添加脚注。
+- API 的 contentMd 与 excerpt 都是 JSON 字符串，换行编码为 \\n；不要把换行转成字面量反斜杠与 n，也不要转成 HTML <br>。
+
+~~~markdown
+一个观点[^source]，再次引用同一来源[^source]。
+
+[^source]: [来源标题](https://example.com/source)
+
+    补充说明，作为脚注的第二段。
+~~~
 
 ## 接口
 文章：

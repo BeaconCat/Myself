@@ -300,6 +300,8 @@ const TOOLS: (Tool | 'sep')[] = [
   { icon: 'code', title: t('studio.write.tool.code'), run: () => chain().toggleCode().run(), active: () => !!ed()?.isActive('code') },
   { icon: 'codeBlock', title: t('studio.write.tool.codeBlock'), run: () => chain().toggleCodeBlock().run(), active: () => !!ed()?.isActive('codeBlock') },
   { icon: 'ul', title: t('studio.write.tool.ul'), run: () => chain().toggleBulletList().run(), active: () => !!ed()?.isActive('bulletList') },
+  { icon: 'ol', title: t('studio.editor.ol'), run: () => chain().toggleOrderedList().run(), active: () => !!ed()?.isActive('orderedList') },
+  { text: '[n]', title: t('markdownEditor.footnote'), run: () => rich.value?.insertFootnote() },
   { icon: 'task', title: t('studio.write.tool.task'), run: () => chain().toggleTaskList().run(), active: () => !!ed()?.isActive('taskList') },
   'sep',
   { icon: 'link', title: t('studio.write.tool.link'), run: () => rich.value?.setLink(), active: () => !!ed()?.isActive('link') },
@@ -704,55 +706,7 @@ onBeforeUnmount(() => {
 
 .prose {
   caret-color: var(--ink);
-
-  :deep(.ProseMirror) {
-    min-height: 40vh;
-    font: 400 18px/2 var(--font-serif);
-    color: var(--st-ink);
-
-    > * + * { margin-top: 0; }
-    p { margin: 0 0 1.1em; }
-    h2 { font: 700 24px/1.5 var(--font-serif); margin: 1.8em 0 0.6em; }
-    h3 { font: 700 20px/1.5 var(--font-serif); margin: 1.6em 0 0.5em; }
-
-    blockquote {
-      margin: 1.8em 0;
-      padding: 0.2em 0 0.2em 1.5em;
-      position: relative;
-      color: var(--st-ink);
-      font: 600 22px/1.7 var(--font-serif);
-      letter-spacing: 0.04em;
-      border: 0;
-      background: none;
-
-      &::before {
-        content: '\201C';
-        position: absolute;
-        left: -0.05em;
-        top: 0.02em;
-        font: 700 2.6em/1 Georgia, 'Times New Roman', serif;
-        color: var(--ink);
-      }
-
-      /* 右引号：跟在最后一段文字末尾，与左引号成对 */
-      > :last-child::after {
-        content: '\201D';
-        display: inline-block;
-        margin-left: 0.12em;
-        font: 700 1.6em/0 Georgia, 'Times New Roman', serif;
-        vertical-align: -0.42em;
-        color: var(--ink);
-      }
-
-      p { margin: 0; }
-    }
-
-    code { font: 14.5px var(--font-mono); background: var(--well); }
-    ul, ol { padding-left: 1.2em; margin: 0 0 1.1em; }
-    li::marker { color: var(--ink); }
-    li p { margin: 0 0 0.3em; }
-    img { margin: 0.6em 0; }
-  }
+  :deep(.ProseMirror) { min-height: 40vh; }
 }
 
 .md-src {

@@ -9,6 +9,7 @@ import { useLoadingStore } from './stores/loading';
 import { useConfigStore } from './stores/config';
 import { useAuthStore } from './stores/auth';
 import { installCodeCopy } from './utils/codeCopy';
+import { installFootnoteNavigation } from './utils/footnoteNavigation';
 /* 思源字体离线打包（Noto SC 与思源同源；woff2 按 unicode-range 切片按需加载） */
 import '@fontsource/noto-sans-sc/400.css';
 import '@fontsource/noto-sans-sc/500.css';
@@ -19,6 +20,7 @@ import './styles/motion.scss';
 import './styles/highlight.scss';
 import './styles/admin.scss';
 import './styles/embeds.scss';
+import './styles/markdown.scss';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -35,6 +37,7 @@ const configReady = configStore.load().then(() => useThemeStore().init());
 
 app.mount('#app');
 installCodeCopy();
+installFootnoteNavigation(router);
 void useAuthStore().sync();
 
 /* 首屏进度 = 真实加载事件完成占比：DOM 解析 / 路由(首屏组件)就绪 / 字体就绪 / 全部资源 load */

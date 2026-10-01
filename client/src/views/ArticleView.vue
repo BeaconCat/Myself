@@ -46,7 +46,7 @@ const rendered = computed(() => {
   const src = post.value?.contentMd ?? '';
   const title = post.value?.title.trim() ?? '';
   const body = src.replace(/^\s*#\s+(.+)\n+/, (m, h: string) => (h.trim() === title ? '' : m));
-  return body ? renderWithToc(body) : { html: '', toc: [] as TocItem[] };
+  return body ? renderWithToc(body, `post-${post.value?.id}`) : { html: '', toc: [] as TocItem[] };
 });
 const minutes = computed(() => readMinutes(post.value?.contentMd ?? ''));
 const words = computed(() => wordCount(post.value?.contentMd ?? ''));
@@ -308,7 +308,7 @@ const C = 2 * Math.PI * 9;
               <span>{{ t('content.article.minutes', { n: minutes }) }}</span>
             </div>
             <h1 class="rise" style="--i: 2">{{ post.title }}</h1>
-            <p v-if="post.excerpt" class="lede rise" style="--i: 3">{{ post.excerpt }}</p>
+            <p v-if="post.excerpt" class="post-excerpt lede rise" style="--i: 3">{{ post.excerpt }}</p>
             <div class="by rise" style="--i: 4">
               <span class="av"><img :src="byline.avatar" alt="" draggable="false" /></span>
               <div>
@@ -321,7 +321,7 @@ const C = 2 * Math.PI * 9;
           </header>
 
           <!-- eslint-disable-next-line vue/no-v-html -->
-          <article ref="proseEl" class="prose rise" :class="{ big: bigType }" style="--i: 5" @click="onProseClick" v-html="rendered.html" />
+          <article ref="proseEl" class="prose markdown-content rise" :class="{ big: bigType }" style="--i: 5" @click="onProseClick" v-html="rendered.html" />
 
           <footer class="end rise" style="--i: 6">
             <div class="row1">
@@ -606,149 +606,10 @@ h1 {
 
 /* ---------- 正文排版 ---------- */
 .prose {
-  :deep(img) { cursor: zoom-in; }
-
   padding-top: 26px;
-  font-family: var(--font-serif);
-  font-size: 17.5px;
-  font-weight: 400;
-  line-height: 1.95;
-  color: color-mix(in oklab, var(--text) 90%, var(--bg));
-  overflow-wrap: anywhere;
   transition: font-size var(--dur) var(--ease-out);
-
-  &.big { font-size: 19.5px; }
-
-  :deep(h1),
-  :deep(h2),
-  :deep(h3),
-  :deep(h4) {
-    font-family: var(--font-serif);
-    font-weight: 700;
-    color: var(--text);
-    scroll-margin-top: 90px;
-  }
-
-  :deep(h1) { margin: 48px 0 14px; font-size: 30px; line-height: 1.4; }
-  :deep(h2) { margin: 48px 0 12px; font-size: 25px; line-height: 1.45; }
-  :deep(h3) { margin: 32px 0 8px; font-size: 20px; line-height: 1.5; }
-  :deep(h4) { margin: 24px 0 6px; font-size: 17.5px; }
-  > :deep(:first-child) { margin-top: 0; }
-
-  :deep(p) { margin: 0 0 18px; }
-  :deep(strong) { color: var(--text); font-weight: 700; }
-  :deep(hr) { height: 0.5px; margin: 40px 0; border: 0; background: var(--line-2); }
-
-  :deep(a) {
-    color: var(--ink);
-    text-decoration: underline;
-    text-decoration-color: color-mix(in oklab, var(--ink) 35%, transparent);
-    text-decoration-thickness: 1px;
-    text-underline-offset: 4px;
-    transition: text-decoration-color var(--dur-fast);
-
-    &:hover { text-decoration-color: currentColor; }
-  }
-
-  :deep(code:not(pre code)) {
-    padding: 2px 6px;
-    border-radius: var(--r-xs);
-    background: var(--fill-2);
-    font-family: var(--font-mono);
-    font-size: 0.8em;
-    color: var(--text);
-  }
-
-  :deep(pre) {
-    margin: 8px 0 24px;
-    padding: 20px 22px;
-    overflow-x: auto;
-    border-radius: var(--r-md);
-    background: var(--hl-bg);
-    box-shadow: inset 0 0 0 0.5px var(--line);
-    font-size: 13px;
-    line-height: 1.8;
-    color: color-mix(in oklab, var(--text) 86%, var(--bg));
-
-    code { background: none; padding: 0; font-size: inherit; }
-  }
-
-  :deep(blockquote) {
-    margin: 26px 0;
-    padding: 2px 0 2px 22px;
-    background: linear-gradient(var(--ink), var(--ink)) left / 2px 100% no-repeat;
-    font-size: 1.08em;
-    font-weight: 600;
-    line-height: 1.8;
-    color: var(--text);
-
-    p:last-child { margin-bottom: 0; }
-  }
-
-  :deep(ul),
-  :deep(ol) { margin: 0 0 18px; list-style: none; }
-
-  :deep(li) { position: relative; margin-bottom: 8px; padding-left: 22px; }
-  :deep(li > ul), :deep(li > ol) { margin: 8px 0 0; }
-
-  :deep(ul > li::before) {
-    content: '';
-    position: absolute;
-    left: 5px;
-    top: 0.85em;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--text-3);
-  }
-
-  :deep(ol) { counter-reset: li; }
-  :deep(ol > li) { counter-increment: li; }
-
-  :deep(ol > li::before) {
-    content: counter(li);
-    position: absolute;
-    left: 0;
-    top: 0.15em;
-    font-family: var(--font-mono);
-    font-size: 0.76em;
-    color: var(--text-3);
-  }
-
-  /* 待办清单：去圆点，复选框着 ink */
-  :deep(li.task-list-item) { padding-left: 0; }
-  :deep(li.task-list-item::before) { display: none; }
-  :deep(.task-list-item input) { margin-right: 10px; accent-color: var(--ink); }
-
-  :deep(table) {
-    width: 100%;
-    margin: 6px 0 24px;
-    border-collapse: collapse;
-    font-family: var(--font-sans);
-    font-size: 14px;
-    line-height: 1.7;
-  }
-
-  :deep(th),
-  :deep(td) {
-    padding: 10px 14px 10px 0;
-    text-align: left;
-    box-shadow: inset 0 -0.5px 0 var(--line-2);
-  }
-
-  :deep(th) {
-    font-size: 12.5px;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    color: var(--text-3);
-  }
-
-  :deep(img) {
-    display: block;
-    max-width: 100%;
-    margin: 8px auto;
-    border-radius: var(--r-md);
-  }
+  &.big { font-size: 20px; }
+  :deep(img) { cursor: zoom-in; display: block; margin: .6em auto; }
 
   /* 拼图：同段落多张图并排成宫格 */
   :deep(p:has(img + img)) {

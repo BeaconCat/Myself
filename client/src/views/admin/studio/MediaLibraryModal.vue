@@ -346,6 +346,12 @@ function addExternal(): void {
 @media (max-width: 760px) {
   .body { grid-template-columns: 1fr; }
   .side { max-height: 140px; }
+  :global(.st-modal.mlib) { width: calc(100vw - 32px); padding: 16px; }
+  .hd { flex-direction: column; align-items: stretch; gap: 10px; }
+  .hd .search { width: 100%; }
+  .ft { flex-wrap: wrap; gap: 8px; }
+  .ft .ext { flex: 0 0 100%; width: 100%; }
+  .ft .sp { margin-left: auto; }
 }
 
 .grid {

@@ -34,6 +34,7 @@ import { ArrowUpRight } from 'lucide';
 import { iconMarkup } from './lucide';
 import { embedsPlugin } from './embeds';
 import { sizeStyle, splitSize } from './mediaSize';
+import { configureFootnotes } from './footnotes';
 
 const LANGS: Record<string, Parameters<typeof hljs.registerLanguage>[1]> = {
   bash, c, cpp, css, diff, go, ini, java, javascript, json, kotlin, markdown,
@@ -87,6 +88,7 @@ function escapeHtml(s: string): string {
 
 function createRenderer(): MarkdownIt {
   const md: MarkdownIt = new MarkdownIt({ linkify: true, highlight }).use(taskLists);
+  configureFootnotes(md);
 
   /* 嵌入块：拼图、视频 / 音频 / 文件 / 压缩包（语法见 utils/embeds.ts） */
   md.use(embedsPlugin, {
@@ -103,8 +105,11 @@ function createRenderer(): MarkdownIt {
     const env = state.env as { toc?: TocItem[]; used?: Map<string, number> };
     env.used ??= new Map();
     const { tokens } = state;
+    let inFootnotes = false;
     for (let i = 0; i < tokens.length; i++) {
       const open = tokens[i];
+      if (open.type === 'footnote_block_open') inFootnotes = true;
+      if (open.type === 'footnote_block_close') inFootnotes = false;
       if (open.type !== 'heading_open') continue;
       const inline = tokens[i + 1];
       const text = inline?.children
@@ -114,7 +119,7 @@ function createRenderer(): MarkdownIt {
       const id = slugify(text, env.used);
       open.attrSet('id', id);
       const level = Number(open.tag.slice(1));
-      if (env.toc && (level === 2 || level === 3)) env.toc.push({ id, text, level });
+      if (!inFootnotes && env.toc && (level === 2 || level === 3)) env.toc.push({ id, text, level });
     }
   });
 
@@ -168,13 +173,13 @@ function createRenderer(): MarkdownIt {
 export const md = createRenderer();
 
 /** 渲染正文并同时返回目录（仅收集 h2/h3） */
-export function renderWithToc(source: string): { html: string; toc: TocItem[] } {
-  const env = { toc: [] as TocItem[] };
+export function renderWithToc(source: string, scope?: string): { html: string; toc: TocItem[] } {
+  const env = { toc: [] as TocItem[], footnoteScope: scope };
   const html = md.render(source, env);
   return { html, toc: env.toc };
 }
 
 /** 普通渲染（随想、预览） */
-export function render(source: string): string {
-  return md.render(source, {});
+export function render(source: string, scope?: string): string {
+  return md.render(source, { footnoteScope: scope });
 }

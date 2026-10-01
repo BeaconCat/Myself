@@ -39,7 +39,7 @@ const rendered = computed(() => {
   const src = post.value?.contentMd ?? '';
   const title = post.value?.title.trim() ?? '';
   const body = src.replace(/^\s*#\s+(.+)\n+/, (m, h: string) => (h.trim() === title ? '' : m));
-  return body ? renderWithToc(body) : { html: '', toc: [] as TocItem[] };
+  return body ? renderWithToc(body, `post-${post.value?.id}`) : { html: '', toc: [] as TocItem[] };
 });
 const minutes = computed(() => readMinutes(post.value?.contentMd ?? ''));
 
@@ -194,14 +194,14 @@ const byline = computed(() => (post.value?.author
               <span>{{ date(post.createdAt) }} · {{ t('mobile.article.minutes', { n: minutes }) }}</span>
             </div>
             <h1 class="m-in" style="--i: 1">{{ post.title }}</h1>
-            <p v-if="post.excerpt" class="lede m-in" style="--i: 2">{{ post.excerpt }}</p>
+            <p v-if="post.excerpt" class="post-excerpt lede m-in" style="--i: 2">{{ post.excerpt }}</p>
             <div class="by m-in" style="--i: 3">
               <span class="av"><img class="m-avatar" :src="byline.avatar" alt="" draggable="false" /></span>
               <div><b><IdentityName :name="byline.name" :alias="byline.alias" /></b><template v-if="byline.sign"><br /><small>{{ byline.sign }}</small></template></div>
             </div>
           </div>
           <!-- eslint-disable-next-line vue/no-v-html -->
-          <article ref="proseEl" class="prose m-in" style="--i: 4" @click="onProseClick" v-html="rendered.html" />
+          <article ref="proseEl" class="prose markdown-content m-in" style="--i: 4" @click="onProseClick" v-html="rendered.html" />
           <footer class="dt-end m-in" style="--i: 5">
             <div class="tags">
               <button
@@ -370,152 +370,7 @@ const byline = computed(() => (post.value?.author
 }
 
 /* 正文排版 */
-.prose {
-  padding: 10px 22px 0;
-  font-family: var(--font-serif);
-  font-size: 17px;
-  line-height: 1.95;
-  color: color-mix(in oklab, var(--text) 90%, var(--bg));
-  user-select: text;
-  -webkit-user-select: text;
-  overflow-wrap: anywhere;
-  transition: font-size var(--dur) var(--ease-out);
-
-  .big & { font-size: 19px; }
-
-  :deep(h1),
-  :deep(h2),
-  :deep(h3) {
-    color: var(--text);
-    line-height: 1.45;
-    font-weight: 700;
-  }
-
-  :deep(h1) { margin: 34px 0 12px; font-size: 25px; }
-  :deep(h2) { margin: 34px 0 10px; font-size: 22px; }
-  :deep(h3) { margin: 26px 0 8px; font-size: 18.5px; }
-  :deep(p) { margin: 0 0 16px; letter-spacing: 0.01em; }
-
-  :deep(a) {
-    color: var(--ink);
-    text-decoration: underline;
-    text-decoration-color: color-mix(in oklab, var(--ink) 35%, transparent);
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
-  }
-
-  :deep(strong) { color: var(--text); }
-
-  :deep(code:not(pre code)) {
-    font-family: var(--m-font-mono);
-    font-size: 0.8em;
-    padding: 2px 6px;
-    border-radius: var(--r-xs);
-    background: var(--fill-2);
-    color: var(--text);
-  }
-
-  :deep(pre) {
-    font-family: var(--m-font-mono);
-    margin: 6px -22px 20px;
-    padding: 18px 22px;
-    background: var(--m-code-bg);
-    font-size: 12.5px;
-    line-height: 1.75;
-    overflow-x: auto;
-    scrollbar-width: none;
-    box-shadow: inset 0 0.5px 0 var(--line), inset 0 -0.5px 0 var(--line);
-    border-radius: 0;
-    touch-action: pan-x pan-y;
-  }
-
-  :deep(pre::-webkit-scrollbar) { display: none; }
-  :deep(pre code) { font-family: inherit; }
-
-  :deep(blockquote) {
-    margin: 22px 0;
-    padding: 4px 0 4px 18px;
-    box-shadow: inset 2px 0 0 var(--ink);
-    font-size: 1.1em;
-    line-height: 1.75;
-    color: var(--text);
-    font-weight: 600;
-
-    p { margin: 0; }
-  }
-
-  :deep(ul),
-  :deep(ol) {
-    margin: 0 0 16px;
-    padding-left: 0;
-    list-style: none;
-  }
-
-  :deep(ol) { counter-reset: li; }
-
-  :deep(li) {
-    position: relative;
-    padding-left: 20px;
-    margin-bottom: 8px;
-  }
-
-  :deep(ul > li)::before {
-    content: '';
-    position: absolute;
-    left: 4px;
-    top: 0.8em;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--text-3);
-  }
-
-  :deep(ol > li) { counter-increment: li; }
-
-  :deep(ol > li)::before {
-    content: counter(li);
-    position: absolute;
-    left: 0;
-    font-family: var(--m-font-mono);
-    font-size: 0.8em;
-    color: var(--text-3);
-  }
-
-  :deep(li.task-list-item)::before { display: none; }
-  :deep(li.task-list-item) { padding-left: 0; }
-
-  :deep(img) {
-    display: block;
-    max-width: calc(100% + 44px);
-    margin: 18px -22px;
-    width: calc(100% + 44px);
-    height: auto;
-  }
-
-  :deep(table) {
-    display: block;
-    overflow-x: auto;
-    border-collapse: collapse;
-    font-family: var(--font-sans);
-    font-size: 14px;
-    margin: 0 0 18px;
-  }
-
-  :deep(th),
-  :deep(td) {
-    padding: 8px 12px;
-    border-bottom: 0.5px solid var(--line-2);
-    text-align: left;
-    white-space: nowrap;
-  }
-
-  :deep(hr) {
-    border: 0;
-    height: 0.5px;
-    background: var(--line-2);
-    margin: 28px 0;
-  }
-}
+.prose { padding: 26px 22px 0; :deep(img) { cursor: zoom-in; } }
 
 /* 底部留白让给最后一块（评论区），避开阅读浮条 */
 .dt-end {

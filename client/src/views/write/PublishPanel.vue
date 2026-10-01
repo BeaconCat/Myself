@@ -59,7 +59,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
       <div class="pv-card">
         <LightCover class="pcv" :src="cover" :seed="seed" />
         <h4>{{ title || t('studio.untitled') }}</h4>
-        <p>{{ excerpt || t('studio.posts.noExcerpt') }}</p>
+        <p class="post-excerpt">{{ excerpt || t('studio.posts.noExcerpt') }}</p>
         <div class="meta">
           <span v-if="tags[0]" class="tag">{{ tags[0] }}</span>
           <span class="mono">{{ today }}</span>

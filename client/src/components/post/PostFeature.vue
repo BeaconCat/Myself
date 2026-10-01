@@ -40,7 +40,7 @@ function onLeave(): void {
     <div class="info">
       <PostMeta :post="post" :extra="meta" />
       <h3><span>{{ post.title }}</span></h3>
-      <p v-if="post.excerpt">{{ post.excerpt }}</p>
+      <p v-if="post.excerpt" class="post-excerpt">{{ post.excerpt }}</p>
     </div>
   </router-link>
 </template>

@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, reactive, ref, shallowRef, watch } from 'vue
 import { Editor, EditorContent } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
-import TaskList from '@tiptap/extension-task-list';
+import { MarkdownTaskList } from './editor/taskList';
 import TaskItem from '@tiptap/extension-task-item';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
@@ -19,10 +19,11 @@ import GalleryEditor from './editor/GalleryEditor.vue';
 import { Gallery, MediaEmbed, ResizableImage } from './editor/embeds';
 import { defaultGallery, type GalleryData, type MediaData, type MediaKind } from '../../utils/embeds';
 import { mediaKind } from '../../utils/mediaKind';
+import { FootnoteReference, FootnoteDefinition, FootnoteList } from './editor/footnotes';
 
 /**
  * 所见即所得编辑器：对外始终以 Markdown 交换（统一内容规范），内部用 Tiptap 富文本编辑。
- * - 默认：自带工具栏；lite：精简工具栏（随想）；bare：不渲染工具栏，由外部通过 expose 的命令驱动
+ * - 默认：自带工具栏；lite：精简工具栏；bare：不渲染工具栏，由外部通过 expose 的命令驱动
  *   （写文章页的浮动胶囊工具条）。
  * - 插图 / 媒体 / 拼图统一走素材库模态框（可就地上传、可填外链）；拼图进拼图编辑器。
  * - 光标在链接上时浮出链接气泡（打开 / 编辑 / 移除），在表格里时浮出表格工具条（增删行列、表头、删表）。
@@ -81,17 +82,20 @@ const editor = new Editor({
     // 单元格只容纳一段行内内容（与 GFM 表格一致）：不能再嵌表格 / 列表等块，换行用 Shift+Enter
     TableHeader.extend({ content: 'paragraph' }),
     TableCell.extend({ content: 'paragraph' }),
-    TaskList,
+    MarkdownTaskList,
     TaskItem.configure({ nested: true }),
     ResizableImage.configure({ inline: true, allowBase64: false }),
     MediaEmbed.configure(hooks),
     Gallery.configure(hooks),
+    FootnoteReference,
+    FootnoteDefinition,
+    FootnoteList,
     Placeholder.configure({ placeholder: () => props.placeholder ?? '' }),
     Markdown.configure({ html: false, linkify: true, breaks: false }),
   ],
   content: props.modelValue,
   // 编辑区的可访问名称与角色（contenteditable 默认没有名字）
-  editorProps: { attributes: { 'aria-label': t('studio.a11y.editor'), role: 'textbox', 'aria-multiline': 'true' } },
+  editorProps: { attributes: { 'aria-label': t('studio.a11y.editor'), role: 'textbox', 'aria-multiline': 'true', class: 'markdown-content' } },
   onUpdate: () => {
     if (applyingExternal) return;
     emit('update:modelValue', currentMarkdown());
@@ -277,7 +281,7 @@ function insertTable(): void {
 }
 
 /* ===== 自带工具栏（非 bare） ===== */
-type Cmd = { icon: string; title: string; run: () => unknown; active?: () => boolean; disabled?: () => boolean } | { divider: true };
+type Cmd = { icon?: string; label?: string; title: string; run: () => unknown; active?: () => boolean; disabled?: () => boolean } | { divider: true };
 
 const c = () => editor.chain().focus();
 const TOOLBAR: Cmd[] = [
@@ -295,7 +299,29 @@ const TOOLBAR: Cmd[] = [
   { icon: 'undo', title: t('studio.editor.undo'), run: () => c().undo().run() },
   { icon: 'redo', title: t('studio.editor.redo'), run: () => c().redo().run() },
 ];
+function insertFootnote(): void {
+  const labels = new Set<string>();
+  editor.state.doc.descendants(node => {
+    if (node.type.name === 'footnoteReference' || node.type.name === 'footnoteDefinition') labels.add(node.attrs.label);
+  });
+  let n = 1;
+  while (labels.has(`note-${n}`)) n += 1;
+  const label = `note-${n}`;
+  editor.chain().focus().insertContent({ type: 'footnoteReference', attrs: { label, number: n } }).run();
+  const definition = editor.schema.nodes.footnoteDefinition.create({ label, number: n },
+    editor.schema.nodes.paragraph.create(null, editor.schema.text(t('markdownEditor.footnoteText'))));
+  let listPos: number | null = null;
+  editor.state.doc.forEach((node, pos) => { if (node.type.name === 'footnoteList') listPos = pos + node.nodeSize - 1; });
+  const tr = editor.state.tr;
+  if (listPos !== null) tr.insert(listPos, definition);
+  else tr.insert(editor.state.doc.content.size, editor.schema.nodes.footnoteList.create(null, definition));
+  editor.view.dispatch(tr);
+}
 const FULL_EXTRA: Cmd[] = [
+  { label: 'H1', title: t('markdownEditor.heading', { n: 1 }), run: () => c().toggleHeading({ level: 1 }).run(), active: () => editor.isActive('heading', { level: 1 }) },
+  { label: 'H2', title: t('markdownEditor.heading', { n: 2 }), run: () => c().toggleHeading({ level: 2 }).run(), active: () => editor.isActive('heading', { level: 2 }) },
+  { label: 'H3', title: t('markdownEditor.heading', { n: 3 }), run: () => c().toggleHeading({ level: 3 }).run(), active: () => editor.isActive('heading', { level: 3 }) },
+  { label: '[n]', title: t('markdownEditor.footnote'), run: insertFootnote },
   { divider: true },
   { icon: 'codeBlock', title: t('studio.editor.codeBlock'), run: () => c().toggleCodeBlock().run(), active: () => editor.isActive('codeBlock') },
   { icon: 'table', title: t('studio.editor.table'), run: insertTable, disabled: () => editor.isActive('table') },
@@ -319,6 +345,7 @@ defineExpose({
   pickCollage,
   pickMedia,
   insertTable,
+  insertFootnote,
   focus: () => editor.commands.focus(),
 });
 </script>
@@ -335,8 +362,10 @@ defineExpose({
           :class="{ on: item.active?.() }"
           :title="item.disabled?.() ? t('studio.write.tool.tableNested') : item.title"
           :disabled="item.disabled?.()"
+          :aria-label="item.title"
+          @mousedown.prevent
           @click="item.run()"
-        ><SIcon :name="item.icon" :size="16" /></button>
+        ><SIcon v-if="item.icon" :name="item.icon" :size="16" /><span v-else>{{ item.label }}</span></button>
       </template>
     </div>
     <EditorContent class="content" :editor="editor" @keydown="emit('typing')" />
@@ -456,176 +485,17 @@ defineExpose({
   background: none;
 
   .toolbar { border-radius: var(--r-sm); border: 1px solid var(--border); margin-bottom: 4px; }
-  .content :deep(.ProseMirror) { min-height: 140px; padding: 12px 4px; font-size: 16px; }
+  .content :deep(.ProseMirror) { min-height: 140px; padding: 12px 4px; }
 }
 
-/* 默认 / 精简模式的正文排版 */
-.rich:not(.bare) .content :deep(.ProseMirror) {
-  min-height: 52vh;
-  padding: 20px 24px;
-  font-size: 15px;
-  line-height: 1.9;
-}
-
+.rich:not(.bare) .content :deep(.ProseMirror) { min-height: 180px; padding: 16px 18px; }
 .content :deep(.ProseMirror) {
   outline: none;
-
-  > * + * { margin-top: 0.6em; }
-
-  h1, h2, h3 { font-family: var(--font-serif); line-height: 1.4; }
-  ul, ol { padding-left: 26px; }
-
-  /* 待办：复选框与首行文字垂直居中（高度取一行的行高） */
-  ul[data-type='taskList'] {
-    list-style: none;
-    padding-left: 2px;
-
-    li {
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-
-      > label {
-        flex: none;
-        height: 1lh;
-        display: flex;
-        align-items: center;
-        margin: 0;
-        user-select: none;
-      }
-
-      > div { flex: 1; min-width: 0; }
-      > div > p { margin: 0; }
-
-      &[data-checked='true'] > div { color: var(--text-2); text-decoration: line-through; }
-    }
-
-    input[type='checkbox'] {
-      appearance: none;
-      width: 17px;
-      height: 17px;
-      margin: 0;
-      display: grid;
-      place-items: center;
-      border-radius: var(--r-xs);
-      cursor: pointer;
-      background: var(--paper, var(--surface));
-      box-shadow: 0 0 0 1.5px var(--line-3, var(--border)) inset;
-      transition: background var(--dur-fast), box-shadow var(--dur-fast);
-
-      /* 勾：两条边框旋转而成（CSS 形状，非图标） */
-      &::after {
-        content: '';
-        width: 4px;
-        height: 8px;
-        margin-top: -2px;
-        border: solid var(--on-solid, #fff);
-        border-width: 0 2px 2px 0;
-        transform: rotate(45deg) scale(0);
-        transition: transform var(--dur-fast) var(--ease-spring);
-      }
-
-      &:checked { background: var(--solid); box-shadow: 0 0 0 1.5px var(--solid) inset; }
-      &:checked::after { transform: rotate(45deg) scale(1); }
-      &:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-    }
-  }
-
-  code {
-    font-family: ui-monospace, Consolas, monospace;
-    font-size: 0.86em;
-    background: var(--surface-2);
-    padding: 2px 6px;
-    border-radius: var(--r-xs);
-  }
-
-  pre {
-    background: var(--code-bg, #1b1a1f);
-    color: #e6e3dc;
-    border-radius: var(--r-sm);
-    padding: 16px 18px;
-    overflow-x: auto;
-    font-size: 14px;
-    line-height: 1.7;
-
-    code { background: none; padding: 0; color: inherit; }
-  }
-
-  /* 表格：固定布局等分列宽（拖动列宽后按拖动结果），拖柄只在悬停列边时出现 */
-  .tableWrapper { overflow-x: auto; margin: 1.2em 0; }
-
-  table {
-    border-collapse: collapse;
-    width: 100%;
-    table-layout: fixed;
-    margin: 0;
-
-    th, td {
-      border: 1px solid var(--line-2, var(--border));
-      padding: 8px 12px;
-      vertical-align: top;
-      position: relative;
-      min-width: 60px;
-
-      > p { margin: 0; }
-    }
-
-    th { background: var(--well, var(--surface-2)); font-weight: 600; text-align: left; }
-
-    .selectedCell::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: var(--tint);
-      pointer-events: none;
-    }
-
-    .column-resize-handle {
-      position: absolute;
-      right: -1px;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: color-mix(in oklab, var(--ink) 70%, transparent);
-      pointer-events: none;
-    }
-  }
-
+  table .selectedCell::after { content: ''; position: absolute; inset: 0; background: var(--tint); pointer-events: none; }
+  table .column-resize-handle { position: absolute; right: -1px; top: 0; bottom: 0; width: 2px; background: var(--ink); pointer-events: none; }
   &.resize-cursor { cursor: col-resize; }
-
-  img {
-    max-width: 100%;
-    border-radius: var(--r-sm);
-
-    &.ProseMirror-selectednode { outline: 2px solid var(--ink); outline-offset: 2px; }
-  }
-
-  hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
-
-  a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
-
-  p.is-editor-empty:first-child::before {
-    content: attr(data-placeholder);
-    color: var(--st-ink-4, var(--text-2));
-    float: left;
-    height: 0;
-    pointer-events: none;
-  }
-}
-
-/* 默认模式下的引用与标题 */
-.rich:not(.bare) .content :deep(.ProseMirror) {
-  h1 { font-size: 28px; }
-  h2 { font-size: 22px; }
-  h3 { font-size: 18px; }
-
-  blockquote {
-    border-left: 3px solid var(--line-2);
-    padding: 6px 14px;
-    color: var(--text-2);
-    background: var(--surface-2);
-    border-radius: 0 var(--r-xs) var(--r-xs) 0;
-  }
+  img.ProseMirror-selectednode { outline: 2px solid var(--ink); outline-offset: 2px; }
+  p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--text-3); float: left; height: 0; pointer-events: none; }
 }
 
 /* ---------- 浮层：链接气泡 / 表格工具条 ---------- */
@@ -674,7 +544,9 @@ defineExpose({
   }
 }
 
+.table-bar, .link-bubble { max-width: calc(100% - 16px); overflow-x: auto; }
 .link-bubble .href {
+  min-width: 0;
   max-width: 280px;
   padding: 0 8px;
   font: 12.5px var(--font-mono);

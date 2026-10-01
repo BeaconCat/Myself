@@ -230,7 +230,7 @@ function openNote(): void {
                 <!-- eslint-disable-next-line vue/no-v-html -->
                 <b v-html="hl(p.title)" />
                 <!-- eslint-disable-next-line vue/no-v-html -->
-                <span class="ex" v-html="hl(p.excerpt)" />
+                <span class="post-excerpt ex" v-html="hl(p.excerpt)" />
               </div>
               <div class="thumb"><CoverArt :src="p.covers[0]" :seed="p.slug" thumb /></div>
             </button>

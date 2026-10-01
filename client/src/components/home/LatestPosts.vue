@@ -68,7 +68,7 @@ const sub = computed(() => {
             <span>{{ md(feat.createdAt) }}</span>
           </div>
           <h3><span>{{ feat.title }}</span></h3>
-          <p>{{ feat.excerpt }}</p>
+          <p class="post-excerpt">{{ feat.excerpt }}</p>
         </div>
       </router-link>
 
@@ -81,7 +81,7 @@ const sub = computed(() => {
               <span>{{ md(p.createdAt) }}</span>
             </div>
             <span class="t"><span>{{ p.title }}</span></span>
-            <span class="ex">{{ p.excerpt }}</span>
+            <span class="post-excerpt ex">{{ p.excerpt }}</span>
           </div>
           <div class="thumb">
             <CoverArt :src="p.covers[0]" :seed="p.slug" thumb />

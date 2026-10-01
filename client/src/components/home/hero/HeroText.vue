@@ -46,10 +46,12 @@ function tokenizeTitle(raw: string): Tok[] {
 
 /** 摘要分词：中日文逐字可断，西文单词成组，标点随前字 */
 function tokenizeBody(raw: string): Tok[] {
-  const parts = raw.match(/(?:[A-Za-z0-9\-_.]+|[^\s])[，。：；！？、,.:;!?」）]*|\s+/g) ?? [];
-  return parts.map((p) => (/^\s+$/.test(p)
-    ? { kind: 'sp' as const, text: ' ', chars: [] }
-    : { kind: 'w' as const, text: p, chars: [...p] }));
+  const parts = raw.replace(/\r\n?/g, '\n').match(/\n|[^\S\n]+|(?:[A-Za-z0-9\-_.]+|[^\s])[，。：；！？、,.:;!?」）]*/g) ?? [];
+  return parts.map((p) => p === '\n'
+    ? { kind: 'br' as const, text: '\n', chars: [] }
+    : /^\s+$/.test(p)
+      ? { kind: 'sp' as const, text: ' ', chars: [] }
+      : { kind: 'w' as const, text: p, chars: [...p] });
 }
 
 const titleToks = computed(() => tokenizeTitle(props.item.title ?? ''));
@@ -74,14 +76,16 @@ function group(container: HTMLElement, toks: Tok[]): number[][] {
   let top: number | null = null;
   for (const node of nodes) {
     const i = Number(node.dataset.t);
+    if (toks[i].kind === 'br' && container === bodyEl.value) {
+      cur = []; groups.push(cur); top = null; continue;
+    }
     if (toks[i].kind !== 'w') {
       cur?.push(i);
       continue;
     }
     const y = node.offsetTop;
     if (top === null || Math.abs(y - top) > 4) {
-      cur = [];
-      groups.push(cur);
+      if (!cur || cur.length) { cur = []; groups.push(cur); }
       top = y;
     }
     cur!.push(i);
@@ -254,7 +258,7 @@ defineExpose({ els, ready: settled, resplit });
         :data-t="ti"
       >{{ titleToks[ti].text }}</span></template></span></span>
     </h1>
-    <p ref="bodyEl" class="hero-excerpt" :class="{ measure: measuring }">
+    <p ref="bodyEl" class="hero-excerpt post-excerpt" :class="{ measure: measuring }">
       <span v-for="(ln, li) in bodyLines" :key="li" class="ln"><span class="ln-in"><span
         v-for="ti in ln"
         :key="ti"
@@ -381,6 +385,9 @@ defineExpose({ els, ready: settled, resplit });
 
 /* 摘要按 CJK 逐字可断：测量态词段 inline 参与自然断行 */
 .hero-excerpt .w { display: inline; }
+.hero-excerpt .br { display: none; }
+.hero-excerpt.measure .br { display: block; height: 0; }
+.hero-excerpt .ln:has(.ln-in:empty) { min-height: 1lh; }
 
 /* CTA：主按钮实底（--solid / --on-solid，按对比度派生），次按钮 ghost；无渐变、无发光、无文字投影 */
 .hero-cta {

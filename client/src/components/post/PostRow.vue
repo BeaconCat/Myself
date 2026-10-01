@@ -12,7 +12,7 @@ withDefaults(defineProps<{ post: Post; meta?: string }>(), { meta: '' });
     <div class="rt">
       <PostMeta :post="post" :extra="meta" />
       <span class="t"><span>{{ post.title }}</span></span>
-      <span v-if="post.excerpt" class="ex">{{ post.excerpt }}</span>
+      <span v-if="post.excerpt" class="post-excerpt ex">{{ post.excerpt }}</span>
     </div>
     <div class="thumb"><CoverArt :src="post.covers[0]" :seed="post.slug" thumb /></div>
   </router-link>

@@ -271,7 +271,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           </div>
           <div class="c" @click="onCard(it.note, $event)">
             <!-- eslint-disable-next-line vue/no-v-html -->
-            <div class="md" v-html="renderMarkdown(it.note.contentMd)" />
+            <div class="md markdown-content" v-html="renderMarkdown(it.note.contentMd, `admin-note-${it.note.id}`)" />
             <div v-if="it.note.images.length" class="imgs" :data-n="gridN(it.note.images.length)">
               <div v-for="src in it.note.images" :key="src" class="t"><img :src="thumbOf(src)" alt="" loading="lazy" /></div>
             </div>
@@ -453,17 +453,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
   &:hover .c { background: var(--well); }
 
-  .md {
-    font: 400 16px/1.8 var(--font-serif);
-    word-break: break-word;
-
-    :deep(p) { margin: 0 0 0.6em; }
-    :deep(p:last-child) { margin-bottom: 0; }
-    :deep(a) { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
-    :deep(code) { font: 14px var(--font-mono); background: var(--well-2); padding: 1px 5px; border-radius: var(--r-xs); }
-    :deep(ul), :deep(ol) { padding-left: 1.3em; margin: 0 0 0.6em; }
-    :deep(blockquote) { margin: 0.6em 0; padding-left: 1em; border-left: 2px solid var(--line-3); color: var(--st-ink-2); }
-  }
+  .md { word-break: break-word; }
 
   .imgs {
     display: grid;

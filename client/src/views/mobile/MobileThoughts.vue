@@ -164,7 +164,7 @@ const mediaCount = computed(() => media.value.length);
                 <em v-if="n.mood" class="m-mood">{{ n.mood }}</em>
               </header>
               <!-- eslint-disable-next-line vue/no-v-html -->
-              <div class="body" v-html="render(n.contentMd)" />
+              <div class="body markdown-content" v-html="render(n.contentMd, `note-${n.id}`)" />
               <div v-if="n.images.length" class="grid" :class="gridClass(n.images.length)">
                 <button
                   v-for="(src, k) in n.images"
@@ -345,38 +345,7 @@ const mediaCount = computed(() => media.value.length);
   }
 }
 
-.body {
-  margin-top: 4px;
-  font-size: 15px;
-  line-height: 1.65;
-  overflow-wrap: anywhere;
-  user-select: text;
-  -webkit-user-select: text;
-
-  :deep(p) { margin: 0 0 6px; }
-  :deep(strong) { color: var(--ink); font-weight: 600; }
-  :deep(a) { color: var(--ink); }
-
-  :deep(code) {
-    font-family: var(--m-font-mono);
-    font-size: 0.82em;
-    padding: 1px 5px;
-    border-radius: var(--r-xs);
-    background: var(--fill-3);
-  }
-
-  :deep(pre) {
-    margin: 8px 0;
-    padding: 12px;
-    border-radius: var(--r-md);
-    overflow-x: auto;
-    font-size: 12.5px;
-    background: var(--m-code-bg);
-  }
-
-  :deep(ul),
-  :deep(ol) { padding-left: 20px; margin: 4px 0 8px; }
-}
+.body { margin-top: 8px; user-select: text; -webkit-user-select: text; }
 
 .grid {
   display: grid;

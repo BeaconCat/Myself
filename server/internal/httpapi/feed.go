@@ -3,13 +3,17 @@ package httpapi
 import (
 	"bytes"
 	"encoding/xml"
+	"fmt"
+	"html"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/text"
 
 	"myself/server/internal/config"
 	"myself/server/internal/store"
@@ -17,7 +21,24 @@ import (
 
 // RSS 2.0：最新 20 篇已发布文章，正文 Markdown 渲染为 HTML 放入 content:encoded。
 
-var feedMarkdown = goldmark.New(goldmark.WithExtensions(extension.GFM))
+var feedMarkdown = goldmark.New(goldmark.WithExtensions(extension.GFM, extension.NewFootnote(
+	extension.WithFootnoteIDPrefixFunction(func(n ast.Node) []byte {
+		if prefix, ok := n.OwnerDocument().AttributeString("myself-footnote-prefix"); ok {
+			return prefix.([]byte)
+		}
+		return nil
+	}),
+)))
+
+func renderFeedMarkdown(source []byte, postID int64, buf *bytes.Buffer) error {
+	doc := feedMarkdown.Parser().Parse(text.NewReader(source))
+	doc.SetAttributeString("myself-footnote-prefix", []byte(fmt.Sprintf("post-%d-", postID)))
+	return feedMarkdown.Renderer().Render(buf, source, doc)
+}
+
+func feedExcerpt(excerpt string) string {
+	return strings.ReplaceAll(html.EscapeString(strings.ReplaceAll(excerpt, "\r\n", "\n")), "\n", "<br>\n")
+}
 
 // rootRelAttr 匹配站内根相对地址的 src / href（"/x"，不含协议相对的 "//x"）。
 var rootRelAttr = regexp.MustCompile(`(\s(?:src|href)=")/([^/"][^"]*)?"`)
@@ -122,9 +143,9 @@ func (s *Server) rssFeed(w http.ResponseWriter, r *http.Request) {
 	items := make([]rssItem, 0, len(rows))
 	for _, row := range rows {
 		var buf bytes.Buffer
-		if err := feedMarkdown.Convert([]byte(row.ContentMd), &buf); err != nil {
+		if err := renderFeedMarkdown([]byte(row.ContentMd), row.ID, &buf); err != nil {
 			buf.Reset()
-			buf.WriteString(row.Excerpt)
+			buf.WriteString(feedExcerpt(row.Excerpt))
 		}
 		link := base + "/articles/" + row.Slug
 		items = append(items, rssItem{
@@ -132,7 +153,7 @@ func (s *Server) rssFeed(w http.ResponseWriter, r *http.Request) {
 			Link:        link,
 			GUID:        link,
 			PubDate:     rfc1123(row.CreatedAt, loc),
-			Description: row.Excerpt,
+			Description: feedExcerpt(row.Excerpt),
 			Categories:  store.ParseStrings(row.Tags),
 			Content:     cdata{Text: absolutize(buf.String(), base)},
 		})

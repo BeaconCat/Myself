@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { adminApi, thumbOf, type Note } from '../../../api';
 import { useConfigStore } from '../../../stores/config';
 import SIcon from './SIcon.vue';
+import MarkdownEditor from '../../../components/admin/MarkdownEditor.vue';
 import { toast } from './toast';
 
 /**
@@ -38,7 +39,7 @@ interface Img {
 
 const MAX = 9;
 const el = ref<HTMLElement | null>(null);
-const ta = ref<HTMLTextAreaElement | null>(null);
+const ta = ref<InstanceType<typeof MarkdownEditor> | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const text = ref('');
 const mood = ref('');
@@ -59,13 +60,6 @@ const count = computed(() => text.value.trim().length);
 const gridN = computed(() => Math.min(MAX, imgs.value.length + (imgs.value.length && imgs.value.length < MAX ? 1 : 0)));
 const customMood = computed(() => (mood.value && !moodNames.value.some((m) => m.name === mood.value) ? mood.value : ''));
 
-function fit(): void {
-  const el2 = ta.value;
-  if (!el2) return;
-  el2.style.height = 'auto';
-  el2.style.height = `${Math.max(open.value ? 84 : 32, el2.scrollHeight)}px`;
-}
-watch([text, open], () => void nextTick(fit));
 
 function reset(): void {
   text.value = '';
@@ -187,7 +181,7 @@ async function submit(): Promise<void> {
       window.setTimeout(() => {
         sent.value = false;
         reset();
-        ta.value?.blur();
+        (document.activeElement as HTMLElement | null)?.blur();
         focused.value = false;
       }, 260);
       emit('published', id);
@@ -205,7 +199,7 @@ function onKey(e: KeyboardEvent): void {
     void submit();
   }
   if (e.key === 'Escape') {
-    ta.value?.blur();
+    (document.activeElement as HTMLElement | null)?.blur();
     focused.value = false;
   }
 }
@@ -224,7 +218,6 @@ function focus(): void {
 
 onMounted(() => {
   document.addEventListener('mousedown', outside);
-  fit();
 });
 onBeforeUnmount(() => document.removeEventListener('mousedown', outside));
 defineExpose({ focus });
@@ -243,15 +236,8 @@ const avatar = computed(() => config.cfg.about?.avatar || config.cfg.site.logo |
   >
     <div class="cmp-top">
       <span class="avatar"><img :src="avatar" alt="" /></span>
-      <textarea
-        ref="ta"
-        v-model="text"
-        rows="1"
-        :placeholder="placeholder || t('studio.composer.placeholder')"
-        :aria-label="placeholder || t('studio.composer.placeholder')"
-        @focus="focused = true"
-        @keydown="onKey"
-      />
+      <MarkdownEditor ref="ta" v-model="text" :placeholder="placeholder || t('studio.composer.placeholder')"
+        @focusin="focused = true" @keydown="onKey" />
       <span v-if="hint" class="hint"><kbd class="st-kbd">N</kbd></span>
     </div>
 
@@ -358,22 +344,6 @@ const avatar = computed(() => config.cfg.about?.avatar || config.cfg.site.logo |
   gap: 14px;
   padding: 16px 18px 14px 16px;
   align-items: flex-start;
-
-  textarea {
-    flex: 1;
-    border: 0;
-    outline: 0;
-    background: none;
-    resize: none;
-    font: 400 18px/1.75 var(--font-serif);
-    color: var(--st-ink);
-    min-height: 32px;
-    height: 32px;
-    padding: 1px 0;
-    transition: height var(--dur) var(--ease-out);
-
-    &::placeholder { color: var(--st-ink-4); }
-  }
 }
 
 .avatar {

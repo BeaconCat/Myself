@@ -15,6 +15,7 @@ import { canEnterAdmin, hasSessionHint, roleHint, staffHome } from '../stores/au
 import { adminChildren } from './admin';
 import { mobileAdminLogin, mobileAdminViews } from './mobile-admin';
 import { mobilePublicViews } from './mobile-public';
+import { scrollToFootnote } from '../utils/footnoteNavigation';
 
 type Lazy = () => Promise<RouteComponent>;
 
@@ -76,7 +77,8 @@ export const router = createRouter({
   ],
   // 后退 / 前进回到原位置（随想列表保活，时间轴停在点进详情前的位置）；其余新页面回顶
   // 恢复前等页面撑到足够高度（保活页重新挂上、遮罩揭幕后），最多等 1.5s，避免被截断在半路
-  scrollBehavior: (_to, _from, saved) => {
+  scrollBehavior: (to, _from, saved) => {
+    if (to.hash.startsWith('#myself-fn-')) return scrollToFootnote(to.hash);
     if (!saved) return { top: 0, behavior: 'smooth' };
     const need = (saved.top ?? 0) + window.innerHeight;
     return new Promise((resolve) => {

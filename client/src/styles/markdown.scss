@@ -1,0 +1,106 @@
+:root { --markdown-code-bg: color-mix(in oklab, var(--primary) 4%, #1a1a1e); }
+:root[data-mode='dark'] { --markdown-code-bg: color-mix(in oklab, var(--primary) 4%, #131317); }
+
+// One typography contract for readers and the rich editor. Page layout stays local.
+@mixin content {
+  font: 400 18px/2 var(--font-serif);
+  color: var(--text);
+  overflow-wrap: anywhere;
+  > * + * { margin-top: 0; }
+  p { margin: 0 0 1.1em; letter-spacing: normal; }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif); font-weight: 700; color: var(--text);
+    scroll-margin-top: 100px;
+  }
+  h1 { font-size: 28px; line-height: 1.4; margin: 1.8em 0 .6em; }
+  h2 { font-size: 24px; line-height: 1.5; margin: 1.8em 0 .6em; }
+  h3 { font-size: 20px; line-height: 1.5; margin: 1.6em 0 .5em; }
+  h4, h5, h6 { font-size: 18px; line-height: 1.5; margin: 1.4em 0 .5em; }
+  > :first-child { margin-top: 0; }
+  > :last-child { margin-bottom: 0; }
+  strong { font-weight: 700; color: var(--text); }
+  a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  a:hover { text-decoration-thickness: 2px; }
+  blockquote {
+    margin: 1.8em 0; padding: .2em 0 .2em 1.5em; position: relative;
+    color: var(--text); font: 600 22px/1.7 var(--font-serif); letter-spacing: .04em;
+    border: 0; border-radius: 0; background: none; box-shadow: none;
+    &::before {
+      content: '\201C'; position: absolute; left: -.05em; top: .02em;
+      font: 700 2.6em/1 Georgia, 'Times New Roman', serif; color: var(--ink);
+    }
+    > :last-child::after {
+      content: '\201D'; display: inline-block; margin-left: .12em;
+      font: 700 1.6em/0 Georgia, 'Times New Roman', serif;
+      vertical-align: -.42em; color: var(--ink);
+    }
+    p { margin: 0; }
+    p + p { margin-top: .6em; }
+  }
+  ul, ol { padding-left: 1.2em; margin: 0 0 1.1em; }
+  ul { list-style: disc; }
+  ol { list-style: decimal; }
+  li { padding-left: 0; margin-bottom: .3em; }
+  li::before { content: none; }
+  li::marker { color: var(--text-3); }
+  li p { margin: 0 0 .3em; }
+  li > ul, li > ol { margin: .3em 0 0; }
+  code { font: .8em var(--font-mono); background: var(--well, var(--fill-2)); padding: 2px 6px; border-radius: var(--r-xs); }
+  pre {
+    margin: 1.1em 0; padding: 16px 18px; overflow-x: auto; max-width: 100%;
+    background: var(--markdown-code-bg); color: #e6e3dc;
+    border-radius: var(--r-sm); font: 14px/1.7 var(--font-mono); box-shadow: none;
+    --hl-comment: #aaa49b; --hl-keyword: #ff7b93; --hl-string: #8fd18a; --hl-number: #ffc861;
+    --hl-title: #7cb7ff; --hl-attr: #c3a6ff; --hl-built: #7fdbff; --hl-punct: #e6e3dc;
+    code { font: inherit; background: none; padding: 0; color: inherit; border-radius: 0; }
+  }
+  .tableWrapper { overflow-x: auto; margin: 1.2em 0; }
+  table { border-collapse: collapse; width: 100%; table-layout: fixed; margin: 1.2em 0; font: inherit; }
+  .tableWrapper table { margin: 0; }
+  th, td {
+    border: 1px solid var(--line-2, var(--border)); padding: 8px 12px; vertical-align: top;
+    position: relative; text-align: left; min-width: 60px; overflow-wrap: anywhere;
+    white-space: normal; box-shadow: none; letter-spacing: normal;
+    > p { margin: 0; }
+  }
+  th { background: var(--well, var(--surface-2)); font-weight: 600; color: var(--text); }
+  img { max-width: 100%; height: auto; border-radius: var(--r-sm); margin: .6em 0; }
+  hr { height: 0; border: 0; border-top: 1px solid var(--line-2); background: none; margin: 2em 0; }
+  ul[data-type='taskList'], ul.contains-task-list { list-style: none; padding-left: 2px; }
+  li.task-list-item { list-style: none; padding-left: 0; }
+  ul[data-type='taskList'] li { display: flex; gap: 10px; align-items: flex-start; }
+  ul[data-type='taskList'] li > label { flex: none; height: 1lh; display: flex; align-items: center; margin: 0; user-select: none; }
+  ul[data-type='taskList'] li > div { flex: 1; min-width: 0; }
+  ul[data-type='taskList'] li > div > p { margin: 0; }
+  ul[data-type='taskList'] li[data-checked='true'] > div { color: var(--text-2); text-decoration: line-through; }
+  input[type='checkbox'] {
+    appearance: none; width: 17px; height: 17px; margin: 0; display: inline-grid; place-items: center;
+    vertical-align: middle; border: 0; border-radius: var(--r-xs); background: var(--paper, var(--surface));
+    box-shadow: 0 0 0 1.5px var(--line-3, var(--border)) inset;
+    &::after { content: ''; width: 4px; height: 8px; margin-top: -2px; border: solid var(--on-solid, #fff); border-width: 0 2px 2px 0; transform: rotate(45deg) scale(0); }
+    &:checked { background: var(--solid); box-shadow: 0 0 0 1.5px var(--solid) inset; }
+    &:checked::after { transform: rotate(45deg) scale(1); }
+  }
+  .task-list-item > input { margin-right: 10px; }
+  .footnote-ref, .editor-footnote-ref { font: .72em var(--font-mono); line-height: 0; vertical-align: super; }
+  .footnote-ref a { text-decoration: none; padding: 0 2px; }
+  [data-footnote-link], .footnote-item { scroll-margin: 100px 0 120px; }
+  .footnote-item:target, [data-footnote-link]:target { background: var(--tint); border-radius: var(--r-xs); }
+  .footnotes, .editor-footnotes { margin-top: 2.4em; padding-top: 1.2em; border-top: 1px solid var(--line-2); font-size: 15px; line-height: 1.8; }
+  .footnotes-title { font: 600 16px var(--font-serif); margin-bottom: 1em; color: var(--text-2); }
+  .footnotes-list, .editor-footnotes > ol { margin: 0; padding-left: 1.6em; }
+  .footnote-item, .editor-footnote-item { margin: 0 0 .8em; }
+  .footnote-content > :last-child, .editor-footnote-body > :last-child { margin-bottom: 0; }
+  .footnote-backref { font-family: var(--font-sans); padding: 0 4px; white-space: nowrap; }
+  .editor-footnote-label { display: block; font: 12px/1.6 var(--font-mono); color: var(--text-3); }
+  @media (max-width: 767px) {
+    font-size: 16px;
+    blockquote { font-size: 20px; }
+    pre { font-size: 13px; }
+    th, td { padding: 6px 8px; }
+  }
+}
+.markdown-content { @include content; }
+// Summary fields are plain text; preserve their deliberate line breaks everywhere.
+// Overrides legacy single-line card rules; author-provided breaks remain visible.
+:root .post-excerpt { white-space: pre-line !important; -webkit-line-clamp: unset !important; overflow-wrap: anywhere; }

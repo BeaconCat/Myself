@@ -201,7 +201,7 @@ function open(p: Post): void {
             <div class="fc"><CoverArt :src="r.post.covers[0]" :seed="r.post.slug" /></div>
             <div class="meta"><em>{{ r.post.tags[0] }}</em> · {{ md(r.post.createdAt) }}</div>
             <h3>{{ r.post.title }}</h3>
-            <p>{{ r.post.excerpt }}</p>
+            <p class="post-excerpt">{{ r.post.excerpt }}</p>
           </button>
           <button
             v-else-if="r.post"
@@ -212,7 +212,7 @@ function open(p: Post): void {
             <div class="rt">
               <div class="meta"><em>{{ r.post.tags[0] }}</em> · {{ md(r.post.createdAt) }}</div>
               <b>{{ r.post.title }}</b>
-              <span class="ex">{{ r.post.excerpt }}</span>
+              <span class="post-excerpt ex">{{ r.post.excerpt }}</span>
             </div>
             <div class="thumb"><CoverArt :src="r.post.covers[0]" :seed="r.post.slug" thumb /></div>
           </button>

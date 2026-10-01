@@ -10,6 +10,7 @@ import { adminApi, api, thumbOf, type Note } from '../../api';
 import { useConfigStore } from '../../stores/config';
 import { useDialogStore } from '../../stores/dialog';
 import MaSheet from './MaSheet.vue';
+import MarkdownEditor from '../admin/MarkdownEditor.vue';
 import MaIcon from './MaIcon.vue';
 import MaRing from './MaRing.vue';
 import MaSwitch from './MaSwitch.vue';
@@ -26,7 +27,6 @@ const SOFT_LIMIT = 500;
 const MOODS = ['record', 'idea', 'joy', 'calm', 'tired'] as const;
 
 const sheet = ref<InstanceType<typeof MaSheet> | null>(null);
-const textEl = ref<HTMLTextAreaElement | null>(null);
 
 const content = ref('');
 const mood = ref('');
@@ -85,7 +85,6 @@ watch(
         pinned.value = n.pinned;
         snapshot = state();
         await nextTick();
-        autosize();
       }
     } finally {
       loading.value = false;
@@ -105,30 +104,8 @@ async function beforeClose(): Promise<boolean> {
   });
 }
 
-function autosize(): void {
-  const el = textEl.value;
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = `${Math.max(104, el.scrollHeight)}px`;
-}
-
 function onFocus(): void {
   if (window.matchMedia('(pointer: coarse)').matches) sheet.value?.expand();
-}
-
-function insertAtCursor(before: string, after = ''): void {
-  const el = textEl.value;
-  if (!el) return;
-  const s = el.selectionStart ?? content.value.length;
-  const e = el.selectionEnd ?? s;
-  const sel = content.value.slice(s, e);
-  content.value = content.value.slice(0, s) + before + sel + after + content.value.slice(e);
-  void nextTick(() => {
-    el.focus();
-    const pos = s + before.length + sel.length;
-    el.setSelectionRange(pos, pos);
-    autosize();
-  });
 }
 
 async function onFiles(e: Event): Promise<void> {
@@ -227,14 +204,7 @@ async function publish(): Promise<void> {
         <span class="cp-vis"><MaIcon name="globe" :size="12" />{{ t('mobileAdmin.note.public') }}</span>
       </div>
 
-      <textarea
-        ref="textEl"
-        v-model="content"
-        :placeholder="t('mobileAdmin.note.placeholder')"
-        rows="4"
-        @input="autosize"
-        @focus="onFocus"
-      />
+      <MarkdownEditor v-model="content" :placeholder="t('mobileAdmin.note.placeholder')" @focusin="onFocus" />
 
       <div class="cp-media">
         <div v-for="(img, i) in images" :key="img" class="t">
@@ -262,8 +232,6 @@ async function publish(): Promise<void> {
           <MaIcon name="camera" :size="19" />
           <input type="file" accept="image/*" capture="environment" hidden @change="onFiles" />
         </label>
-        <button class="tool tap" :aria-label="t('mobileAdmin.md.tag')" @click="insertAtCursor(' #')"><MaIcon name="hash" :size="19" /></button>
-        <button class="tool tap" :aria-label="t('mobileAdmin.md.bold')" @click="insertAtCursor('**', '**')"><MaIcon name="bold" :size="19" /></button>
         <span class="cp-count" :class="{ over: count > SOFT_LIMIT }">
           <span>{{ count }}/{{ SOFT_LIMIT }}</span>
           <svg viewBox="0 0 22 22"><circle class="bg" cx="11" cy="11" r="8" /><circle class="fg" cx="11" cy="11" r="8" :style="{ strokeDashoffset: 50.27 * (1 - Math.min(1, count / SOFT_LIMIT)) }" /></svg>
@@ -343,20 +311,7 @@ async function publish(): Promise<void> {
   font-size: 12px;
 }
 
-textarea {
-  display: block;
-  width: 100%;
-  min-height: 104px;
-  margin-top: 12px;
-  resize: none;
-  font-size: 17px;
-  line-height: 1.7;
-  color: var(--text);
-  caret-color: var(--ink);
-  overflow: hidden;
-
-  &::placeholder { color: var(--text-3); }
-}
+.cp-body > .markdown-editor { margin: 12px 0; }
 
 .cp-media {
   display: grid;

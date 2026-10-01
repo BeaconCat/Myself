@@ -1,4 +1,5 @@
 export default {
+  markdownEditor: { mode: '编辑模式', rich: '富文本', source: 'Markdown 源码', heading: '{n} 级标题', footnote: '插入脚注', footnoteText: '脚注说明' },
   nav: {
     home: '首页',
     articles: '文章',
@@ -260,6 +261,7 @@ export default {
     prevCover: '上一张',
     nextCover: '下一张',
   },
+  footnotes: { title: '脚注', reference: '脚注 {n}', back: '返回脚注 {n} 的第 {r} 处引用' },
   mobileAdmin: {
     about: {
       title: '关于页', modules: '模块', add: '添加模块', edit: '编辑模块', preview: '预览', hidePreview: '收起预览',
@@ -415,7 +417,7 @@ export default {
       customMoodHint: '一个词，比如「雨天」',
       pin: '置顶这条随想',
       markdown: 'Markdown',
-      markdownHint: '粗体、链接、代码均可',
+      markdownHint: '标题、列表、引用、表格、代码、脚注均可',
       published: '随想已发布',
       saved: '随想已更新',
       discardTitle: '放弃这条随想？',

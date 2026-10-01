@@ -35,7 +35,7 @@ function onCardClick(e: MouseEvent): void {
   void router.push(link.value);
 }
 
-const html = computed(() => renderMarkdown(props.note.contentMd));
+const html = computed(() => renderMarkdown(props.note.contentMd, `note-${props.note.id}`));
 const grid = computed(() => {
   const n = props.note.images.length;
   return n >= 5 ? 'n9' : `n${n}`;
@@ -74,7 +74,7 @@ function openAt(e: MouseEvent, i: number): void {
         <button v-if="note.mood" type="button" class="tag" @click="emit('mood', note.mood)">{{ note.mood }}</button>
       </header>
       <!-- eslint-disable-next-line vue/no-v-html -->
-      <div class="body" v-html="html" />
+      <div class="body markdown-content" v-html="html" />
 
       <div v-if="note.images.length" class="igrid" :class="grid">
         <button
@@ -187,52 +187,7 @@ function openAt(e: MouseEvent, i: number): void {
   &:focus-visible { outline: none; box-shadow: var(--focus); }
 }
 
-.body {
-  margin-top: 6px;
-  font-size: 15.5px;
-  line-height: 1.8;
-  color: var(--text);
-  overflow-wrap: anywhere;
-
-  :deep(p) { margin: 0 0 6px; }
-  :deep(p:last-child) { margin-bottom: 0; }
-  :deep(strong) { font-weight: 700; }
-
-  :deep(a) {
-    color: var(--ink);
-    text-decoration: underline;
-    text-decoration-color: color-mix(in oklab, var(--ink) 35%, transparent);
-    text-underline-offset: 3px;
-
-    &:hover { text-decoration-color: currentColor; }
-  }
-
-  :deep(code:not(pre code)) {
-    padding: 1px 5px;
-    border-radius: var(--r-xs);
-    background: var(--fill-2);
-    font-family: var(--font-mono);
-    font-size: 0.85em;
-  }
-
-  :deep(pre) {
-    margin: 8px 0;
-    padding: 14px 16px;
-    overflow-x: auto;
-    border-radius: var(--r-sm);
-    background: var(--hl-bg);
-    box-shadow: inset 0 0 0 0.5px var(--line);
-    font-size: 12.5px;
-  }
-
-  :deep(ul), :deep(ol) { margin: 4px 0 6px; padding-left: 1.4em; }
-  :deep(blockquote) {
-    margin: 6px 0;
-    padding-left: 14px;
-    background: linear-gradient(var(--line-2), var(--line-2)) left / 2px 100% no-repeat;
-    color: var(--text-2);
-  }
-}
+.body { margin-top: 8px; user-select: text; }
 
 /* ---------- 配图宫格 ---------- */
 .igrid {

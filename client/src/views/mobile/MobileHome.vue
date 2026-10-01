@@ -141,7 +141,7 @@ const carouselPaused = computed(() => shell.dp > 0.1 || shell.pushed || shell.ta
               <div class="rt">
                 <div class="meta"><em>{{ p.tags[0] }}</em> · {{ md(p.createdAt) }}</div>
                 <b>{{ p.title }}</b>
-                <span class="ex">{{ p.excerpt }}</span>
+                <span class="post-excerpt ex">{{ p.excerpt }}</span>
               </div>
               <div class="thumb"><CoverArt :src="p.covers[0]" :seed="p.slug" thumb /></div>
             </button>

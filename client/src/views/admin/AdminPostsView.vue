@@ -262,7 +262,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         </LightCover>
         <div class="bd">
           <h3>{{ p.title || t('studio.untitled') }}</h3>
-          <p>{{ p.excerpt || t('studio.posts.noExcerpt') }}</p>
+          <p class="post-excerpt">{{ p.excerpt || t('studio.posts.noExcerpt') }}</p>
           <div class="meta">
             <span class="st-badge" :class="`st-${p.status}`"><i class="st-dot" />{{ t(`studio.status.${p.status}`) }}</span>
             <span v-if="p.hidden" class="hid-tag" :title="t('studio.batch.hiddenHint')"><SIcon name="eyeOff" :size="14" />{{ t('studio.batch.hidden') }}</span>
