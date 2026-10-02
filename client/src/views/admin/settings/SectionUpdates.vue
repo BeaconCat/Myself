@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { adminApi, type UpdateStatus, type UpdateRelease, type UpdateReleasePage, type UpdatePreferences } from '../../../api';
+import { adminApi, type UpdateStatus, type UpdateRelease, type UpdateReleasePage, type UpdatePreferences, type UpdateHistoryEntry, type UpdateHistoryPage } from '../../../api';
+import { render } from '../../../utils/markdown';
 import { useDialogStore } from '../../../stores/dialog';
 import SIcon from '../studio/SIcon.vue';
 import StSwitch from '../studio/StSwitch.vue';
@@ -11,7 +12,10 @@ const { t, te } = useI18n();
 const dialog = useDialogStore();
 const status = ref<UpdateStatus | null>(null);
 const catalogue = ref<UpdateReleasePage | null>(null);
-const preferences = reactive<UpdatePreferences>({ repository: '', autoUpdate: false, subscribe: false, email: '' });
+const preferences = reactive<UpdatePreferences>({ repository: '', autoUpdate: false, subscribe: false, email: '', historyLimit: 3 });
+const localHistory = ref<UpdateHistoryPage | null>(null);
+const historyPage = ref(1), historyBusy = ref(false), historyError = ref('');
+const notesHTML = computed(() => new Map(catalogue.value?.items.map(release => [release.id, render(release.notes, `release-${release.id}`)]) ?? []));
 const saved = ref('');
 const token = ref(''), clearToken = ref(false);
 const changed = computed(() => (!!saved.value && saved.value !== JSON.stringify(preferences)) || !!token.value.trim() || clearToken.value);
@@ -20,7 +24,7 @@ const error = ref(''), listError = ref('');
 const page = ref(1);
 let timer = 0, disposed = false;
 const active = computed(() => ['downloading','verifying','backing_up','restarting','rolling_back'].includes(status.value?.phase ?? ''));
-const disabled = computed(() => busy.value || listBusy.value || active.value || !!status.value?.busy);
+const disabled = computed(() => busy.value || listBusy.value || historyBusy.value || active.value || !!status.value?.busy);
 const percent = computed(() => status.value?.total ? Math.min(100, Math.round(status.value.downloaded / status.value.total * 100)) : 0);
 const buildName = computed(() => ['Myself', status.value?.current.codename, status.value?.current.version].filter(Boolean).join(' '));
 const repoURL = computed(() => status.value?.repository ? `https://github.com/${status.value.repository}/releases` : '');
@@ -41,7 +45,11 @@ function accept(next: UpdateStatus, force = false): void {
 }
 async function load(): Promise<void> {
   window.clearTimeout(timer);
-  try { accept(await adminApi.systemStatus()); reconnecting.value = false; error.value = ''; }
+  try {
+    const wasActive = active.value || reconnecting.value;
+    accept(await adminApi.systemStatus()); reconnecting.value = false; error.value = '';
+    if (wasActive && !active.value) await history(1);
+  }
   catch (e) { if (active.value) reconnecting.value = true; else error.value = explain((e as Error).message); }
   finally { if (!disposed && (active.value || reconnecting.value || status.value?.busy)) timer = window.setTimeout(() => void load(), 2000); }
 }
@@ -51,6 +59,21 @@ async function releases(next = 1): Promise<void> {
   try { catalogue.value = await adminApi.updateReleases(next); page.value = next; }
   catch (e) { listError.value = explain((e as Error).message); }
   finally { listBusy.value = false; }
+}
+async function history(next = 1): Promise<void> {
+  if (historyBusy.value || active.value || !status.value) return;
+  historyBusy.value = true; historyError.value = '';
+  try { localHistory.value = await adminApi.updateHistory(next); historyPage.value = next; }
+  catch (e) { historyError.value = explain((e as Error).message); }
+  finally { historyBusy.value = false; }
+}
+async function restore(entry: UpdateHistoryEntry): Promise<void> {
+  if (props.dirty || changed.value || disabled.value || !entry.installable || status.value?.reason) return;
+  if (!await dialog.confirm({ title: t('studio.updates.rollbackTitle', { version: entry.build.version }), message: t('studio.updates.rollbackBody'), confirmText: t('studio.updates.rollback'), danger: true })) return;
+  busy.value = true; error.value = '';
+  try { accept(await adminApi.restoreUpdateHistory(entry.id), true); await load(); }
+  catch (e) { error.value = explain((e as Error).message); }
+  finally { busy.value = false; }
 }
 async function save(): Promise<void> {
   if (disabled.value) return;
@@ -66,7 +89,7 @@ async function save(): Promise<void> {
   }
   catch (e) { error.value = explain((e as Error).message); }
   finally { busy.value = false; }
-  if (!error.value) await releases();
+  if (!error.value) { await releases(); await history(); }
 }
 async function check(): Promise<void> {
   busy.value = true; error.value = '';
@@ -85,7 +108,7 @@ async function install(release: UpdateRelease): Promise<void> {
   finally { busy.value = false; }
 }
 function refresh(): void { window.location.reload(); }
-onMounted(async () => { await load(); if (status.value && !active.value) await releases(); });
+onMounted(async () => { await load(); if (status.value && !active.value) { await releases(); await history(); } });
 onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
 </script>
 
@@ -98,13 +121,17 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
         <div><dt>{{ t('studio.updates.platform') }}</dt><dd>{{ status.current.os }} / {{ status.current.arch }}</dd></div>
         <div><dt>{{ t('studio.updates.database') }}</dt><dd>{{ status.databaseDriver === 'mysql' ? 'MySQL' : 'SQLite' }}</dd></div>
       </dl>
+      <p class="description">{{ t('studio.updates.platformHint', { os: status.current.os, arch: status.current.arch }) }}</p>
       <form v-if="status.preferences" class="preferences" @submit.prevent="save">
         <label><span class="st-flabel">{{ t('studio.updates.repository') }}</span><span class="st-field"><input v-model.trim="preferences.repository" placeholder="owner/repository" required :disabled="disabled" /></span></label>
         <p class="description">{{ t('studio.updates.repositoryHint') }}</p>
         <label><span class="st-flabel">{{ t('studio.updates.token') }}</span><span class="st-field"><input v-model="token" type="password" autocomplete="new-password" spellcheck="false" maxlength="4096" :aria-label="t('studio.updates.token')" :placeholder="t(status.tokenConfigured ? 'studio.updates.tokenKeep' : 'studio.updates.tokenEmpty')" :disabled="disabled || clearToken" /></span></label>
         <p class="description">{{ t('studio.updates.tokenHint') }}</p>
         <div class="token-state"><span class="description">{{ t(clearToken ? 'studio.updates.tokenClearing' : `studio.updates.tokenSources.${status.tokenSource || 'none'}`) }}</span><button v-if="status.tokenSource === 'settings'" type="button" class="st-btn" :disabled="disabled" @click="clearToken = !clearToken; token = ''">{{ t(clearToken ? 'studio.updates.tokenUndo' : 'studio.updates.tokenClear') }}</button></div>
-        <div class="option"><div><b>{{ t('studio.updates.automatic') }}</b><p>{{ t('studio.updates.automaticHint') }}</p></div><StSwitch v-model="preferences.autoUpdate" :label="t('studio.updates.automatic')" :disabled="disabled || (!!status.reason && !preferences.autoUpdate)" /></div>
+        <div class="option"><div><b>{{ t('studio.updates.automatic') }}</b><p>{{ t('studio.updates.automaticHint') }}</p></div><StSwitch v-model="preferences.autoUpdate" :label="t('studio.updates.automatic')" :disabled="disabled || (!!status.automaticReason && !preferences.autoUpdate)" /></div>
+        <p v-if="status.automaticReason && !status.reason" class="note">{{ explain(status.automaticReason) }}</p>
+        <label><span class="st-flabel">{{ t('studio.updates.historyLimit') }}</span><select v-model.number="preferences.historyLimit" class="st-select" :disabled="disabled"><option v-for="count in [1, 3, 5, 10, 20]" :key="count" :value="count">{{ t('studio.updates.keepCount', { count }) }}</option></select></label>
+        <p class="description">{{ t('studio.updates.historyHint') }}</p>
         <div class="option"><div><b>{{ t('studio.updates.subscribe') }}</b><p>{{ t('studio.updates.subscribeHint') }}</p></div><StSwitch v-model="preferences.subscribe" :label="t('studio.updates.subscribe')" :disabled="disabled || (!status.smtpReady && !preferences.subscribe)" /></div>
         <p v-if="!status.smtpReady" class="note">{{ t('studio.updates.smtpRequired') }} <a href="#set-mail">{{ t('studio.updates.configureSMTP') }}</a></p>
         <label v-if="status.smtpReady || preferences.subscribe"><span class="st-flabel">{{ t('studio.updates.recipient') }}</span><span class="st-field"><input v-model.trim="preferences.email" type="email" :required="preferences.subscribe" :disabled="disabled" autocomplete="email" /></span></label>
@@ -119,6 +146,7 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
       <p v-if="status.notification" class="note">{{ t('studio.updates.notificationResult', { version: status.notification.version, state: t(`studio.updates.notification.${status.notification.status}`), email: status.notification.email }) }}<span v-if="status.notification.error"> · {{ status.notification.error }}</span></p>
       <div v-if="status.available" class="release highlight"><div><b>{{ status.available.name }}</b><span>{{ status.available.version }} · {{ (status.available.size / 1048576).toFixed(1) }} MB</span></div><button v-if="status.canApply" class="st-btn p" :disabled="disabled || dirty || changed" @click="install(status.available)">{{ t('studio.updates.installVersion', { version: status.available.version }) }}</button><p v-else-if="status.available.reason" class="note">{{ explain(status.available.reason) }}</p></div>
       <p v-if="status.error" class="error" role="alert">{{ explain(status.error) }}</p>
+      <p v-if="status.historyError" class="error" role="alert">{{ explain(status.historyError) }}</p>
     </template>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <div class="actions"><button class="st-btn" :disabled="disabled || changed" @click="check"><SIcon name="refresh" :size="16" />{{ busy && !active ? t('studio.updates.checking') : t('studio.updates.check') }}</button><button v-if="status?.phase === 'installed' || status?.phase === 'rolled_back'" class="st-btn p" @click="refresh">{{ t('studio.updates.refresh') }}</button></div>
@@ -132,10 +160,25 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
           <div class="release-top"><div><b>{{ release.name }}</b><p class="description">{{ release.version || t('studio.updates.unknownVersion') }}<template v-if="release.codename"> · {{ release.codename }}</template><template v-if="release.publishedAt"> · {{ new Date(release.publishedAt).toLocaleDateString() }}</template></p></div><button class="st-btn" :disabled="disabled || dirty || changed || !!status.reason || !release.installable" @click="install(release)">{{ t(`studio.updates.select.${release.relation || 'newer'}`) }}</button></div>
           <p v-if="release.reason" class="note">{{ explain(release.reason) }}</p>
           <a :href="release.url" target="_blank" rel="noopener noreferrer">{{ t('studio.updates.releaseNotes') }}</a>
-          <details v-if="release.notes"><summary>{{ t('studio.updates.changes') }}</summary><pre>{{ release.notes }}</pre></details>
+          <details v-if="release.notes"><summary>{{ t('studio.updates.changes') }}</summary><div class="markdown-content release-notes" v-html="notesHTML.get(release.id)" /></details>
         </article>
       </div>
       <div v-if="catalogue && (page > 1 || catalogue.hasNext)" class="pagination"><button class="st-btn" :disabled="disabled || page === 1" @click="releases(page - 1)">{{ t('studio.updates.previous') }}</button><span>{{ t('studio.updates.page', { page }) }}</span><button class="st-btn" :disabled="disabled || !catalogue.hasNext" @click="releases(page + 1)">{{ t('studio.updates.next') }}</button></div>
+    </section>
+    <section v-if="status" class="history">
+      <div class="history-heading"><h3>{{ t('studio.updates.localHistory') }}</h3><button class="st-btn" :disabled="disabled" @click="history(historyPage)">{{ t('studio.updates.refreshHistory') }}</button></div>
+      <p class="description">{{ t('studio.updates.localHistoryHint') }}</p>
+      <p v-if="historyBusy" class="description" role="status">{{ t('studio.updates.loadingVersions') }}</p>
+      <p v-else-if="historyError" class="error" role="alert">{{ historyError }}</p>
+      <p v-else-if="localHistory && !localHistory.items.length" class="description">{{ t('studio.updates.noHistory') }}</p>
+      <div v-else-if="localHistory" class="version-list">
+        <article v-for="entry in localHistory.items" :key="entry.id" class="release">
+          <div class="release-top"><div><b>Myself {{ entry.build.codename }} {{ entry.build.version }}</b><p class="description">{{ new Date(entry.createdAt).toLocaleString() }} · {{ entry.build.os }} / {{ entry.build.arch }} · {{ (entry.size / 1048576).toFixed(1) }} MB</p></div><button class="st-btn" :disabled="disabled || dirty || changed || !!status.reason || !entry.installable" @click="restore(entry)">{{ t('studio.updates.restoreLocal') }}</button></div>
+          <p class="description"><code>{{ entry.build.commit.slice(0, 12) }}</code> · <code>program.bak</code></p>
+          <p v-if="entry.reason" class="note">{{ explain(entry.reason) }}</p>
+        </article>
+      </div>
+      <div v-if="localHistory && (historyPage > 1 || localHistory.hasNext)" class="pagination"><button class="st-btn" :disabled="disabled || historyPage === 1" @click="history(historyPage - 1)">{{ t('studio.updates.previous') }}</button><span>{{ t('studio.updates.pageTotal', { page: historyPage, total: Math.max(1, Math.ceil(localHistory.total / localHistory.pageSize)) }) }}</span><button class="st-btn" :disabled="disabled || !localHistory.hasNext" @click="history(historyPage + 1)">{{ t('studio.updates.next') }}</button></div>
     </section>
   </div>
 </template>
@@ -148,6 +191,8 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
 dt { font-size: 12px; color: var(--st-ink-3); } dd { margin: 0; font-family: var(--font-mono); font-size: 17px; overflow-wrap: anywhere; }
 .preferences { display: grid; gap: 12px; border-block: 1px solid var(--line); padding: 18px 0; }
 .preferences label { display: grid; gap: 6px; min-width: 0; }.preferences input { min-width: 0; width: 100%; }.preferences > button { justify-self: start; }
+.preferences select { max-width: 180px; padding: 8px 12px; color: var(--st-ink); background: var(--surface-2); border: 1px solid var(--line-2); border-radius: var(--r-md); }
+.release-notes { max-height: 480px; overflow: auto; padding-top: 12px; font-size: 14px; overflow-wrap: anywhere; }.release-notes :deep(pre) { max-width: 100%; overflow: auto; }.release-notes :deep(table) { display: block; max-width: 100%; overflow: auto; }.release-notes :deep(img) { max-width: 100%; }
 .token-state { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .option { display: flex; justify-content: space-between; align-items: center; gap: 18px; }.option b { font-size: 14px; }
 .status,.actions,.pagination,.history-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }.status span { color: var(--st-ink-3); font-size: 12px; }

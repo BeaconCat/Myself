@@ -86,7 +86,7 @@ func (s *Server) runUpdateCycle(ctx context.Context, now time.Time, check func(c
 			}
 		}
 	}
-	if p.AutoUpdate && status.CanApply {
+	if p.AutoUpdate && status.CanApply && status.AutomaticReason == "" {
 		return s.Updates.Start(r.Version)
 	}
 	return nil

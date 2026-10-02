@@ -248,7 +248,9 @@ export interface DatabaseConfig {
   mysql?: { host: string; port: number; name: string; user: string; password: string; tls: 'true' | 'false' };
 }
 
-export interface UpdatePreferences { repository: string; autoUpdate: boolean; subscribe: boolean; email: string }
+export interface UpdatePreferences { repository: string; autoUpdate: boolean; subscribe: boolean; email: string; historyLimit: number }
+export interface UpdateHistoryEntry { id: string; build: UpdateStatus['current']; createdAt: string; size: number; sha256: string; installable: boolean; reason?: string }
+export interface UpdateHistoryPage { items: UpdateHistoryEntry[]; page: number; pageSize: number; total: number; hasNext: boolean }
 export interface UpdateRelease {
   id: number; tag: string; version: string; codename?: string; name: string; notes: string; url: string; publishedAt: string; size: number;
   prerelease: boolean; installable: boolean; reason?: string; relation?: 'older' | 'current' | 'newer';
@@ -272,6 +274,8 @@ export interface UpdateStatus {
   notification?: { repository: string; version: string; email: string; status: string; at: string; error?: string };
   canApply: boolean;
   reason?: string;
+  automaticReason?: string;
+  historyError?: string;
   downloaded: number;
   total: number;
   error?: string;
@@ -284,6 +288,8 @@ export const adminApi = {
   checkUpdate: () => authed<UpdateStatus>('/admin/system/check-update', { method: 'POST' }),
   applyUpdate: (version: string) => authed<UpdateStatus>('/admin/system/update', { method: 'POST', body: JSON.stringify({ version }) }),
   updateReleases: (page = 1) => authed<UpdateReleasePage>(`/admin/system/releases?page=${page}&pageSize=10`),
+  updateHistory: (page = 1) => authed<UpdateHistoryPage>(`/admin/system/history?page=${page}&pageSize=5`),
+  restoreUpdateHistory: (id: string) => authed<UpdateStatus>(`/admin/system/history/${encodeURIComponent(id)}/restore`, { method: 'POST' }),
   saveUpdatePreferences: (preferences: UpdatePreferences & { token?: string }) => authed<UpdateStatus>('/admin/system/preferences', { method: 'PUT', body: JSON.stringify(preferences) }),
   selectUpdateRelease: (repository: string, releaseId: number) => authed<UpdateStatus>('/admin/system/update', { method: 'POST', body: JSON.stringify({ repository, releaseId }) }),
   /** 登录：成功后服务端写入会话 Cookie；mustChange = 仍在用历史默认口令，需先改密 */

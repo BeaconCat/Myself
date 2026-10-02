@@ -45,7 +45,7 @@ def exercise(old_binary, new_binary, should_rollback):
         def call(method, endpoint, data=None, headers=None):
             body = json.dumps(data).encode() if data is not None else None
             request = urllib.request.Request(base + endpoint, data=body, method=method, headers={"Origin": base, "X-Requested-With": "myself", "Content-Type": "application/json", **(headers or {})})
-            with opener.open(request, timeout=3) as response:
+            with opener.open(request, timeout=3 if method == "GET" else 30) as response:
                 return json.load(response)
 
         log_path = root / "test-server.log"
@@ -114,6 +114,45 @@ def exercise(old_binary, new_binary, should_rollback):
                 if os.name != "nt":
                     assert installed_pid == helper_process.pid, "Unix update lost the service PID"
                 print(json.dumps({"case": expected_phase, "version": expected_meta["version"], "database": "preserved", "uploads": "preserved"}), flush=True)
+                if not should_rollback:
+                    history = call("GET", "/api/v1/admin/system/history?page=1&pageSize=5")
+                    assert history["total"] == 1, history
+                    entry = history["items"][0]
+                    assert entry["build"] == old_meta and entry["installable"], entry
+                    bak = updates / "history" / entry["id"] / "program.bak"
+                    with bak.open("rb") as file:
+                        assert hashlib.file_digest(file, "sha256").hexdigest() == entry["sha256"]
+                    # Local rollback must keep content written after the first update.
+                    call("POST", "/api/v1/admin/posts", {"slug": "after-update", "title": "After", "contentMd": "Keep latest content", "status": "published"})
+                    proof.write_text("latest content", encoding="utf-8")
+                    prefs = status["preferences"]
+                    prefs["historyLimit"] = 1
+                    call("PUT", "/api/v1/admin/system/preferences", prefs)
+                    call("POST", f'/api/v1/admin/system/history/{entry["id"]}/restore')
+                    for _ in range(1200):
+                        try:
+                            restore_plan = json.loads(plan_file.read_text(encoding="utf-8"))
+                            restored = call("GET", "/api/v1/admin/system")
+                            if restore_plan["nonce"] != nonce and restored["phase"] == "installed" and restored["current"] == old_meta:
+                                restored_health = call("GET", "/api/v1/system/health", headers={"X-Myself-Update-Probe": restore_plan["nonce"]})
+                                installed_pid = restored_health.get("pid", installed_pid)
+                                break
+                            if restored["phase"] == "failed":
+                                raise RuntimeError(str(restored))
+                        except (OSError, json.JSONDecodeError):
+                            pass
+                        time.sleep(.1)
+                    else:
+                        raise RuntimeError("local rollback timed out\n" + log_path.read_text(encoding="utf-8"))
+                    assert call("GET", "/api/v1/posts/after-update")["contentMd"] == "Keep latest content"
+                    assert proof.read_text(encoding="utf-8") == "latest content"
+                    retained = call("GET", "/api/v1/admin/system/history")
+                    assert retained["total"] == 1 and retained["items"][0]["build"] == new_meta, retained
+                    assert not restored["preferences"]["autoUpdate"]
+                    assert len(list((root / "backups").glob("*.zip"))) >= 2
+                    if os.name != "nt":
+                        assert installed_pid == helper_process.pid, "Unix local rollback lost the service PID"
+                    print(json.dumps({"case": "local_history_rollback", "version": old_meta["version"], "retained": 1, "latest_data": "preserved"}), flush=True)
             finally:
                 if installed_pid:
                     try:

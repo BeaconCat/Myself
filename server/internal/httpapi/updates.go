@@ -97,6 +97,36 @@ func (s *Server) listReleases(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, page)
 }
 
+func (s *Server) updateHistory(w http.ResponseWriter, r *http.Request) {
+	if s.Updates == nil {
+		writeError(w, http.StatusServiceUnavailable, "updates_unavailable")
+		return
+	}
+	page, err := s.Updates.History(queryInt(r, "page", 1, 1, 100000), queryInt(r, "pageSize", 10, 1, 20))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
+}
+
+func (s *Server) restoreUpdateHistory(w http.ResponseWriter, r *http.Request) {
+	if s.Updates == nil {
+		writeError(w, http.StatusServiceUnavailable, "updates_unavailable")
+		return
+	}
+	if !s.updateMu.TryLock() {
+		writeError(w, http.StatusConflict, "update_in_progress")
+		return
+	}
+	defer s.updateMu.Unlock()
+	if err := s.Updates.StartHistory(r.PathValue("id")); err != nil {
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	s.writeSystemStatus(w, r, http.StatusAccepted)
+}
+
 func (s *Server) updatePreferences(w http.ResponseWriter, r *http.Request) {
 	if s.Updates == nil {
 		writeError(w, http.StatusServiceUnavailable, "updates_unavailable")

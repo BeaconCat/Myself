@@ -160,6 +160,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+p+"/admin/system", admin(s.systemStatus))
 	mux.HandleFunc("POST "+p+"/admin/system/check-update", admin(s.checkUpdate))
 	mux.HandleFunc("POST "+p+"/admin/system/update", admin(s.applyUpdate))
+	mux.HandleFunc("GET "+p+"/admin/system/history", admin(s.updateHistory))
+	mux.HandleFunc("POST "+p+"/admin/system/history/{id}/restore", admin(s.restoreUpdateHistory))
 	mux.HandleFunc("GET "+p+"/admin/system/releases", admin(s.listReleases))
 	mux.HandleFunc("PUT "+p+"/admin/system/preferences", admin(s.updatePreferences))
 

@@ -21,9 +21,9 @@ func TestSystemUpdatePermissionsAndMaintenance(t *testing.T) {
 	if status["databaseDriver"] != e.server.DB.Driver() {
 		t.Fatal(status)
 	}
-	for _, endpoint := range []string{"/api/v1/admin/system", "/api/v1/admin/system/check-update", "/api/v1/admin/system/update"} {
+	for _, endpoint := range []string{"/api/v1/admin/system", "/api/v1/admin/system/check-update", "/api/v1/admin/system/update", "/api/v1/admin/system/history", "/api/v1/admin/system/history/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/restore"} {
 		method := http.MethodPost
-		if endpoint == "/api/v1/admin/system" {
+		if endpoint == "/api/v1/admin/system" || endpoint == "/api/v1/admin/system/history" {
 			method = http.MethodGet
 		}
 		response := e.do(method, endpoint, nil, map[string]string{})
@@ -38,6 +38,17 @@ func TestSystemUpdatePermissionsAndMaintenance(t *testing.T) {
 	response.Body.Close()
 	if response.StatusCode != http.StatusForbidden {
 		t.Fatalf("reader system access: %d", response.StatusCode)
+	}
+	for _, endpoint := range []string{"/api/v1/admin/system/history", "/api/v1/admin/system/history/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/restore"} {
+		method := http.MethodGet
+		if endpoint != "/api/v1/admin/system/history" {
+			method = http.MethodPost
+		}
+		response := e.do(method, endpoint, nil, map[string]string{"Authorization": "Bearer " + reader})
+		response.Body.Close()
+		if response.StatusCode != http.StatusForbidden {
+			t.Fatalf("reader history access: %d", response.StatusCode)
+		}
 	}
 	backup, err := e.server.PrepareUpdate()
 	if err != nil {

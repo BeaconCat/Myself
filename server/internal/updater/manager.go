@@ -46,6 +46,8 @@ type Status struct {
 	CanApply        bool        `json:"canApply"`
 	Busy            bool        `json:"busy"`
 	Reason          string      `json:"reason,omitempty"`
+	AutomaticReason string      `json:"automaticReason,omitempty"`
+	HistoryError    string      `json:"historyError,omitempty"`
 	Downloaded      int64       `json:"downloaded"`
 	Total           int64       `json:"total"`
 	Error           string      `json:"error,omitempty"`
@@ -113,6 +115,9 @@ func New(opts Options) (*Manager, error) {
 			}
 		}
 	}
+	if m.prefs.HistoryLimit < 1 || m.prefs.HistoryLimit > 20 {
+		m.prefs.HistoryLimit = 3
+	}
 	m.loadCatalog()
 	if data, err := os.ReadFile(filepath.Join(dir, "status.json")); err == nil {
 		_ = json.Unmarshal(data, &m.state)
@@ -135,11 +140,29 @@ func New(opts Options) (*Manager, error) {
 }
 
 func (m *Manager) disabledReason() string {
-	if m.opts.Disabled {
-		return "disabled_by_operator"
+	if reason := m.installDisabledReason(); reason != "" {
+		return reason
 	}
 	if !versionRE.MatchString(m.opts.Build.Version) {
 		return "development_build"
+	}
+	return ""
+}
+
+func (m *Manager) installDisabledReason() string {
+	if m.opts.Disabled {
+		return "disabled_by_operator"
+	}
+	// go run places its program under go-build<nonce>/b<id>/exe/.
+	// Test executables also use go-build directories, without the exe parent.
+	if filepath.Base(filepath.Dir(m.executable)) == "exe" {
+		for _, part := range strings.FieldsFunc(m.executable, func(r rune) bool { return r == '/' || r == '\\' }) {
+			if strings.HasPrefix(part, "go-build") {
+				if _, err := strconv.ParseUint(strings.TrimPrefix(part, "go-build"), 10, 64); err == nil {
+					return "temporary_executable"
+				}
+			}
+		}
 	}
 	if m.opts.Prepare == nil || m.opts.Ready == nil {
 		return "not_configured"
@@ -163,7 +186,18 @@ func (m *Manager) Status() Status {
 	if s.Phase == "installed" || s.Phase == "rolled_back" {
 		if plan, err := ReadPlan(filepath.Join(m.stateDir, "plan.json")); err == nil && plan.Executable == m.executable {
 			_ = os.Remove(plan.Helper)
-			_ = os.Remove(plan.Previous)
+			if s.Phase == "installed" {
+				if _, err := os.Lstat(plan.Previous); err == nil {
+					if err := archivePrevious(plan); err != nil {
+						s.HistoryError = "history_archive_failed"
+					} else {
+						_ = os.Remove(plan.Previous)
+					}
+				}
+				if err := pruneHistory(m.stateDir, m.prefs.HistoryLimit, plan.Nonce); err != nil {
+					s.HistoryError = "history_cleanup_failed"
+				}
+			}
 		}
 	}
 	s.Current, s.Repository = m.opts.Build, m.opts.Repository
@@ -176,8 +210,9 @@ func (m *Manager) Status() Status {
 		s.TokenSource = "environment"
 	}
 	s.Busy = m.busy || activePhase(s.Phase)
-	s.Reason = m.disabledReason()
-	s.CanApply = s.Reason == "" && !m.busy && !activePhase(s.Phase) && s.Available != nil && s.Available.Installable && newer(s.Available.Version, s.Current.Version)
+	s.Reason, s.AutomaticReason = m.installDisabledReason(), m.disabledReason()
+	_, currentKnown := NumericVersion(s.Current.Version)
+	s.CanApply = s.Reason == "" && !m.busy && !activePhase(s.Phase) && s.Available != nil && s.Available.Installable && (!currentKnown || newer(s.Available.Version, s.Current.Version))
 	return s
 }
 
@@ -277,6 +312,10 @@ func (m *Manager) phase(phase string) error {
 }
 
 func (m *Manager) install(version string, id int64) {
+	m.installFrom(version, id, "")
+}
+
+func (m *Manager) installFrom(version string, id int64, historyID string) {
 	var installErr error
 	var staged, helper, lockPath string
 	prepared, dispatched := false, false
@@ -303,7 +342,13 @@ func (m *Manager) install(version string, id int64) {
 	}()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
-	release, err := m.selected(ctx, id)
+	var release *Release
+	var err error
+	if historyID == "" {
+		release, err = m.selected(ctx, id)
+	} else {
+		release, err = m.historyRelease(historyID)
+	}
 	if err != nil {
 		installErr = err
 		return
@@ -334,20 +379,29 @@ func (m *Manager) install(version string, id int64) {
 	if filepath.Ext(m.executable) == ".exe" {
 		staged += ".exe"
 	}
-	response, err := m.request(ctx, m.assetPath(release.assetID), true)
+	var source io.ReadCloser
+	if historyID == "" {
+		response, requestErr := m.request(ctx, m.assetPath(release.assetID), true)
+		err = requestErr
+		if err == nil {
+			source = response.Body
+		}
+	} else {
+		source, err = os.Open(filepath.Join(m.stateDir, "history", historyID, "program.bak"))
+	}
 	if err != nil {
 		installErr = err
 		return
 	}
 	out, err := os.OpenFile(staged, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0700)
 	if err != nil {
-		response.Body.Close()
+		source.Close()
 		installErr = err
 		return
 	}
 	hash := sha256.New()
-	n, copyErr := io.Copy(io.MultiWriter(out, hash, &progressWriter{m: m}), io.LimitReader(response.Body, release.Size+1))
-	response.Body.Close()
+	n, copyErr := io.Copy(io.MultiWriter(out, hash, &progressWriter{m: m}), io.LimitReader(source, release.Size+1))
+	source.Close()
 	syncErr := out.Sync()
 	closeErr := out.Close()
 	if copyErr != nil {
@@ -378,6 +432,9 @@ func (m *Manager) install(version string, id int64) {
 	var build Build
 	decodeErr := json.Unmarshal(metadata, &build)
 	versionOrder, versionValid := CompareVersions(build.Version, version)
+	if historyID != "" {
+		versionValid, versionOrder = build.Version == version, 0
+	}
 	if err != nil || decodeErr != nil || !versionValid || versionOrder != 0 || build.Commit != release.commit || build.OS != m.opts.Build.OS || build.Arch != m.opts.Build.Arch || build.UpdateProtocol != Protocol || (release.Codename != "" && build.Codename != release.Codename) {
 		installErr = errors.New("binary_verification_failed")
 		return

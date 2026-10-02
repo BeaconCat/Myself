@@ -9,7 +9,7 @@ import (
 // direction. A downgrade pauses unattended upgrades before accepting the job.
 func (m *Manager) StartSelected(ctx context.Context, repository string, id int64) error {
 	m.mu.Lock()
-	if reason := m.disabledReason(); reason != "" {
+	if reason := m.installDisabledReason(); reason != "" {
 		m.mu.Unlock()
 		return errors.New(reason)
 	}

@@ -165,6 +165,18 @@ func Apply(filename string) error {
 		err = awaitHealthy(p, cmd, p.Version, p.Commit)
 	}
 	if err == nil {
+		if err := archivePrevious(p); err != nil {
+			return rollback(filename, p, cmd, fmt.Errorf("history_archive_failed: %w", err))
+		}
+		// Retention also applies when the selected program predates history support.
+		limit := 3
+		var preferences storedPreferences
+		if data, err := os.ReadFile(filepath.Join(p.Root, ".updates", "preferences.json")); err == nil && json.Unmarshal(data, &preferences) == nil && preferences.HistoryLimit >= 1 && preferences.HistoryLimit <= 20 {
+			limit = preferences.HistoryLimit
+		}
+		if err := pruneHistory(filepath.Join(p.Root, ".updates"), limit, p.Nonce); err != nil {
+			fmt.Printf("History cleanup: %v\n", err)
+		}
 		if err := finishServer(p, cmd, "installed", ""); err != nil {
 			return rollback(filename, p, cmd, err)
 		}

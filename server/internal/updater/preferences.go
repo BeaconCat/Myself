@@ -14,11 +14,12 @@ import (
 const catalogueTimeout = 90 * time.Second
 
 type Preferences struct {
-	Repository  string `json:"repository"`
-	AutoUpdate  bool   `json:"autoUpdate"`
-	Subscribe   bool   `json:"subscribe"`
-	Email       string `json:"email"`
-	LastScanDay string `json:"-"`
+	Repository   string `json:"repository"`
+	AutoUpdate   bool   `json:"autoUpdate"`
+	Subscribe    bool   `json:"subscribe"`
+	Email        string `json:"email"`
+	HistoryLimit int    `json:"historyLimit"`
+	LastScanDay  string `json:"-"`
 }
 
 type storedPreferences struct {
@@ -77,6 +78,12 @@ func (m *Manager) ConfigureWithToken(p Preferences, day string, token *string) e
 	if m.busy || activePhase(m.state.Phase) {
 		return errors.New("update_in_progress")
 	}
+	if p.HistoryLimit == 0 {
+		p.HistoryLimit = m.prefs.HistoryLimit
+	}
+	if p.HistoryLimit < 1 || p.HistoryLimit > 20 {
+		return errors.New("invalid_history_limit")
+	}
 	if !strings.EqualFold(p.Repository, m.prefs.Repository) {
 		p.AutoUpdate = false
 	}
@@ -108,6 +115,9 @@ func (m *Manager) ConfigureWithToken(p Preferences, day string, token *string) e
 	}
 	m.prefs, m.opts.Repository = p, p.Repository
 	m.state.Repository = p.Repository
+	if err := pruneHistory(m.stateDir, p.HistoryLimit, ""); err != nil {
+		return err
+	}
 	return m.save()
 }
 
