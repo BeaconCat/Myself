@@ -103,7 +103,7 @@ Myself 是一个可自托管的个人博客引擎。用文章整理思考，用�
 - Linux / macOS：在解压目录执行 `./myself --config ./config.json`。
 - Windows：在解压目录打开 PowerShell，执行 `.\myself.exe --config .\config.json`。
 
-打开 **http://localhost:3100**，使用终端输出的初始化码创建站长账号。默认内置 SQLite，数据保存在部署目录下的 `runtime/`；需要 MySQL 时可在初始化向导中选择。更多配置见 [部署说明](deploy/README.md)。
+打开 **[http://localhost:3100](http://localhost:3100)**，使用终端输出的初始化码创建站长账号。默认内置 SQLite，数据保存在部署目录下的 `runtime/`；需要 MySQL 时可在初始化向导中选择。更多配置见 [部署说明](deploy/README.md)。
 
 ### 开发环境
 
@@ -122,7 +122,7 @@ pnpm -C client build
 pnpm dev
 ```
 
-打开 **http://localhost:5173**。后端默认位于 **http://localhost:3100**，Vite 代理 `/api`、`/uploads` 和 `/feed`。根目录与前端有独立锁文件，两个安装步骤都需要执行。前端支持热更新，修改 Go 后需重启后端。
+打开 **[http://localhost:5173](http://localhost:5173)**。后端默认位于 **[http://localhost:3100](http://localhost:3100)**，Vite 代理 `/api`、`/uploads` 和 `/feed`。根目录与前端有独立锁文件，两个安装步骤都需要执行。前端支持热更新，修改 Go 后需重启后端。
 
 ### 首次初始化
 
@@ -169,7 +169,7 @@ $env:PORT = '3100'
 .\server\bin\myself-server.exe
 ```
 
-打开 **http://localhost:3100**。前端先构建到 `server/web/dist`，再编入程序。
+打开 **[http://localhost:3100](http://localhost:3100)**。前端先构建到 `server/web/dist`，再编入程序。
 
 ### 发行包与架构
 
