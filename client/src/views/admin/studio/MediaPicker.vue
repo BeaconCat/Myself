@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { adminApi, type MediaItem } from '../../../api';
+import { mediaKind } from '../../../utils/mediaKind';
 import './i18n';
 import SIcon from './SIcon.vue';
 import StModal from './StModal.vue';
@@ -24,7 +25,7 @@ watch(
   async (open) => {
     if (!open) return;
     try {
-      items.value = await adminApi.media();
+      items.value = (await adminApi.media()).filter((item) => mediaKind(item) === 'image');
     } catch {
       items.value = [];
       toast(t('studio.loadFailed'), { icon: 'x' });
@@ -42,11 +43,11 @@ async function onFile(e: Event): Promise<void> {
   const input = e.target as HTMLInputElement;
   const f = input.files?.[0];
   input.value = '';
-  if (!f || uploading.value) return;
+  if (!f || !f.type.startsWith('image/') || uploading.value) return;
   uploading.value = true;
   try {
     const [up] = await adminApi.uploadMedia([f]);
-    if (up) {
+    if (up && mediaKind(up) === 'image') {
       if (up.duplicate) toast(t('studio.picker.reused'), { icon: 'copy' });
       pick(up.url);
     }
