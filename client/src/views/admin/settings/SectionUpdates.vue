@@ -198,6 +198,7 @@ dt { font-size: 12px; color: var(--st-ink-3); } dd { margin: 0; font-family: var
 .status,.actions,.pagination,.history-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }.status span { color: var(--st-ink-3); font-size: 12px; }
 .history,.version-list { display: grid; gap: 12px; min-width: 0; }.history-heading { justify-content: space-between; }.history-heading h3 { font-size: 16px; margin: 0; }
 .release { border: 1px solid var(--line-2); border-radius: var(--r-md); padding: 16px; display: grid; gap: 10px; min-width: 0; }.release b { overflow-wrap: anywhere; }.release span { color: var(--st-ink-3); font-size: 12px; }.release.highlight > div { display: grid; gap: 5px; }.release > button { justify-self: start; }
+.release.highlight { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 16px; }.release.highlight > button { justify-self: end; }.release.highlight > .note { grid-column: 1 / -1; }
 .release-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.release-top > div { min-width: 0; }.release-top > button { flex-shrink: 0; }
 a { color: var(--primary); font-size: 13px; overflow-wrap: anywhere; } pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 12px; max-height: 260px; overflow: auto; } summary { cursor: pointer; font-size: 13px; }
 progress { width: 100%; height: 8px; accent-color: var(--primary); }.error { color: var(--danger,#c63b46); overflow-wrap: anywhere; font-size: 13px; margin: 0; }.backup code { overflow-wrap: anywhere; }
