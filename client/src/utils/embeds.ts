@@ -168,7 +168,17 @@ export function renderMediaHtml(input: MediaData, labels: EmbedLabels): string {
   }
   if (d.kind === 'audio') {
     const fig = sz.w ? ` style="width:${sz.w}px;max-width:100%"` : '';
-    return `<figure class="md-media md-audio${al}"${fig}><span class="ic">${svg(Music, 'md-i')}</span><div class="bd"><b>${title || esc(nameOf(d.src))}</b><audio src="${src}" controls preload="metadata"${ref}></audio></div></figure>`;
+    // The thumbnail endpoint extracts embedded artwork from uploaded audio.
+    // A failed background image leaves the music icon visible without broken-image UI.
+    const uploaded = /^\/uploads\/([^/?#]+)(?:\?[^#]*)?$/.exec(d.src);
+    let artwork = '';
+    if (uploaded) {
+      try {
+        const thumb = `/uploads/thumbs/${encodeURIComponent(decodeURIComponent(uploaded[1]))}.webp`;
+        artwork = `<span class="artwork" aria-hidden="true" style="background-image:url(${esc(JSON.stringify(thumb))})"></span>`;
+      } catch { /* Keep the icon for malformed filenames. */ }
+    }
+    return `<figure class="md-media md-audio${al}"${fig}><span class="ic">${svg(Music, 'md-i')}${artwork}</span><div class="bd"><b>${title || esc(nameOf(d.src))}</b><audio src="${src}" controls preload="metadata"${ref}></audio></div></figure>`;
   }
   const ext = extOf(d.src);
   const name = title || esc(nameOf(d.src));

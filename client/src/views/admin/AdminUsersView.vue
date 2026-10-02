@@ -521,7 +521,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
       </thead>
       <TransitionGroup tag="tbody" name="row">
         <tr v-for="u in users" :key="u.id">
-          <td>
+          <td :data-label="t('studio.users.cUser')">
             <div class="u">
               <span class="av" :style="{ background: u.avatar ? undefined : tint(u.name || u.login) }">
                 <img v-if="u.avatar" :src="u.avatar" alt="" /><template v-else>{{ initial(u.name || u.login) }}</template>
@@ -536,7 +536,7 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
               </div>
             </div>
           </td>
-          <td>
+          <td :data-label="t('studio.users.cRole')">
             <span v-if="u.self" class="role" :class="u.role">{{ t(`studio.users.r_${u.role}`) }}</span>
             <label v-else class="role pick" :class="u.role">
               {{ t(`studio.users.r_${u.role}`) }}<SIcon name="chevronD" :size="13" />
@@ -545,13 +545,13 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
               </select>
             </label>
           </td>
-          <td class="mono">{{ dateText(u.createdAt) }}</td>
-          <td class="act-cell">
+          <td class="mono" :data-label="t('studio.users.cJoined')">{{ dateText(u.createdAt) }}</td>
+          <td class="act-cell" :data-label="t('studio.users.cActive')">
             <span v-if="isOnline(u)" class="online"><i class="st-dot" />{{ t('studio.users.online') }}</span>
             <template v-else>{{ u.lastActiveAt ? relTime(u.lastActiveAt) : t('studio.users.never') }}</template>
           </td>
-          <td class="mono">{{ u.comments }}</td>
-          <td>
+          <td class="mono" :data-label="t('studio.users.cComments')">{{ u.comments }}</td>
+          <td :data-label="t('studio.users.cStatus')">
             <span v-if="u.self" class="dash">—</span>
             <span v-else-if="u.status === 'pending'" class="chip pend">{{ t('studio.users.pending') }}</span>
             <StSwitch v-else :model-value="u.status === 'active'" :label="t('studio.a11y.userActive', { name: u.name || u.login })" @update:model-value="(v: boolean) => setActive(u, v)" />
@@ -929,6 +929,35 @@ const isOnline = (u: AdminUser): boolean => !!u.lastActiveAt && Date.now() - new
   .groups { grid-template-columns: 1fr; }
   .u-stats { --n: 3; }
   .tools { flex-direction: column; align-items: stretch; .search { width: auto; } }
+}
+
+@media (max-width: 767px) {
+  .sw-card { padding: 4px 16px; }
+  .sw-row { gap: 12px; }
+  .grp { padding: 4px 12px 14px; }
+  .sub .line > .tx { flex-basis: 120px; }
+  .u-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .u-stats > :last-child { grid-column: 1 / -1; }
+  .u-stats > .st-stat { box-shadow: inset 0 -1px 0 var(--line); }
+  .av-list li { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .av-list .tx { overflow-wrap: anywhere; }
+  .u-table, .u-table tbody { display: block; }
+  .u-table thead { display: none; }
+  .u-table tbody tr { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--line-2); border-radius: var(--r-md); }
+  .u-table td { display: block; min-width: 0; padding: 0; border: 0; }
+  .u-table td::before { content: attr(data-label); display: block; margin-bottom: 5px; font: 12px var(--font-sans); color: var(--st-ink-4); }
+  .u-table td:first-child { grid-column: 1 / -1; padding-right: 26px; }
+  .u-table td:first-child::before, .u-table td:last-child::before { display: none; }
+  .u-table td:last-child { position: absolute; top: 14px; right: 8px; }
+  .u-table .who { flex: 1; }
+  .u-table .who b { flex-wrap: wrap; overflow-wrap: anywhere; }
+  .u-table .who small { align-items: flex-start; overflow-wrap: anywhere; }
+  .u-table .who small .mono { min-width: 0; }
+  .u-table .online { white-space: nowrap; }
+  .inv li { flex-wrap: wrap; gap: 10px; }
+  .inv .tx { flex: 1 1 180px; overflow-wrap: anywhere; }
+  .inv b { flex-wrap: wrap; gap: 4px 10px; }
+  .two { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {

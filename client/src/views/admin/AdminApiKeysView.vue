@@ -446,8 +446,8 @@ function fmtMs(ms: number): string {
           </thead>
           <tbody>
             <tr v-for="(l, i) in logs" :key="l.id" :style="{ '--i': i }">
-              <td class="mono dim nw">{{ logTime(l.at) }}</td>
-              <td class="kc">
+              <td class="mono dim nw" :data-label="t('studio.api.lTime')">{{ logTime(l.at) }}</td>
+              <td class="kc" data-label="Key">
                 <template v-if="l.keyId !== null">
                   <b>{{ l.keyName }}</b>
                   <span v-if="!liveKeys.has(l.keyId)" class="tag">{{ t('studio.api.lRevoked') }}</span>
@@ -455,15 +455,15 @@ function fmtMs(ms: number): string {
                 <span v-else class="tag warn">{{ l.keyPrefix ? t('studio.api.lInvalid') : t('studio.api.lMissing') }}</span>
                 <small v-if="l.keyPrefix" class="mono">{{ l.keyPrefix }}…</small>
               </td>
-              <td>
+              <td class="request-cell" :data-label="t('studio.api.lReq')">
                 <span class="req">
                   <em :class="l.method.toLowerCase()">{{ l.method }}</em>
                   <span class="mono p" :title="l.path">{{ l.path }}</span>
                 </span>
               </td>
-              <td><span class="sc" :class="statusTone(l.status)"><i class="st-dot" />{{ l.status }}</span></td>
-              <td class="mono dim r nw">{{ fmtMs(l.ms) }}</td>
-              <td class="mono dim ip" :title="l.ua">{{ l.ip }}</td>
+              <td :data-label="t('studio.api.lStatus')"><span class="sc" :class="statusTone(l.status)"><i class="st-dot" />{{ l.status }}</span></td>
+              <td class="mono dim r nw" :data-label="t('studio.api.lMs')">{{ fmtMs(l.ms) }}</td>
+              <td class="mono dim ip" :data-label="t('studio.api.lFrom')" :title="l.ua">{{ l.ip }}</td>
             </tr>
           </tbody>
         </table>
@@ -891,5 +891,54 @@ em {
       box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--ink) 60%, transparent);
     }
   }
+}
+
+@media (max-width: 767px) {
+  .key { grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr) 30px; gap: 12px; padding: 16px; align-items: start; }
+  .key .ki { grid-column: 1; grid-row: 1; width: 40px; height: 40px; }
+  .key .kn { grid-column: 2 / -1; grid-row: 1; padding-right: 30px; }
+  .key h4 { overflow-wrap: anywhere; }
+  .key .kv2 { flex-wrap: wrap; gap: 4px; }
+  .key .kv2 button { flex: none; }
+  .key .scopes span, .key .scopes b { white-space: nowrap; }
+  .key .lu { border-top: 1px solid var(--line); padding-top: 12px; font-size: 13px; }
+  .key .lu:nth-child(3) { grid-column: 1 / 3; grid-row: 2; }
+  .key .lu:nth-child(4) { grid-column: 3 / -1; grid-row: 2; text-align: right; }
+  .key > :deep(.st-ibtn) { grid-column: 4; grid-row: 1; justify-self: end; }
+  .keys-empty { grid-template-columns: 56px minmax(0, 1fr); padding: 16px; gap: 6px 14px; }
+  .api-grid, .auth { grid-template-columns: minmax(0, 1fr); }
+  .endp div { gap: 8px; align-items: flex-start; font-size: 12px; }
+  .endp div > span { min-width: 0; overflow-wrap: anywhere; }
+  .code { padding: 42px 14px 14px; font-size: 12px; }
+  .ep .ep-row { display: grid; grid-template-columns: 54px minmax(0, 1fr) 16px; gap: 8px; padding: 12px 8px; }
+  .ep .ep-row code { grid-column: 1 / 3; grid-row: 2; min-width: 0; white-space: normal; overflow-wrap: anywhere; font-size: 12px; }
+  .ep .ep-row .au { justify-self: start; }
+  .ep .ep-row .chev { grid-column: 3; grid-row: 1; }
+  .ep .ep-row .d { grid-column: 1 / -1; grid-row: 3; white-space: normal; font-size: 12px; line-height: 1.6; }
+  .ep .ep-body { padding: 4px 8px 12px; }
+  .ep .send { flex-wrap: wrap; gap: 8px; }
+  .ep .resp { padding: 12px; }
+  .prompt { padding: 14px; font-size: 12px; overflow-wrap: anywhere; }
+  .log-tools { display: grid; grid-template-columns: minmax(0, 1fr) 34px; width: 100%; gap: 8px; }
+  .log-tools .key-pick { width: 100%; }
+  .log-tools > :deep(.seg) { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+  .log-tools > .st-ibtn { grid-column: 2; grid-row: 1; }
+  .logs { display: block; }
+  .logs thead { display: none; }
+  .logs tbody { display: grid; gap: 12px; }
+  .logs tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 14px; border: 1px solid var(--line-2); border-radius: var(--r-md); }
+  .logs td { display: block; min-width: 0; padding: 0; border: 0; text-align: left; }
+  .logs td::before { content: attr(data-label); display: block; margin-bottom: 4px; font: 12px var(--font-sans); color: var(--st-ink-4); }
+  .logs td:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .logs td:nth-child(4) { grid-column: 2; grid-row: 1; text-align: right; }
+  .logs td.kc { grid-column: 1 / -1; grid-row: 2; white-space: normal; overflow-wrap: anywhere; }
+  .logs td.request-cell { grid-column: 1 / -1; grid-row: 3; }
+  .logs .req { align-items: flex-start; gap: 8px; }
+  .logs .req .p { white-space: normal; overflow-wrap: anywhere; }
+  .logs td.ip { white-space: normal; overflow-wrap: anywhere; text-align: right; }
+  .logs td.r { text-align: left; }
+  .scope-pick { grid-template-columns: minmax(0, 1fr); }
+  .newkey { min-width: 0; }
+  .newkey .mono { min-width: 0; }
 }
 </style>

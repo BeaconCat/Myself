@@ -241,6 +241,19 @@ button {
 
 .busy .nums { opacity: 0.75; }
 
+@media (max-width: 767px) {
+  .pager { flex-wrap: wrap; gap: 10px; }
+  .sum { flex: 1; flex-wrap: wrap; gap: 4px 8px; }
+  .sp { display: none; }
+  .nav { margin-left: auto; max-width: 100%; }
+}
+
+@media (max-width: 360px) {
+  .nav { gap: 2px; }
+  button { min-width: 25px; padding: 0 5px; }
+  .arrow { width: 25px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .k.ready, button { transition: none; }
 }

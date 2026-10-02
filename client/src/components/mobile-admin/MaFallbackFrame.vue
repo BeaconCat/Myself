@@ -82,12 +82,29 @@ const y = ref(0);
 
 .fb-inner {
   min-height: 100%;
-  padding: 8px 14px calc(var(--safe-b) + 24px);
-  overflow-x: hidden;
+  padding: 16px 16px calc(var(--safe-b) + 24px);
 
   /* 桌面组件在窄屏下的兜底：去掉自带的大外边距与最小高度 */
   :deep(> *) {
     min-height: 0 !important;
   }
+
+  :deep(> .view) { width: 100%; min-width: 0; max-width: none; padding: 0; }
+  :deep(.st-vh) { flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+  :deep(.st-vh > div:first-child) { display: block; flex: 1 1 180px; }
+  :deep(.st-vh h1) { font-size: 24px; }
+  :deep(.st-vh p) { margin-top: 6px; white-space: normal; overflow-wrap: anywhere; line-height: 1.6; }
+  :deep(.st-vh .act) { max-width: 100%; flex-wrap: wrap; }
+  :deep(.st-card) { min-width: 0; padding: 16px; }
+  :deep(.st-sec-t) { flex-wrap: wrap; align-items: center; gap: 10px; }
+  :deep(.st-sec-t h2) { flex: none; font-size: 20px; }
+  :deep(.st-field) { min-width: 0; max-width: 100%; }
+  :deep(.st-field input), :deep(.st-field select), :deep(.st-field textarea) { min-width: 0; }
+  :deep(.seg) { min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
+  :deep(.seg button) { flex-shrink: 0; }
+  :deep(.st-stat) { padding: 14px 12px; }
+  :deep(.st-stat b) { font-size: 26px; }
+  :deep(.st-stat small) { white-space: normal; overflow: visible; line-height: 1.5; }
+  :deep(.st-note-bar) { flex-wrap: wrap; }
 }
 </style>

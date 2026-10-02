@@ -1059,4 +1059,20 @@ h2 { font: 700 22px/1.3 var(--font-serif); margin: 0 0 4px; }
 @media (max-width: 1180px) {
   .motion-opts { grid-template-columns: 1fr; }
 }
+
+@media (max-width: 767px) {
+  .ap { gap: 24px; min-width: 0; }
+  .swatches { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .swatch.add { min-height: 60px; height: auto; grid-column: 1 / -1; flex-direction: row; }
+  .p-edit { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .p-edit > .st-field { grid-column: 1 / -1; }
+  .p-edit > .st-ibtn { grid-column: 1 / -1; justify-self: end; }
+  .pair { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .opts .st-opt { gap: 12px; }
+  .opts .st-opt > div:first-child { flex: 1; min-width: 0; }
+  .rules { padding: 14px; gap: 16px; }
+  .mixer-wrap { padding: 12px; }
+  .demo { padding: 12px; }
+  .demo .d-card { grid-template-columns: 64px minmax(0, 1fr); }
+}
 </style>

@@ -178,4 +178,14 @@ onMounted(loadLog);
   gap: 12px;
   padding-top: 14px;
 }
+
+@media (max-width: 767px) {
+  .panel { padding: 12px; }
+  .ph { flex-wrap: wrap; gap: 12px; }
+  .stats { flex-basis: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .manual { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .manual > label { min-width: 0; }
+  .log li { grid-template-columns: 8px minmax(0, 1fr); gap: 6px 8px; }
+  .log li span { grid-column: 2; white-space: normal; overflow-wrap: anywhere; }
+}
 </style>

@@ -579,4 +579,25 @@ onBeforeUnmount(() => window.clearInterval(timer));
   .bk-grid { grid-template-columns: 1fr; }
   .mg { grid-template-columns: 1fr; }
 }
+
+@media (max-width: 767px) {
+  .bk-hero { grid-template-columns: 56px minmax(0, 1fr); gap: 14px; padding: 16px; }
+  .bk-hero h2 { font-size: 20px; }
+  .bk-hero p { font-size: 12.5px; line-height: 1.6; }
+  .bk-hero > .st-btn { grid-column: 1 / -1; width: 100%; }
+  .ring { width: 56px; height: 56px; }
+  .bk-grid .auto { font-size: 20px; }
+  .bk-list .r { grid-template-columns: 36px minmax(0, 1fr); gap: 8px 10px; padding: 12px 0; }
+  .bk-list .fi { width: 36px; height: 36px; }
+  .bk-list .nm b { white-space: normal; overflow-wrap: anywhere; font-size: 12px; }
+  .bk-list .nm small { white-space: nowrap; font-size: 12px; }
+  .bk-list .r .num { grid-column: 2; text-align: left; }
+  .bk-list .r .ops { grid-column: 1 / -1; justify-content: flex-end; opacity: 1; }
+  .bk-grid :deep(.st-opt) { flex-wrap: wrap; gap: 10px; }
+  .mc { padding: 16px; }
+  .mc .acts { flex-wrap: wrap; }
+  .contents { padding: 12px; }
+  .imp-list .ir { flex-wrap: wrap; }
+  .imp-list .ir .why { flex-basis: 100%; }
+}
 </style>

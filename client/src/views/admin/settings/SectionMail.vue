@@ -176,6 +176,13 @@ async function test(): Promise<void> {
 .msg-enter-active, .msg-leave-active { transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); }
 .msg-enter-from, .msg-leave-to { opacity: 0; transform: translateY(-4px); }
 
+@media (max-width: 767px) {
+  .grid > :is(.c4, .c6, .c8, .c12) { grid-column: 1 / -1; }
+  .test { padding: 12px; }
+  .test .row { flex-wrap: wrap; }
+  .test .row .st-field { flex-basis: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fold { transition: none; }
 }

@@ -317,13 +317,15 @@ async function logout(): Promise<void> {
 }
 
 .pals {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 10px 6px;
   margin-top: 14px;
 }
 
 .pal {
+  flex: 0 0 58px;
   display: flex;
   flex-direction: column;
   align-items: center;

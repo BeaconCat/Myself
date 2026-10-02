@@ -341,4 +341,15 @@ onBeforeUnmount(() => {
   .sub { display: none; }
   .secs { grid-template-columns: 1fr; }
 }
+
+@media (max-width: 767px) {
+  .secs { min-width: 0; }
+  .half .st-opt { flex-direction: row; align-items: center; }
+  .sec { scroll-margin-top: calc(var(--safe-t, 0px) + var(--nav-row, 48px) + 12px); }
+  .sec :deep(.st-opt) { flex-wrap: wrap; gap: 10px; }
+  .sec :deep(.st-opt > div:first-child) { flex: 1 1 160px; }
+  .sec :deep(.st-opt > .st-field) { flex: 1 1 100%; width: 100%; }
+  .sec :deep(.st-opt > .seg) { flex-basis: 100%; }
+  .sec :deep(.st-flabel) { flex-wrap: wrap; gap: 4px 8px; }
+}
 </style>

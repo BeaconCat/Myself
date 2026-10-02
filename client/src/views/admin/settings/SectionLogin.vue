@@ -184,6 +184,10 @@ async function copy(): Promise<void> {
   &.ok { color: color-mix(in oklab, var(--green) 70%, var(--st-ink)); }
 }
 
+@media (max-width: 767px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fold { transition: none; }
 }

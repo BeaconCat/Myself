@@ -906,18 +906,24 @@ input[type='range']:disabled { opacity: 0.4; }
   .pv { position: static; order: -1; }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 767px) {
   .view { padding: 20px 16px 48px; }
   .grid.g-12 > label { grid-column: 1 / -1; }
   .pt-block { grid-template-columns: 1fr; }
   .pt-thumb { width: 150px; }
-  .av-block { flex-wrap: wrap; }
+  .av-block { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 14px; }
+  .av { width: 64px; height: 64px; }
+  .av-block > .row-btns { grid-column: 1 / -1; }
+  .st-flabel { flex-wrap: wrap; gap: 4px 8px; }
+  .st-flabel em { white-space: normal; overflow-wrap: anywhere; }
+  .bn { grid-template-columns: minmax(0, 1fr); }
+  .bn-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .ctl.two { grid-template-columns: 1fr; }
   .lk {
     grid-template-columns: 44px minmax(0, 1fr);
     grid-template-areas: 'ic nm' 'ic hd' 'url url' 'ops ops';
   }
-  .lk .ops { flex-direction: row; align-items: center; }
+  .lk .ops { flex-direction: row; align-items: center; flex-wrap: wrap; }
 }
 
 /* 站点 logo：圆角方块（与头像的圆形区分） */

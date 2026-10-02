@@ -460,6 +460,19 @@ const tint = (s: string): string => PALETTE[[...s].reduce((a, ch) => a + ch.char
   .view { padding: 28px 32px 64px; }
 }
 
+@media (max-width: 767px) {
+  .bulk { flex-wrap: wrap; gap: 8px; }
+  .bulk .sp { flex-basis: 100%; }
+  .cm { grid-template-columns: 18px 32px minmax(0, 1fr); gap: 10px; padding: 14px 10px; }
+  .cm .av { width: 32px; height: 32px; }
+  .cm .body { grid-column: 3; grid-row: 1; }
+  .cm .acts { grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; justify-content: flex-end; opacity: 1; }
+  .cm .who { gap: 4px 6px; }
+  .cm .who b, .cm .who a, .cm .body p { overflow-wrap: anywhere; }
+  .cm .rf { flex-wrap: wrap; }
+  .cm .rf small { flex-basis: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reply-fold, .cm-enter-active, .cm-leave-active, .cm-move { transition: none; }
 }

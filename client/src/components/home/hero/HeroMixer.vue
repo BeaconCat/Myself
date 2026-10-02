@@ -504,4 +504,11 @@ const MAX_MS = 1600;
 @media (max-width: 900px) {
   .cols { grid-template-columns: 1fr; }
 }
+
+@media (max-width: 767px) {
+  .bar-ctl { flex-wrap: wrap; max-width: 100%; border-radius: var(--r-md); gap: 6px; }
+  .bar-ctl .seg { margin-left: auto; }
+  .bar-ctl .sep { display: none; }
+  .opt-top { flex-wrap: wrap; gap: 4px 8px; }
+}
 </style>

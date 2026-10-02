@@ -143,6 +143,8 @@
 }
 
 .md-audio audio { display: block; width: 100%; height: 36px; margin-top: 8px; }
+.md-audio .ic { width: 64px; height: 64px; }
+.md-audio .artwork { position: absolute; inset: 0; border-radius: inherit; background-size: cover; background-position: center; }
 
 .md-file-act {
   flex: none;
