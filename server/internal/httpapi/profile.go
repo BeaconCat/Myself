@@ -24,7 +24,7 @@ import (
 
 /*
  * 个人资料：头像（上传 + 裁切由前端完成，服务端统一缩成 256px WebP；非站长需站长审核）、
- * 登录名（每 30 天可改一次）、邮箱（改后需重新验证）。
+ * 登录名（站长不限修改频率，其他角色每 30 天一次）、邮箱（改后需重新验证）。
  * 站长未单独设置头像时，全站展示「身份」里的头像。
  */
 
@@ -62,18 +62,25 @@ func (s *Server) avatarOf(role, avatar string) string {
 	return avatar
 }
 
-// publicUser 返回给本人的资料。avatarDefault = 站长正在使用身份头像。
-func (s *Server) publicUser(u *store.User) map[string]any {
-	next := ""
+// nextLoginChange 以实际账号角色决定冷却期；站长不受限制。
+func nextLoginChange(u *store.User) string {
+	if u.Role == store.RoleAdmin {
+		return ""
+	}
 	if t, err := time.Parse("2006-01-02 15:04:05", u.LoginChangedAt); err == nil {
 		if n := t.Add(loginCooldown); n.After(time.Now().UTC()) {
-			next = n.Format("2006-01-02 15:04:05")
+			return n.Format("2006-01-02 15:04:05")
 		}
 	}
+	return ""
+}
+
+// publicUser 返回给本人的资料。avatarDefault = 站长正在使用身份头像。
+func (s *Server) publicUser(u *store.User) map[string]any {
 	return map[string]any{
 		"id": u.ID, "login": u.Login, "email": u.Email, "name": u.Name, "role": u.Role,
 		"avatar": s.avatarOf(u.Role, u.Avatar), "avatarDefault": u.Role == store.RoleAdmin && u.Avatar == "",
-		"avatarPending": u.AvatarPending, "loginNextChange": next, "emailPending": s.pendingEmail(u.ID),
+		"avatarPending": u.AvatarPending, "loginNextChange": nextLoginChange(u), "emailPending": s.pendingEmail(u.ID),
 		"hasPassword": u.PasswordHash != "", "github": u.GitHubID != 0, "emailVerified": u.EmailVerified,
 		"mustChange": u.MustChange,
 	}
@@ -212,7 +219,7 @@ func (s *Server) deleteAvatar(w http.ResponseWriter, r *http.Request) {
 	s.writeMe(w, u.ID)
 }
 
-// PUT /me/login {login} 修改登录名：格式校验、唯一、每 30 天一次。
+// PUT /me/login {login} 修改登录名：格式校验、唯一；非站长每 30 天一次。
 func (s *Server) changeLogin(w http.ResponseWriter, r *http.Request) {
 	var b body
 	if err := readJSON(w, r, &b); err != nil {
@@ -229,8 +236,8 @@ func (s *Server) changeLogin(w http.ResponseWriter, r *http.Request) {
 		s.writeMe(w, u.ID)
 		return
 	}
-	if t, err := time.Parse("2006-01-02 15:04:05", u.LoginChangedAt); err == nil && time.Since(t) < loginCooldown {
-		writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": "login_cooldown", "next": t.Add(loginCooldown).Format("2006-01-02 15:04:05")})
+	if next := nextLoginChange(u); next != "" {
+		writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": "login_cooldown", "next": next})
 		return
 	}
 	if _, err := s.DB.Exec(`UPDATE users SET login = ?, login_changed_at = CURRENT_TIMESTAMP WHERE id = ?`, login, u.ID); err != nil {

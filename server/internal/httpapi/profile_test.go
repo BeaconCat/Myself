@@ -172,7 +172,43 @@ func TestOwnerAvatar(t *testing.T) {
 	}
 }
 
-// 登录名：格式、唯一、每 30 天一次；邮箱：需当前密码、唯一、改后待验证；新旧登录名 / 邮箱都能登录新账号。
+// 站长可连续改名；格式、唯一性与其他角色的冷却限制仍由服务端校验。
+func TestOwnerLoginCooldownExemption(t *testing.T) {
+	e := newEnv(t)
+	e.enableUsers(map[string]any{"enabled": true, "readers": map[string]any{"enabled": true, "signup": "open"}, "authors": map[string]any{"enabled": true}})
+	tok := e.signup(map[string]any{"email": "author@example.com", "name": "作者", "password": "password123"})
+	if _, err := e.server.DB.Exec(`UPDATE users SET role = 'author', login = 'taken-login', login_changed_at = CURRENT_TIMESTAMP WHERE email = 'author@example.com'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.server.DB.Exec(`UPDATE users SET login_changed_at = CURRENT_TIMESTAMP WHERE role = 'admin'`); err != nil {
+		t.Fatal(err)
+	}
+	_, me := e.as(e.token, http.MethodGet, "/api/v1/auth/session", nil)
+	if userField(me, "loginNextChange") != "" {
+		t.Fatal("owner session still advertises a cooldown")
+	}
+	for _, login := range []string{"owner-first", "owner-second"} {
+		code, out := e.as(e.token, http.MethodPut, "/api/v1/me/login", map[string]string{"login": login})
+		if code != http.StatusOK || userField(out, "login") != login || userField(out, "loginNextChange") != "" {
+			t.Fatalf("owner rename blocked: %d %v", code, out)
+		}
+	}
+	for login, want := range map[string]int{"1invalid": http.StatusBadRequest, "taken-login": http.StatusConflict} {
+		if code, _ := e.as(e.token, http.MethodPut, "/api/v1/me/login", map[string]string{"login": login}); code != want {
+			t.Fatalf("owner validation for %q: %d, want %d", login, code, want)
+		}
+	}
+	code, out := e.as(tok, http.MethodPut, "/api/v1/me/login", map[string]string{"login": "author-next", "role": "admin"})
+	if code != http.StatusTooManyRequests || out["error"] != "login_cooldown" {
+		t.Fatalf("author bypassed cooldown using request role: %d %v", code, out)
+	}
+	_, me = e.as(tok, http.MethodGet, "/api/v1/auth/session", nil)
+	if userField(me, "loginNextChange") == "" {
+		t.Fatal("author session lost cooldown")
+	}
+}
+
+// 非站长登录名每 30 天一次；邮箱需当前密码、唯一且改后待验证。
 func TestChangeLoginAndEmail(t *testing.T) {
 	e := newEnv(t)
 	e.enableUsers(map[string]any{"enabled": true, "readers": map[string]any{"enabled": true, "signup": "open"}})

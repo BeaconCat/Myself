@@ -15,7 +15,7 @@ import AvatarCropper from '../components/ui/AvatarCropper.vue';
  * 我的账号（/account）：
  * - 头像：点击上传 → 裁切 → 站长直接生效，其他人进入待审（可撤回）；站长默认用「身份」头像，也可单独设置 / 恢复
  * - 资料：昵称
- * - 账号与登录：登录名（每 30 天可改一次）、邮箱（可改，改后重新验证；登录名与邮箱都能登录）、密码、GitHub 绑定
+ * - 账号与登录：登录名（站长随时可改，其他角色每 30 天一次）、邮箱（可改，改后重新验证；登录名与邮箱都能登录）、密码、GitHub 绑定
  * 区块随界面风格：cards 为卡片，clean 为透明底 + 发丝线分隔。
  */
 const { t } = useI18n();
@@ -159,7 +159,7 @@ async function edit(which: Editing): Promise<void> {
   accountSec.value?.querySelector<HTMLInputElement>('.fold.open input')?.focus();
 }
 
-const loginLocked = computed(() => !!user.value?.loginNextChange);
+const loginLocked = computed(() => !isOwner.value && !!user.value?.loginNextChange);
 const nextChangeDate = computed(() => {
   const v = user.value?.loginNextChange;
   if (!v) return '';
@@ -186,6 +186,7 @@ async function run(fn: () => Promise<string>): Promise<void> {
 function saveLogin(): Promise<void> {
   return run(async () => {
     apply((await accountApi.changeLogin(form.login.trim())).user);
+    if (isOwner.value) await config.load();
     return t('account.me.loginSaved');
   });
 }
@@ -287,7 +288,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
           <div class="tx">
             <b>{{ t('account.me.login') }}</b>
             <span class="val mono">{{ user.login }}</span>
-            <small>{{ loginLocked ? t('account.me.loginNext', { date: nextChangeDate }) : t('account.me.loginHint') }}</small>
+            <small>{{ isOwner ? t('account.me.loginOwnerHint') : loginLocked ? t('account.me.loginNext', { date: nextChangeDate }) : t('account.me.loginHint') }}</small>
           </div>
           <button type="button" class="btn ghost sm" :disabled="loginLocked" @click="edit('login')">
             {{ editing === 'login' ? t('account.me.cancel') : t('account.me.edit') }}
@@ -300,7 +301,7 @@ const linkHref = computed(() => accountApi.githubUrl({ mode: 'link', next: '/acc
                 <span>{{ t('account.me.newLogin') }}<em>{{ t('account.me.loginRule') }}</em></span>
                 <input v-model="form.login" maxlength="24" spellcheck="false" autocomplete="username" />
               </label>
-              <p class="warn">{{ t('account.me.loginWarn') }}</p>
+              <p class="warn">{{ t(isOwner ? 'account.me.loginOwnerWarn' : 'account.me.loginWarn') }}</p>
               <div class="ft"><Transition name="nt"><p v-if="notes.account && !notes.account.ok" class="notice in" role="alert">{{ notes.account.text }}</p></Transition><button type="submit" class="btn" :disabled="busy">{{ t('account.me.save') }}</button></div>
             </form>
           </div>
