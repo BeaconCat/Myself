@@ -193,6 +193,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
   flex-direction: column;
 
   h3 { margin-bottom: 22px; }
+  :deep(.publish-timing) { margin-bottom: 22px; }
 }
 
 .when {

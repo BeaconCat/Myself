@@ -7,7 +7,9 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, type Post } from '../../api';
 import { renderWithToc, type TocItem } from '../../utils/markdown';
-import CoverArt from '../../components/common/CoverArt.vue';
+import CoverArt, { isArtUrl } from '../../components/common/CoverArt.vue';
+import MediaViewer from '../../components/mobile/MediaViewer.vue';
+import { defaultCover } from '../../utils/defaultCovers';
 import MIcon from '../../components/mobile/MIcon.vue';
 import BottomSheet from '../../components/mobile/BottomSheet.vue';
 import EngageBar from '../../components/engage/EngageBar.vue';
@@ -140,6 +142,23 @@ function date(s: string): string {
   return `${yy}.${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')}`;
 }
 
+const coverButton = ref<HTMLElement | null>(null);
+const coverOpen = ref(false);
+const coverIndex = ref(0);
+const coverItems = computed(() => {
+  const p = post.value;
+  if (!p) return [];
+  return (p.covers.length ? p.covers : ['']).map((src) => ({
+    src: isArtUrl(src) ? defaultCover(p.slug) : src,
+    caption: p.title,
+  }));
+});
+const coverOrigin = (index: number) => index === 0 ? coverButton.value : null;
+function openCover(): void {
+  coverIndex.value = 0;
+  coverOpen.value = true;
+}
+
 /* 正文内站内链接走路由，不整页刷新 */
 function onProseClick(e: MouseEvent): void {
   const a = (e.target as HTMLElement).closest('a');
@@ -155,7 +174,7 @@ function onProseClick(e: MouseEvent): void {
   }
 }
 
-onBeforeUnmount(() => { tocOpen.value = false; });
+onBeforeUnmount(() => { tocOpen.value = false; coverOpen.value = false; });
 
 const me = useIdentity();
 const byline = computed(() => (post.value?.author
@@ -183,9 +202,9 @@ const byline = computed(() => (post.value?.author
 
         <div v-else-if="post" key="ok">
           <header class="dt-hero">
-            <div class="hero-art" :style="{ transform: `translateY(${heroY * 0.45}px) scale(1.02)` }">
+            <button ref="coverButton" type="button" class="hero-art" :aria-label="t('a11y.viewImageOf', { label: post.title })" :style="{ transform: `translateY(${heroY * 0.45}px) scale(1.02)` }" @click="openCover">
               <CoverArt :src="post.covers[0]" :seed="post.slug" />
-            </div>
+            </button>
             <div class="fade" />
           </header>
           <div class="dt-head">
@@ -253,6 +272,8 @@ const byline = computed(() => (post.value?.author
       </template>
     </div>
 
+    <MediaViewer v-model:open="coverOpen" v-model:index="coverIndex" :items="coverItems" :origin="coverOrigin" />
+
     <BottomSheet v-model:open="tocOpen" :title="t('mobile.article.toc')" :meta="tocMeta">
       <div class="toc">
         <button
@@ -301,6 +322,14 @@ const byline = computed(() => (post.value?.author
   position: absolute;
   inset: 0;
   will-change: transform;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+
+  &:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
 }
 
 .fade {
@@ -308,6 +337,7 @@ const byline = computed(() => (post.value?.author
   inset: auto 0 0 0;
   height: 220px;
   background: linear-gradient(180deg, transparent, color-mix(in oklab, var(--bg) 70%, transparent) 55%, var(--bg));
+  pointer-events: none;
 }
 
 .dt-head {

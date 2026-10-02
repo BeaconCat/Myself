@@ -170,6 +170,17 @@ async function copyLink(): Promise<void> {
 /** 正文内锚点平滑滚动；站内链接走路由 */
 /* 正文图片：点击在查看器里打开，可左右切换本文全部图片 */
 const viewer = ref<{ images: string[]; index: number; rect?: OriginRect } | null>(null);
+function openCover(e: MouseEvent): void {
+  const button = e.currentTarget as HTMLElement;
+  const img = button.querySelector('img');
+  if (!img) return;
+  const r = button.getBoundingClientRect();
+  viewer.value = {
+    images: [img.currentSrc || img.src], index: 0,
+    rect: { left: r.left, top: r.top, width: r.width, height: r.height },
+  };
+}
+
 function openImage(img: HTMLImageElement): void {
   const all = [...(proseEl.value?.querySelectorAll<HTMLImageElement>('img') ?? [])].filter((el) => el.currentSrc || el.src);
   const r = img.getBoundingClientRect();
@@ -281,7 +292,9 @@ const C = 2 * Math.PI * 9;
       <div class="band rise">
         <div class="cover">
           <CoverAccordion v-if="post.covers.length > 1" :images="post.covers" />
-          <CoverArt v-else :src="post.covers[0]" :seed="post.slug" />
+          <button v-else type="button" class="cover-trigger" :aria-label="t('a11y.viewImageOf', { label: post.title })" @click="openCover">
+            <CoverArt :src="post.covers[0]" :seed="post.slug" />
+          </button>
         </div>
         <div class="crumbs">
           <router-link to="/articles" class="cbtn" :aria-label="t('content.article.back')" :title="t('content.article.back')">
@@ -477,6 +490,20 @@ const C = 2 * Math.PI * 9;
 }
 
 :root[data-mode='light'] .cover::after { box-shadow: inset 0 0 0 0.5px rgb(16 24 40 / 0.1); }
+
+.cover-trigger {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: zoom-in;
+
+  &:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+}
 
 .crumbs {
   position: absolute;
