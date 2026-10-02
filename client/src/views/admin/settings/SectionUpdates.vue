@@ -34,6 +34,9 @@ function explain(code: string): string {
   return te(key) ? t(key) : `${t('studio.updates.operationFailed')} (${code})`;
 }
 function accept(next: UpdateStatus, force = false): void {
+  // A page can still receive a pre-channel response while the backend restarts.
+  // Older updaters included prereleases, so preserve that scope in the UI.
+  if (next.preferences) next = { ...next, preferences: { ...next.preferences, channel: next.preferences.channel === 'stable' ? 'stable' : 'preview' } };
   const editable = force || !saved.value || !changed.value;
   status.value = next;
   if (next.preferences && editable) {
