@@ -23,11 +23,12 @@ import (
 const oauthCookie = "myself_oauth"
 
 type oauthState struct {
-	mode   string // login | link
-	invite string
-	next   string
-	userID int64 // link 模式：发起绑定的用户
-	exp    time.Time
+	mode         string // login | link
+	invite       string
+	next         string
+	userID       int64 // link 模式：发起绑定的用户
+	tokenVersion int   // 绑定发起后改密、停用或改角色，原流程必须失效
+	exp          time.Time
 }
 
 type oauthStates struct {
@@ -102,11 +103,11 @@ func (s *Server) githubStart(w http.ResponseWriter, r *http.Request) {
 	st := oauthState{mode: "login", invite: q.Get("invite"), next: safeNext(q.Get("next")), exp: time.Now().Add(10 * time.Minute)}
 	if q.Get("mode") == "link" {
 		u, _ := s.currentUser(r)
-		if u == nil {
+		if u == nil || u.MustChange {
 			failOAuth(w, r, "login_required")
 			return
 		}
-		st.mode, st.userID = "link", u.ID
+		st.mode, st.userID, st.tokenVersion = "link", u.ID, u.TokenVersion
 	}
 	key, err := auth.RandomHex(20)
 	if err != nil {
@@ -158,7 +159,11 @@ func (s *Server) githubCallback(w http.ResponseWriter, r *http.Request) {
 		failOAuth(w, r, "github_off")
 		return
 	}
-	client := githubClient(cfg.GitHub)
+	if st.mode == "link" && !s.oauthLinkAllowed(st) {
+		failOAuth(w, r, "login_required")
+		return
+	}
+	client := githubOAuthClient(cfg.GitHub)
 	profile, email, err := fetchGitHubIdentity(client, cfg, q.Get("code"), s.oauthRedirectURI(r))
 	if err != nil {
 		s.logSync(false, "GitHub 登录失败："+err.Error())
@@ -168,12 +173,22 @@ func (s *Server) githubCallback(w http.ResponseWriter, r *http.Request) {
 
 	// 绑定到当前用户
 	if st.mode == "link" {
-		if _, err := s.DB.Exec(`UPDATE users SET github_id = ? WHERE id = ?`, profile.ID, st.userID); err != nil {
+		// The network exchange can outlive a password reset or account disable.
+		if !s.oauthLinkAllowed(st) {
+			failOAuth(w, r, "login_required")
+			return
+		}
+		res, err := s.DB.Exec(`UPDATE users SET github_id = ? WHERE id = ? AND token_version = ? AND status = 'active' AND must_change = 0`, profile.ID, st.userID, st.tokenVersion)
+		if err != nil {
 			if store.IsUniqueErr(err) {
 				failOAuth(w, r, "github_taken")
 				return
 			}
 			fail(w, err)
+			return
+		}
+		if changed, err := res.RowsAffected(); err != nil || changed == 0 {
+			failOAuth(w, r, "login_required")
 			return
 		}
 		http.Redirect(w, r, st.next, http.StatusFound)
@@ -214,6 +229,18 @@ func (s *Server) githubCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	s.DB.TouchUser(u.ID)
 	http.Redirect(w, r, st.next, http.StatusFound)
+}
+
+// OAuth carries credentials; the statistics-only TLS bypass must never apply here.
+func githubOAuthClient(cfg config.GitHub) *http.Client {
+	cfg.InsecureTLS = false
+	return githubClient(cfg)
+}
+
+func (s *Server) oauthLinkAllowed(st oauthState) bool {
+	u, err := s.DB.UserByID(st.userID)
+	return err == nil && u != nil && u.Status == store.StatusActive && !u.MustChange &&
+		u.TokenVersion == st.tokenVersion && roleOn(s.Config.Typed(), u.Role)
 }
 
 type oauthErr string

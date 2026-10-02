@@ -11,18 +11,18 @@
   "dependencies": {
     "@fontsource/noto-sans-sc": "^5.2.9",
     "@fontsource/noto-serif-sc": "^5.2.8",
-    "@tiptap/extension-image": "^3.27.3",
-    "@tiptap/extension-link": "^3.27.3",
-    "@tiptap/extension-placeholder": "^3.27.3",
-    "@tiptap/extension-table": "^3.27.3",
-    "@tiptap/extension-task-item": "^3.27.3",
-    "@tiptap/extension-task-list": "^3.27.3",
-    "@tiptap/pm": "^3.27.3",
-    "@tiptap/starter-kit": "^3.27.3",
-    "@tiptap/vue-3": "^3.27.3",
+    "@tiptap/extension-image": "^3.30.5",
+    "@tiptap/extension-link": "^3.30.5",
+    "@tiptap/extension-placeholder": "^3.30.5",
+    "@tiptap/extension-table": "^3.30.5",
+    "@tiptap/extension-task-item": "^3.30.5",
+    "@tiptap/extension-task-list": "^3.30.5",
+    "@tiptap/pm": "^3.30.5",
+    "@tiptap/starter-kit": "^3.30.5",
+    "@tiptap/vue-3": "^3.30.5",
     "highlight.js": "^11.12.0",
     "lucide": "^1.48.0",
-    "markdown-it": "^14.3.0",
+    "markdown-it": "^14.3.1",
     "markdown-it-footnote": "^4.0.0",
     "markdown-it-task-lists": "^2.1.1",
     "pinia": "^3.0.4",
@@ -31,6 +31,12 @@
     "vue": "^3.5.39",
     "vue-i18n": "11",
     "vue-router": "4"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss@<8.5.23": "^8.5.23",
+      "nanoid@>=3.0.0 <3.3.18": "^3.3.18"
+    }
   },
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",

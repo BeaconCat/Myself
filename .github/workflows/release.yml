@@ -50,7 +50,13 @@ jobs:
           python-version: '3.13'
       - run: npm install --global pnpm@10.6.4
       - run: pnpm -C client install --frozen-lockfile
+      - name: Check JavaScript dependency advisories
+        run: |
+          pnpm audit --registry=https://registry.npmjs.org --audit-level=moderate
+          pnpm -C client audit --registry=https://registry.npmjs.org --audit-level=moderate
       - run: pnpm -C client build
+      - name: Check reachable Go vulnerabilities
+        run: go -C server run golang.org/x/vuln/cmd/govulncheck@v1.8.0 -tags=nodynamic ./...
       - run: go -C server test -tags nodynamic ./...
       - run: go -C server test -race -tags nodynamic ./internal/updater
       - name: MySQL regression suite

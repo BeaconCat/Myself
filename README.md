@@ -107,7 +107,7 @@ Myself 是一个可自托管的个人博客引擎。用文章整理思考，用�
 
 ### 开发环境
 
-- Go 1.26.x，版本依据见 [go.mod](server/go.mod)。
+- Go 1.26.7 或更新的受维护版本，版本依据见 [go.mod](server/go.mod)。
 - Node.js 24，pnpm 10.x。
 - SQLite 内置，无需安装数据库服务。
 
@@ -430,6 +430,8 @@ Markdown 入口是 [markdown.ts](client/src/utils/markdown.ts) 和 [embeds.ts](c
 ## 常见问题
 
 **Go 报 `pattern all:dist: no matching files found`？** 先执行 `pnpm -C client build`。
+
+**Go 自动下载工具链时报 `checksum database disabled`？** 本项目要求 Go 1.26.7 或更新版本。若旧 Go 需要自动下载新工具链，须启用校验库（如 `GOSUMDB=sum.golang.org`）；也可直接安装符合要求的 Go。不要跳过下载校验。
 
 **根目录安装依赖后前端仍缺包？** 还需执行 `pnpm -C client install --frozen-lockfile`。
 

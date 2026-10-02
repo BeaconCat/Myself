@@ -61,7 +61,7 @@ func (l *reactLimiter) allow(ip string) bool {
 
 // voterOf 回应者标识：登录用户 u:<id>；访客 v:<匿名 id>（没有则签发，create=false 时不签发）。
 func (s *Server) voterOf(w http.ResponseWriter, r *http.Request, create bool) string {
-	if u, _ := s.currentUser(r); u != nil {
+	if u, _ := s.currentUser(r); u != nil && !u.MustChange {
 		return "u:" + strconv.FormatInt(u.ID, 10)
 	}
 	// 访客标识 = 随机 id + 服务端签名：不能随手伪造任意 id 来刷回应（未签名的旧 Cookie 视为无效，重新签发）

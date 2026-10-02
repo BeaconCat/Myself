@@ -10,7 +10,7 @@ import (
 // isAdminReq 当前请求是否来自站长会话（公开接口里用来放行隐藏内容）。
 func (s *Server) isAdminReq(r *http.Request) bool {
 	u, _ := s.currentUser(r)
-	return u != nil && u.Role == store.RoleAdmin
+	return u != nil && !u.MustChange && u.Role == store.RoleAdmin
 }
 
 // batchReq 批量操作：{"ids": [...], "action": "hide" | "show" | "delete"}，最多 500 条。

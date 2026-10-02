@@ -1,6 +1,6 @@
 module myself/server
 
-go 1.26.0
+go 1.26.7
 
 require (
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
@@ -16,7 +16,7 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
+	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect

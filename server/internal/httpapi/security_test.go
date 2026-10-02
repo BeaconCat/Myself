@@ -92,6 +92,37 @@ func TestSafeNext(t *testing.T) {
 	}
 }
 
+func TestForcedPasswordChangeCannotPreviewOrPublish(t *testing.T) {
+	e := newEnv(t)
+	e.enableUsers(map[string]any{"enabled": true, "comments": map[string]any{"enabled": true, "moderation": "all"}})
+	var note struct{ ID int64 }
+	e.call(http.MethodPost, "/api/v1/admin/notes", map[string]any{"contentMd": "private-note-marker", "status": "draft"}, &note, http.StatusCreated)
+	if _, err := e.server.DB.Exec(`INSERT INTO comments (target, user_id, body, status) SELECT 'guestbook', id, 'pending-owner-marker', 'pending' FROM users WHERE login = 'admin'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.server.DB.Exec(`UPDATE users SET must_change = 1 WHERE login = 'admin'`); err != nil {
+		t.Fatal(err)
+	}
+	if code, _ := e.as(e.token, http.MethodGet, "/api/v1/notes/"+itoa(note.ID), nil); code != http.StatusNotFound {
+		t.Errorf("restricted session can preview private note: %d", code)
+	}
+	_, list := e.as(e.token, http.MethodGet, "/api/v1/notes?all=1", nil)
+	for _, item := range list["items"].([]any) {
+		if item.(map[string]any)["contentMd"] == "private-note-marker" {
+			t.Error("restricted session can list private notes")
+		}
+	}
+	if code, _ := e.as(e.token, http.MethodPost, "/api/v1/comments", map[string]any{"target": "guestbook", "body": "impersonated owner comment"}); code != http.StatusForbidden {
+		t.Errorf("restricted session can post an approved owner comment: %d", code)
+	}
+	_, comments := e.as(e.token, http.MethodGet, "/api/v1/comments?target=guestbook", nil)
+	for _, item := range comments["items"].([]any) {
+		if item.(map[string]any)["body"] == "pending-owner-marker" {
+			t.Error("restricted session can read the owner's pending comment")
+		}
+	}
+}
+
 func TestClientIPAndLimitKey(t *testing.T) {
 	old := trustProxy
 	trustProxy = true

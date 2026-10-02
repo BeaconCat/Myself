@@ -9,6 +9,7 @@
 发布前的门禁：
 
 - 前端类型检查和生产构建。
+- npm 官方漏洞库检查与 Go 可达漏洞扫描；Go 最低版本为 1.26.7。
 - SQLite 全量 Go 测试、MySQL 8.4 HTTP 回归套件。
 - Linux amd64 原生、386/ARM/ARM64/RISC-V64 的 QEMU 安装包启动与 SQLite/图片处理测试。
 - Windows amd64/386/ARM64、macOS amd64/ARM64 的原生安装包测试。

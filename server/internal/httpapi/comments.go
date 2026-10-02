@@ -138,7 +138,7 @@ func (s *Server) listComments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var uid int64 = -1
-	if u, _ := s.currentUser(r); u != nil {
+	if u, _ := s.currentUser(r); u != nil && !u.MustChange {
 		uid = u.ID
 	}
 	rows, err := s.DB.Query(commentSelect+`WHERE c.target = ? AND c.target_id = ?
@@ -177,6 +177,10 @@ func (s *Server) createComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, fromCookie := s.currentUser(r)
+	if u != nil && u.MustChange {
+		writeError(w, http.StatusForbidden, "must_change_password")
+		return
+	}
 	if u != nil && fromCookie && !csrfOK(r) {
 		writeError(w, http.StatusForbidden, "csrf_rejected")
 		return
