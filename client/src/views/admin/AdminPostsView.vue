@@ -497,7 +497,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 .stc { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 
 
-$cols: 96px minmax(0, 1fr) 150px 96px 100px 92px 38px;
+$cols: 96px minmax(0, 1fr) 150px 168px 100px 92px 38px;
 
 .plist { display: flex; flex-direction: column; }
 

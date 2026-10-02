@@ -19,9 +19,9 @@ import MaIcon from './MaIcon.vue';
   z-index: 90;
   top: calc(var(--safe-t, 10px) + 2px);
   left: 50%;
-  width: 118px;
+  width: max-content;
+  max-width: 118px;
   height: 34px;
-  margin-left: -59px;
   border-radius: 999px;
   background: #000;
   display: flex;
@@ -32,26 +32,23 @@ import MaIcon from './MaIcon.vue';
   overflow: hidden;
   pointer-events: none;
   opacity: 0;
-  transform: translateY(-8px) scale(0.9);
+  transform: translateX(-50%) translateY(-8px) scale(0.9);
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6), inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
   transition:
-    width 0.5s var(--ease-spring),
-    margin-left 0.5s var(--ease-spring),
+    max-width 0.5s var(--ease-spring),
     height 0.5s var(--ease-spring),
     border-radius 0.5s var(--ease-spring),
     opacity 0.3s var(--ease-out) 0.25s,
     transform 0.4s var(--ease-out) 0.2s;
 
   &.open {
-    width: min(320px, calc(100vw - 32px));
-    margin-left: calc(min(320px, calc(100vw - 32px)) / -2);
+    max-width: min(320px, calc(100vw - 32px));
     height: 44px;
     border-radius: 999px;
     opacity: 1;
-    transform: none;
+    transform: translateX(-50%);
     transition:
-      width 0.5s var(--ease-spring) 0.06s,
-      margin-left 0.5s var(--ease-spring) 0.06s,
+      max-width 0.5s var(--ease-spring) 0.06s,
       height 0.5s var(--ease-spring) 0.06s,
       border-radius 0.5s var(--ease-spring),
       opacity 0.15s,
@@ -79,6 +76,7 @@ import MaIcon from './MaIcon.vue';
 .info .isl-ic { background: var(--accent-yellow); color: #1a1200; }
 
 .isl-t {
+  min-width: 0;
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
