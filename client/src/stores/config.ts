@@ -30,6 +30,8 @@ export interface ThemePreset {
 export interface SiteConfig {
   /** 站点尚未初始化（首次启动）；由 /site-config 下发 */
   needsSetup?: boolean;
+  /** 站长登录名，由公开配置从用户记录读取，不属于可编辑站点设置。 */
+  ownerLogin?: string;
   /** 用户系统开关。公开配置里是生效后的子集；后台设置接口返回完整字段 */
   users?: UsersConfig;
   /** 发信（仅后台设置接口返回） */

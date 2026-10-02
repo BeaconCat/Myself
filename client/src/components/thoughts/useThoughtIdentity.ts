@@ -11,7 +11,7 @@ export function useThoughtIdentity() {
   return {
     ...identity,
     alias,
-    handle: computed(() => config.cfg.thoughts.showUsername !== false ? config.cfg.github.username.trim() : ''),
+    handle: computed(() => config.cfg.thoughts.showUsername !== false ? (config.cfg.ownerLogin ?? '').trim() : ''),
     fullName: computed(() => displayName({ name: identity.name.value, alias: alias.value })),
   };
 }

@@ -298,6 +298,15 @@ func (s *Server) adminDeleteNote(w http.ResponseWriter, r *http.Request) {
 // GET /site-config 公开站点配置（前台启动读取）。github 只下发白名单字段（令牌、代理等一律不出站）。
 func (s *Server) siteConfig(w http.ResponseWriter, _ *http.Request) {
 	cfg := s.Config.Get()
+	owner, err := s.DB.UserBy("role = ? AND status = ? ORDER BY id", store.RoleAdmin, store.StatusActive)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	ownerLogin := ""
+	if owner != nil {
+		ownerLogin = owner.Login
+	}
 	src := config.Sub(cfg, "github")
 	github := config.Map{}
 	for _, k := range []string{"username", "mode", "stats", "refreshMinutes"} {
@@ -319,6 +328,7 @@ func (s *Server) siteConfig(w http.ResponseWriter, _ *http.Request) {
 		"about":      cfg["about"],
 		"users":      publicUsersConfig(s.Config.Typed()),
 		"needsSetup": need,
+		"ownerLogin": ownerLogin,
 	})
 }
 

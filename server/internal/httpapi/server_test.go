@@ -331,6 +331,35 @@ func TestSettingsAndSiteConfig(t *testing.T) {
 	}
 }
 
+func TestPublicThoughtUsernameUsesOwnerLogin(t *testing.T) {
+	e := newEnv(t)
+	e.call(http.MethodPut, "/api/v1/admin/settings", config.Map{
+		"github":     config.Map{"username": "different-github-name"},
+		"ownerLogin": "not-the-real-owner",
+	}, nil, http.StatusOK)
+	read := func(want string) {
+		t.Helper()
+		// Anonymous readers must see the site owner's login, not a session identity.
+		res := e.do(http.MethodGet, "/api/v1/site-config", nil, nil)
+		defer res.Body.Close()
+		var cfg config.Map
+		if res.StatusCode != http.StatusOK {
+			t.Fatalf("public config: %d", res.StatusCode)
+		}
+		if err := json.NewDecoder(res.Body).Decode(&cfg); err != nil {
+			t.Fatal(err)
+		}
+		if cfg["ownerLogin"] != want || config.Sub(cfg, "github")["username"] != "different-github-name" {
+			t.Fatalf("owner login and GitHub identity mixed: owner=%v github=%v", cfg["ownerLogin"], config.Sub(cfg, "github")["username"])
+		}
+	}
+	read("admin")
+	if _, err := e.server.DB.Exec(`UPDATE users SET login = 'new-owner-login' WHERE role = 'admin'`); err != nil {
+		t.Fatal(err)
+	}
+	read("new-owner-login")
+}
+
 func TestFeedAndBackup(t *testing.T) {
 	e := newEnv(t)
 	res := e.do(http.MethodGet, "/feed", nil, nil)
