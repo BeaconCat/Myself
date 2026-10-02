@@ -4,7 +4,7 @@
 - Monorepo：`client/`（Vue 3 + Vite 8 + PNPM）+ `server/`（Go 1.26 net/http，纯 Go 无 cgo）。生产前端、字体与 SQLite 驱动均内置在二进制中，运行时不依赖系统安装 SQLite。
 - 遵循 Google 开发规范；代码简洁专业、易维护
 - 内容统一 Markdown 存储与渲染
-- 每个功能开发完 → 运行测试服务器人工测试 → 通过后 commit 到 GitHub 私有仓 `BeaconCat/Myself`
+- 每个功能开发完 → 运行测试服务器人工测试 → 通过后 commit 到 GitHub 仓库 `BeaconCat/Myself`
 
 ## 前端规范
 - 依赖全部离线 npm 包（pnpm 安装），严禁 CDN / 联网拉取资源

@@ -12,6 +12,8 @@ Myself 是一个可自托管的个人博客引擎。用文章整理思考，用�
 
 [下载 Release](https://github.com/BeaconCat/Myself/releases) · [查看构建与预览包](https://github.com/BeaconCat/Myself/actions/workflows/release.yml) · [部署说明](deploy/README.md)
 
+**Myself Alpha · v0.0.1** 是首个公开预发布版本，采用 Apache License 2.0。适合自托管试用与反馈，后续版本仍会调整功能和数据结构；升级前请保留完整备份。[查看发行说明与下载](https://github.com/BeaconCat/Myself/releases/tag/v0.0.1)。
+
 ## 界面预览
 
 截图来自独立演示环境，使用示例账号、文章和留言。GitHub 贡献图与活动记录使用模拟展示数据，不代表本仓库的实际统计；系统更新截图中的版本和仓库用于功能演示。点击图片可查看原图。
@@ -53,9 +55,9 @@ Myself 是一个可自托管的个人博客引擎。用文章整理思考，用�
 
 | 领域 | 已实现能力 |
 | --- | --- |
-| 文章 | Markdown 存储、富文本与源码切换、草稿、发布与撤回、摘要、标签、多封面、置顶、隐藏与批量操作 |
+| 文章 | Markdown 存储、富文本与源码切换、草稿、立即/定时发布与撤回、摘要、标签、多封面、置顶、隐藏与批量操作 |
 | 阅读 | 目录、阅读进度、代码高亮与复制、图片查看器、标签筛选、站内搜索、RSS |
-| 随想 | 短内容、心情标签、配图、独立详情、日期筛选、返回列表保留位置 |
+| 随想 | 短内容、心情标签、配图、草稿与定时发布、独立详情与浏览量、日期筛选、返回列表保留位置 |
 | 写作 | 表格、任务列表、图片尺寸与对齐、拼图、视频/音频/文件/压缩包嵌入、已保存草稿的自动保存 |
 | 关于 | 26 种模块、12 栏布局、拖动排序与调宽、显示/隐藏、预览、集中维护身份 |
 | 主题 | 深浅模式、四季色盘、自定义主色、简洁/卡片风格、圆角、路由动画档位、首页动效混搭 |
@@ -93,6 +95,15 @@ Myself 是一个可自托管的个人博客引擎。用文章整理思考，用�
 初始化不导入 Demo 时使用身份区、站点数字、格言三个模块。演示配置提供更完整的编排；图鉴额外加入独立社交模块，以覆盖全部 26 种类型。
 
 ## 快速开始
+
+### 直接运行发行包
+
+无需开发环境即可试用：从 [Myself Alpha](https://github.com/BeaconCat/Myself/releases/tag/v0.0.1) 下载对应系统的 `.zip` 或 `.tar.gz` 部署包，校验 `SHA256SUMS` 后解压，将 `config.example.json` 复制为 `config.json`。
+
+- Linux / macOS：在解压目录执行 `./myself --config ./config.json`。
+- Windows：在解压目录打开 PowerShell，执行 `.\myself.exe --config .\config.json`。
+
+打开 **http://localhost:3100**，使用终端输出的初始化码创建站长账号。默认内置 SQLite，数据保存在部署目录下的 `runtime/`；需要 MySQL 时可在初始化向导中选择。更多配置见 [部署说明](deploy/README.md)。
 
 ### 开发环境
 
@@ -290,6 +301,8 @@ location / {
 
 文章和随想均可选择立即发布或定时发布。时间选择器按站点时区显示；管理列表可查看和修改排期，取消定时会保留为草稿。排期保存在数据库中，服务恢复后会补发到期内容。随想信息流显示分钟、小时或日期，详情显示精确时间与自功能启用后累计的浏览数；短时间内同一访客的重复刷新会合并。
 
+“设置 → 随想与封面”可独立控制随想中的别名和 `@用户名` 是否显示。随想编辑器的工具栏默认收起，展开后插入工具独立成行；手机端也可设置排期并查看完整发布时间。
+
 素材库支持文件夹、搜索、批量操作和引用提示。大图可压缩，处理前原图可供回退。图片、视频、音频和文件都可在编辑器插入。
 
 ```markdown
@@ -338,7 +351,7 @@ location / {
 | 权限 | 能力 |
 | --- | --- |
 | `contrib` 默认 | 创建文章草稿，只读写自己创建的草稿 |
-| `full` | 读写全部文章和随想，可直接发布 |
+| `full` | 读写全部文章和随想，可立即发布或定时发布 |
 
 明文 Key 只显示一次，服务端保存哈希，吊销后立即失效。Key 用于 `/api/v1/ext/*`；后台管理接口使用站点会话。
 
@@ -351,7 +364,11 @@ curl -X POST "$MYSELF_BASE_URL/api/v1/ext/posts" \
   -d '{"slug":"hello-from-api","title":"第一篇 API 投稿","contentMd":"# 你好\n\n正文使用 Markdown。","tags":["API"],"status":"draft"}'
 ```
 
-`slug` 为 1–80 位小写字母、数字和短横线，且不可重复。仅全托管 Key 可指定 `status: "published"`。
+`slug` 为 1–80 位小写字母、数字和短横线，且不可重复。仅全托管 Key 可指定 `status: "published"` 或 `status: "scheduled"`；投稿 Key 创建的内容始终为草稿。
+
+定时发布同时传入 `status: "scheduled"` 和未来的 `publishAt`，建议使用带时区偏移的 RFC 3339 时间，例如 `2027-01-01T09:00:00+08:00`。未带偏移的本地时间按站点时区解释。更新正文时省略 `status` 和 `publishAt` 会保留原有排期；传入 `status: "draft"` 可取消定时并保留内容。以接口返回的实际状态为准。
+
+`PUT` 会更新整组内容字段：先读取详情，文章带回 `title`、`excerpt`、`contentMd`、`tags`、`covers`，随想带回 `contentMd`、`mood`、`images`，再合并修改与发布参数。仅传状态和时间会被拒绝，省略可选内容字段可能清空原值。新随想不传 `status` 会立即公开，准备草稿时必须显式传 `"draft"`。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -362,7 +379,7 @@ curl -X POST "$MYSELF_BASE_URL/api/v1/ext/posts" \
 | GET / POST | `/api/v1/ext/posts` | 文章列表、创建 |
 | GET / PUT / DELETE | `/api/v1/ext/posts/:id` | 文章读取、更新、删除 |
 | GET / POST | `/api/v1/ext/notes` | 随想列表、创建 |
-| PUT / DELETE | `/api/v1/ext/notes/:id` | 随想更新、删除 |
+| GET / PUT / DELETE | `/api/v1/ext/notes/:id` | 随想读取、更新、删除 |
 
 完整参数、示例、助手提示词、调用日志和响应调试见后台 API 中心。无效 Key 返回 `401`，权限不足返回 `403`，重复 slug 返回 `409`。
 
