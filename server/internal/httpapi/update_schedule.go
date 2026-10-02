@@ -65,6 +65,9 @@ func (s *Server) runUpdateCycle(ctx context.Context, now time.Time, check func(c
 		return nil
 	}
 	r := status.Available
+	if p.Channel == "stable" && r.Prerelease {
+		return nil
+	}
 	if p.Subscribe && s.Config.Typed().Mail.Ready() && emailRe.MatchString(p.Email) {
 		n := updater.Notification{Repository: p.Repository, Version: r.Version, Email: p.Email, Status: "attempting", At: now.UTC().Format(time.RFC3339)}
 		reserved, err := s.Updates.ReserveNotification(n)

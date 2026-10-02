@@ -15,6 +15,7 @@ const catalogueTimeout = 90 * time.Second
 
 type Preferences struct {
 	Repository   string `json:"repository"`
+	Channel      string `json:"channel"`
 	AutoUpdate   bool   `json:"autoUpdate"`
 	Subscribe    bool   `json:"subscribe"`
 	Email        string `json:"email"`
@@ -84,6 +85,12 @@ func (m *Manager) ConfigureWithToken(p Preferences, day string, token *string) e
 	if p.HistoryLimit < 1 || p.HistoryLimit > 20 {
 		return errors.New("invalid_history_limit")
 	}
+	if p.Channel == "" {
+		p.Channel = m.prefs.Channel
+	}
+	if p.Channel != "stable" && p.Channel != "preview" {
+		return errors.New("invalid_update_channel")
+	}
 	if !strings.EqualFold(p.Repository, m.prefs.Repository) {
 		p.AutoUpdate = false
 	}
@@ -91,7 +98,7 @@ func (m *Manager) ConfigureWithToken(p Preferences, day string, token *string) e
 		return errors.New(m.disabledReason())
 	}
 	p.LastScanDay = m.prefs.LastScanDay
-	if p.Repository != m.prefs.Repository || ((!m.prefs.AutoUpdate && !m.prefs.Subscribe) && (p.AutoUpdate || p.Subscribe)) {
+	if p.Repository != m.prefs.Repository || p.Channel != m.prefs.Channel || ((!m.prefs.AutoUpdate && !m.prefs.Subscribe) && (p.AutoUpdate || p.Subscribe)) {
 		p.LastScanDay = day
 	}
 	savedToken := m.savedToken
@@ -104,7 +111,7 @@ func (m *Manager) ConfigureWithToken(p Preferences, day string, token *string) e
 	if savedToken != m.savedToken {
 		m.catalog = map[string]manifest{}
 	}
-	if p.Repository != m.opts.Repository || savedToken != m.savedToken {
+	if p.Repository != m.opts.Repository || p.Channel != m.prefs.Channel || savedToken != m.savedToken {
 		m.state.Available, m.state.Target = nil, nil
 		m.state.Phase, m.state.Error, m.state.CheckedAt = "idle", "", ""
 	}

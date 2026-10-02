@@ -12,7 +12,7 @@ const { t, te } = useI18n();
 const dialog = useDialogStore();
 const status = ref<UpdateStatus | null>(null);
 const catalogue = ref<UpdateReleasePage | null>(null);
-const preferences = reactive<UpdatePreferences>({ repository: '', autoUpdate: false, subscribe: false, email: '', historyLimit: 3 });
+const preferences = reactive<UpdatePreferences>({ repository: '', channel: 'stable', autoUpdate: false, subscribe: false, email: '', historyLimit: 3 });
 const localHistory = ref<UpdateHistoryPage | null>(null);
 const historyPage = ref(1), historyBusy = ref(false), historyError = ref('');
 const notesHTML = computed(() => new Map(catalogue.value?.items.map(release => [release.id, render(release.notes, `release-${release.id}`)]) ?? []));
@@ -128,7 +128,9 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
         <label><span class="st-flabel">{{ t('studio.updates.token') }}</span><span class="st-field"><input v-model="token" type="password" autocomplete="new-password" spellcheck="false" maxlength="4096" :aria-label="t('studio.updates.token')" :placeholder="t(status.tokenConfigured ? 'studio.updates.tokenKeep' : 'studio.updates.tokenEmpty')" :disabled="disabled || clearToken" /></span></label>
         <p class="description">{{ t('studio.updates.tokenHint') }}</p>
         <div class="token-state"><span class="description">{{ t(clearToken ? 'studio.updates.tokenClearing' : `studio.updates.tokenSources.${status.tokenSource || 'none'}`) }}</span><button v-if="status.tokenSource === 'settings'" type="button" class="st-btn" :disabled="disabled" @click="clearToken = !clearToken; token = ''">{{ t(clearToken ? 'studio.updates.tokenUndo' : 'studio.updates.tokenClear') }}</button></div>
-        <div class="option"><div><b>{{ t('studio.updates.automatic') }}</b><p>{{ t('studio.updates.automaticHint') }}</p></div><StSwitch v-model="preferences.autoUpdate" :label="t('studio.updates.automatic')" :disabled="disabled || (!!status.automaticReason && !preferences.autoUpdate)" /></div>
+        <label><span class="st-flabel">{{ t('studio.updates.channel') }}</span><select v-model="preferences.channel" class="st-select" :disabled="disabled"><option value="stable">{{ t('studio.updates.channels.stable') }}</option><option value="preview">{{ t('studio.updates.channels.preview') }}</option></select></label>
+        <p class="description">{{ t('studio.updates.channelHint') }}</p>
+        <div class="option"><div><b>{{ t('studio.updates.automatic') }}</b><p>{{ t('studio.updates.automaticHint', { channel: t(`studio.updates.channels.${preferences.channel}`) }) }}</p></div><StSwitch v-model="preferences.autoUpdate" :label="t('studio.updates.automatic')" :disabled="disabled || (!!status.automaticReason && !preferences.autoUpdate)" /></div>
         <p v-if="status.automaticReason && !status.reason" class="note">{{ explain(status.automaticReason) }}</p>
         <label><span class="st-flabel">{{ t('studio.updates.historyLimit') }}</span><select v-model.number="preferences.historyLimit" class="st-select" :disabled="disabled"><option v-for="count in [1, 3, 5, 10, 20]" :key="count" :value="count">{{ t('studio.updates.keepCount', { count }) }}</option></select></label>
         <p class="description">{{ t('studio.updates.historyHint') }}</p>
@@ -144,7 +146,7 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
       <p v-if="dirty || changed" class="note">{{ t('studio.updates.saveFirst') }}</p>
       <p v-if="status.backup" class="backup">{{ t('studio.updates.backup') }} <code>{{ status.backup }}</code></p>
       <p v-if="status.notification" class="note">{{ t('studio.updates.notificationResult', { version: status.notification.version, state: t(`studio.updates.notification.${status.notification.status}`), email: status.notification.email }) }}<span v-if="status.notification.error"> · {{ status.notification.error }}</span></p>
-      <div v-if="status.available" class="release highlight"><div><b>{{ status.available.name }}</b><span>{{ status.available.version }} · {{ (status.available.size / 1048576).toFixed(1) }} MB</span></div><button v-if="status.canApply" class="st-btn p" :disabled="disabled || dirty || changed" @click="install(status.available)">{{ t('studio.updates.installVersion', { version: status.available.version }) }}</button><p v-else-if="status.available.reason" class="note">{{ explain(status.available.reason) }}</p></div>
+      <div v-if="status.available" class="release highlight"><div><b>{{ status.available.name }} <small class="channel-badge">{{ t(status.available.prerelease ? 'studio.updates.previewRelease' : 'studio.updates.stableRelease') }}</small></b><span>{{ status.available.version }} · {{ (status.available.size / 1048576).toFixed(1) }} MB</span></div><button v-if="status.canApply" class="st-btn p" :disabled="disabled || dirty || changed" @click="install(status.available)">{{ t('studio.updates.installVersion', { version: status.available.version }) }}</button><p v-else-if="status.available.reason" class="note">{{ explain(status.available.reason) }}</p></div>
       <p v-if="status.error" class="error" role="alert">{{ explain(status.error) }}</p>
       <p v-if="status.historyError" class="error" role="alert">{{ explain(status.historyError) }}</p>
     </template>
@@ -152,12 +154,13 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
     <div class="actions"><button class="st-btn" :disabled="disabled || changed" @click="check"><SIcon name="refresh" :size="16" />{{ busy && !active ? t('studio.updates.checking') : t('studio.updates.check') }}</button><button v-if="status?.phase === 'installed' || status?.phase === 'rolled_back'" class="st-btn p" @click="refresh">{{ t('studio.updates.refresh') }}</button></div>
     <section v-if="status" class="history">
       <div class="history-heading"><h3>{{ t('studio.updates.history') }}</h3><a v-if="repoURL" :href="repoURL" target="_blank" rel="noopener noreferrer">{{ status.repository }}</a></div>
+      <p v-if="status.preferences" class="description">{{ t('studio.updates.channelListing', { channel: t(`studio.updates.channels.${status.preferences.channel}`) }) }}</p>
       <p v-if="listBusy" class="description" role="status">{{ t('studio.updates.loadingVersions') }}</p>
       <p v-else-if="listError" class="error" role="alert">{{ listError }} <button class="st-btn" @click="releases(page)">{{ t('studio.updates.retry') }}</button></p>
       <div v-else-if="catalogue && !catalogue.items.length" class="empty"><SIcon name="archive" :size="30" /><b>{{ t('studio.updates.emptyTitle') }}</b><p>{{ t('studio.updates.emptyBody') }}</p><a :href="repoURL" target="_blank" rel="noopener noreferrer">{{ t('studio.updates.releaseNotes') }}</a></div>
       <div v-else-if="catalogue" class="version-list">
         <article v-for="release in catalogue.items" :key="release.id" class="release">
-          <div class="release-top"><div><b>{{ release.name }}</b><p class="description">{{ release.version || t('studio.updates.unknownVersion') }}<template v-if="release.codename"> · {{ release.codename }}</template><template v-if="release.publishedAt"> · {{ new Date(release.publishedAt).toLocaleDateString() }}</template></p></div><button class="st-btn" :disabled="disabled || dirty || changed || !!status.reason || !release.installable" @click="install(release)">{{ t(`studio.updates.select.${release.relation || 'newer'}`) }}</button></div>
+          <div class="release-top"><div><b>{{ release.name }} <small class="channel-badge">{{ t(release.prerelease ? 'studio.updates.previewRelease' : 'studio.updates.stableRelease') }}</small></b><p class="description">{{ release.version || t('studio.updates.unknownVersion') }}<template v-if="release.codename"> · {{ release.codename }}</template><template v-if="release.publishedAt"> · {{ new Date(release.publishedAt).toLocaleDateString() }}</template></p></div><button class="st-btn" :disabled="disabled || dirty || changed || !!status.reason || !release.installable" @click="install(release)">{{ t(`studio.updates.select.${release.relation || 'newer'}`) }}</button></div>
           <p v-if="release.reason" class="note">{{ explain(release.reason) }}</p>
           <a :href="release.url" target="_blank" rel="noopener noreferrer">{{ t('studio.updates.releaseNotes') }}</a>
           <details v-if="release.notes"><summary>{{ t('studio.updates.changes') }}</summary><div class="markdown-content release-notes" v-html="notesHTML.get(release.id)" /></details>
@@ -199,6 +202,7 @@ dt { font-size: 12px; color: var(--st-ink-3); } dd { margin: 0; font-family: var
 .history,.version-list { display: grid; gap: 12px; min-width: 0; }.history-heading { justify-content: space-between; }.history-heading h3 { font-size: 16px; margin: 0; }
 .release { border: 1px solid var(--line-2); border-radius: var(--r-md); padding: 16px; display: grid; gap: 10px; min-width: 0; }.release b { overflow-wrap: anywhere; }.release span { color: var(--st-ink-3); font-size: 12px; }.release.highlight > div { display: grid; gap: 5px; }.release > button { justify-self: start; }
 .release.highlight { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 16px; }.release.highlight > button { justify-self: end; }.release.highlight > .note { grid-column: 1 / -1; }
+.channel-badge { display: inline-block; vertical-align: middle; padding: 1px 6px; border: 1px solid var(--line-2); border-radius: 4px; font-size: 11px; font-weight: 400; line-height: 1.6; color: var(--st-ink-3); white-space: nowrap; }
 .release-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.release-top > div { min-width: 0; }.release-top > button { flex-shrink: 0; }
 a { color: var(--primary); font-size: 13px; overflow-wrap: anywhere; } pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 12px; max-height: 260px; overflow: auto; } summary { cursor: pointer; font-size: 13px; }
 progress { width: 100%; height: 8px; accent-color: var(--primary); }.error { color: var(--danger,#c63b46); overflow-wrap: anywhere; font-size: 13px; margin: 0; }.backup code { overflow-wrap: anywhere; }

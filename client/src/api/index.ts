@@ -248,14 +248,14 @@ export interface DatabaseConfig {
   mysql?: { host: string; port: number; name: string; user: string; password: string; tls: 'true' | 'false' };
 }
 
-export interface UpdatePreferences { repository: string; autoUpdate: boolean; subscribe: boolean; email: string; historyLimit: number }
+export interface UpdatePreferences { repository: string; channel: 'stable' | 'preview'; autoUpdate: boolean; subscribe: boolean; email: string; historyLimit: number }
 export interface UpdateHistoryEntry { id: string; build: UpdateStatus['current']; createdAt: string; size: number; sha256: string; installable: boolean; reason?: string }
 export interface UpdateHistoryPage { items: UpdateHistoryEntry[]; page: number; pageSize: number; total: number; hasNext: boolean }
 export interface UpdateRelease {
   id: number; tag: string; version: string; codename?: string; name: string; notes: string; url: string; publishedAt: string; size: number;
   prerelease: boolean; installable: boolean; reason?: string; relation?: 'older' | 'current' | 'newer';
 }
-export interface UpdateReleasePage { items: UpdateRelease[]; page: number; pageSize: number; hasNext: boolean; repository: string }
+export interface UpdateReleasePage { items: UpdateRelease[]; page: number; pageSize: number; hasNext: boolean; repository: string; channel: 'stable' | 'preview' }
 export interface UpdateStatus {
   current: { version: string; codename?: string; repository?: string; commit: string; date: string; os: string; arch: string; updateProtocol: number };
   repository: string;

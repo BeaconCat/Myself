@@ -100,11 +100,19 @@ func New(opts Options) (*Manager, error) {
 	}
 	m.state = Status{Current: opts.Build, Repository: opts.Repository, Phase: "idle"}
 	m.prefs.Repository = opts.Repository
+	m.prefs.Channel = "stable"
 	if data, err := os.ReadFile(filepath.Join(dir, "preferences.json")); err == nil {
 		var stored storedPreferences
 		if json.Unmarshal(data, &stored) == nil {
 			if repo, err := NormalizeRepository(stored.Repository); err == nil {
 				m.prefs = stored.Preferences
+				// Before channels existed, saved preferences included prereleases.
+				if m.prefs.Channel == "" {
+					m.prefs.Channel = "preview"
+				}
+				if m.prefs.Channel != "preview" && m.prefs.Channel != "stable" {
+					m.prefs.Channel = "stable"
+				}
 				m.prefs.Repository = repo
 				m.prefs.LastScanDay = stored.LastScanDay
 				m.opts.Repository = repo
@@ -127,6 +135,12 @@ func New(opts Options) (*Manager, error) {
 		}
 	}
 	m.state.Current, m.state.Repository = opts.Build, m.opts.Repository
+	if !m.pending && m.state.Available != nil && !channelAllows(m.prefs.Channel, m.state.Available.Prerelease) {
+		m.state.Available = nil
+		if m.state.Phase == "available" {
+			m.state.Phase = "idle"
+		}
+	}
 	if !m.pending && activePhase(m.state.Phase) {
 		data, _ := os.ReadFile(exe + ".update-lock")
 		pid, _ := strconv.Atoi(strings.TrimSpace(string(data)))
@@ -183,6 +197,12 @@ func (m *Manager) Status() Status {
 		}
 	}
 	s := m.state
+	if s.Available != nil && !channelAllows(m.prefs.Channel, s.Available.Prerelease) {
+		s.Available = nil
+		if s.Phase == "available" {
+			s.Phase = "idle"
+		}
+	}
 	if s.Phase == "installed" || s.Phase == "rolled_back" {
 		if plan, err := ReadPlan(filepath.Join(m.stateDir, "plan.json")); err == nil && plan.Executable == m.executable {
 			_ = os.Remove(plan.Helper)
@@ -212,7 +232,7 @@ func (m *Manager) Status() Status {
 	s.Busy = m.busy || activePhase(s.Phase)
 	s.Reason, s.AutomaticReason = m.installDisabledReason(), m.disabledReason()
 	_, currentKnown := NumericVersion(s.Current.Version)
-	s.CanApply = s.Reason == "" && !m.busy && !activePhase(s.Phase) && s.Available != nil && s.Available.Installable && (!currentKnown || newer(s.Available.Version, s.Current.Version))
+	s.CanApply = s.Reason == "" && !m.busy && !activePhase(s.Phase) && s.Available != nil && s.Available.Installable && channelAllows(m.prefs.Channel, s.Available.Prerelease) && (!currentKnown || newer(s.Available.Version, s.Current.Version))
 	return s
 }
 
@@ -288,7 +308,7 @@ func (m *Manager) Start(version string) error {
 	if m.busy || activePhase(m.state.Phase) {
 		return errors.New("update_in_progress")
 	}
-	if m.state.Available == nil || !m.state.Available.Installable || m.state.Available.Version != version || !newer(version, m.opts.Build.Version) {
+	if m.state.Available == nil || !m.state.Available.Installable || !channelAllows(m.prefs.Channel, m.state.Available.Prerelease) || m.state.Available.Version != version || !newer(version, m.opts.Build.Version) {
 		return errors.New("check_update_first")
 	}
 	m.busy = true

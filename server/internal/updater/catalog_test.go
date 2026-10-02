@@ -59,6 +59,11 @@ func TestCataloguePaginationNamesAndGreatestVersion(t *testing.T) {
 	defer server.Close()
 	m := testManager(t)
 	m.opts.Build.Version = "0.0.1"
+	p := m.Preferences()
+	p.Channel = "preview"
+	if err := m.Configure(p, ""); err != nil {
+		t.Fatal(err)
+	}
 	m.apiBase = server.URL
 	page, err := m.List(context.Background(), 1, 1)
 	if err != nil || !page.HasNext || len(page.Items) != 1 || page.Items[0].Name != "Myself Astra" || page.Items[0].Version != "0.1.0.9" {

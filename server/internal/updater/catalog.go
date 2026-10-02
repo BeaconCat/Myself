@@ -35,6 +35,7 @@ type ReleasePage struct {
 	PageSize   int       `json:"pageSize"`
 	HasNext    bool      `json:"hasNext"`
 	Repository string    `json:"repository"`
+	Channel    string    `json:"channel"`
 }
 
 func (m *Manager) remotePage(ctx context.Context, page, size int) ([]remoteRelease, bool, error) {
@@ -129,7 +130,11 @@ func (m *Manager) saveCatalog() {
 	_ = writeJSONFile(filepath.Join(m.stateDir, "catalog.json"), m.catalog)
 }
 
-// All published releases participate, including prereleases with a larger number.
+func channelAllows(channel string, prerelease bool) bool {
+	return !prerelease || channel == "preview"
+}
+
+// Preview includes published prereleases and stable releases; stable excludes prereleases.
 // Never report a partial scan as "latest" if the catalogue exceeds the bound.
 func (m *Manager) latest(ctx context.Context) (*Release, error) {
 	defer m.saveCatalog()
@@ -141,7 +146,7 @@ func (m *Manager) latest(ctx context.Context) (*Release, error) {
 			return nil, err
 		}
 		for _, item := range items {
-			if item.Draft {
+			if item.Draft || !channelAllows(m.prefs.Channel, item.Prerelease) {
 				continue
 			}
 			total++
@@ -149,7 +154,11 @@ func (m *Manager) latest(ctx context.Context) (*Release, error) {
 			if err != nil {
 				return nil, err
 			}
-			if _, valid := NumericVersion(r.Version); valid && (best == nil || newer(r.Version, best.Version)) {
+			order, comparable := 0, false
+			if best != nil {
+				order, comparable = CompareVersions(r.Version, best.Version)
+			}
+			if _, valid := NumericVersion(r.Version); valid && (best == nil || newer(r.Version, best.Version) || (comparable && order == 0 && best.Prerelease && !r.Prerelease)) {
 				best = r
 			}
 		}
@@ -181,6 +190,9 @@ func (m *Manager) selected(ctx context.Context, id int64) (*Release, error) {
 	if item.ID != id {
 		return nil, errors.New("release_changed_check_again")
 	}
+	if !channelAllows(m.prefs.Channel, item.Prerelease) {
+		return nil, errors.New("release_not_in_channel")
+	}
 	r, err := m.resolve(ctx, item, true)
 	if err == nil && !r.Installable {
 		err = errors.New(r.Reason)
@@ -189,7 +201,7 @@ func (m *Manager) selected(ctx context.Context, id int64) (*Release, error) {
 }
 
 func (m *Manager) List(ctx context.Context, page, size int) (ReleasePage, error) {
-	page, size = max(1, page), max(1, min(20, size))
+	page, size = max(1, min(100000, page)), max(1, min(20, size))
 	m.mu.Lock()
 	if m.busy || activePhase(m.state.Phase) {
 		m.mu.Unlock()
@@ -197,27 +209,44 @@ func (m *Manager) List(ctx context.Context, page, size int) (ReleasePage, error)
 	}
 	m.busy = true
 	repo := m.opts.Repository
+	channel := m.prefs.Channel
 	m.mu.Unlock()
 	defer func() { m.mu.Lock(); m.busy = false; m.mu.Unlock() }()
 	ctx, cancel := context.WithTimeout(ctx, catalogueTimeout)
 	defer cancel()
-	items, next, err := m.remotePage(ctx, page, size)
-	out := ReleasePage{Items: []Release{}, Page: page, PageSize: size, HasNext: next, Repository: repo}
-	if err != nil {
-		return out, err
-	}
+	out := ReleasePage{Items: []Release{}, Page: page, PageSize: size, Repository: repo, Channel: channel}
 	defer m.saveCatalog()
-	for _, item := range items {
-		if item.Draft {
-			continue
-		}
-		r, err := m.resolve(ctx, item, false)
+	// Paginate after filtering, so a page of prereleases cannot hide later stable releases.
+	seen, offset := 0, (page-1)*size
+	for remotePage := 1; remotePage <= 20; remotePage++ {
+		items, next, err := m.remotePage(ctx, remotePage, 100)
 		if err != nil {
 			return out, err
 		}
-		out.Items = append(out.Items, *r)
+		for _, item := range items {
+			if item.Draft || !channelAllows(channel, item.Prerelease) {
+				continue
+			}
+			if seen < offset {
+				seen++
+				continue
+			}
+			if len(out.Items) == size {
+				out.HasNext = true
+				return out, nil
+			}
+			r, err := m.resolve(ctx, item, false)
+			if err != nil {
+				return out, err
+			}
+			out.Items = append(out.Items, *r)
+			seen++
+		}
+		if !next {
+			return out, nil
+		}
 	}
-	return out, nil
+	return out, errors.New("catalogue_too_large")
 }
 
 func (m *Manager) loadCatalog() {
