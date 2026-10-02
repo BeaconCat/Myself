@@ -271,6 +271,39 @@ func TestSettingsSecretsMasked(t *testing.T) {
 	}
 }
 
+func TestGitHubTokenBlankPreservesAndExplicitNullClears(t *testing.T) {
+	e := newEnv(t)
+	var got config.Map
+	e.call(http.MethodPut, "/api/v1/admin/settings", config.Map{"github": config.Map{"token": "first-secret"}}, &got, http.StatusOK)
+	if config.Sub(got, "github")["token"] != secretMask || config.Sub(got, "github")["tokenConfigured"] != true {
+		t.Fatal("configured token was not masked")
+	}
+	for _, patch := range []config.Map{{"refreshMinutes": 60}, {"token": ""}, {"token": "   "}, {"token": secretMask}, {"tokenConfigured": false}} {
+		e.call(http.MethodPut, "/api/v1/admin/settings", config.Map{"github": patch}, &got, http.StatusOK)
+		if e.server.Config.Typed().GitHub.Token != "first-secret" || config.Sub(got, "github")["tokenConfigured"] != true {
+			t.Fatal("blank or metadata replaced existing token")
+		}
+	}
+	e.call(http.MethodPut, "/api/v1/admin/settings", config.Map{"github": config.Map{"token": "replacement-secret"}}, &got, http.StatusOK)
+	if e.server.Config.Typed().GitHub.Token != "replacement-secret" {
+		t.Fatal("replacement not saved")
+	}
+	e.call(http.MethodPut, "/api/v1/admin/settings", config.Map{"github": config.Map{"token": nil}}, &got, http.StatusOK)
+	if e.server.Config.Typed().GitHub.Token != "" || config.Sub(got, "github")["tokenConfigured"] != false {
+		t.Fatal("explicit removal failed")
+	}
+	if _, exists := config.Sub(e.server.Config.Get(), "github")["tokenConfigured"]; exists {
+		t.Fatal("read-only metadata persisted")
+	}
+	var public config.Map
+	e.call(http.MethodGet, "/api/v1/site-config", nil, &public, http.StatusOK)
+	for _, key := range []string{"token", "tokenConfigured", "clearToken"} {
+		if _, exists := config.Sub(public, "github")[key]; exists {
+			t.Fatal("private token field leaked", key)
+		}
+	}
+}
+
 // 旧格式口令哈希照常能登录，并在登录成功时升级为带参数的新格式
 func TestPasswordHashUpgrade(t *testing.T) {
 	e := newEnv(t)

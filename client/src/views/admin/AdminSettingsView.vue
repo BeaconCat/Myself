@@ -43,6 +43,9 @@ async function load(): Promise<void> {
     const remote = (await adminApi.settings()) as unknown as SiteConfig;
     Object.assign(cfg, JSON.parse(JSON.stringify(remote)));
     cfg.github = { ...FALLBACK_CONFIG.github, ...(remote.github ?? {}) };
+    cfg.github.tokenConfigured = remote.github?.tokenConfigured ?? !!remote.github?.token;
+    cfg.github.token = '';
+    cfg.github.clearToken = false;
     cfg.github.stats = { ...FALLBACK_CONFIG.github.stats, ...(remote.github?.stats ?? {}) };
     cfg.thoughts = { ...FALLBACK_CONFIG.thoughts, ...(remote.thoughts ?? {}) };
     cfg.site.url ??= '';
@@ -65,18 +68,26 @@ async function save(): Promise<void> {
   if (busy.value) return;
   busy.value = true;
   try {
-    await adminApi.saveSettings(JSON.parse(JSON.stringify({
+    const github: Record<string, unknown> = { ...cfg.github };
+    delete github.tokenConfigured;
+    delete github.clearToken;
+    if (cfg.github.clearToken) github.token = null;
+    else if (!cfg.github.token?.trim()) delete github.token;
+    const updated = await adminApi.saveSettings(JSON.parse(JSON.stringify({
       site: cfg.site,
       loading: cfg.loading,
       thoughts: cfg.thoughts,
       covers: cfg.covers,
       timezone: cfg.timezone,
-      github: cfg.github,
+      github,
       mail: cfg.mail,
       oauth: cfg.oauth,
       session: cfg.session,
       users: { login: { github: !!cfg.users?.login.github } },
-    })));
+    }))) as unknown as SiteConfig;
+    cfg.github.tokenConfigured = updated.github?.tokenConfigured ?? !!updated.github?.token;
+    cfg.github.token = '';
+    cfg.github.clearToken = false;
     snapshot.value = mine();
     await config.load();
     toast(t('studio.settings.saved'));

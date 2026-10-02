@@ -333,7 +333,7 @@ func (s *Server) siteConfig(w http.ResponseWriter, _ *http.Request) {
 }
 
 // secretMask 设置里密钥类字段回显用的占位：浏览器拿不到明文（后台万一被 XSS 也偷不走）；
-// 保存时收到原样的占位视为「不修改」，清空才是删除
+// 保存时收到原样的占位视为「不修改」。GitHub 令牌另有留空保留规则。
 const secretMask = "••••••••"
 
 // secretFields 只写不读的配置字段（段 → 子段… → 字段）
@@ -353,6 +353,10 @@ func walkSecret(m config.Map, path []string) config.Map {
 
 // maskSecrets 就地把已设置的密钥字段替换为占位
 func maskSecrets(cfg config.Map) config.Map {
+	if github := walkSecret(cfg, []string{"github", "token"}); github != nil {
+		token, _ := github["token"].(string)
+		github["tokenConfigured"] = token != ""
+	}
 	for _, p := range secretFields {
 		if parent := walkSecret(cfg, p); parent != nil {
 			if v, _ := parent[p[len(p)-1]].(string); v != "" {
@@ -379,6 +383,17 @@ func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 	for _, sp := range secretFields {
 		if parent := walkSecret(patch, sp); parent != nil && parent[sp[len(sp)-1]] == secretMask {
 			delete(parent, sp[len(sp)-1])
+		}
+	}
+	if github := walkSecret(patch, []string{"github", "token"}); github != nil {
+		delete(github, "tokenConfigured") // Read-only admin metadata.
+		delete(github, "clearToken")      // UI-only draft state.
+		if value, supplied := github["token"]; supplied {
+			if value == nil {
+				github["token"] = "" // Explicit removal; compatible with older clients.
+			} else if token, ok := value.(string); ok && strings.TrimSpace(token) == "" {
+				delete(github, "token") // Empty input preserves the saved credential.
+			}
 		}
 	}
 	// 改站点名称时，仍沿用旧名的启动文案 / 发件人名称跟着改

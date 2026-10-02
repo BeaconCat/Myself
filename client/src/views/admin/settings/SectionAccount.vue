@@ -103,6 +103,7 @@ async function submit(): Promise<void> {
 
   .hint { font-size: 12.5px; color: var(--st-ink-3); }
   .err { font-size: 13px; color: var(--red); }
+  > button { margin-inline-start: auto; }
 }
 
 @media (max-width: 767px) {

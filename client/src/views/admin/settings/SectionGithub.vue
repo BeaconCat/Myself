@@ -64,8 +64,11 @@ onMounted(loadLog);
 
     <template v-if="cfg.github.mode === 'api'">
       <div class="st-opt">
-        <div>{{ t('studio.settings.ghToken') }}<small>{{ t('studio.settings.ghTokenSub') }}</small></div>
-        <label class="st-field w260 mono-in"><input v-model="cfg.github.token" :aria-label="t('studio.settings.ghToken')" type="password" autocomplete="off" placeholder="ghp_…" /></label>
+        <div>{{ t('studio.settings.ghToken') }}<small>{{ t(cfg.github.clearToken ? 'studio.settings.ghTokenClearing' : cfg.github.tokenConfigured ? 'studio.settings.ghTokenKeep' : 'studio.settings.ghTokenSub') }}</small></div>
+        <div class="gh-token-control">
+          <label class="st-field mono-in"><input v-model="cfg.github.token" :aria-label="t('studio.settings.ghToken')" type="text" class="token-input" name="github-stats-token" autocomplete="off" autocapitalize="off" spellcheck="false" :disabled="cfg.github.clearToken" :placeholder="t(cfg.github.tokenConfigured ? 'studio.settings.ghTokenKeep' : 'studio.settings.ghTokenSub')" /></label>
+          <button v-if="cfg.github.tokenConfigured" type="button" class="st-btn g" @click="cfg.github.clearToken = !cfg.github.clearToken; cfg.github.token = ''">{{ t(cfg.github.clearToken ? 'studio.settings.ghTokenUndo' : 'studio.settings.ghTokenClear') }}</button>
+        </div>
       </div>
       <div class="st-opt">
         <div>{{ t('studio.settings.ghRefresh') }}</div>
@@ -116,6 +119,7 @@ onMounted(loadLog);
 <style scoped lang="scss">
 .w260 { width: 260px; }
 .w140 { width: 140px; }
+.gh-token-control { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 440px; max-width: 100%; min-width: 0; }.gh-token-control > label { flex: 1 1 200px; min-width: 0; }.gh-token-control > button { margin-inline-start: auto; flex-shrink: 0; }.token-input { -webkit-text-security: disc; }.token-input::placeholder { -webkit-text-security: none; }
 
 .panel {
   margin-top: 14px;
@@ -180,6 +184,7 @@ onMounted(loadLog);
 }
 
 @media (max-width: 767px) {
+  .gh-token-control { width: 100%; }
   .panel { padding: 12px; }
   .ph { flex-wrap: wrap; gap: 12px; }
   .stats { flex-basis: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }

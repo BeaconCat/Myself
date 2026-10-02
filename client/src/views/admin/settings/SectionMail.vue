@@ -181,6 +181,7 @@ async function test(): Promise<void> {
   .test { padding: 12px; }
   .test .row { flex-wrap: wrap; }
   .test .row .st-field { flex-basis: 100%; }
+  .test .row > button { margin-inline-start: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

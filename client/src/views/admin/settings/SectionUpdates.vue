@@ -20,6 +20,7 @@ const saved = ref('');
 const token = ref(''), clearToken = ref(false);
 const changed = computed(() => (!!saved.value && saved.value !== JSON.stringify(preferences)) || !!token.value.trim() || clearToken.value);
 const busy = ref(false), listBusy = ref(false), reconnecting = ref(false);
+const channelBusy = ref(false);
 const error = ref(''), listError = ref('');
 const page = ref(1);
 let timer = 0, disposed = false;
@@ -94,6 +95,28 @@ async function save(): Promise<void> {
   finally { busy.value = false; }
   if (!error.value) { await releases(); await history(); }
 }
+async function changeChannel(): Promise<void> {
+  if (disabled.value || channelBusy.value || !status.value?.preferences) return;
+  const previous = status.value.preferences.channel;
+  const selected = preferences.channel;
+  if (selected === previous) return;
+  const baseline = JSON.parse(saved.value || JSON.stringify(status.value.preferences)) as UpdatePreferences;
+  channelBusy.value = true; busy.value = true; error.value = '';
+  let applied = false;
+  try {
+    // Persist only the channel: keep unsaved fields and token edits in the form.
+    accept(await adminApi.saveUpdatePreferences({ ...status.value.preferences, channel: selected }));
+    if (status.value.preferences.channel !== selected) throw new Error('backend_outdated');
+    preferences.channel = selected;
+    saved.value = JSON.stringify({ ...baseline, channel: selected });
+    catalogue.value = null; page.value = 1; applied = true;
+  } catch (e) {
+    preferences.channel = previous;
+    error.value = explain((e as Error).message);
+  } finally { busy.value = false; }
+  try { if (applied) await check(); }
+  finally { channelBusy.value = false; }
+}
 async function check(): Promise<void> {
   busy.value = true; error.value = '';
   try { accept(await adminApi.checkUpdate()); await load(); }
@@ -128,10 +151,11 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
       <form v-if="status.preferences" class="preferences" @submit.prevent="save">
         <label><span class="st-flabel">{{ t('studio.updates.repository') }}</span><span class="st-field"><input v-model.trim="preferences.repository" placeholder="owner/repository" required :disabled="disabled" /></span></label>
         <p class="description">{{ t('studio.updates.repositoryHint') }}</p>
-        <label><span class="st-flabel">{{ t('studio.updates.token') }}</span><span class="st-field"><input v-model="token" type="password" autocomplete="new-password" spellcheck="false" maxlength="4096" :aria-label="t('studio.updates.token')" :placeholder="t(status.tokenConfigured ? 'studio.updates.tokenKeep' : 'studio.updates.tokenEmpty')" :disabled="disabled || clearToken" /></span></label>
+        <label><span class="st-flabel">{{ t('studio.updates.token') }}</span><span class="st-field"><input v-model="token" class="token-input" type="text" name="github-update-token" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="4096" :aria-label="t('studio.updates.token')" :placeholder="t(status.tokenConfigured ? 'studio.updates.tokenKeep' : 'studio.updates.tokenEmpty')" :disabled="disabled || clearToken" /></span></label>
         <p class="description">{{ t('studio.updates.tokenHint') }}</p>
         <div class="token-state"><span class="description">{{ t(clearToken ? 'studio.updates.tokenClearing' : `studio.updates.tokenSources.${status.tokenSource || 'none'}`) }}</span><button v-if="status.tokenSource === 'settings'" type="button" class="st-btn" :disabled="disabled" @click="clearToken = !clearToken; token = ''">{{ t(clearToken ? 'studio.updates.tokenUndo' : 'studio.updates.tokenClear') }}</button></div>
-        <label><span class="st-flabel">{{ t('studio.updates.channel') }}</span><select v-model="preferences.channel" class="st-select" :disabled="disabled"><option value="stable">{{ t('studio.updates.channels.stable') }}</option><option value="preview">{{ t('studio.updates.channels.preview') }}</option></select></label>
+        <label><span class="st-flabel">{{ t('studio.updates.channel') }}</span><select v-model="preferences.channel" class="st-select" :disabled="disabled || channelBusy" @change="changeChannel"><option value="stable">{{ t('studio.updates.channels.stable') }}</option><option value="preview">{{ t('studio.updates.channels.preview') }}</option></select></label>
+        <p v-if="channelBusy" class="description" role="status">{{ t('studio.updates.changingChannel') }}</p>
         <p class="description">{{ t('studio.updates.channelHint') }}</p>
         <div class="option"><div><b>{{ t('studio.updates.automatic') }}</b><p>{{ t('studio.updates.automaticHint', { channel: t(`studio.updates.channels.${preferences.channel}`) }) }}</p></div><StSwitch v-model="preferences.autoUpdate" :label="t('studio.updates.automatic')" :disabled="disabled || (!!status.automaticReason && !preferences.autoUpdate)" /></div>
         <p v-if="status.automaticReason && !status.reason" class="note">{{ explain(status.automaticReason) }}</p>
@@ -140,10 +164,15 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
         <div class="option"><div><b>{{ t('studio.updates.subscribe') }}</b><p>{{ t('studio.updates.subscribeHint') }}</p></div><StSwitch v-model="preferences.subscribe" :label="t('studio.updates.subscribe')" :disabled="disabled || (!status.smtpReady && !preferences.subscribe)" /></div>
         <p v-if="!status.smtpReady" class="note">{{ t('studio.updates.smtpRequired') }} <a href="#set-mail">{{ t('studio.updates.configureSMTP') }}</a></p>
         <label v-if="status.smtpReady || preferences.subscribe"><span class="st-flabel">{{ t('studio.updates.recipient') }}</span><span class="st-field"><input v-model.trim="preferences.email" type="email" :required="preferences.subscribe" :disabled="disabled" autocomplete="email" /></span></label>
-        <p class="description">{{ t('studio.updates.schedule', { timezone: status.timezone || 'UTC' }) }}<template v-if="status.nextCheck && (preferences.autoUpdate || preferences.subscribe)"> {{ t('studio.updates.nextCheck') }} {{ new Date(status.nextCheck).toLocaleString() }}</template></p>
-        <button class="st-btn" :disabled="disabled || !changed">{{ t('studio.updates.savePreferences') }}</button>
+        <div class="preference-footer">
+          <p class="description">{{ t('studio.updates.schedule', { timezone: status.timezone || 'UTC' }) }}<template v-if="status.nextCheck && (preferences.autoUpdate || preferences.subscribe)"> {{ t('studio.updates.nextCheck') }} {{ new Date(status.nextCheck).toLocaleString() }}</template></p>
+          <button class="st-btn" :disabled="disabled || !changed">{{ t('studio.updates.savePreferences') }}</button>
+        </div>
       </form>
-      <div class="status" role="status" aria-live="polite"><strong>{{ reconnecting ? t('studio.updates.reconnecting') : t(`studio.updates.phase.${status.phase}`) }}</strong><span v-if="status.checkedAt">{{ t('studio.updates.checked') }} {{ new Date(status.checkedAt).toLocaleString() }}</span></div>
+      <div class="status-row">
+        <div class="status" role="status" aria-live="polite"><strong>{{ reconnecting ? t('studio.updates.reconnecting') : t(`studio.updates.phase.${status.phase}`) }}</strong><span v-if="status.checkedAt">{{ t('studio.updates.checked') }} {{ new Date(status.checkedAt).toLocaleString() }}</span></div>
+        <div class="actions"><button class="st-btn" :disabled="disabled || changed" @click="check"><SIcon name="refresh" :size="16" />{{ busy && !active ? t('studio.updates.checking') : t('studio.updates.check') }}</button><button v-if="status.phase === 'installed' || status.phase === 'rolled_back'" class="st-btn p" @click="refresh">{{ t('studio.updates.refresh') }}</button></div>
+      </div>
       <template v-if="active"><p v-if="status.target">{{ status.target.name }} · {{ status.target.version }}</p><progress :value="percent" max="100" :aria-label="t('studio.updates.progress')" /><p v-if="status.phase === 'downloading'">{{ percent }}% · {{ (status.downloaded / 1048576).toFixed(1) }} / {{ (status.total / 1048576).toFixed(1) }} MB</p></template>
       <p v-if="status.reason" class="note">{{ explain(status.reason) }}</p>
       <p v-if="dirty || changed" class="note">{{ t('studio.updates.saveFirst') }}</p>
@@ -154,7 +183,7 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
       <p v-if="status.historyError" class="error" role="alert">{{ explain(status.historyError) }}</p>
     </template>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <div class="actions"><button class="st-btn" :disabled="disabled || changed" @click="check"><SIcon name="refresh" :size="16" />{{ busy && !active ? t('studio.updates.checking') : t('studio.updates.check') }}</button><button v-if="status?.phase === 'installed' || status?.phase === 'rolled_back'" class="st-btn p" @click="refresh">{{ t('studio.updates.refresh') }}</button></div>
+    <div v-if="!status" class="actions"><button class="st-btn" :disabled="disabled || changed" @click="check"><SIcon name="refresh" :size="16" />{{ busy ? t('studio.updates.checking') : t('studio.updates.check') }}</button></div>
     <section v-if="status" class="history">
       <div class="history-heading"><h3>{{ t('studio.updates.history') }}</h3><a v-if="repoURL" :href="repoURL" target="_blank" rel="noopener noreferrer">{{ status.repository }}</a></div>
       <p v-if="status.preferences" class="description">{{ t('studio.updates.channelListing', { channel: t(`studio.updates.channels.${status.preferences.channel}`) }) }}</p>
@@ -196,19 +225,22 @@ onBeforeUnmount(() => { disposed = true; window.clearTimeout(timer); });
 .facts div { display: grid; gap: 5px; min-width: 0; }
 dt { font-size: 12px; color: var(--st-ink-3); } dd { margin: 0; font-family: var(--font-mono); font-size: 17px; overflow-wrap: anywhere; }
 .preferences { display: grid; gap: 12px; border-block: 1px solid var(--line); padding: 18px 0; }
-.preferences label { display: grid; gap: 6px; min-width: 0; }.preferences input { min-width: 0; width: 100%; }.preferences > button { justify-self: start; }
+.preferences label { display: grid; gap: 6px; min-width: 0; }.preferences input { min-width: 0; width: 100%; }
+.preference-footer,.status-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }.preference-footer > p { flex: 1 1 260px; }.status-row > .status { flex: 1 1 320px; min-width: 0; }.preference-footer > button,.status-row > .actions { margin-inline-start: auto; flex-shrink: 0; }
+.preferences .token-input { -webkit-text-security: disc; }.preferences .token-input::placeholder { -webkit-text-security: none; }
 .preferences select { max-width: 180px; padding: 8px 12px; color: var(--st-ink); background: var(--surface-2); border: 1px solid var(--line-2); border-radius: var(--r-md); }
 .release-notes { max-height: 480px; overflow: auto; padding-top: 12px; font-size: 14px; overflow-wrap: anywhere; }.release-notes :deep(pre) { max-width: 100%; overflow: auto; }.release-notes :deep(table) { display: block; max-width: 100%; overflow: auto; }.release-notes :deep(img) { max-width: 100%; }
 .token-state { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.token-state > button,.history-heading > button { margin-inline-start: auto; }.actions { justify-content: flex-end; }
 .option { display: flex; justify-content: space-between; align-items: center; gap: 18px; }.option b { font-size: 14px; }
 .status,.actions,.pagination,.history-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }.status span { color: var(--st-ink-3); font-size: 12px; }
 .history,.version-list { display: grid; gap: 12px; min-width: 0; }.history-heading { justify-content: space-between; }.history-heading h3 { font-size: 16px; margin: 0; }
 .release { border: 1px solid var(--line-2); border-radius: var(--r-md); padding: 16px; display: grid; gap: 10px; min-width: 0; }.release b { overflow-wrap: anywhere; }.release span { color: var(--st-ink-3); font-size: 12px; }.release.highlight > div { display: grid; gap: 5px; }.release > button { justify-self: start; }
 .release.highlight { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 16px; }.release.highlight > button { justify-self: end; }.release.highlight > .note { grid-column: 1 / -1; }
 .channel-badge { display: inline-block; vertical-align: middle; padding: 1px 6px; border: 1px solid var(--line-2); border-radius: 4px; font-size: 11px; font-weight: 400; line-height: 1.6; color: var(--st-ink-3); white-space: nowrap; }
-.release-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.release-top > div { min-width: 0; }.release-top > button { flex-shrink: 0; }
+.release-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }.release-top > div { min-width: 0; flex: 1 1 140px; }.release-top > button { flex-shrink: 0; margin-inline-start: auto; }
 a { color: var(--primary); font-size: 13px; overflow-wrap: anywhere; } pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 12px; max-height: 260px; overflow: auto; } summary { cursor: pointer; font-size: 13px; }
 progress { width: 100%; height: 8px; accent-color: var(--primary); }.error { color: var(--danger,#c63b46); overflow-wrap: anywhere; font-size: 13px; margin: 0; }.backup code { overflow-wrap: anywhere; }
 .empty { display: grid; justify-items: center; gap: 12px; text-align: center; padding: 28px 18px; background: var(--surface-2); border-radius: var(--r-md); }.empty p { max-width: 460px; margin: 0; color: var(--st-ink-3); font-size: 13px; }.pagination { justify-content: flex-end; font-size: 13px; }
-@media(max-width:600px) { .release-top { align-items: flex-start; flex-direction: column; }.facts { gap: 14px; } }
+@media(max-width:600px) { .facts { gap: 14px; } }
 </style>

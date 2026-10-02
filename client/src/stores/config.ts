@@ -78,6 +78,8 @@ export interface SiteConfig {
     username: string;
     mode: 'manual' | 'api';
     token?: string;
+    tokenConfigured?: boolean;
+    clearToken?: boolean;
     refreshMinutes: number;
     proxy: string;
     insecureTls: boolean;

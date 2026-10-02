@@ -8,6 +8,15 @@
    - 安全区：--safe-t / --safe-b 取 env()，演示环境下给最小值
    ===================================================================== */
 
+/* Keep resets below component classes, including desktop settings in mobile frames. */
+:where(.ma-root) :where(button, input, textarea) {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  outline: none;
+}
+
 .ma-root {
   --ease-sheet: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-bounce: cubic-bezier(0.2, 0.9, 0.3, 1.12);
@@ -71,16 +80,6 @@
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
-
-  button,
-  input,
-  textarea {
-    font: inherit;
-    color: inherit;
-    background: none;
-    border: 0;
-    outline: none;
-  }
 
   button {
     cursor: pointer;
